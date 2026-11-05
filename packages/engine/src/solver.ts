@@ -225,19 +225,14 @@ export async function runSolver(
       .flatMap((x) => x.map((a) => a.set))
       .filter(notEmpty)
   )
-  const perms = Array.from(
-    filterFeasiblePerm(artSetPerm(exclusion, allSets), arts)
-  )
-  for (const perm of perms) {
-    total += countBuilds(filterArts(arts, perm))
-  }
 
   opts?.onProgress?.({ tested, skipped, total })
 
   const maxIterateSize = 16_000
   let stepCounter = 0
 
-  for (const perm of perms) {
+  for (const perm of filterFeasiblePerm(artSetPerm(exclusion, allSets), arts)) {
+    total += countBuilds(filterArts(arts, perm))
     for (const filter of splitWorker.split(perm, maxIterateSize)) {
       if (opts?.signal?.aborted) {
         throw new DOMException('Optimization aborted', 'AbortError')

@@ -86,35 +86,61 @@ export function buildCustomMultiTargetsForPreset(
   return [combined, ...perInstance]
 }
 
-export interface HydratedTeam {
-  db: ArtCharDatabase
+export interface HydratedPresetTeam {
   teamId: string
   targetTeamCharId: string
 }
 
-export function hydrateTeamIntoDb(
-  goodData: object,
-  preset: Preset,
-  selection?: BuildSelection
-): HydratedTeam {
-  const db = new ArtCharDatabase(1, new SandboxStorage())
-  db.importGOOD(goodData as never, false, false, false)
+export interface HydratedTeam extends HydratedPresetTeam {
+  db: ArtCharDatabase
+}
 
-  // Clear any pre-existing teams, teamChars, or buildTcs imported from the raw GOOD file
-  // so the hydrated preset team is the sole team at index 0 for clean GO export/verification.
+const dbPresetCache = new WeakMap<
+  object,
+  { fingerprint: string; hydrated: HydratedPresetTeam }
+>()
+
+function presetTeamFingerprint(preset: Preset): string {
+  return JSON.stringify({
+    id: preset.id,
+    target: preset.target,
+    team: preset.team,
+    enemy: preset.enemy,
+    teamConditional: preset.teamConditional,
+    rotation: preset.rotation,
+  })
+}
+
+/**
+ * Hydrates a preset's team, teamChars, and buildTcs into an already-imported
+ * `ArtCharDatabase` WITHOUT calling `db.importGOOD` or mutating equipped locations.
+ * Caches `{ teamId, targetTeamCharId }` on `db` when the preset fingerprint is unchanged.
+ */
+export function hydratePresetTeam(
+  db: ArtCharDatabase,
+  preset: Preset
+): HydratedPresetTeam {
+  const fingerprint = presetTeamFingerprint(preset)
+  const cached = dbPresetCache.get(db as object)
+  if (
+    cached &&
+    cached.fingerprint === fingerprint &&
+    db.teams.get(cached.hydrated.teamId) &&
+    db.teamChars.get(cached.hydrated.targetTeamCharId)
+  ) {
+    return cached.hydrated
+  }
+
   db.teams.clear()
   db.teamChars.clear()
   db.buildTcs.clear()
 
   const targetCharKey = preset.target as CharacterKey
 
-  // Ensure target character exists in db
   if (!db.chars.get(targetCharKey)) {
     db.chars.getWithInitWeapon(targetCharKey)
   }
 
-  // If selection is provided and we are exporting or evaluating, we can also
-  // apply selection directly or pass via overrideArt/overrideWeapon
   const loadoutData: Array<LoadoutDatum | undefined> = [
     undefined,
     undefined,
@@ -128,6 +154,8 @@ export function hydrateTeamIntoDb(
     const mKey = member.key as CharacterKey
     const isTarget = i === 0
 
+    // Supporting teammates with `build.type === 'tc'` use their BuildTc stats exclusively,
+    // but GO's TeamData requires the character key to exist in `db.chars`.
     if (!db.chars.get(mKey)) {
       db.chars.getWithInitWeapon(mKey)
     }
@@ -207,7 +235,26 @@ export function hydrateTeamIntoDb(
     loadoutData,
   })
 
-  // If selection is supplied and we want the exported DB to have it equipped on the target
+  const hydrated: HydratedPresetTeam = { teamId, targetTeamCharId }
+  dbPresetCache.set(db as object, { fingerprint, hydrated })
+  return hydrated
+}
+
+/**
+ * Creates a standalone `ArtCharDatabase` from `goodData`, hydrates `preset` into it,
+ * and optionally mutates equipped weapon/artifact locations for GO `.json` export.
+ */
+export function hydrateTeamIntoDb(
+  goodData: object,
+  preset: Preset,
+  selection?: BuildSelection
+): HydratedTeam {
+  const db = new ArtCharDatabase(1, new SandboxStorage())
+  db.importGOOD(goodData as never, false, false, false)
+
+  const { teamId, targetTeamCharId } = hydratePresetTeam(db, preset)
+  const targetCharKey = preset.target as CharacterKey
+
   if (selection) {
     const locKey = charKeyToLocCharKey(targetCharKey)
     if (selection.weaponId) {
@@ -256,10 +303,7 @@ export function createSession(good: unknown): EngineSession {
     },
 
     evaluate(preset: Preset, selection?: BuildSelection): RotationResult {
-      const { db, teamId, targetTeamCharId } = hydrateTeamIntoDb(
-        goodObj,
-        preset
-      )
+      const { teamId, targetTeamCharId } = hydratePresetTeam(baseDb, preset)
       const targetKey = preset.target as CharacterKey
 
       let overrideArts: ICachedArtifact[] | undefined
@@ -267,18 +311,18 @@ export function createSession(good: unknown): EngineSession {
         overrideArts = allArtifactSlotKeys
           .map((slot) => {
             const id = selection.artifactIds[slot as ArtifactSlot]
-            return id ? db.arts.get(id) : undefined
+            return id ? baseDb.arts.get(id) : undefined
           })
           .filter(notEmpty)
       }
 
       let overrideWeapon: ICachedWeapon | undefined
       if (selection?.weaponId) {
-        overrideWeapon = db.weapons.get(selection.weaponId)
+        overrideWeapon = baseDb.weapons.get(selection.weaponId)
       }
 
       const bundle = getTeamData(
-        db,
+        baseDb,
         teamId,
         targetTeamCharId,
         0,
@@ -291,7 +335,7 @@ export function createSession(good: unknown): EngineSession {
         )
       }
 
-      const calc = uiDataForTeam(bundle.teamData, db.gender, targetKey)
+      const calc = uiDataForTeam(bundle.teamData, baseDb.gender, targetKey)
       const targetUiData = calc[targetKey]?.target
       if (!targetUiData) {
         throw new Error(
@@ -364,14 +408,11 @@ export function createSession(good: unknown): EngineSession {
         maxWorkers?: number
       }
     ): Promise<OptimizeResult> {
-      const { db, teamId, targetTeamCharId } = hydrateTeamIntoDb(
-        goodObj,
-        preset
-      )
+      const { teamId, targetTeamCharId } = hydratePresetTeam(baseDb, preset)
       const overrideWeapon = opts?.weaponId
-        ? db.weapons.get(opts.weaponId)
+        ? baseDb.weapons.get(opts.weaponId)
         : undefined
-      return runSolver(db, teamId, targetTeamCharId, preset, settings, {
+      return runSolver(baseDb, teamId, targetTeamCharId, preset, settings, {
         overrideWeapon,
         onProgress: opts?.onProgress,
         signal: opts?.signal,
@@ -379,11 +420,11 @@ export function createSession(good: unknown): EngineSession {
     },
 
     listTargets(characterKey: string) {
-      return listTargetsForCharacter(characterKey, baseDb)
+      return listTargetsForCharacter(characterKey)
     },
 
     listConditionals(characterKey: string) {
-      return listConditionalsForCharacter(characterKey, baseDb)
+      return listConditionalsForCharacter(characterKey)
     },
 
     exportGODatabase(preset: Preset, selection?: BuildSelection): object {

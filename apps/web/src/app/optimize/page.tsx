@@ -1,18 +1,27 @@
 'use client'
 
 import {
+  ArtifactBadge,
+  CharacterBadge,
+  WeaponBadge,
+} from '@/components/Identifier'
+import {
+  cancelOptimizationInWorker,
+  evaluatePresetInWorker,
+  exportGODatabaseInWorker,
+  optimizePresetInWorker,
+} from '@/lib/engine/workerClient'
+import {
   useGoodStorage,
   useOptimizerSettings,
   useUserPresets,
 } from '@/lib/storage/useGood'
-import type { WorkerRequest, WorkerResponse } from '@/workers/optimizer.worker'
-import {
-  createSession,
-  type ArtifactSlot,
-  type BuildSelection,
-  type OptimizeProgress,
-  type OptimizeResult,
-  type RotationResult,
+import type {
+  ArtifactSlot,
+  BuildSelection,
+  OptimizeProgress,
+  OptimizeResult,
+  RotationResult,
 } from '@gi/engine'
 import { humanizeKey, type IArtifact } from '@gi/good'
 import {
@@ -21,11 +30,12 @@ import {
   getPresetBadge,
   listBundledPresets,
   matchAccount,
+  type IdentifierSlotKey,
   type Preset,
 } from '@gi/presets'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 
 const SLOTS: ArtifactSlot[] = ['flower', 'plume', 'sands', 'goblet', 'circlet']
 
@@ -108,18 +118,18 @@ function OptimizeInner() {
   const [selectedBuildIdx, setSelectedBuildIdx] = useState(0)
   const [optError, setOptError] = useState<string | null>(null)
 
-  const workerRef = useRef<Worker | null>(null)
+  const [currentSelection, setCurrentSelection] =
+    useState<BuildSelection | null>(null)
+  const [currentEval, setCurrentEval] = useState<RotationResult | null>(null)
+  const [optimisedEval, setOptimisedEval] = useState<RotationResult | null>(
+    null
+  )
+  const [evaluating, setEvaluating] = useState(false)
 
   useEffect(() => {
     if (presetParam) setSelectedPresetId(presetParam)
     if (weaponParam) setSelectedWeaponId(weaponParam)
   }, [presetParam, weaponParam])
-
-  useEffect(() => {
-    return () => {
-      workerRef.current?.terminate()
-    }
-  }, [])
 
   const activePreset: Preset | undefined = useMemo(
     () =>
@@ -137,11 +147,6 @@ function OptimizeInner() {
   const effectiveWeaponId =
     selectedWeaponId || matchReport?.selectedWeaponId || undefined
 
-  const session = useMemo(() => {
-    if (!record?.good) return null
-    return createSession(record.good)
-  }, [record])
-
   const artifactById = useMemo(() => {
     const map = new Map<string, IArtifact>()
     if (!record?.good) return map
@@ -151,91 +156,127 @@ function OptimizeInner() {
     return map
   }, [record])
 
-  const currentSelection: BuildSelection | null = useMemo(() => {
-    if (!session || !activePreset) return null
-    const base = session.currentBuild(activePreset)
-    return {
-      weaponId: effectiveWeaponId ?? base.weaponId,
-      artifactIds: base.artifactIds,
+  // Off-main-thread evaluation of Current Build via the shared worker session
+  useEffect(() => {
+    let cancelled = false
+    if (!record?.good || !activePreset) {
+      setCurrentSelection(null)
+      setCurrentEval(null)
+      return
     }
-  }, [session, activePreset, effectiveWeaponId])
+    if (matchReport && !matchReport.canRun) {
+      setCurrentSelection(null)
+      setCurrentEval(null)
+      return
+    }
 
-  const currentEval: RotationResult | null = useMemo(() => {
-    if (!session || !activePreset || !currentSelection) return null
-    if (matchReport && !matchReport.canRun) return null
-    try {
-      return session.evaluate(activePreset, currentSelection)
-    } catch {
-      return null
+    setEvaluating(true)
+    const selectionOverride: BuildSelection | undefined = effectiveWeaponId
+      ? { weaponId: effectiveWeaponId, artifactIds: {} }
+      : undefined
+
+    void (async () => {
+      try {
+        // First get currentBuild and evaluate with equipped artifacts (and effectiveWeaponId if overridden)
+        const baseRes = await evaluatePresetInWorker({
+          datasetKey: record.importedAt,
+          good: record.good,
+          preset: activePreset,
+        })
+        if (cancelled) return
+
+        const effectiveCurrent: BuildSelection = {
+          weaponId: effectiveWeaponId ?? baseRes.currentBuild.weaponId,
+          artifactIds: baseRes.currentBuild.artifactIds,
+        }
+        setCurrentSelection(effectiveCurrent)
+
+        if (
+          selectionOverride &&
+          effectiveWeaponId !== baseRes.currentBuild.weaponId
+        ) {
+          const overrideRes = await evaluatePresetInWorker({
+            datasetKey: record.importedAt,
+            good: record.good,
+            preset: activePreset,
+            selection: effectiveCurrent,
+          })
+          if (cancelled) return
+          setCurrentEval(overrideRes.result)
+        } else {
+          setCurrentEval(baseRes.result)
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentEval(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setEvaluating(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
     }
-  }, [session, activePreset, currentSelection, matchReport])
+  }, [record, activePreset, effectiveWeaponId, matchReport])
 
   const activeOptBuild = optResult?.builds[selectedBuildIdx] ?? null
 
-  const optimisedEval: RotationResult | null = useMemo(() => {
-    if (!session || !activePreset || !activeOptBuild) return null
-    try {
-      return session.evaluate(activePreset, activeOptBuild)
-    } catch {
-      return null
+  // Off-main-thread evaluation of selected Optimised Build via the shared worker session
+  useEffect(() => {
+    let cancelled = false
+    if (!record?.good || !activePreset || !activeOptBuild) {
+      setOptimisedEval(null)
+      return
     }
-  }, [session, activePreset, activeOptBuild])
+
+    void (async () => {
+      try {
+        const res = await evaluatePresetInWorker({
+          datasetKey: record.importedAt,
+          good: record.good,
+          preset: activePreset,
+          selection: activeOptBuild,
+        })
+        if (!cancelled) {
+          setOptimisedEval(res.result)
+        }
+      } catch {
+        if (!cancelled) {
+          setOptimisedEval(null)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [record, activePreset, activeOptBuild])
 
   async function startOptimization() {
-    if (!record?.good || !activePreset || !session) return
+    if (!record?.good || !activePreset) return
     setRunning(true)
     setOptError(null)
     setOptResult(null)
     setSelectedBuildIdx(0)
     setProgress({ tested: 0, skipped: 0, total: 0 })
 
-    // Run in a Web Worker when available in browser
-    if (typeof Worker !== 'undefined') {
-      try {
-        workerRef.current?.terminate()
-        const worker = new Worker(
-          new URL('../../workers/optimizer.worker.ts', import.meta.url)
-        )
-        workerRef.current = worker
-
-        worker.onmessage = (ev: MessageEvent<WorkerResponse>) => {
-          const data = ev.data
-          if (data.type === 'progress') {
-            setProgress(data.progress)
-          } else if (data.type === 'result') {
-            setOptResult(data.result)
-            setRunning(false)
-          } else if (data.type === 'error') {
-            setOptError(data.message)
-            setRunning(false)
-          }
-        }
-        worker.onerror = (err) => {
-          setOptError(err.message || 'Worker error')
-          setRunning(false)
-        }
-
-        const req: WorkerRequest = {
-          type: 'optimize',
-          good: record.good,
-          preset: activePreset,
-          settings,
-          weaponId: effectiveWeaponId,
-        }
-        worker.postMessage(req)
-        return
-      } catch {
-        // Fallback to in-process async solver if Worker construction fails
-      }
-    }
-
     try {
-      const res = await session.optimize(activePreset, settings, {
+      const res = await optimizePresetInWorker({
+        datasetKey: record.importedAt,
+        good: record.good,
+        preset: activePreset,
+        settings,
         weaponId: effectiveWeaponId,
         onProgress: (p) => setProgress({ ...p }),
       })
       setOptResult(res)
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return
+      }
       setOptError(err instanceof Error ? err.message : String(err))
     } finally {
       setRunning(false)
@@ -243,21 +284,21 @@ function OptimizeInner() {
   }
 
   function cancelOptimization() {
-    if (workerRef.current) {
-      const req: WorkerRequest = { type: 'cancel' }
-      workerRef.current.postMessage(req)
-      workerRef.current.terminate()
-      workerRef.current = null
-    }
+    cancelOptimizationInWorker()
     setRunning(false)
   }
 
-  function handleExportGO(selection: BuildSelection | null, label: string) {
-    if (!session || !activePreset) return
-    const exported = session.exportGODatabase(
-      activePreset,
-      selection ?? undefined
-    )
+  async function handleExportGO(
+    selection: BuildSelection | null,
+    label: string
+  ) {
+    if (!record?.good || !activePreset) return
+    const exported = await exportGODatabaseInWorker({
+      datasetKey: record.importedAt,
+      good: record.good,
+      preset: activePreset,
+      selection: selection ?? undefined,
+    })
     const blob = new Blob([JSON.stringify(exported, null, 2)], {
       type: 'application/json',
     })
@@ -269,20 +310,43 @@ function OptimizeInner() {
     URL.revokeObjectURL(url)
   }
 
-  function describeArt(id: string | undefined): string {
-    if (!id) return 'None'
+  function renderArtifactCell(id: string | undefined) {
+    if (!id) return <span className="muted">None</span>
     const a = artifactById.get(id)
-    if (!a) return id
+    if (!a) return <code>{id}</code>
     const subs = a.substats
       .filter((s) => s.key)
       .map(
-        (s) => `${humanizeKey(s.key)} ${s.value}${s.key.endsWith('_') ? '%' : ''}`
+        (s) =>
+          `${humanizeKey(s.key)} ${s.value}${s.key.endsWith('_') ? '%' : ''}`
       )
       .join(', ')
-    const loc = a.location ? ` [${displayName(a.location)}]` : ''
-    return `${displayName(a.setKey)} +${a.level} (${humanizeKey(
-      a.mainStatKey
-    )}) — ${subs}${loc}`
+
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '0.45rem',
+        }}
+      >
+        <ArtifactBadge
+          setKey={a.setKey}
+          slotKey={a.slotKey as IdentifierSlotKey}
+          rarity={a.rarity}
+          compact
+          subtitle={`+${a.level} (${humanizeKey(a.mainStatKey)}) — ${subs}`}
+        />
+        {a.location && (
+          <CharacterBadge
+            characterKey={a.location}
+            compact
+            subtitle="(equipped)"
+          />
+        )}
+      </div>
+    )
   }
 
   return (
@@ -309,7 +373,9 @@ function OptimizeInner() {
           }}
         >
           <span className="warn">
-            Please import a GOOD JSON file first to optimize your builds.
+            Import your GOOD JSON on the Import page to check whether your
+            target character and weapon satisfy this preset and run the
+            optimizer.
           </span>
           <Link href="/import">
             <button type="button">Import GOOD File →</button>
@@ -318,7 +384,10 @@ function OptimizeInner() {
       )}
 
       {/* Preset Selection & Compatibility Gate */}
-      <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+      <div
+        className="panel"
+        style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}
+      >
         <div
           style={{
             display: 'flex',
@@ -328,7 +397,14 @@ function OptimizeInner() {
             justifyContent: 'space-between',
           }}
         >
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              flex: 1,
+            }}
+          >
             <strong>Preset:</strong>
             <select
               value={activePreset?.id ?? ''}
@@ -359,8 +435,10 @@ function OptimizeInner() {
               </Link>
               <button
                 type="button"
-                disabled={!session || Boolean(matchReport && !matchReport.canRun)}
-                onClick={() => handleExportGO(currentSelection, 'current')}
+                disabled={
+                  !record || Boolean(matchReport && !matchReport.canRun)
+                }
+                onClick={() => void handleExportGO(currentSelection, 'current')}
                 title="Export a Genshin Optimizer database with this preset team & Custom Multi-Target pre-loaded"
               >
                 Verify Current in GO (.json)
@@ -368,6 +446,35 @@ function OptimizeInner() {
             </div>
           )}
         </div>
+
+        {/* Team Roster Visual Summary (Target vs Simulated Teammates) */}
+        {activePreset && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '0.6rem',
+              alignItems: 'center',
+              padding: '0.5rem 0.75rem',
+              background: '#151821',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <span className="muted" style={{ fontSize: '0.85rem' }}>
+              Preset Team:
+            </span>
+            {activePreset.team.map((m, idx) => (
+              <CharacterBadge
+                key={m.key}
+                characterKey={m.key}
+                simulated={m.build.type === 'tc'}
+                role={idx === 0 ? 'target' : 'owned'}
+                compact
+              />
+            ))}
+          </div>
+        )}
 
         {activePreset && matchReport && (
           <div
@@ -383,18 +490,21 @@ function OptimizeInner() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
               }}
             >
               <strong>
-                Account Match:{' '}
+                Target Character &amp; Weapon Check:{' '}
                 <span className={matchReport.canRun ? 'ok' : 'error'}>
                   {matchReport.canRun
                     ? `Ready (${displayName(activePreset.target)})`
-                    : 'Preset Requirements Not Met'}
+                    : 'Target Character / Weapon Requirements Not Met'}
                 </span>
               </strong>
-              <span className="muted" style={{ fontSize: '0.85rem' }}>
-                Team: {activePreset.team.map((m) => displayName(m.key)).join(' · ')}
+              <span className="muted" style={{ fontSize: '0.82rem' }}>
+                Simulated (<code>SIM</code>) preset teammates are fixed and
+                never checked against your account.
               </span>
             </div>
             <ul
@@ -410,7 +520,18 @@ function OptimizeInner() {
                   {pt.part === 'weapon' &&
                     pt.candidates &&
                     pt.candidates.length > 0 && (
-                      <span style={{ marginLeft: '0.6rem' }}>
+                      <span
+                        style={{
+                          marginLeft: '0.6rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                        }}
+                      >
+                        <WeaponBadge
+                          weaponKey={pt.candidates[0]!.key}
+                          compact
+                        />
                         <select
                           value={selectedWeaponId}
                           onChange={(e) => setSelectedWeaponId(e.target.value)}
@@ -438,8 +559,13 @@ function OptimizeInner() {
       </div>
 
       {/* GO-Style Optimizer Settings Panel */}
-      <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-        <strong>Optimizer Constraints &amp; Pool Settings (GO-Style User Settings)</strong>
+      <div
+        className="panel"
+        style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}
+      >
+        <strong>
+          Optimizer Constraints &amp; Pool Settings (GO-Style User Settings)
+        </strong>
         <div
           style={{
             display: 'grid',
@@ -447,7 +573,9 @@ function OptimizeInner() {
             gap: '0.85rem',
           }}
         >
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
+          >
             <span className="muted" style={{ fontSize: '0.85rem' }}>
               Minimum Energy Recharge Floor (%)
             </span>
@@ -477,7 +605,9 @@ function OptimizeInner() {
             />
           </label>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
+          >
             <span className="muted" style={{ fontSize: '0.85rem' }}>
               Main-Stat Assumption Level
             </span>
@@ -505,7 +635,9 @@ function OptimizeInner() {
             </select>
           </label>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
+          >
             <span className="muted" style={{ fontSize: '0.85rem' }}>
               Artifact Level Range (Min / Max)
             </span>
@@ -518,7 +650,10 @@ function OptimizeInner() {
                 onChange={(e) =>
                   void updateSettings({
                     ...settings,
-                    levelLow: Math.max(0, Math.min(20, Number(e.target.value))),
+                    levelLow: Math.max(
+                      0,
+                      Math.min(20, Number(e.target.value))
+                    ),
                   })
                 }
                 style={{ width: '70px' }}
@@ -532,7 +667,10 @@ function OptimizeInner() {
                 onChange={(e) =>
                   void updateSettings({
                     ...settings,
-                    levelHigh: Math.max(0, Math.min(20, Number(e.target.value))),
+                    levelHigh: Math.max(
+                      0,
+                      Math.min(20, Number(e.target.value))
+                    ),
                   })
                 }
                 style={{ width: '70px' }}
@@ -540,7 +678,9 @@ function OptimizeInner() {
             </div>
           </label>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
+          >
             <span className="muted" style={{ fontSize: '0.85rem' }}>
               Top N Builds to Return
             </span>
@@ -607,7 +747,10 @@ function OptimizeInner() {
           }}
         >
           <div>
-            <div className="muted" style={{ fontSize: '0.85rem', marginBottom: '0.3rem' }}>
+            <div
+              className="muted"
+              style={{ fontSize: '0.85rem', marginBottom: '0.3rem' }}
+            >
               Protected Characters (do not take their equipped artifacts):
             </div>
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -658,12 +801,15 @@ function OptimizeInner() {
                     key={ck}
                     style={{
                       background: '#252a3a',
-                      padding: '0.15rem 0.5rem',
+                      padding: '0.2rem 0.5rem',
                       borderRadius: '4px',
                       fontSize: '0.85rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
                     }}
                   >
-                    {displayName(ck)}{' '}
+                    <CharacterBadge characterKey={ck} compact />
                     <button
                       type="button"
                       onClick={() =>
@@ -688,7 +834,10 @@ function OptimizeInner() {
           </div>
 
           <div>
-            <div className="muted" style={{ fontSize: '0.85rem', marginBottom: '0.3rem' }}>
+            <div
+              className="muted"
+              style={{ fontSize: '0.85rem', marginBottom: '0.3rem' }}
+            >
               Excluded Artifact Sets (2p &amp; 4p):
             </div>
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -733,12 +882,15 @@ function OptimizeInner() {
                     key={sk}
                     style={{
                       background: '#252a3a',
-                      padding: '0.15rem 0.5rem',
+                      padding: '0.2rem 0.5rem',
                       borderRadius: '4px',
                       fontSize: '0.85rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
                     }}
                   >
-                    {displayName(sk)}{' '}
+                    <ArtifactBadge setKey={sk} compact />
                     <button
                       type="button"
                       onClick={() => {
@@ -801,6 +953,12 @@ function OptimizeInner() {
             </button>
           )}
 
+          {evaluating && !running && (
+            <span className="muted" style={{ fontSize: '0.88rem' }}>
+              Evaluating rotation in background worker…
+            </span>
+          )}
+
           {progress && (
             <div style={{ fontSize: '0.9rem' }}>
               <span className="muted">Progress:</span>{' '}
@@ -837,8 +995,11 @@ function OptimizeInner() {
         </div>
       )}
 
-      {currentEval && (
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+      {currentEval && activePreset && (
+        <div
+          className="panel"
+          style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}
+        >
           <div
             style={{
               display: 'flex',
@@ -848,15 +1009,18 @@ function OptimizeInner() {
               gap: '0.75rem',
             }}
           >
-            <div>
-              <h2 style={{ margin: 0 }}>
-                {optimisedEval
-                  ? 'Current Build vs. Optimised Build Comparison'
-                  : 'Current Equipped Build Rotation Breakdown'}
-              </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <CharacterBadge characterKey={activePreset.target} role="target" />
+                <h2 style={{ margin: 0 }}>
+                  {optimisedEval
+                    ? 'Current Build vs. Optimised Build Comparison'
+                    : 'Current Equipped Build Rotation Breakdown'}
+                </h2>
+              </div>
               <div className="muted" style={{ fontSize: '0.9rem' }}>
-                Preset: <strong>{activePreset?.name}</strong> · Rotation Repeat
-                ×{activePreset?.rotation.repeat ?? 1}
+                Preset: <strong>{activePreset.name}</strong> · Rotation Repeat ×
+                {activePreset.rotation.repeat ?? 1}
               </div>
             </div>
 
@@ -876,7 +1040,10 @@ function OptimizeInner() {
                 <button
                   type="button"
                   onClick={() =>
-                    handleExportGO(activeOptBuild, `opt-rank-${selectedBuildIdx + 1}`)
+                    void handleExportGO(
+                      activeOptBuild,
+                      `opt-rank-${selectedBuildIdx + 1}`
+                    )
                   }
                 >
                   Verify Optimised in GO (.json)
@@ -1031,18 +1198,28 @@ function OptimizeInner() {
                   const currId = currentSelection?.artifactIds[slot]
                   const optId = activeOptBuild?.artifactIds[slot]
                   const changed = activeOptBuild && currId !== optId
+                  const currArt = currId ? artifactById.get(currId) : undefined
+                  const optArt = optId ? artifactById.get(optId) : undefined
+                  const refSetKey =
+                    optArt?.setKey ?? currArt?.setKey ?? 'GoldenTroupe'
+
                   return (
                     <tr key={slot}>
-                      <td style={{ textTransform: 'capitalize', fontWeight: 600 }}>
-                        {slot}
+                      <td>
+                        <ArtifactBadge
+                          setKey={refSetKey}
+                          slotKey={slot}
+                          slotOnly
+                          compact
+                        />
                       </td>
                       <td style={{ fontSize: '0.88rem' }}>
-                        {describeArt(currId)}
+                        {renderArtifactCell(currId)}
                       </td>
                       {activeOptBuild && (
                         <>
                           <td style={{ fontSize: '0.88rem' }}>
-                            <strong>{describeArt(optId)}</strong>
+                            {renderArtifactCell(optId)}
                           </td>
                           <td className={changed ? 'warn' : 'muted'}>
                             {changed ? 'Swapped' : 'Kept'}
@@ -1076,7 +1253,6 @@ function OptimizeInner() {
                 {DISPLAY_STATS.filter((st) => {
                   const cVal = currentEval.stats[st.key] ?? 0
                   const oVal = optimisedEval?.stats[st.key] ?? 0
-                  // Hide elemental DMG rows that are 0 on both builds
                   if (st.key.endsWith('_dmg_') && cVal === 0 && oVal === 0)
                     return false
                   return true

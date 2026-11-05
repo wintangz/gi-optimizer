@@ -1,11 +1,15 @@
-import { getBundledPreset } from '@gi/presets'
+import { ArtCharDatabase } from '@genshin-optimizer/gi/db'
+import { getCharStat, getWeaponStat } from '@genshin-optimizer/gi/stats'
+import { ALL_WEAPON_KEYS, getBundledPreset } from '@gi/presets'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { GO_ROOT } from '../../../tooling/go-paths.mjs'
 import {
   createSession,
   DEFAULT_OPTIMIZER_SETTINGS,
+  listConditionalsForCharacter,
+  listTargetsForCharacter,
   type ArtifactSlot,
 } from '../src'
 
@@ -199,5 +203,57 @@ describe('Single-Character Optimizer Solver (single-character-optimizer)', () =>
         signal: controller.signal,
       })
     ).rejects.toThrow()
+  })
+
+  it('calls ArtCharDatabase.prototype.importGOOD exactly once per createSession across multiple evaluate, currentBuild, and optimize calls', async () => {
+    const importSpy = vi.spyOn(ArtCharDatabase.prototype, 'importGOOD')
+    importSpy.mockClear()
+
+    const s = createSession(smallGood)
+    expect(importSpy).toHaveBeenCalledTimes(1)
+
+    const p1 = getBundledPreset('akasha/furina-salon-pjc-c0')!
+    const p2 = getBundledPreset('official/furina-salon-subdps')!
+
+    const curr1 = s.currentBuild(p1)
+    const ev1 = s.evaluate(p1, curr1)
+    const ev2 = s.evaluate(p2, curr1)
+    const opt = await s.optimize(p1, {
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      includeEquippedOnOthers: false,
+      topN: 2,
+    })
+
+    expect(ev1.total).toBeGreaterThan(0)
+    expect(ev2.total).toBeGreaterThan(0)
+    expect(opt.builds.length).toBeGreaterThan(0)
+    // Still only 1 importGOOD call across all operations!
+    expect(importSpy).toHaveBeenCalledTimes(1)
+    importSpy.mockRestore()
+  })
+
+  it('caches listTargetsForCharacter and listConditionalsForCharacter and filters weapon conditionals by weaponType', () => {
+    const t1 = listTargetsForCharacter('Furina')
+    const t2 = listTargetsForCharacter('Furina')
+    expect(t1).toBe(t2)
+
+    const c1 = listConditionalsForCharacter('Furina')
+    const c2 = listConditionalsForCharacter('Furina')
+    expect(c1).toBe(c2)
+
+    const weaponKeySet = new Set(ALL_WEAPON_KEYS)
+    const furinaWeaponType = (
+      getCharStat('Furina') as { weaponType?: string }
+    ).weaponType
+    expect(furinaWeaponType).toBe('sword')
+
+    for (const cond of c1) {
+      if (weaponKeySet.has(cond.sheet)) {
+        const wType = (
+          getWeaponStat(cond.sheet) as { weaponType?: string }
+        ).weaponType
+        expect(wType).toBe(furinaWeaponType)
+      }
+    }
   })
 })

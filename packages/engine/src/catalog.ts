@@ -14,6 +14,7 @@ import {
   resonanceSheets,
   type DocumentSection,
 } from '@genshin-optimizer/gi/sheets'
+import { getCharStat, getWeaponStat } from '@genshin-optimizer/gi/stats'
 import { getTeamData } from '@genshin-optimizer/gi/ui/useTeamData'
 import { uiDataForTeam, type UIData } from '@genshin-optimizer/gi/uidata'
 import { displayName } from '@gi/presets'
@@ -81,7 +82,7 @@ function extractReactNodeText(node: unknown, fallback: string): string {
         const vals = props.values as Record<string, unknown> | undefined
         if (vals && Object.keys(vals).length > 0) {
           return `${k} (${Object.entries(vals)
-            .map(([ vk, vv ]) => `${vk}: ${vv}`)
+            .map(([vk, vv]) => `${vk}: ${vv}`)
             .join(', ')})`
         }
         return k
@@ -100,13 +101,26 @@ function extractReactNodeText(node: unknown, fallback: string): string {
   return fallback
 }
 
-function buildScratchUiData(characterKey: string, baseDb?: ArtCharDatabase): UIData | undefined {
-  const db = new ArtCharDatabase(1, new SandboxStorage())
-  if (baseDb) {
-    const exported = baseDb.exportGOOD()
-    db.importGOOD(exported as never, false, false, false)
+// Module-level caches for catalog queries
+const targetCache = new Map<string, TargetDescriptor[]>()
+const conditionalCache = new Map<string, ConditionalDescriptor[]>()
+const uiDataCache = new Map<string, UIData>()
+let sharedScratchDb: ArtCharDatabase | null = null
+
+function getScratchUiData(characterKey: string): UIData | undefined {
+  const cKey = (
+    characterKey === 'Traveler' ? 'TravelerAnemo' : characterKey
+  ) as CharacterKey
+  const cached = uiDataCache.get(cKey)
+  if (cached) return cached
+
+  if (!sharedScratchDb) {
+    sharedScratchDb = new ArtCharDatabase(1, new SandboxStorage())
   }
-  const cKey = (characterKey === 'Traveler' ? 'TravelerAnemo' : characterKey) as CharacterKey
+  const db = sharedScratchDb
+  db.teams.clear()
+  db.teamChars.clear()
+
   if (!db.chars.get(cKey)) {
     db.chars.set(cKey, {
       key: cKey,
@@ -137,24 +151,33 @@ function buildScratchUiData(characterKey: string, baseDb?: ArtCharDatabase): UID
   const bundle = getTeamData(db, teamId, tcId, 0, [])
   if (!bundle) return undefined
   const calc = uiDataForTeam(bundle.teamData, 'F', cKey)
-  return calc[cKey]?.target
+  const targetUi = calc[cKey]?.target
+  if (targetUi) {
+    uiDataCache.set(cKey, targetUi)
+  }
+  return targetUi
 }
 
 export function listTargetsForCharacter(
   characterKey: string,
-  baseDb?: ArtCharDatabase
+  _baseDb?: ArtCharDatabase
 ): TargetDescriptor[] {
-  const uiData = buildScratchUiData(characterKey, baseDb)
+  const cKey = characterKey === 'Traveler' ? 'TravelerAnemo' : characterKey
+  const hit = targetCache.get(cKey)
+  if (hit) return hit
+
+  const uiData = getScratchUiData(cKey)
   if (!uiData) return []
   const display = uiData.getDisplay()
   const out: TargetDescriptor[] = []
 
   for (const section of DISPLAY_SECTIONS) {
-    const secObj = display[section] as Record<string, { value?: number }> | undefined
+    const secObj = display[section] as
+      | Record<string, { value?: number }>
+      | undefined
     if (!secObj) continue
     for (const [key, calcRes] of Object.entries(secObj)) {
       if (!calcRes || typeof calcRes.value !== 'number') continue
-      // Include all targetable nodes in talent/passive/constellation sections
       out.push({
         path: [section, key],
         name: humanizeTargetKey(section, key),
@@ -162,6 +185,7 @@ export function listTargetsForCharacter(
       })
     }
   }
+  targetCache.set(cKey, out)
   return out
 }
 
@@ -186,15 +210,15 @@ function collectConditionalsFromSections(
       if (seen.has(id)) continue
       seen.add(id)
 
-      const states: ConditionalStateDescriptor[] = Object.entries(rawStates).map(
-        ([stKey, stVal]) => ({
-          key: stKey,
-          name: extractReactNodeText(
-            (stVal as { name?: unknown })?.name,
-            stKey === 'on' ? 'Active (On)' : stKey
-          ),
-        })
-      )
+      const states: ConditionalStateDescriptor[] = Object.entries(
+        rawStates
+      ).map(([stKey, stVal]) => ({
+        key: stKey,
+        name: extractReactNodeText(
+          (stVal as { name?: unknown })?.name,
+          stKey === 'on' ? 'Active (On)' : stKey
+        ),
+      }))
       out.push({
         sheet,
         key,
@@ -216,8 +240,9 @@ function collectConditionalsFromSections(
         const id = `${sheet}:${key}`
         if (seen.has(id)) continue
         seen.add(id)
-        // MultipleConditionalStates in GO uses the state key as the value (e.g. 'hydro' for 'swirlhydro')
-        const stateValue = key.startsWith('swirl') ? key.slice('swirl'.length) : 'on'
+        const stateValue = key.startsWith('swirl')
+          ? key.slice('swirl'.length)
+          : 'on'
         out.push({
           sheet,
           key,
@@ -231,13 +256,94 @@ function collectConditionalsFromSections(
   }
 }
 
+interface GlobalConditionalBuckets {
+  artifactConditionals: ConditionalDescriptor[]
+  weaponByType: Map<string, ConditionalDescriptor[]>
+  allWeapons: ConditionalDescriptor[]
+  resonanceAndReaction: ConditionalDescriptor[]
+}
+
+let globalBuckets: GlobalConditionalBuckets | null = null
+
+function getGlobalConditionalBuckets(uiData: UIData): GlobalConditionalBuckets {
+  if (globalBuckets) return globalBuckets
+
+  const artifactConditionals: ConditionalDescriptor[] = []
+  const artSeen = new Set<string>()
+  for (const setKey of allArtifactSetKeys as readonly ArtifactSetKey[]) {
+    const artSheet = getArtSheet(setKey)
+    if (!artSheet?.setEffects) continue
+    for (const entry of Object.values(artSheet.setEffects) as Array<{
+      document?: DocumentSection[]
+    }>) {
+      if (entry?.document) {
+        collectConditionalsFromSections(
+          entry.document,
+          uiData,
+          artSeen,
+          artifactConditionals
+        )
+      }
+    }
+  }
+
+  const weaponByType = new Map<string, ConditionalDescriptor[]>()
+  const allWeapons: ConditionalDescriptor[] = []
+  const wepSeen = new Set<string>()
+  for (const wKey of allWeaponKeys as readonly WeaponKey[]) {
+    const wSheet = getWeaponSheet(wKey)
+    if (!wSheet?.document) continue
+    const wTemp: ConditionalDescriptor[] = []
+    collectConditionalsFromSections(wSheet.document, uiData, wepSeen, wTemp)
+    if (wTemp.length === 0) continue
+    allWeapons.push(...wTemp)
+    const wType = (getWeaponStat(wKey) as { weaponType?: string } | undefined)
+      ?.weaponType
+    if (wType) {
+      const list = weaponByType.get(wType) ?? []
+      list.push(...wTemp)
+      weaponByType.set(wType, list)
+    }
+  }
+
+  const resonanceAndReaction: ConditionalDescriptor[] = []
+  const resSeen = new Set<string>()
+  for (const res of resonanceSheets) {
+    collectConditionalsFromSections(
+      res.sections,
+      uiData,
+      resSeen,
+      resonanceAndReaction
+    )
+  }
+  collectConditionalsFromSections(
+    reactionConditionals,
+    uiData,
+    resSeen,
+    resonanceAndReaction
+  )
+
+  globalBuckets = {
+    artifactConditionals,
+    weaponByType,
+    allWeapons,
+    resonanceAndReaction,
+  }
+  return globalBuckets
+}
+
 export function listConditionalsForCharacter(
   characterKey: string,
-  baseDb?: ArtCharDatabase
+  _baseDb?: ArtCharDatabase
 ): ConditionalDescriptor[] {
-  const uiData = buildScratchUiData(characterKey, baseDb)
+  const cKey = (
+    characterKey === 'Traveler' ? 'TravelerAnemo' : characterKey
+  ) as CharacterKey
+  const hit = conditionalCache.get(cKey)
+  if (hit) return hit
+
+  const uiData = getScratchUiData(cKey)
   if (!uiData) return []
-  const cKey = (characterKey === 'Traveler' ? 'TravelerAnemo' : characterKey) as CharacterKey
   const seen = new Set<string>()
   const out: ConditionalDescriptor[] = []
 
@@ -253,32 +359,28 @@ export function listConditionalsForCharacter(
     }
   }
 
-  // 2. Artifact set conditionals (all 5* sets commonly used in builds/teams)
-  for (const setKey of allArtifactSetKeys as readonly ArtifactSetKey[]) {
-    const artSheet = getArtSheet(setKey)
-    if (!artSheet?.setEffects) continue
-    for (const entry of Object.values(artSheet.setEffects) as Array<{
-      document?: DocumentSection[]
-    }>) {
-      if (entry?.document) {
-        collectConditionalsFromSections(entry.document, uiData, seen, out)
-      }
+  // 2. Precomputed Artifact Set + Matching Weapon Type + Resonance/Reaction conditionals
+  const buckets = getGlobalConditionalBuckets(uiData)
+  const charWeaponType = (
+    getCharStat(cKey) as { weaponType?: string } | undefined
+  )?.weaponType
+  const matchingWeapons = charWeaponType
+    ? (buckets.weaponByType.get(charWeaponType) ?? [])
+    : buckets.allWeapons
+
+  for (const list of [
+    buckets.artifactConditionals,
+    matchingWeapons,
+    buckets.resonanceAndReaction,
+  ]) {
+    for (const cond of list) {
+      const id = `${cond.sheet}:${cond.key}`
+      if (seen.has(id)) continue
+      seen.add(id)
+      out.push(cond)
     }
   }
 
-  // 3. Weapon conditionals (matching character's weapon type if possible, or all weapons)
-  for (const wKey of allWeaponKeys as readonly WeaponKey[]) {
-    const wSheet = getWeaponSheet(wKey)
-    if (wSheet?.document) {
-      collectConditionalsFromSections(wSheet.document, uiData, seen, out)
-    }
-  }
-
-  // 4. Resonance & Reaction conditionals
-  for (const res of resonanceSheets) {
-    collectConditionalsFromSections(res.sections, uiData, seen, out)
-  }
-  collectConditionalsFromSections(reactionConditionals, uiData, seen, out)
-
+  conditionalCache.set(cKey, out)
   return out
 }

@@ -1,5 +1,10 @@
 'use client'
 
+import {
+  ArtifactBadge,
+  CharacterBadge,
+  WeaponBadge,
+} from '@/components/Identifier'
 import { useGoodStorage } from '@/lib/storage/useGood'
 import {
   humanizeKey,
@@ -11,7 +16,7 @@ import {
   type ParseGoodResult,
   type ParseIssue,
 } from '@gi/good'
-import { displayName } from '@gi/presets'
+import { displayName, type IdentifierSlotKey } from '@gi/presets'
 import Link from 'next/link'
 import { useMemo, useRef, useState } from 'react'
 
@@ -581,13 +586,13 @@ export default function ImportPage() {
                     {filteredChars.map((c: ICharacter) => {
                       const wep = weaponByChar.get(c.key)
                       const sets = artSetsByChar.get(c.key) ?? {}
-                      const activeSets = Object.entries(sets)
-                        .filter(([, n]) => n >= 2)
-                        .map(([s, n]) => `${displayName(s)} (${n >= 4 ? 4 : 2}p)`)
+                      const activeSets = Object.entries(sets).filter(
+                        ([, n]) => n >= 2
+                      )
                       return (
                         <tr key={c.key}>
                           <td>
-                            <strong>{displayName(c.key)}</strong>
+                            <CharacterBadge characterKey={c.key} />
                           </td>
                           <td>
                             Lv. {c.level} (A{c.ascension})
@@ -597,12 +602,37 @@ export default function ImportPage() {
                             {c.talent.auto} / {c.talent.skill} / {c.talent.burst}
                           </td>
                           <td>
-                            {wep
-                              ? `${displayName(wep.key)} (Lv. ${wep.level} R${wep.refinement})`
-                              : '—'}
+                            {wep ? (
+                              <WeaponBadge
+                                weaponKey={wep.key}
+                                compact
+                                subtitle={`(Lv. ${wep.level} R${wep.refinement})`}
+                              />
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
                           </td>
                           <td>
-                            {activeSets.length ? activeSets.join(', ') : 'Rainbow / None'}
+                            {activeSets.length ? (
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  flexWrap: 'wrap',
+                                  gap: '0.45rem',
+                                }}
+                              >
+                                {activeSets.map(([s, n]) => (
+                                  <ArtifactBadge
+                                    key={s}
+                                    setKey={s}
+                                    compact
+                                    subtitle={`(${n >= 4 ? 4 : 2}p)`}
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="muted">Rainbow / None</span>
+                            )}
                           </td>
                         </tr>
                       )
@@ -639,14 +669,18 @@ export default function ImportPage() {
                     {filteredWeapons.map((w: IWeapon) => (
                       <tr key={w.id}>
                         <td>
-                          <strong>{displayName(w.key)}</strong>
+                          <WeaponBadge weaponKey={w.key} />
                         </td>
                         <td>
                           Lv. {w.level} (A{w.ascension})
                         </td>
                         <td>R{w.refinement}</td>
                         <td>
-                          {w.location ? displayName(w.location) : <span className="muted">Inventory</span>}
+                          {w.location ? (
+                            <CharacterBadge characterKey={w.location} compact />
+                          ) : (
+                            <span className="muted">Inventory</span>
+                          )}
                         </td>
                         <td>{w.lock ? '🔒' : ''}</td>
                       </tr>
@@ -738,10 +772,21 @@ export default function ImportPage() {
                     {filteredArtifacts.slice(0, 300).map((a: IArtifact) => (
                       <tr key={a.id}>
                         <td>
-                          <strong>{displayName(a.setKey)}</strong>
+                          <ArtifactBadge
+                            setKey={a.setKey}
+                            slotKey={a.slotKey as IdentifierSlotKey}
+                            rarity={a.rarity}
+                            compact
+                          />
                         </td>
-                        <td style={{ textTransform: 'capitalize' }}>
-                          {a.slotKey}
+                        <td>
+                          <ArtifactBadge
+                            setKey={a.setKey}
+                            slotKey={a.slotKey as IdentifierSlotKey}
+                            rarity={a.rarity}
+                            slotOnly
+                            compact
+                          />
                         </td>
                         <td>
                           {a.rarity}★ +{a.level}
@@ -760,7 +805,7 @@ export default function ImportPage() {
                         </td>
                         <td>
                           {a.location ? (
-                            displayName(a.location)
+                            <CharacterBadge characterKey={a.location} compact />
                           ) : (
                             <span className="muted">Unequipped</span>
                           )}

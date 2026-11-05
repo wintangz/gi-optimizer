@@ -27,7 +27,7 @@ describe('userPreset helpers', () => {
     expect(p.name).toBe('胡桃蒸発編成')
   })
 
-  it('forks an Akasha preset into a user preset and strips akasha metadata', () => {
+  it('forks an Akasha or Official preset into a user preset while preserving simulated tc teammate builds', () => {
     const akasha = getBundledPreset('akasha/furina-salon-pjc-c0')!
     const forked = forkPresetToUser(akasha)
     expect(forked.source).toBe('user')
@@ -36,6 +36,29 @@ describe('userPreset helpers', () => {
     expect(forked.name).toContain('(copy)')
     expect(forked.team).toEqual(akasha.team)
     expect(forked.rotation).toEqual(akasha.rotation)
+
+    // Verify team[0] remains 'owned' and every teammate (team[1..3]) stays 'tc' with identical stats
+    expect(forked.team[0]?.build.type).toBe('owned')
+    for (let i = 1; i < forked.team.length; i++) {
+      const m = forked.team[i]!
+      const origM = akasha.team[i]!
+      expect(m.build.type).toBe('tc')
+      if (m.build.type === 'tc' && origM.build.type === 'tc') {
+        expect(m.build.tc).toEqual(origM.build.tc)
+      }
+    }
+
+    const official = getBundledPreset('official/neuvillette-hypercarry')!
+    const forkedOfficial = forkPresetToUser(official)
+    expect(forkedOfficial.team[0]?.build.type).toBe('owned')
+    for (let i = 1; i < forkedOfficial.team.length; i++) {
+      const m = forkedOfficial.team[i]!
+      const origM = official.team[i]!
+      expect(m.build.type).toBe('tc')
+      if (m.build.type === 'tc' && origM.build.type === 'tc') {
+        expect(m.build.tc).toEqual(origM.build.tc)
+      }
+    }
   })
 
   it('round-trips export and import of a user preset and converts non-user presets on import', () => {

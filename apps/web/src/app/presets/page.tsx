@@ -1,5 +1,10 @@
 'use client'
 
+import {
+  ArtifactBadge,
+  CharacterBadge,
+  WeaponBadge,
+} from '@/components/Identifier'
 import { useGoodStorage, useUserPresets } from '@/lib/storage/useGood'
 import { humanizeKey } from '@gi/good'
 import {
@@ -230,9 +235,24 @@ export default function PresetsPage() {
                   )}
                 </div>
                 <strong style={{ fontSize: '0.98rem' }}>{p.name}</strong>
-                <div className="muted" style={{ fontSize: '0.85rem' }}>
-                  Target: <strong>{displayName(p.target)}</strong> · Team:{' '}
-                  {p.team.map((m) => displayName(m.key)).join(' / ')}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '0.45rem',
+                    alignItems: 'center',
+                    marginTop: '0.15rem',
+                  }}
+                >
+                  {p.team.map((m, mIdx) => (
+                    <CharacterBadge
+                      key={m.key}
+                      characterKey={m.key}
+                      simulated={m.build.type === 'tc'}
+                      role={mIdx === 0 ? 'target' : 'owned'}
+                      compact
+                    />
+                  ))}
                 </div>
               </div>
             )
@@ -376,7 +396,7 @@ export default function PresetsPage() {
               </div>
             )}
 
-            {/* Account Match Report */}
+            {/* Target Character & Weapon Check */}
             <div
               style={{
                 background: '#151821',
@@ -385,12 +405,15 @@ export default function PresetsPage() {
                 padding: '0.85rem',
               }}
             >
-              <strong>Account Compatibility Check (Akasha-style)</strong>
+              <strong>Target Character &amp; Weapon Check (Akasha-style)</strong>
+              <div className="muted" style={{ fontSize: '0.83rem', marginTop: '0.15rem' }}>
+                Only your target character ({displayName(activePreset.target)}) and its required weapon are checked against your account. Simulated (<code>SIM</code>) preset teammates use fixed assumed stats and are never required in your account.
+              </div>
               {!record ? (
                 <p className="muted" style={{ margin: '0.4rem 0 0' }}>
                   Import your GOOD JSON on the <Link href="/import">Import</Link>{' '}
-                  page to check whether your scanned characters and weapons
-                  satisfy this preset.
+                  page to check whether your target character and weapon satisfy
+                  this preset.
                 </p>
               ) : activeMatch ? (
                 <div style={{ marginTop: '0.5rem' }}>
@@ -418,6 +441,7 @@ export default function PresetsPage() {
                                 marginTop: '0.4rem',
                                 display: 'flex',
                                 alignItems: 'center',
+                                flexWrap: 'wrap',
                                 gap: '0.5rem',
                               }}
                             >
@@ -470,6 +494,7 @@ export default function PresetsPage() {
                 </thead>
                 <tbody>
                   {activePreset.team.map((m, idx) => {
+                    const isSim = m.build.type === 'tc'
                     const reqParts: string[] = []
                     if (m.requirement?.constellation !== undefined) {
                       reqParts.push(
@@ -478,14 +503,6 @@ export default function PresetsPage() {
                     }
                     if (m.requirement?.minLevel !== undefined) {
                       reqParts.push(`Lv. >= ${m.requirement.minLevel}`)
-                    }
-                    if (m.requirement?.weapon) {
-                      const rStr = m.requirement.weapon.refinement
-                        ? ` ${formatRefinementReq(m.requirement.weapon.refinement)}`
-                        : ''
-                      reqParts.push(
-                        `${displayName(m.requirement.weapon.key)}${rStr}`
-                      )
                     }
 
                     const condList: string[] = []
@@ -499,34 +516,92 @@ export default function PresetsPage() {
 
                     return (
                       <tr key={m.key}>
-                        <td>{idx === 0 ? 'Target' : `Member ${idx + 1}`}</td>
                         <td>
-                          <strong>{displayName(m.key)}</strong>
+                          {idx === 0 ? (
+                            <strong className="ok">Your Character · Target</strong>
+                          ) : isSim ? (
+                            <span className="warn">Simulated Teammate</span>
+                          ) : (
+                            <span>Member {idx + 1} (Owned)</span>
+                          )}
                         </td>
                         <td>
-                          {m.build.type === 'owned'
-                            ? 'Your Scanned Character'
-                            : 'Fixed Preset TC Build'}
+                          <CharacterBadge
+                            characterKey={m.key}
+                            simulated={isSim}
+                            role={idx === 0 ? 'target' : 'owned'}
+                          />
+                        </td>
+                        <td>
+                          {m.build.type === 'owned' ? (
+                            <span className="ok">Your Scanned Character</span>
+                          ) : (
+                            <span className="warn">
+                              Simulated / Assumed Preset Build (Not Your Account)
+                            </span>
+                          )}
                         </td>
                         <td style={{ fontSize: '0.88rem' }}>
                           {m.build.type === 'owned' ? (
-                            reqParts.length ? (
-                              reqParts.join(' · ')
-                            ) : (
-                              <span className="muted">
-                                Any owned weapon &amp; constellation
-                              </span>
-                            )
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                alignItems: 'center',
+                                gap: '0.45rem',
+                              }}
+                            >
+                              {reqParts.length > 0 && (
+                                <span>{reqParts.join(' · ')}</span>
+                              )}
+                              {m.requirement?.weapon && (
+                                <WeaponBadge
+                                  weaponKey={m.requirement.weapon.key}
+                                  compact
+                                  subtitle={
+                                    m.requirement.weapon.refinement
+                                      ? formatRefinementReq(
+                                          m.requirement.weapon.refinement
+                                        )
+                                      : undefined
+                                  }
+                                />
+                              )}
+                              {reqParts.length === 0 && !m.requirement?.weapon && (
+                                <span className="muted">
+                                  Any owned weapon &amp; constellation
+                                </span>
+                              )}
+                            </div>
                           ) : (
-                            <span>
-                              Lv.{m.build.tc.character.level} C
-                              {m.build.tc.character.constellation} ·{' '}
-                              {displayName(m.build.tc.weapon.key)} R
-                              {m.build.tc.weapon.refinement} ·{' '}
-                              {Object.entries(m.build.tc.artifact.sets)
-                                .map(([s, n]) => `${displayName(s)} (${n}p)`)
-                                .join(', ') || 'No Set'}
-                            </span>
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                              }}
+                            >
+                              <span>
+                                Lv.{m.build.tc.character.level} C
+                                {m.build.tc.character.constellation}
+                              </span>
+                              <WeaponBadge
+                                weaponKey={m.build.tc.weapon.key}
+                                compact
+                                subtitle={`R${m.build.tc.weapon.refinement}`}
+                              />
+                              {Object.entries(m.build.tc.artifact.sets).map(
+                                ([s, n]) => (
+                                  <ArtifactBadge
+                                    key={s}
+                                    setKey={s}
+                                    compact
+                                    subtitle={`(${n}p)`}
+                                  />
+                                )
+                              )}
+                            </div>
                           )}
                         </td>
                         <td style={{ fontSize: '0.85rem' }}>

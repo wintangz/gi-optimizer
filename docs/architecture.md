@@ -1,7 +1,7 @@
 # Architecture & Shared Contracts
 
 Binding for every feature (`good-import`, `single-character-optimizer`, `akasha-presets`,
-`official-presets`, `custom-teams-and-presets`). Features are referred to by slug only.
+`official-presets`, `custom-teams-and-presets`, `performance`, `visual-identifiers`). Features are referred to by slug only.
 The constitution is in `.specify/memory/constitution.md`.
 
 ## Layout
@@ -69,14 +69,14 @@ export interface OptimizerSettings {
 }
 export interface OptimizeResult { builds: Array<BuildSelection & { total: number }>; tested: number; skipped: number; durationMs: number }
 
-export function createSession(good: unknown): EngineSession     // hydrates GO db (throws on non-GOOD)
+export function createSession(good: unknown): EngineSession     // hydrates GO db once per session (throws on non-GOOD)
 export interface EngineSession {
-  evaluate(preset: Preset, selection: BuildSelection): RotationResult
+  evaluate(preset: Preset, selection?: BuildSelection): RotationResult
   currentBuild(preset: Preset): BuildSelection                    // target's equipped weapon + artifacts
-  optimize(preset: Preset, settings: OptimizerSettings, opts: { onProgress?(p:{tested:number;skipped:number;total:number}):void; signal?: AbortSignal; maxWorkers?: number }): Promise<OptimizeResult>
+  optimize(preset: Preset, settings: OptimizerSettings, opts?: { weaponId?: string; onProgress?(p:{tested:number;skipped:number;total:number}):void; signal?: AbortSignal; maxWorkers?: number }): Promise<OptimizeResult>
   listTargets(characterKey: string): Array<{ path: string[]; name: string; section: string }>  // display paths for rotation builders
   listConditionals(characterKey: string): ConditionalDescriptor[] // for custom team builder
-  exportGODatabase(preset: Preset, selection: BuildSelection): object // "Verify in GO"
+  exportGODatabase(preset: Preset, selection?: BuildSelection): object // "Verify in GO"
 }
 ```
 
@@ -99,6 +99,7 @@ Schema: `packages/presets/src/schema.ts` (`presetSchema`, id `gi-optimizer/prese
 Routes (static): `/` home, `/import` (good-import), `/optimize` (single-character-optimizer),
 `/presets` (browse akasha + official + user), `/teams` (custom-teams-and-presets builder).
 Shell/nav: `src/app/layout.tsx` + `src/components/Nav.tsx` (owned by bootstrap; add links only).
+Shared visual identifiers: `packages/presets/src/metadata.ts` + `src/components/Identifier.tsx` (`CharacterBadge`, `WeaponBadge`, `ArtifactBadge`, `ItemIdentifier`) used across all routes so no character, weapon, or artifact is shown as text alone and simulated (`tc`) teammates receive a distinct `SIM` + dashed ring treatment.
 
 IndexedDB (`idb` library), database `gi-optimizer`, owned by good-import, module
 `src/lib/storage/db.ts`:
@@ -108,8 +109,8 @@ IndexedDB (`idb` library), database `gi-optimizer`, owned by good-import, module
 Exports: `loadGood()`, `saveGood()`, `clearGood()`, `listUserPresets()`, `saveUserPreset()`,
 `deleteUserPreset()`, `loadSettings()`, `saveSettings()`; React hook `useGood()`.
 
-GO code is heavy (sheets + MUI). Load the engine only on `/optimize` and `/teams` via dynamic
-import, client-side only (`'use client'` + `next/dynamic` with `ssr:false`).
+GO code is heavy (sheets + MUI). Load the engine only on `/optimize` and `/teams` lazily,
+client-side only (no top-level runtime imports of `@gi/engine` in route modules; route all evaluations, catalog queries, and optimizations through `src/lib/engine/workerClient.ts` backed by `src/workers/optimizer.worker.ts` holding a single hydrated `EngineSession`).
 
 ## Testing
 

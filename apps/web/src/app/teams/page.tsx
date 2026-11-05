@@ -1,11 +1,19 @@
 'use client'
 
-import { useGoodStorage, useUserPresets } from '@/lib/storage/useGood'
 import {
-  createSession,
-  listConditionalsForCharacter,
-  listTargetsForCharacter,
-  type RotationResult,
+  ArtifactBadge,
+  CharacterBadge,
+  WeaponBadge,
+} from '@/components/Identifier'
+import {
+  evaluatePresetInWorker,
+  getCatalogInWorker,
+} from '@/lib/engine/workerClient'
+import { useGoodStorage, useUserPresets } from '@/lib/storage/useGood'
+import type {
+  ConditionalDescriptor,
+  RotationResult,
+  TargetDescriptor,
 } from '@gi/engine'
 import { humanizeKey } from '@gi/good'
 import {
@@ -76,6 +84,17 @@ function TeamsInner() {
     Record<number, string>
   >({})
 
+  const [targetsByChar, setTargetsByChar] = useState<
+    Record<string, TargetDescriptor[]>
+  >({})
+  const [conditionalsByChar, setConditionalsByChar] = useState<
+    Record<string, ConditionalDescriptor[]>
+  >({})
+  const [livePreview, setLivePreview] = useState<{
+    result?: RotationResult
+    error?: string
+  }>({})
+
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const allPresets = useMemo(
@@ -91,7 +110,7 @@ function TeamsInner() {
       if (src) {
         setDraft(forkPresetToUser(src))
         setStatusMessage(
-          `Duplicated '${src.name}' as an independent custom preset.`
+          `Duplicated '${src.name}' as an independent custom preset. Supporting teammates retain their simulated assumed builds.`
         )
       }
     } else if (editParam) {
@@ -103,58 +122,97 @@ function TeamsInner() {
     }
   }, [editParam, forkParam, userPresets])
 
-  // Target catalog from GO
-  const targetCatalog = useMemo(() => {
-    try {
-      return listTargetsForCharacter(draft.target)
-    } catch {
-      return []
-    }
-  }, [draft.target])
+  // Load target and conditional catalogs via workerClient (cached per character)
+  const teamMemberKeysKey = useMemo(
+    () => [draft.target, ...draft.team.map((m) => m.key)].join(','),
+    [draft.target, draft.team]
+  )
 
-  // Conditionals catalog per team member
-  const memberConditionals = useMemo(() => {
-    const out: Record<
-      number,
-      ReturnType<typeof listConditionalsForCharacter>
-    > = {}
-    draft.team.forEach((m, idx) => {
+  useEffect(() => {
+    let cancelled = false
+    const keys = Array.from(
+      new Set([draft.target, ...draft.team.map((m) => m.key)])
+    )
+    void (async () => {
       try {
-        out[idx] = listConditionalsForCharacter(m.key)
+        const res = await getCatalogInWorker(keys)
+        if (!cancelled) {
+          setTargetsByChar((prev) => ({ ...prev, ...res.targetsByChar }))
+          setConditionalsByChar((prev) => ({
+            ...prev,
+            ...res.conditionalsByChar,
+          }))
+        }
       } catch {
-        out[idx] = []
+        // Ignore catalog error
       }
-    })
-    return out
-  }, [draft.team])
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [teamMemberKeysKey, draft.target, draft.team])
 
-  // Live rotation damage preview with current build
-  const livePreview: {
-    result?: RotationResult
-    error?: string
-  } = useMemo(() => {
+  const targetCatalog = targetsByChar[draft.target] ?? []
+
+  // Debounced (150ms) off-main-thread live rotation damage preview
+  useEffect(() => {
     if (!record?.good) {
-      return { error: 'Import a GOOD file to see live rotation damage preview.' }
+      setLivePreview({
+        error: 'Import a GOOD file to see live rotation damage preview.',
+      })
+      return
     }
     const v = validatePreset(draft)
     if (!v.ok) {
-      return {
+      setLivePreview({
         error: v.issues.map((i) => `${i.path}: ${i.message}`).join(' · '),
-      }
+      })
+      return
     }
-    try {
-      const session = createSession(record.good)
-      const result = session.evaluate(draft)
-      return { result }
-    } catch (err) {
-      return {
-        error: err instanceof Error ? err.message : String(err),
-      }
+
+    let cancelled = false
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await evaluatePresetInWorker({
+            datasetKey: record.importedAt,
+            good: record.good,
+            preset: draft,
+          })
+          if (!cancelled) {
+            setLivePreview({ result: res.result })
+          }
+        } catch (err) {
+          if (!cancelled) {
+            setLivePreview({
+              error: err instanceof Error ? err.message : String(err),
+            })
+          }
+        }
+      })()
+    }, 150)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
     }
   }, [record, draft])
 
-  function handleTargetChange(nextTargetKey: string) {
-    const nextTargets = listTargetsForCharacter(nextTargetKey)
+  async function handleTargetChange(nextTargetKey: string) {
+    let nextTargets = targetsByChar[nextTargetKey]
+    if (!nextTargets) {
+      try {
+        const cat = await getCatalogInWorker([nextTargetKey])
+        nextTargets = cat.targetsByChar[nextTargetKey] ?? []
+        setTargetsByChar((prev) => ({ ...prev, ...cat.targetsByChar }))
+        setConditionalsByChar((prev) => ({
+          ...prev,
+          ...cat.conditionalsByChar,
+        }))
+      } catch {
+        nextTargets = []
+      }
+    }
     const firstPath = nextTargets[0]?.path ?? ['normal', '0']
     const firstLabel = nextTargets[0]?.name ?? 'Normal 1-Hit'
 
@@ -305,10 +363,7 @@ function TeamsInner() {
     }))
   }
 
-  function updateRotationRow(
-    idx: number,
-    patch: Partial<RotationTarget>
-  ) {
+  function updateRotationRow(idx: number, patch: Partial<RotationTarget>) {
     setDraft((prev) => {
       const nextTargets = [...prev.rotation.targets]
       nextTargets[idx] = { ...nextTargets[idx]!, ...patch }
@@ -486,7 +541,14 @@ function TeamsInner() {
           justifyContent: 'space-between',
         }}
       >
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.5rem',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
           <span className="muted">Load or Fork Existing Preset:</span>
           <select
             value=""
@@ -501,7 +563,7 @@ function TeamsInner() {
               } else {
                 setDraft(forkPresetToUser(found))
                 setStatusMessage(
-                  `Forked '${found.name}' into a new custom preset.`
+                  `Forked '${found.name}' into a new custom preset. Teammates retain their simulated assumed builds.`
                 )
               }
             }}
@@ -601,7 +663,9 @@ function TeamsInner() {
           style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}
         >
           <strong>Preset Metadata</strong>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}
+          >
             <span className="muted" style={{ fontSize: '0.85rem' }}>
               Preset Name
             </span>
@@ -611,7 +675,9 @@ function TeamsInner() {
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}
+          >
             <span className="muted" style={{ fontSize: '0.85rem' }}>
               Description / Notes
             </span>
@@ -634,7 +700,13 @@ function TeamsInner() {
         >
           <strong>Enemy &amp; Team Resonance Overrides</strong>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <label
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.2rem',
+              }}
+            >
               <span className="muted" style={{ fontSize: '0.85rem' }}>
                 Enemy Level
               </span>
@@ -659,7 +731,11 @@ function TeamsInner() {
             {ELEMENT_RES_KEYS.slice(0, 4).map((rk) => (
               <label
                 key={rk}
-                style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.2rem',
+                }}
               >
                 <span className="muted" style={{ fontSize: '0.8rem' }}>
                   {rk.replace('_enemyRes_', '').toUpperCase()} RES %
@@ -688,7 +764,10 @@ function TeamsInner() {
       </div>
 
       {/* Team Members (1 to 4) */}
-      <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div
+        className="panel"
+        style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+      >
         <div
           style={{
             display: 'flex',
@@ -703,6 +782,7 @@ function TeamsInner() {
           </h2>
           {draft.team.length < 4 && (
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <CharacterBadge characterKey={newMemberKey} compact />
               <select
                 value={newMemberKey}
                 onChange={(e) => setNewMemberKey(e.target.value)}
@@ -714,7 +794,7 @@ function TeamsInner() {
                 ))}
               </select>
               <button type="button" onClick={addTeammate}>
-                + Add Teammate
+                + Add Simulated Teammate
               </button>
             </div>
           )}
@@ -723,13 +803,14 @@ function TeamsInner() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '0.9rem',
           }}
         >
           {draft.team.map((member, idx) => {
             const isTarget = idx === 0
-            const condCatalog = memberConditionals[idx] ?? []
+            const isSim = member.build.type === 'tc'
+            const condCatalog = conditionalsByChar[member.key] ?? []
             const selectedCondId = selectedCondByMember[idx] ?? ''
 
             return (
@@ -739,7 +820,9 @@ function TeamsInner() {
                   background: '#151821',
                   border: isTarget
                     ? '1px solid var(--accent)'
-                    : '1px solid var(--border)',
+                    : isSim
+                      ? '1px dashed var(--warn)'
+                      : '1px solid var(--border)',
                   borderRadius: '6px',
                   padding: '0.85rem',
                   display: 'flex',
@@ -755,12 +838,14 @@ function TeamsInner() {
                   }}
                 >
                   <span
-                    className={isTarget ? 'ok' : 'muted'}
+                    className={isTarget ? 'ok' : isSim ? 'warn' : 'muted'}
                     style={{ fontSize: '0.8rem', fontWeight: 600 }}
                   >
                     {isTarget
-                      ? 'Slot 1 · Target Character (Optimised)'
-                      : `Slot ${idx + 1} · Supporting Teammate`}
+                      ? 'Slot 1 · Your Character · Target'
+                      : isSim
+                        ? `Slot ${idx + 1} · Simulated / Assumed Preset Build`
+                        : `Slot ${idx + 1} · Your Scanned Character`}
                   </span>
                   {!isTarget && (
                     <button
@@ -778,14 +863,27 @@ function TeamsInner() {
                   )}
                 </div>
 
+                {/* Visual Character Identifier */}
+                <CharacterBadge
+                  characterKey={member.key}
+                  simulated={isSim}
+                  role={isTarget ? 'target' : 'owned'}
+                />
+
                 {isTarget ? (
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.2rem',
+                    }}
+                  >
                     <span className="muted" style={{ fontSize: '0.82rem' }}>
-                      Target Character
+                      Change Target Character
                     </span>
                     <select
                       value={member.key}
-                      onChange={(e) => handleTargetChange(e.target.value)}
+                      onChange={(e) => void handleTargetChange(e.target.value)}
                     >
                       {ALL_CHARACTER_KEYS.map((ck) => (
                         <option key={ck} value={ck}>
@@ -796,10 +894,7 @@ function TeamsInner() {
                   </label>
                 ) : (
                   <div>
-                    <strong style={{ fontSize: '1.05rem' }}>
-                      {displayName(member.key)}
-                    </strong>
-                    <div style={{ marginTop: '0.35rem' }}>
+                    <div style={{ marginTop: '0.15rem' }}>
                       <select
                         value={member.build.type}
                         onChange={(e) =>
@@ -811,7 +906,7 @@ function TeamsInner() {
                         style={{ width: '100%' }}
                       >
                         <option value="tc">
-                          Assumed TC Build (Fixed Preset Stats)
+                          Simulated / Assumed Preset Build (Not Your Account)
                         </option>
                         <option value="owned">
                           Use My Scanned Character Build
@@ -827,12 +922,16 @@ function TeamsInner() {
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '0.45rem',
+                      gap: '0.5rem',
                       fontSize: '0.85rem',
                       borderTop: '1px solid var(--border)',
                       paddingTop: '0.5rem',
                     }}
                   >
+                    <div className="muted" style={{ fontSize: '0.78rem' }}>
+                      Editable Assumed Stats (Simulated — does not use your
+                      scanned character):
+                    </div>
                     <div style={{ display: 'flex', gap: '0.4rem' }}>
                       <label style={{ flex: 1 }}>
                         <span className="muted">Lv.</span>
@@ -871,8 +970,19 @@ function TeamsInner() {
                       </label>
                     </div>
 
-                    <label>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.25rem',
+                      }}
+                    >
                       <span className="muted">Assumed Weapon</span>
+                      <WeaponBadge
+                        weaponKey={member.build.tc.weapon.key}
+                        compact
+                        subtitle={`R${member.build.tc.weapon.refinement}`}
+                      />
                       <select
                         value={member.build.tc.weapon.key}
                         onChange={(e) =>
@@ -888,12 +998,31 @@ function TeamsInner() {
                           </option>
                         ))}
                       </select>
-                    </label>
+                    </div>
 
-                    <label>
-                      <span className="muted">Assumed 4-Piece Artifact Set</span>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.25rem',
+                      }}
+                    >
+                      <span className="muted">
+                        Assumed 4-Piece Artifact Set
+                      </span>
+                      {Object.keys(member.build.tc.artifact.sets)[0] && (
+                        <ArtifactBadge
+                          setKey={
+                            Object.keys(member.build.tc.artifact.sets)[0]!
+                          }
+                          compact
+                          subtitle="(4p)"
+                        />
+                      )}
                       <select
-                        value={Object.keys(member.build.tc.artifact.sets)[0] ?? ''}
+                        value={
+                          Object.keys(member.build.tc.artifact.sets)[0] ?? ''
+                        }
                         onChange={(e) =>
                           updateTcMember(idx, (tc) => {
                             tc.artifact.sets = e.target.value
@@ -910,7 +1039,7 @@ function TeamsInner() {
                           </option>
                         ))}
                       </select>
-                    </label>
+                    </div>
                   </div>
                 )}
 
@@ -1026,7 +1155,10 @@ function TeamsInner() {
       </div>
 
       {/* Rotation Builder */}
-      <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+      <div
+        className="panel"
+        style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}
+      >
         <div
           style={{
             display: 'flex',
@@ -1036,10 +1168,16 @@ function TeamsInner() {
             gap: '0.75rem',
           }}
         >
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <h2 style={{ margin: 0 }}>
-              Target Rotation ({displayName(draft.target)})
-            </h2>
+          <div
+            style={{
+              display: 'flex',
+              gap: '0.75rem',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <h2 style={{ margin: 0 }}>Target Rotation</h2>
+            <CharacterBadge characterKey={draft.target} role="target" compact />
             <input
               type="text"
               value={draft.rotation.name}
@@ -1052,7 +1190,9 @@ function TeamsInner() {
               placeholder="Rotation Name"
               style={{ width: '240px' }}
             />
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <label
+              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            >
               <span className="muted">Repeat ×</span>
               <input
                 type="number"
@@ -1195,18 +1335,23 @@ function TeamsInner() {
       </div>
 
       {/* Live Rotation Damage Preview */}
-      <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div
+        className="panel"
+        style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+      >
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
           }}
         >
-          <h3 style={{ margin: 0 }}>
-            Live Rotation Preview (Your Current Equipped {displayName(draft.target)}{' '}
-            Build)
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <h3 style={{ margin: 0 }}>Live Rotation Preview</h3>
+            <CharacterBadge characterKey={draft.target} role="target" compact />
+          </div>
           {livePreview.result && (
             <strong className="ok" style={{ fontSize: '1.25rem' }}>
               Total: {Math.round(livePreview.result.total).toLocaleString()} DMG
@@ -1247,7 +1392,9 @@ function TeamsInner() {
 
 export default function TeamsPage() {
   return (
-    <Suspense fallback={<div className="panel muted">Loading team builder…</div>}>
+    <Suspense
+      fallback={<div className="panel muted">Loading team builder…</div>}
+    >
       <TeamsInner />
     </Suspense>
   )

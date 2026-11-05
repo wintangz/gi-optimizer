@@ -67,6 +67,8 @@ declare module '@genshin-optimizer/gi/stats' {
   export const allStats: any
   export const getCharEle: any
   export const getCharStat: any
+  export const getArtSetStat: any
+  export const getWeaponStat: any
 }
 
 declare module '@genshin-optimizer/gi/ui/useTeamData' {

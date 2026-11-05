@@ -5,8 +5,11 @@ export {
 export {
   buildCustomMultiTargetsForPreset,
   createSession,
+  hydratePresetTeam,
   hydrateTeamIntoDb,
   normalizeTargetPath,
+  type HydratedPresetTeam,
+  type HydratedTeam,
 } from './session'
 export { filterArtifactsForOptimizer, runSolver } from './solver'
 export {
