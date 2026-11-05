@@ -17,3 +17,4 @@ Author 6 bundled Official meta team presets in `packages/presets/data/official/*
 - **I. Frontend-Only Client**: PASS — static JSON bundled client-side.
 - **II. GO Formula Fidelity**: PASS — every official preset is verified against GO golden fixtures.
 - **IV. Presets Are Plain JSON Setup Bundles**: PASS — uses the exact same `gi-optimizer/preset@1` schema as Akasha presets; differs only in `source: "official"`, `author: "gi-optimizer"`, and unconstrained weapon/constellation requirements.
+

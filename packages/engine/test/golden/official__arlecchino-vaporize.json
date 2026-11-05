@@ -1,0 +1,95 @@
+{
+  "presetId": "official/arlecchino-vaporize",
+  "target": "Arlecchino",
+  "total": 942880.1234255427,
+  "instances": [
+    {
+      "label": "All Is Ash Spike DMG",
+      "path": [
+        "skill",
+        "spikeDmg"
+      ],
+      "count": 1,
+      "perHit": 2073.8997051268975,
+      "subtotal": 2073.8997051268975
+    },
+    {
+      "label": "All Is Ash Cleave DMG (Vaporize)",
+      "path": [
+        "skill",
+        "finalDmg"
+      ],
+      "count": 1,
+      "perHit": 39944.730122488574,
+      "subtotal": 39944.730122488574
+    },
+    {
+      "label": "Masque 1-Hit (Vaporize ×3)",
+      "path": [
+        "normal",
+        "0"
+      ],
+      "count": 3,
+      "perHit": 75385.37864046198,
+      "subtotal": 226156.13592138593
+    },
+    {
+      "label": "Masque 2-Hit (×3)",
+      "path": [
+        "normal",
+        "1"
+      ],
+      "count": 3,
+      "perHit": 36020.696126787836,
+      "subtotal": 108062.08838036351
+    },
+    {
+      "label": "Masque 3-Hit (×3)",
+      "path": [
+        "normal",
+        "2"
+      ],
+      "count": 3,
+      "perHit": 38313.60257553987,
+      "subtotal": 114940.80772661962
+    },
+    {
+      "label": "Masque 4-Hit (Vaporize ×3, Normal ×3)",
+      "path": [
+        "normal",
+        "3"
+      ],
+      "count": 6,
+      "perHit": 33437.64985153267,
+      "subtotal": 200625.899109196
+    },
+    {
+      "label": "Masque 5-Hit (Vaporize ×3)",
+      "path": [
+        "normal",
+        "4"
+      ],
+      "count": 3,
+      "perHit": 83692.18748678736,
+      "subtotal": 251076.56246036207
+    }
+  ],
+  "stats": {
+    "hp": 18689.7546236,
+    "atk": 2750.6260375734996,
+    "def": 764.7115981500001,
+    "eleMas": 254.1,
+    "critRate_": 0.8226120000000001,
+    "critDMG_": 1.5834000000000001,
+    "enerRech_": 1.1101,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0.8660000000000001,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}

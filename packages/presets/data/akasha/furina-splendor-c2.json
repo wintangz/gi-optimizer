@@ -1,0 +1,82 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "akasha/furina-splendor-c2",
+  "name": "Furina — Salon Solitaire C2 (Splendor of Tranquil Waters R1)",
+  "description": "Akasha C2 Furina leaderboard case requiring Constellation 2 and Splendor of Tranquil Waters R1 with 300 Fanfare and C2 HP overstack.",
+  "source": "akasha",
+  "author": "akasha.cv",
+  "akasha": {
+    "calculationId": "furina-salon-splendor-c2",
+    "leaderboardUrl": "https://akasha.cv/leaderboards/1000008902",
+    "label": "Salon Solitaire · C2 · Splendor R1",
+    "retrievedAt": "2026-11-05",
+    "notes": "Requires Furina C2 and Splendor of Tranquil Waters R1. Demonstrates strict Akasha constellation and signature weapon matching."
+  },
+  "target": "Furina",
+  "team": [
+    {
+      "key": "Furina",
+      "build": { "type": "owned" },
+      "requirement": {
+        "constellation": 2,
+        "minLevel": 90,
+        "weapon": { "key": "SplendorOfTranquilWaters", "refinement": 1 }
+      },
+      "conditional": {
+        "Furina": {
+          "skillHpConsumeStacks": "4",
+          "burstFanfare": "300",
+          "c2Overstack": "350"
+        },
+        "SplendorOfTranquilWaters": {
+          "hpChanges": "3",
+          "otherHpChanges": "2"
+        },
+        "GoldenTroupe": {
+          "offField": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Neuvillette",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 10, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "PrototypeAmber", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hydro_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critDMG_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "critDMG_": 62.2 } },
+            "sets": { "MarechausseeHunter": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {},
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": { "Hydro": "on" }, "reaction": {} },
+  "rotation": {
+    "name": "20s Salon Solitaire C2 Rotation",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "bubbleDmg"], "count": 1, "label": "Ousia Bubble DMG", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "usherDmg"], "count": 7, "label": "Gentilhomme Usher DMG (×7)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "chevalDmg"], "count": 14, "label": "Surintendante Chevalmarin DMG (×14)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "crabDmg"], "count": 4, "label": "Mademoiselle Crabaletta DMG (×4)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "skillDmg"], "count": 1, "label": "Let the People Rejoice Burst DMG", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  }
+}
+

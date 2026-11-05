@@ -16,3 +16,4 @@
 
 ### 2. Account Matcher (`matchAccount`)
 - **Decision**: `matchAccount(preset, good, opts?: { selectedWeaponId?: string })` checks only `team` members with `build.type === 'owned'` (always `team[0]` for Akasha/Official presets; can include teammates in User presets). For each required field (`owned`, `constellation`, `weapon`, `refinement`, `level`, `talent.auto`, `talent.skill`, `talent.burst`), it emits a `MatchPartResult` with `{ part, expected, actual, ok, message, candidates? }`. If the equipped weapon doesn't match `requirement.weapon.key` (or refinement), `matchAccount` scans `good.weapons` for any owned instances of that weapon and attaches them as `candidates` so the user can select one without mutating their GOOD file.
+

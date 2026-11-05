@@ -1,0 +1,141 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "akasha/raiden-hypercarry-scarlet-c0",
+  "name": "Raiden Shogun — Hypercarry (Sara C6 + Kazuha + Bennett, Scarlet Sands R1)",
+  "description": "Akasha Raiden Hypercarry leaderboard setup with Kujou Sara C6, Kaedehara Kazuha, and Bennett at 60 Chakra Desiderata Resolve stacks.",
+  "source": "akasha",
+  "author": "akasha.cv",
+  "akasha": {
+    "calculationId": "raiden-hypercarry-soss-c0",
+    "leaderboardUrl": "https://akasha.cv/leaderboards/1000005200",
+    "label": "Hypercarry · Scarlet Sands R1 · C0",
+    "retrievedAt": "2026-11-05",
+    "notes": "Requires Raiden Shogun C0 Lv. 90 and Staff of the Scarlet Sands R1. Assumes 60 Resolve stacks, Bennett Fantastic Voyage + Noblesse, Kazuha Electro Swirl, and Sara C6."
+  },
+  "target": "RaidenShogun",
+  "team": [
+    {
+      "key": "RaidenShogun",
+      "build": { "type": "owned" },
+      "requirement": {
+        "constellation": 0,
+        "minLevel": 90,
+        "weapon": { "key": "StaffOfTheScarletSands", "refinement": 1 }
+      },
+      "conditional": {
+        "RaidenShogun": {
+          "skillEye": "on",
+          "burstResolve": "60"
+        },
+        "StaffOfTheScarletSands": {
+          "stacks": "3"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "KujouSara",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 10, "burst": 10 } },
+          "weapon": { "key": "AlleyHunter", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "enerRech_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "electro_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "enerRech_": 33.0, "atk_": 19.8 } },
+            "sets": { "EmblemOfSeveredFate": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "KujouSara": {
+          "TenguJuuraiAmbush": "on",
+          "c6": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "KaedeharaKazuha",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 6, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "FavoniusSword", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 44.0 } },
+            "sets": { "ViridescentVenerer": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "KaedeharaKazuha": { "swirlelectro": "electro" },
+        "ViridescentVenerer": { "swirlelectro": "electro" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Bennett",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "AquilaFavonia", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "enerRech_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "heal_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "enerRech_": 44.0 } },
+            "sets": { "NoblesseOblige": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Bennett": { "activeInArea": "active" },
+        "NoblesseOblige": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "Q Slash + 3× N4C + N1C",
+    "repeat": 1,
+    "targets": [
+      { "path": ["burst", "dmg"], "count": 1, "label": "Musou no Hitotachi Base DMG", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "hit1"], "count": 4, "label": "Musou Isshin 1-Hit (×4)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "hit2"], "count": 3, "label": "Musou Isshin 2-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "hit3"], "count": 3, "label": "Musou Isshin 3-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "hit41"], "count": 3, "label": "Musou Isshin 4-Hit A (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "hit42"], "count": 3, "label": "Musou Isshin 4-Hit B (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "charged1"], "count": 4, "label": "Musou Isshin Charged 1 (×4)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "charged2"], "count": 4, "label": "Musou Isshin Charged 2 (×4)", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  }
+}
+

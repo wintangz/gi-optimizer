@@ -19,3 +19,4 @@ Implement user preset creation, forking, JSON import/export, and default TC buil
 - **II. GO Formula Fidelity**: PASS — live preview and target/conditional catalogs come directly from `@gi/engine` (GO source).
 - **IV. Presets Are Plain JSON Setup Bundles**: PASS — user presets use the exact `gi-optimizer/preset@1` schema with `source: "user"`, make no damage claim, and carry the `"Custom — use at your own risk"` badge with no verification badge.
 - **V. Single-Character Objective**: PASS — rotation targets `team[0]` only; ER is never added to the objective.
+

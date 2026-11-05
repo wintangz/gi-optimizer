@@ -1,0 +1,125 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "official/arlecchino-vaporize",
+  "name": "Arlecchino — Vaporize (Yelan · Bennett · Zhongli)",
+  "description": "Official meta preset for Arlecchino Vaporize with Yelan, Bennett, and Zhongli at 130% average Bond of Life in Masque of the Red Death.",
+  "source": "official",
+  "author": "gi-optimizer",
+  "target": "Arlecchino",
+  "team": [
+    {
+      "key": "Arlecchino",
+      "build": { "type": "owned" },
+      "requirement": {},
+      "conditional": {
+        "Arlecchino": {
+          "bondPercent": "130"
+        },
+        "FragmentOfHarmonicWhimsy": {
+          "stacks": "3"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Yelan",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 6, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "FavoniusWarbow", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hydro_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "EmblemOfSeveredFate": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Yelan": { "a4Stacks": "8" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Bennett",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "AquilaFavonia", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "enerRech_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "heal_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "enerRech_": 44.0 } },
+            "sets": { "NoblesseOblige": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Bennett": { "activeInArea": "active" },
+        "NoblesseOblige": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Zhongli",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "BlackTassel", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "hp_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 19.8 } },
+            "sets": { "TenacityOfTheMillelith": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Zhongli": { "skill": "on" },
+        "TenacityOfTheMillelith": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": { "Pyro": "on" }, "reaction": {} },
+  "rotation": {
+    "name": "E -> 3× N5D Masque of the Red Death Vaporize",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "spikeDmg"], "count": 1, "label": "All Is Ash Spike DMG", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "finalDmg"], "count": 1, "label": "All Is Ash Cleave DMG (Vaporize)", "hitMode": "avgHit", "reaction": "vaporize", "bonusStats": {} },
+      { "path": ["normal", "0"], "count": 3, "label": "Masque 1-Hit (Vaporize ×3)", "hitMode": "avgHit", "reaction": "vaporize", "bonusStats": {} },
+      { "path": ["normal", "1"], "count": 3, "label": "Masque 2-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["normal", "2"], "count": 3, "label": "Masque 3-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["normal", "3"], "count": 6, "label": "Masque 4-Hit (Vaporize ×3, Normal ×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["normal", "4"], "count": 3, "label": "Masque 5-Hit (Vaporize ×3)", "hitMode": "avgHit", "reaction": "vaporize", "bonusStats": {} }
+    ]
+  }
+}
+

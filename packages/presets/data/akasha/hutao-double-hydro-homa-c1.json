@@ -1,0 +1,136 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "akasha/hutao-double-hydro-homa-c1",
+  "name": "Hu Tao — Double Hydro Vaporize Combo (Staff of Homa R1, C1)",
+  "description": "Akasha Hu Tao Double Hydro leaderboard (Hu Tao + Yelan + Xingqiu + Zhongli) with Staff of Homa R1 (<50% HP), 8× N1C Vaporize + 2× Blood Blossom.",
+  "source": "akasha",
+  "author": "akasha.cv",
+  "akasha": {
+    "calculationId": "hutao-2hydro-homa-c1",
+    "leaderboardUrl": "https://akasha.cv/leaderboards/1000004600",
+    "label": "Double Hydro Vape · Homa R1 · C1",
+    "retrievedAt": "2026-11-05",
+    "notes": "Requires Hu Tao C1 Lv. 90 and Staff of Homa R1. Assumes Paramita Papilio active, HP <= 50%, Yelan A4 average ramp, and Zhongli Jade Shield."
+  },
+  "target": "HuTao",
+  "team": [
+    {
+      "key": "HuTao",
+      "build": { "type": "owned" },
+      "requirement": {
+        "constellation": 1,
+        "minLevel": 90,
+        "weapon": { "key": "StaffOfHoma", "refinement": 1 }
+      },
+      "conditional": {
+        "HuTao": {
+          "GuideToAfterlifeVoyage": "on",
+          "SanguineRouge": "on"
+        },
+        "StaffOfHoma": {
+          "RecklessCinnabar": "on"
+        },
+        "CrimsonWitchOfFlames": {
+          "stack": "1"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Yelan",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 6, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "FavoniusWarbow", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hydro_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "EmblemOfSeveredFate": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Yelan": { "a4Stacks": "8" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Xingqiu",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 6, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "SacrificialSword", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hydro_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 19.8, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "NoblesseOblige": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "NoblesseOblige": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Zhongli",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "BlackTassel", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "hp_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 19.8 } },
+            "sets": { "TenacityOfTheMillelith": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Zhongli": { "skill": "on" },
+        "TenacityOfTheMillelith": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": { "Hydro": "on" }, "reaction": {} },
+  "rotation": {
+    "name": "8× N1C Vaporize + 2× Blood Blossom",
+    "repeat": 1,
+    "targets": [
+      { "path": ["normal", "0"], "count": 5, "label": "Normal 1-Hit (No Reaction ×5)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["normal", "0"], "count": 3, "label": "Normal 1-Hit (Vaporize ×3)", "hitMode": "avgHit", "reaction": "vaporize", "bonusStats": {} },
+      { "path": ["charged", "dmg"], "count": 8, "label": "Charged Attack (Vaporize ×8)", "hitMode": "avgHit", "reaction": "vaporize", "bonusStats": {} },
+      { "path": ["skill", "dmg"], "count": 2, "label": "Blood Blossom (Vaporize ×2)", "hitMode": "avgHit", "reaction": "vaporize", "bonusStats": {} }
+    ]
+  }
+}
+

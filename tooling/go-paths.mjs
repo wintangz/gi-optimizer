@@ -23,6 +23,9 @@ const STUBBED = {}
  */
 const DEEP = {
   '@genshin-optimizer/gi/ui/useTeamData': 'libs/gi/ui/src/hooks/useTeamData.ts',
+  '@genshin-optimizer/gi/solver/BNBSplitWorker': 'libs/gi/solver/src/GOSolver/BNBSplitWorker/index.ts',
+  '@genshin-optimizer/gi/solver/ComputeWorker': 'libs/gi/solver/src/GOSolver/ComputeWorker.ts',
+  '@genshin-optimizer/gi/solver/DefaultSplitWorker': 'libs/gi/solver/src/GOSolver/DefaultSplitWorker.ts',
 }
 
 function stripJsonComments(text) {

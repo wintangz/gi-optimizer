@@ -1,0 +1,105 @@
+{
+  "presetId": "akasha/raiden-hypercarry-scarlet-c0",
+  "target": "RaidenShogun",
+  "total": 343546.6488808773,
+  "instances": [
+    {
+      "label": "Musou no Hitotachi Base DMG",
+      "path": [
+        "burst",
+        "dmg"
+      ],
+      "count": 1,
+      "perHit": 75878.49476140073,
+      "subtotal": 75878.49476140073
+    },
+    {
+      "label": "Musou Isshin 1-Hit (×4)",
+      "path": [
+        "burst",
+        "hit1"
+      ],
+      "count": 4,
+      "perHit": 10520.177969556196,
+      "subtotal": 42080.711878224785
+    },
+    {
+      "label": "Musou Isshin 2-Hit (×3)",
+      "path": [
+        "burst",
+        "hit2"
+      ],
+      "count": 3,
+      "perHit": 10427.48917687288,
+      "subtotal": 31282.46753061864
+    },
+    {
+      "label": "Musou Isshin 3-Hit (×3)",
+      "path": [
+        "burst",
+        "hit3"
+      ],
+      "count": 3,
+      "perHit": 11597.653605689999,
+      "subtotal": 34792.960817069994
+    },
+    {
+      "label": "Musou Isshin 4-Hit A (×3)",
+      "path": [
+        "burst",
+        "hit41"
+      ],
+      "count": 3,
+      "perHit": 8877.501472802349,
+      "subtotal": 26632.504418407047
+    },
+    {
+      "label": "Musou Isshin 4-Hit B (×3)",
+      "path": [
+        "burst",
+        "hit42"
+      ],
+      "count": 3,
+      "perHit": 8887.93910043919,
+      "subtotal": 26663.81730131757
+    },
+    {
+      "label": "Musou Isshin Charged 1 (×4)",
+      "path": [
+        "burst",
+        "charged1"
+      ],
+      "count": 4,
+      "perHit": 12520.23351805902,
+      "subtotal": 50080.93407223608
+    },
+    {
+      "label": "Musou Isshin Charged 2 (×4)",
+      "path": [
+        "burst",
+        "charged2"
+      ],
+      "count": 4,
+      "perHit": 14033.68952540062,
+      "subtotal": 56134.75810160248
+    }
+  ],
+  "stats": {
+    "hp": 19567.7672772585,
+    "atk": 1685.1261885132599,
+    "def": 955.4083403996341,
+    "eleMas": 0,
+    "critRate_": 1.0470240000000002,
+    "critDMG_": 1.5722999999999998,
+    "enerRech_": 2.0833,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 1.21672,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}

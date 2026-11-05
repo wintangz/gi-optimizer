@@ -1,0 +1,125 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "official/mavuika-melt-hypercarry",
+  "name": "Mavuika — Melt Hypercarry (Citlali · Xilonen · Bennett)",
+  "description": "Official meta preset for Mavuika Melt Hypercarry with Citlali (Pyro RES shred + Scroll 4p), Xilonen (Source Sample shred), and Bennett (Fantastic Voyage + Noblesse 4p) at 200 Fighting Spirit.",
+  "source": "official",
+  "author": "gi-optimizer",
+  "target": "Mavuika",
+  "team": [
+    {
+      "key": "Mavuika",
+      "build": { "type": "owned" },
+      "requirement": {},
+      "conditional": {
+        "Mavuika": {
+          "burstSpirit": "200",
+          "a1NsBurst": "on",
+          "a4TimeSinceBurst": "0"
+        },
+        "ObsidianCodex": {
+          "set2": "on",
+          "set4": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Citlali",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "ThrillingTalesOfDragonSlayers", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 44.0 } },
+            "sets": { "ScrollOfTheHeroOfCinderCity": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Citlali": { "a1NsFreezeMelt": "on" },
+        "ScrollOfTheHeroOfCinderCity": { "nsReact": "on", "afterReact": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Xilonen",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "FavoniusSword", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "def_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "def_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "def_": 29.7, "critRate_": 31.1 } },
+            "sets": { "ArchaicPetra": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Xilonen": { "sourceActive": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Bennett",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "AquilaFavonia", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "enerRech_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "heal_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "enerRech_": 44.0 } },
+            "sets": { "NoblesseOblige": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Bennett": { "activeInArea": "active" },
+        "NoblesseOblige": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": { "Pyro": "on" }, "reaction": {} },
+  "rotation": {
+    "name": "Q Sunfell Slice Melt + 8× Flamestrider Charged",
+    "repeat": 1,
+    "targets": [
+      { "path": ["burst", "skillDmg"], "count": 1, "label": "Hour of Burning Skies: Sunfell Slice (Melt)", "hitMode": "avgHit", "reaction": "melt", "bonusStats": {} },
+      { "path": ["skill", "chargedCyclicDmg"], "count": 4, "label": "Flamestrider Charged Cyclic (Melt ×4)", "hitMode": "avgHit", "reaction": "melt", "bonusStats": {} },
+      { "path": ["skill", "chargedCyclicDmg"], "count": 4, "label": "Flamestrider Charged Cyclic (No Reaction ×4)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "chargedFinalDmg"], "count": 1, "label": "Flamestrider Charged Final DMG (Melt)", "hitMode": "avgHit", "reaction": "melt", "bonusStats": {} }
+    ]
+  }
+}
+

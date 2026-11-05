@@ -81,3 +81,4 @@ Every JSON file in `packages/presets/data/official/*.json` is automatically veri
   6. `official/mavuika-melt-hypercarry` — Mavuika (target) + Citlali + Xilonen + Bennett (Hour of Burning Skies Sunfell Slice Melt + Flamestrider Charged Attacks, Fighting Spirit, Bennett burst, Xilonen Source Sample, Citlali shred).
 - **OP-2 (Unconstrained requirements)**: Official presets set `requirement: {}` on the target member so users aren't blocked by weapon or constellation locks.
 - **OP-3 (Shared UI)**: Official presets are browsed and selected through the same Presets and Optimize UI as Akasha and User presets (`packages/presets/src/registry.ts` and `apps/web/src/app/presets/page.tsx`).
+

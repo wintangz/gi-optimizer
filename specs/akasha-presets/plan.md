@@ -21,3 +21,4 @@ Implement strict Akasha-style account matching (`packages/presets/src/match.ts`)
 - **III. Import Is GOOD Only**: PASS — matcher reads parsed GOOD account data.
 - **IV. Presets Are Plain JSON Setup Bundles**: PASS — uses `gi-optimizer/preset@1`; never silently substitutes missing units, constellations, or weapons.
 - **V. Single-Character Objective**: PASS — single target character per preset.
+

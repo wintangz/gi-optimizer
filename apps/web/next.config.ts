@@ -35,6 +35,12 @@ const nextConfig: NextConfig = {
       ...config.resolve.alias,
       ...Object.fromEntries(Object.entries(aliases).map(([k, v]) => [`${k}$`, v])),
     };
+    config.resolve.extensionAlias = {
+      ...config.resolve.extensionAlias,
+      ".js": [".ts", ".tsx", ".js", ".jsx"],
+      ".mjs": [".mts", ".mjs"],
+      ".cjs": [".cts", ".cjs"],
+    };
     return config;
   },
 };

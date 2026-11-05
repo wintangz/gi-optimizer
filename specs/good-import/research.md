@@ -20,3 +20,4 @@
 ### 3. Responsive Tables for 1,000+ Artifacts
 - **Decision**: Client-side memoized filtering + pagination/windowed slice (e.g. 100 rows per page with instant filter updates and page controls) so filtering 1,157+ artifacts takes <10 ms and DOM rendering stays under 50 ms.
 - **Rationale**: Satisfies SC-006 (<200 ms filter updates) with zero extra UI library bloat.
+

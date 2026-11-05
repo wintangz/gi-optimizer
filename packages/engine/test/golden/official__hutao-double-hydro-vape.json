@@ -1,0 +1,75 @@
+{
+  "presetId": "official/hutao-double-hydro-vape",
+  "target": "HuTao",
+  "total": 601177.9653805431,
+  "instances": [
+    {
+      "label": "Normal 1-Hit (No Reaction ×5)",
+      "path": [
+        "normal",
+        "0"
+      ],
+      "count": 5,
+      "perHit": 7351.491214857589,
+      "subtotal": 36757.45607428794
+    },
+    {
+      "label": "Normal 1-Hit (Vaporize ×3)",
+      "path": [
+        "normal",
+        "0"
+      ],
+      "count": 3,
+      "perHit": 14992.070056438306,
+      "subtotal": 44976.210169314916
+    },
+    {
+      "label": "Charged Attack (Vaporize ×8)",
+      "path": [
+        "charged",
+        "dmg"
+      ],
+      "count": 8,
+      "perHit": 43473.626571316025,
+      "subtotal": 347789.0125705282
+    },
+    {
+      "label": "Blood Blossom (Vaporize ×2)",
+      "path": [
+        "skill",
+        "dmg"
+      ],
+      "count": 2,
+      "perHit": 13082.400115417797,
+      "subtotal": 26164.800230835594
+    },
+    {
+      "label": "Spirit Soother Low HP (Vaporize)",
+      "path": [
+        "burst",
+        "lowHpDmg"
+      ],
+      "count": 1,
+      "perHit": 145490.48633557654,
+      "subtotal": 145490.48633557654
+    }
+  ],
+  "stats": {
+    "hp": 40758.16222861,
+    "atk": 4402.8419123788435,
+    "def": 937.0357328718,
+    "eleMas": 114.22999999999999,
+    "critRate_": 0.8003,
+    "critDMG_": 1.817536,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 1.021,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}

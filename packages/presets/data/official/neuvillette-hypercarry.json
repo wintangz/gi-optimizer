@@ -1,0 +1,123 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "official/neuvillette-hypercarry",
+  "name": "Neuvillette — Hypercarry (Furina · Kazuha · Zhongli)",
+  "description": "Official meta preset for Neuvillette Hypercarry with Furina (250 Fanfare), Kaedehara Kazuha (Hydro Swirl + VV), and Zhongli (Jade Shield + Archaic Petra). Works with any weapon and constellation you own.",
+  "source": "official",
+  "author": "gi-optimizer",
+  "target": "Neuvillette",
+  "team": [
+    {
+      "key": "Neuvillette",
+      "build": { "type": "owned" },
+      "requirement": {},
+      "conditional": {
+        "Neuvillette": {
+          "a1Stacks": "3",
+          "a4Hp": "80"
+        },
+        "MarechausseeHunter": {
+          "stacks": "3"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Furina",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 10 } },
+          "weapon": { "key": "FavoniusSword", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "GoldenTroupe": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Furina": { "burstFanfare": "250" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "KaedeharaKazuha",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 6, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "FavoniusSword", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 44.0 } },
+            "sets": { "ViridescentVenerer": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "KaedeharaKazuha": { "swirlhydro": "hydro" },
+        "ViridescentVenerer": { "swirlhydro": "hydro" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Zhongli",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "BlackTassel", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "hp_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 19.8 } },
+            "sets": { "ArchaicPetra": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Zhongli": { "skill": "on" },
+        "ArchaicPetra": { "ele": "hydro" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": { "Hydro": "on" }, "reaction": {} },
+  "rotation": {
+    "name": "E -> Q -> 3CA Hypercarry Rotation",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "skillDmg"], "count": 1, "label": "O Tears, I Shall Repay (Skill)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "skillDmg"], "count": 1, "label": "O Tides, I Have Returned (Burst Initial)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "waterfallDmg"], "count": 2, "label": "Burst Waterfall DMG (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["charged", "judgmentDmg"], "count": 24, "label": "Equitable Judgment Ticks (3×8)", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  }
+}
+

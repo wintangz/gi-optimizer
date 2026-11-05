@@ -99,3 +99,4 @@ export function deleteUserPreset(id: string): Promise<void>
 export function loadSettings(): Promise<OptimizerSettings | undefined>
 export function saveSettings(settings: OptimizerSettings): Promise<void>
 ```
+

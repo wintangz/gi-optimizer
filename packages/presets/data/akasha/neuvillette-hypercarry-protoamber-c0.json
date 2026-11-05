@@ -1,0 +1,134 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "akasha/neuvillette-hypercarry-protoamber-c0",
+  "name": "Neuvillette — Hypercarry Double Hydro (Prototype Amber R5)",
+  "description": "Akasha Neuvillette Hypercarry leaderboard (Neuvillette + Furina + Kazuha + Zhongli) with Prototype Amber R5, 3× Charged Attack Equitable Judgment (24 ticks), Skill, and Burst.",
+  "source": "akasha",
+  "author": "akasha.cv",
+  "akasha": {
+    "calculationId": "neuvillette-hyper-pa-r5-c0",
+    "leaderboardUrl": "https://akasha.cv/leaderboards/1000008700",
+    "label": "Hypercarry · Prototype Amber R5 · C0",
+    "retrievedAt": "2026-11-05",
+    "notes": "Requires Neuvillette C0 Lv. 90 and Prototype Amber R5 (can be selected from inventory if equipped on another character)."
+  },
+  "target": "Neuvillette",
+  "team": [
+    {
+      "key": "Neuvillette",
+      "build": { "type": "owned" },
+      "requirement": {
+        "constellation": 0,
+        "minLevel": 90,
+        "weapon": { "key": "PrototypeAmber", "refinement": 5 }
+      },
+      "conditional": {
+        "Neuvillette": {
+          "a1Stacks": "3",
+          "a4Hp": "80"
+        },
+        "MarechausseeHunter": {
+          "stacks": "3"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Furina",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 10 } },
+          "weapon": { "key": "FavoniusSword", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "GoldenTroupe": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Furina": { "burstFanfare": "250" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "KaedeharaKazuha",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 6, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "FavoniusSword", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 44.0 } },
+            "sets": { "ViridescentVenerer": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "KaedeharaKazuha": { "swirlhydro": "hydro" },
+        "ViridescentVenerer": { "swirlhydro": "hydro" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Zhongli",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "BlackTassel", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "hp_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 19.8 } },
+            "sets": { "ArchaicPetra": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Zhongli": { "skill": "on" },
+        "ArchaicPetra": { "ele": "hydro" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": { "Hydro": "on" }, "reaction": {} },
+  "rotation": {
+    "name": "E -> Q -> 3CA Hypercarry Rotation",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "skillDmg"], "count": 1, "label": "O Tears, I Shall Repay (Skill)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "skillDmg"], "count": 1, "label": "O Tides, I Have Returned (Burst Initial)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "waterfallDmg"], "count": 2, "label": "Burst Waterfall DMG (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["charged", "judgmentDmg"], "count": 24, "label": "Equitable Judgment Ticks (3×8)", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  }
+}
+

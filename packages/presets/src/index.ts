@@ -1,2 +1,6 @@
 export * from './schema'
-
+export * from './names'
+export * from './match'
+export * from './validate'
+export * from './registry'
+export * from './userPreset'

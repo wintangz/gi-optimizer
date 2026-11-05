@@ -1,0 +1,121 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "official/furina-salon-subdps",
+  "name": "Furina — Salon Solitaire Sub-DPS (Double Hydro)",
+  "description": "Official meta preset for off-field Furina in Double Hydro teams with Kazuha VV shred and 250 average Fanfare stacks.",
+  "source": "official",
+  "author": "gi-optimizer",
+  "target": "Furina",
+  "team": [
+    {
+      "key": "Furina",
+      "build": { "type": "owned" },
+      "requirement": {},
+      "conditional": {
+        "Furina": {
+          "skillHpConsumeStacks": "4",
+          "burstFanfare": "250"
+        },
+        "GoldenTroupe": {
+          "offField": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Neuvillette",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 10, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "PrototypeAmber", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hydro_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critDMG_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "critDMG_": 62.2 } },
+            "sets": { "MarechausseeHunter": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {},
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "KaedeharaKazuha",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 6, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "FavoniusSword", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 44.0 } },
+            "sets": { "ViridescentVenerer": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "KaedeharaKazuha": { "swirlhydro": "hydro" },
+        "ViridescentVenerer": { "swirlhydro": "hydro" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Zhongli",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "BlackTassel", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "hp_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 19.8 } },
+            "sets": { "ArchaicPetra": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Zhongli": { "skill": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": { "Hydro": "on" }, "reaction": {} },
+  "rotation": {
+    "name": "20s Salon Solitaire Rotation",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "bubbleDmg"], "count": 1, "label": "Ousia Bubble DMG", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "usherDmg"], "count": 7, "label": "Gentilhomme Usher DMG (×7)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "chevalDmg"], "count": 14, "label": "Surintendante Chevalmarin DMG (×14)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "crabDmg"], "count": 4, "label": "Mademoiselle Crabaletta DMG (×4)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "skillDmg"], "count": 1, "label": "Let the People Rejoice Burst DMG", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  }
+}
+

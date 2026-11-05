@@ -7,3 +7,4 @@ Official presets conform to `presetSchema` (`packages/presets/src/schema.ts`, `g
 - `akasha: undefined`
 - `team[0].requirement: {}` (unconstrained weapon/constellation/level/talent so any owner of the target character can run the preset)
 - `team[1..3].build.type: "tc"`
+

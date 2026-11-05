@@ -26,3 +26,4 @@ export function forkPresetToUser(source: Preset, newName?: string): Preset
 export function serializePresetJson(preset: Preset): string
 export function parsePresetJson(rawText: string): ParsePresetImportResult
 ```
+

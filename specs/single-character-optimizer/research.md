@@ -18,3 +18,4 @@
 
 ### 3. Next.js Bundling of Vendored GO Source
 - **Decision**: Use `next build --webpack` with exact-match aliases from `tooling/go-paths.mjs` (`${k}$`) and `tooling/go-shim.d.ts` ambient module boundary, proven in our build spike (compiled and exported static pages in 22 s).
+

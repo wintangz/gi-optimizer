@@ -79,9 +79,9 @@ export const tcBuildSchema = z.object({
     substats: z.object({
       type: z.enum(['max', 'mid', 'min']),
       rarity: z.number().int().min(1).max(5),
-      stats: z.record(z.enum(allSubstatKeys as unknown as [string, ...string[]]), z.number()),
+      stats: z.record(z.string(), z.number()),
     }),
-    sets: z.record(artifactSetKey, z.union([z.literal(1), z.literal(2), z.literal(4)])),
+    sets: z.record(z.string(), z.union([z.literal(1), z.literal(2), z.literal(4)])),
   }),
 })
 

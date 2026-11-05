@@ -1,0 +1,65 @@
+{
+  "presetId": "akasha/neuvillette-hypercarry-protoamber-c0",
+  "target": "Neuvillette",
+  "total": 147822.0678736625,
+  "instances": [
+    {
+      "label": "O Tears, I Shall Repay (Skill)",
+      "path": [
+        "skill",
+        "skillDmg"
+      ],
+      "count": 1,
+      "perHit": 5253.54260740994,
+      "subtotal": 5253.54260740994
+    },
+    {
+      "label": "O Tides, I Have Returned (Burst Initial)",
+      "path": [
+        "burst",
+        "skillDmg"
+      ],
+      "count": 1,
+      "perHit": 9089.90016832213,
+      "subtotal": 9089.90016832213
+    },
+    {
+      "label": "Burst Waterfall DMG (×2)",
+      "path": [
+        "burst",
+        "waterfallDmg"
+      ],
+      "count": 2,
+      "perHit": 3718.5821166272553,
+      "subtotal": 7437.164233254511
+    },
+    {
+      "label": "Equitable Judgment Ticks (3×8)",
+      "path": [
+        "charged",
+        "judgmentDmg"
+      ],
+      "count": 24,
+      "perHit": 5251.727536028164,
+      "subtotal": 126041.46086467593
+    }
+  ],
+  "stats": {
+    "hp": 18368.866469999997,
+    "atk": 231.56936678,
+    "def": 576.4157775000001,
+    "eleMas": 0,
+    "critRate_": 0.05,
+    "critDMG_": 0.884,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0.3174,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}

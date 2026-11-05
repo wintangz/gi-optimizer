@@ -18,3 +18,4 @@
   - Rotation builder driven by `session.listTargets(target)` where the user adds/reorders/removes damage instances, sets hit counts, labels, and per-instance reaction/hitMode overrides.
   - Live damage preview panel using `session.evaluate(draft, session.currentBuild(draft))` whenever a GOOD file is loaded and the target character is owned.
   - Save to IndexedDB (`saveUserPreset`), Export JSON, Import JSON (with Replace / Keep Both on ID collision), and Delete with confirmation.
+
