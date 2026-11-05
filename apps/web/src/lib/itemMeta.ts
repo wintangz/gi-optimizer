@@ -6,6 +6,7 @@ export {
   getRarityColor,
   getSetHue,
   getWeaponMeta,
+  listWeaponsForType,
   type ArtifactMeta,
   type CharacterMeta,
   type ColorTokens,

@@ -1,8 +1,13 @@
 import { SandboxStorage } from '@genshin-optimizer/common/database'
-import { allElementWithPhyKeys, type CharacterKey } from '@genshin-optimizer/gi/consts'
+import {
+  allElementWithPhyKeys,
+  type CharacterKey,
+  type WeaponKey,
+} from '@genshin-optimizer/gi/consts'
 import {
   ArtCharDatabase,
   type CustomMultiTarget,
+  type ICachedWeapon,
   type LoadoutDatum,
 } from '@genshin-optimizer/gi/db'
 import { getTeamDataCalc } from '@genshin-optimizer/gi/ui/useTeamData'
@@ -150,7 +155,34 @@ export function computeDirectGOGolden(
     loadoutData,
   })
 
-  const teamCalc = getTeamDataCalc(db, teamId, 'F', targetTeamCharId, 0)
+  const targetMember = preset.team[0]
+  const overrideChar =
+    targetMember?.build.type === 'fixed'
+      ? targetMember.build.character
+      : undefined
+  const overrideWeapon: ICachedWeapon | undefined =
+    targetMember?.build.type === 'fixed'
+      ? {
+          id: `akasha_sim_${targetMember.build.weapon.key}_r${targetMember.build.weapon.refinement}`,
+          key: targetMember.build.weapon.key as WeaponKey,
+          level: targetMember.build.weapon.level,
+          ascension: targetMember.build.weapon.ascension as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+          refinement: targetMember.build.weapon.refinement as 1 | 2 | 3 | 4 | 5,
+          location: '',
+          lock: false,
+        }
+      : undefined
+
+  const teamCalc = getTeamDataCalc(
+    db,
+    teamId,
+    'F',
+    targetTeamCharId,
+    0,
+    undefined,
+    overrideWeapon,
+    overrideChar
+  )
   const uiData = teamCalc?.[targetKey]?.target
   if (!uiData) {
     throw new Error(`GO getTeamDataCalc returned undefined for ${preset.id}`)
@@ -197,7 +229,9 @@ export function computeDirectGOGolden(
   }
 }
 
-export function captureAllGoldenFixtures() {
+export function captureAllGoldenFixtures(filter?: {
+  source?: 'akasha' | 'official'
+}) {
   mkdirSync(GOLDEN_DIR, { recursive: true })
   const good = JSON.parse(
     readFileSync(
@@ -206,7 +240,7 @@ export function captureAllGoldenFixtures() {
     )
   )
 
-  const presets = listBundledPresets()
+  const presets = listBundledPresets(filter)
   for (const preset of presets) {
     const fixture = computeDirectGOGolden(good, preset)
     const fileSlug = preset.id.replace(/\//g, '__') + '.json'

@@ -1,9 +1,34 @@
-import type { Preset } from '@gi/presets'
+import {
+  DEFAULT_OPTIMIZER_SETTINGS,
+  type ArtSetExclusionMap,
+  type ArtSetFilterSummary,
+  type OptimizerSettings,
+  type Preset,
+  type SetFilterMode,
+  type SetPieceCount,
+} from '@gi/presets'
+
+export {
+  DEFAULT_OPTIMIZER_SETTINGS,
+  type ArtSetExclusionMap,
+  type ArtSetFilterSummary,
+  type OptimizerSettings,
+  type SetFilterMode,
+  type SetPieceCount,
+}
 
 export type ArtifactSlot = 'flower' | 'plume' | 'sands' | 'goblet' | 'circlet'
 
+export interface SimulatedWeaponSpec {
+  key: string
+  level?: number
+  ascension?: number
+  refinement: number
+}
+
 export interface BuildSelection {
   weaponId?: string
+  weaponOverride?: SimulatedWeaponSpec
   artifactIds: Partial<Record<ArtifactSlot, string>>
 }
 
@@ -19,29 +44,6 @@ export interface RotationResult {
   total: number
   instances: InstanceResult[]
   stats: Record<string, number>
-}
-
-export interface OptimizerSettings {
-  erFloor?: number
-  includeEquippedOnOthers: boolean
-  excludedCharacters: string[]
-  lockedOnly?: boolean
-  mainStatAssumptionLevel: 0 | 4 | 8 | 12 | 16 | 20
-  levelLow: number
-  levelHigh: number
-  setExclusion?: Record<string, (2 | 4)[]>
-  topN: number
-}
-
-export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
-  includeEquippedOnOthers: true,
-  excludedCharacters: [],
-  lockedOnly: false,
-  mainStatAssumptionLevel: 0,
-  levelLow: 0,
-  levelHigh: 20,
-  setExclusion: {},
-  topN: 5,
 }
 
 export interface OptimizeProgress {
@@ -85,6 +87,7 @@ export interface EngineSession {
     settings: OptimizerSettings,
     opts?: {
       weaponId?: string
+      weaponOverride?: SimulatedWeaponSpec
       onProgress?: (p: OptimizeProgress) => void
       signal?: AbortSignal
       maxWorkers?: number
@@ -94,4 +97,3 @@ export interface EngineSession {
   listConditionals(characterKey: string): ConditionalDescriptor[]
   exportGODatabase(preset: Preset, selection?: BuildSelection): object
 }
-

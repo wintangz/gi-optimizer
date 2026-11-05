@@ -53,20 +53,24 @@ export const memberRequirementSchema = z.object({
   minTalent: z.object({ auto: talentLevel, skill: talentLevel, burst: talentLevel }).partial().optional(),
 })
 
+export const tcCharacterSchema = z.object({
+  level: z.number().int().min(1).max(100),
+  ascension: z.number().int().min(0).max(6),
+  constellation: z.number().int().min(0).max(6),
+  talent: z.object({ auto: talentLevel, skill: talentLevel, burst: talentLevel }),
+})
+
+export const tcWeaponSchema = z.object({
+  key: weaponKey,
+  level: z.number().int().min(1).max(90),
+  ascension: z.number().int().min(0).max(6),
+  refinement: z.number().int().min(1).max(5),
+})
+
 /** GO BuildTc subset: an assumed (theorycraft) build — used for teammates whose stats are fixed by the preset. */
 export const tcBuildSchema = z.object({
-  character: z.object({
-    level: z.number().int().min(1).max(100),
-    ascension: z.number().int().min(0).max(6),
-    constellation: z.number().int().min(0).max(6),
-    talent: z.object({ auto: talentLevel, skill: talentLevel, burst: talentLevel }),
-  }),
-  weapon: z.object({
-    key: weaponKey,
-    level: z.number().int().min(1).max(90),
-    ascension: z.number().int().min(0).max(6),
-    refinement: z.number().int().min(1).max(5),
-  }),
+  character: tcCharacterSchema,
+  weapon: tcWeaponSchema,
   artifact: z.object({
     slots: z.object({
       flower: z.object({ statKey: z.enum(allMainStatKeys as unknown as [string, ...string[]]), level: z.number().int().min(0).max(20), rarity: z.number().int().min(1).max(5) }),
@@ -85,16 +89,26 @@ export const tcBuildSchema = z.object({
   }),
 })
 
+export const fixedBuildSchema = z.object({
+  type: z.literal('fixed'),
+  character: tcCharacterSchema,
+  weapon: tcWeaponSchema,
+})
+
 export const teamMemberSchema = z.object({
   key: characterKey,
   /**
    * 'owned'  -> the user's own scanned character (level/cons/talents from GOOD) with the
    *             weapon the user selects (default: equipped) and the artifacts being evaluated.
-   *             Required for the target member.
+   *             Required for the target member of 'official' and 'user' presets.
+   * 'fixed'  -> Akasha artifact-only mode target build: fixed character spec (level, ascension,
+   *             constellation, talents) and default weapon spec (key, level, ascension, refinement).
+   *             Required for the target member of 'akasha' presets.
    * 'tc'     -> fixed assumed build (GO theorycraft). The user does not need to own this unit.
    */
   build: z.discriminatedUnion('type', [
     z.object({ type: z.literal('owned') }),
+    fixedBuildSchema,
     z.object({ type: z.literal('tc'), tc: tcBuildSchema }),
   ]),
   requirement: memberRequirementSchema.default({}),
@@ -156,7 +170,15 @@ export const presetSchema = z.object({
   }),
 }).superRefine((p, ctx) => {
   if (p.team[0]?.key !== p.target) ctx.addIssue({ code: 'custom', path: ['team', 0, 'key'], message: 'team[0] must be the target character' })
-  if (p.team[0]?.build.type !== 'owned') ctx.addIssue({ code: 'custom', path: ['team', 0, 'build'], message: "target member must use build.type 'owned'" })
+  if (p.source === 'akasha') {
+    if (p.team[0]?.build.type !== 'fixed') {
+      ctx.addIssue({ code: 'custom', path: ['team', 0, 'build'], message: "akasha target member must use build.type 'fixed'" })
+    }
+  } else {
+    if (p.team[0]?.build.type !== 'owned') {
+      ctx.addIssue({ code: 'custom', path: ['team', 0, 'build'], message: "target member must use build.type 'owned'" })
+    }
+  }
   if (new Set(p.team.map((m) => m.key)).size !== p.team.length) ctx.addIssue({ code: 'custom', path: ['team'], message: 'duplicate team member' })
   if ((p.source === 'akasha') !== !!p.akasha) ctx.addIssue({ code: 'custom', path: ['akasha'], message: "akasha metadata is required for source 'akasha' and forbidden otherwise" })
   if (!p.id.startsWith(`${p.source}/`)) ctx.addIssue({ code: 'custom', path: ['id'], message: 'id prefix must match source' })
@@ -168,5 +190,8 @@ export type TeamMember = z.infer<typeof teamMemberSchema>
 export type MemberRequirement = z.infer<typeof memberRequirementSchema>
 export type RotationTarget = z.infer<typeof rotationTargetSchema>
 export type TcBuild = z.infer<typeof tcBuildSchema>
+export type FixedBuild = z.infer<typeof fixedBuildSchema>
+export type TcCharacter = z.infer<typeof tcCharacterSchema>
+export type TcWeapon = z.infer<typeof tcWeaponSchema>
 export type PresetSource = z.infer<typeof presetSourceSchema>
 

@@ -1,7 +1,10 @@
 'use client'
 
-import { DEFAULT_OPTIMIZER_SETTINGS, type OptimizerSettings } from '@gi/engine'
-import type { Preset } from '@gi/presets'
+import {
+  DEFAULT_OPTIMIZER_SETTINGS,
+  type OptimizerSettings,
+  type Preset,
+} from '@gi/presets'
 import { useCallback, useEffect, useState } from 'react'
 import {
   clearGood,

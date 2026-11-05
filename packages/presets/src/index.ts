@@ -1,6 +1,7 @@
 export * from './schema'
 export * from './names'
 export * from './metadata'
+export * from './settings'
 export * from './match'
 export * from './validate'
 export * from './registry'

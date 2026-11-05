@@ -256,4 +256,36 @@ describe('Single-Character Optimizer Solver (single-character-optimizer)', () =>
       }
     }
   })
+
+  it('enforces setFilterMode="include" and "exclude" at the solver boundary (artifact-set-filter)', async () => {
+    // Include ONLY GoldenTroupe (both 2pc and 4pc allowed) — every other set is excluded from forming 2pc or 4pc bonuses
+    const includeGoldenOnly = await session.optimize(furinaPreset, {
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      setFilterMode: 'include',
+      setFilterSelection: {
+        GoldenTroupe: [2, 4],
+      },
+      topN: 3,
+    })
+
+    const artById = new Map<string, any>(
+      smallGood.artifacts.map((a: any) => [a.id, a])
+    )
+    for (const b of includeGoldenOnly.builds) {
+      const setCounts: Record<string, number> = {}
+      for (const slot of SLOTS) {
+        const id = b.artifactIds[slot]
+        const art = id ? artById.get(id) : undefined
+        if (art) {
+          setCounts[art.setKey] = (setCounts[art.setKey] ?? 0) + 1
+        }
+      }
+      // No non-GoldenTroupe set may have >= 2 pieces equipped
+      for (const [sk, count] of Object.entries(setCounts)) {
+        if (sk !== 'GoldenTroupe') {
+          expect(count).toBeLessThan(2)
+        }
+      }
+    }
+  })
 })

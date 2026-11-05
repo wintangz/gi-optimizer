@@ -1,7 +1,7 @@
 {
   "presetId": "akasha/neuvillette-hypercarry-protoamber-c0",
   "target": "Neuvillette",
-  "total": 147822.0678736625,
+  "total": 196716.87762009812,
   "instances": [
     {
       "label": "O Tears, I Shall Repay (Skill)",
@@ -10,8 +10,8 @@
         "skillDmg"
       ],
       "count": 1,
-      "perHit": 5253.54260740994,
-      "subtotal": 5253.54260740994
+      "perHit": 6991.24638857771,
+      "subtotal": 6991.24638857771
     },
     {
       "label": "O Tides, I Have Returned (Burst Initial)",
@@ -20,8 +20,8 @@
         "skillDmg"
       ],
       "count": 1,
-      "perHit": 9089.90016832213,
-      "subtotal": 9089.90016832213
+      "perHit": 12096.548267197704,
+      "subtotal": 12096.548267197704
     },
     {
       "label": "Burst Waterfall DMG (×2)",
@@ -30,8 +30,8 @@
         "waterfallDmg"
       ],
       "count": 2,
-      "perHit": 3718.5821166272553,
-      "subtotal": 7437.164233254511
+      "perHit": 4948.57008617982,
+      "subtotal": 9897.14017235964
     },
     {
       "label": "Equitable Judgment Ticks (3×8)",
@@ -40,13 +40,13 @@
         "judgmentDmg"
       ],
       "count": 24,
-      "perHit": 5251.727536028164,
-      "subtotal": 126041.46086467593
+      "perHit": 6988.830949665127,
+      "subtotal": 167731.94279196305
     }
   ],
   "stats": {
-    "hp": 18368.866469999997,
-    "atk": 231.56936678,
+    "hp": 24444.699694548955,
+    "atk": 717.93031578,
     "def": 576.4157775000001,
     "eleMas": 0,
     "critRate_": 0.05,

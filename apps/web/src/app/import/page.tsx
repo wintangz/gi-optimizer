@@ -1,10 +1,12 @@
 'use client'
 
+import ImportLoading from './loading'
 import {
   ArtifactBadge,
   CharacterBadge,
   WeaponBadge,
 } from '@/components/Identifier'
+import { Spinner } from '@/components/Loading'
 import { useGoodStorage } from '@/lib/storage/useGood'
 import {
   humanizeKey,
@@ -48,28 +50,35 @@ export default function ImportPage() {
   const [artMainStatFilter, setArtMainStatFilter] = useState('')
   const [artEquippedFilter, setArtEquippedFilter] = useState('')
   const [confirmClear, setConfirmClear] = useState(false)
+  const [parsing, setParsing] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   async function handleRawInput(raw: string, fileName?: string) {
-    const res = parseGood(raw)
-    setParseResult(res)
-    if (!res.ok || !res.good) {
-      setPendingRecord(null)
-      return
-    }
-    // If an existing GOOD record is already stored, ask for replacement confirmation first
-    if (record) {
-      setPendingRecord({ res, fileName })
-    } else {
-      await save({
-        good: res.good,
-        importedAt: new Date().toISOString(),
-        fileName,
-        source: res.good.source,
-        summary: res.summary,
-      })
-      setPendingRecord(null)
+    setParsing(true)
+    await new Promise((r) => setTimeout(r, 0))
+    try {
+      const res = parseGood(raw)
+      setParseResult(res)
+      if (!res.ok || !res.good) {
+        setPendingRecord(null)
+        return
+      }
+      // If an existing GOOD record is already stored, ask for replacement confirmation first
+      if (record) {
+        setPendingRecord({ res, fileName })
+      } else {
+        await save({
+          good: res.good,
+          importedAt: new Date().toISOString(),
+          fileName,
+          source: res.good.source,
+          summary: res.summary,
+        })
+        setPendingRecord(null)
+      }
+    } finally {
+      setParsing(false)
     }
   }
 
@@ -206,8 +215,23 @@ export default function ImportPage() {
     return groups
   }, [parseResult])
 
+  if (loading) {
+    return <ImportLoading />
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      {parsing && (
+        <div
+          className="panel"
+          style={{
+            borderColor: 'var(--accent)',
+            background: 'rgba(122, 162, 255, 0.08)',
+          }}
+        >
+          <Spinner label="Parsing GOOD file…" />
+        </div>
+      )}
       <div
         style={{
           display: 'flex',

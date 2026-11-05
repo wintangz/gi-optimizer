@@ -24,6 +24,7 @@ export {
   type OptimizeResult,
   type OptimizerSettings,
   type RotationResult,
+  type SimulatedWeaponSpec,
   type TargetDescriptor,
 } from './types'
 

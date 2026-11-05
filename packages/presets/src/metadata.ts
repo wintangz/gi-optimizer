@@ -1,10 +1,9 @@
+import { ALL_WEAPON_KEYS, displayName } from './names'
 import {
-  getArtSetStat,
-  getCharEle,
-  getCharStat,
-  getWeaponStat,
-} from '@genshin-optimizer/gi/stats'
-import { displayName } from './names'
+  ART_SET_STAT_META,
+  CHAR_STAT_META,
+  WEAPON_STAT_META,
+} from './statMeta.gen'
 
 export type IdentifierElement =
   | 'pyro'
@@ -179,22 +178,27 @@ export function getCharacterMeta(characterKey: string): CharacterMeta {
   let rarity: 4 | 5 = 5
   let weaponType: IdentifierWeaponType = 'sword'
 
-  try {
-    const rawEle = getCharEle(normalizedKey) as string | undefined
-    if (rawEle && rawEle in ELEMENT_COLORS) {
-      element = rawEle as IdentifierElement
+  if (characterKey.startsWith('TravelerAnemo')) element = 'anemo'
+  else if (characterKey.startsWith('TravelerGeo')) element = 'geo'
+  else if (characterKey.startsWith('TravelerElectro')) element = 'electro'
+  else if (characterKey.startsWith('TravelerDendro')) element = 'dendro'
+  else if (characterKey.startsWith('TravelerHydro')) element = 'hydro'
+  else if (characterKey.startsWith('TravelerPyro')) element = 'pyro'
+  else if (characterKey.startsWith('TravelerCryo')) element = 'cryo'
+
+  const stat = CHAR_STAT_META[normalizedKey]
+  if (stat) {
+    if (
+      !characterKey.startsWith('Traveler') &&
+      stat.ele &&
+      stat.ele in ELEMENT_COLORS
+    ) {
+      element = stat.ele as IdentifierElement
     }
-    const stat = getCharStat(normalizedKey) as
-      | { rarity?: number; weaponType?: string }
-      | undefined
-    if (stat) {
-      rarity = stat.rarity === 4 ? 4 : 5
-      if (stat.weaponType && stat.weaponType in WEAPON_TYPE_GLYPHS) {
-        weaponType = stat.weaponType as IdentifierWeaponType
-      }
+    rarity = stat.rarity === 4 ? 4 : 5
+    if (stat.weaponType && stat.weaponType in WEAPON_TYPE_GLYPHS) {
+      weaponType = stat.weaponType as IdentifierWeaponType
     }
-  } catch {
-    // Fallback for unknown character keys
   }
 
   return {
@@ -216,20 +220,14 @@ export function getWeaponMeta(
   let weaponType: IdentifierWeaponType = 'sword'
   let rarity: IdentifierRarity = 4
 
-  try {
-    const stat = getWeaponStat(weaponKey) as
-      | { weaponType?: string; rarity?: number }
-      | undefined
-    if (stat) {
-      if (stat.weaponType && stat.weaponType in WEAPON_TYPE_GLYPHS) {
-        weaponType = stat.weaponType as IdentifierWeaponType
-      }
-      if (stat.rarity && stat.rarity >= 1 && stat.rarity <= 5) {
-        rarity = stat.rarity as IdentifierRarity
-      }
+  const stat = WEAPON_STAT_META[weaponKey]
+  if (stat) {
+    if (stat.weaponType && stat.weaponType in WEAPON_TYPE_GLYPHS) {
+      weaponType = stat.weaponType as IdentifierWeaponType
     }
-  } catch {
-    // Fallback for unknown weapon keys
+    if (stat.rarity && stat.rarity >= 1 && stat.rarity <= 5) {
+      rarity = stat.rarity as IdentifierRarity
+    }
   }
 
   if (
@@ -251,6 +249,17 @@ export function getWeaponMeta(
   }
 }
 
+export function listWeaponsForType(
+  weaponType: IdentifierWeaponType
+): WeaponMeta[] {
+  return ALL_WEAPON_KEYS.map((key) => getWeaponMeta(key))
+    .filter((w) => w.weaponType === weaponType)
+    .sort(
+      (a, b) =>
+        b.rarity - a.rarity || a.displayName.localeCompare(b.displayName)
+    )
+}
+
 export function getArtifactMeta(opts: {
   setKey: string
   slotKey?: IdentifierSlotKey
@@ -265,18 +274,12 @@ export function getArtifactMeta(opts: {
   if (opts.rarity !== undefined && opts.rarity >= 1 && opts.rarity <= 5) {
     rarity = Math.round(opts.rarity) as IdentifierRarity
   } else {
-    try {
-      const artStat = getArtSetStat(setKey) as
-        | { rarities?: number[] }
-        | undefined
-      if (artStat?.rarities && artStat.rarities.length > 0) {
-        const maxR = Math.max(...artStat.rarities)
-        if (maxR >= 1 && maxR <= 5) {
-          rarity = maxR as IdentifierRarity
-        }
+    const artStat = ART_SET_STAT_META[setKey]
+    if (artStat?.rarities && artStat.rarities.length > 0) {
+      const maxR = Math.max(...artStat.rarities)
+      if (maxR >= 1 && maxR <= 5) {
+        rarity = maxR as IdentifierRarity
       }
-    } catch {
-      // Fallback to 5★
     }
   }
 

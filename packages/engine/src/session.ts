@@ -5,6 +5,7 @@ import {
   allElementWithPhyKeys,
   charKeyToLocCharKey,
   type CharacterKey,
+  type WeaponKey,
 } from '@genshin-optimizer/gi/consts'
 import {
   ArtCharDatabase,
@@ -14,10 +15,11 @@ import {
   type ICachedWeapon,
   type LoadoutDatum,
 } from '@genshin-optimizer/gi/db'
+import { getWeaponStat } from '@genshin-optimizer/gi/stats'
 import { getTeamData } from '@genshin-optimizer/gi/ui/useTeamData'
 import { uiDataForTeam } from '@genshin-optimizer/gi/uidata'
 import { input } from '@genshin-optimizer/gi/wr'
-import type { Preset, RotationTarget } from '@gi/presets'
+import type { Preset, RotationTarget, TcCharacter } from '@gi/presets'
 import {
   listConditionalsForCharacter,
   listTargetsForCharacter,
@@ -32,6 +34,7 @@ import type {
   OptimizeResult,
   OptimizerSettings,
   RotationResult,
+  SimulatedWeaponSpec,
 } from './types'
 
 export function normalizeTargetPath(
@@ -86,6 +89,72 @@ export function buildCustomMultiTargetsForPreset(
   return [combined, ...perInstance]
 }
 
+export function buildSimulatedCachedWeapon(
+  spec: SimulatedWeaponSpec
+): ICachedWeapon {
+  const rarity = getWeaponStat(spec.key as WeaponKey)?.rarity ?? 5
+  const isLowRarity = rarity <= 2
+  const maxLvl = isLowRarity ? 70 : 90
+  const maxAsc = isLowRarity ? 4 : 6
+  const level = Math.max(1, Math.min(maxLvl, Math.round(spec.level ?? maxLvl)))
+  const ascension = Math.max(
+    0,
+    Math.min(maxAsc, Math.round(spec.ascension ?? maxAsc))
+  ) as 0 | 1 | 2 | 3 | 4 | 5 | 6
+  const refinement = isLowRarity
+    ? 1
+    : (Math.max(1, Math.min(5, Math.round(spec.refinement || 1))) as
+        | 1
+        | 2
+        | 3
+        | 4
+        | 5)
+
+  return {
+    id: `akasha_sim_${spec.key}_r${refinement}`,
+    key: spec.key as WeaponKey,
+    level,
+    ascension,
+    refinement,
+    location: '',
+    lock: false,
+  }
+}
+
+export function resolveFixedTargetOverrides(
+  preset: Preset,
+  weaponOverride?: SimulatedWeaponSpec
+): {
+  isFixedTarget: boolean
+  overrideChar?: TcCharacter
+  overrideWeapon?: ICachedWeapon
+  effectiveWeaponSpec?: SimulatedWeaponSpec
+} {
+  const targetMember = preset.team[0]
+  if (targetMember?.build.type === 'fixed') {
+    const wSpec: SimulatedWeaponSpec = weaponOverride ?? {
+      key: targetMember.build.weapon.key,
+      level: targetMember.build.weapon.level,
+      ascension: targetMember.build.weapon.ascension,
+      refinement: targetMember.build.weapon.refinement,
+    }
+    return {
+      isFixedTarget: true,
+      overrideChar: targetMember.build.character,
+      overrideWeapon: buildSimulatedCachedWeapon(wSpec),
+      effectiveWeaponSpec: wSpec,
+    }
+  }
+  if (weaponOverride) {
+    return {
+      isFixedTarget: false,
+      overrideWeapon: buildSimulatedCachedWeapon(weaponOverride),
+      effectiveWeaponSpec: weaponOverride,
+    }
+  }
+  return { isFixedTarget: false }
+}
+
 export interface HydratedPresetTeam {
   teamId: string
   targetTeamCharId: string
@@ -100,7 +169,10 @@ const dbPresetCache = new WeakMap<
   { fingerprint: string; hydrated: HydratedPresetTeam }
 >()
 
-function presetTeamFingerprint(preset: Preset): string {
+function presetTeamFingerprint(
+  preset: Preset,
+  activeWeaponKey?: string
+): string {
   return JSON.stringify({
     id: preset.id,
     target: preset.target,
@@ -108,6 +180,7 @@ function presetTeamFingerprint(preset: Preset): string {
     enemy: preset.enemy,
     teamConditional: preset.teamConditional,
     rotation: preset.rotation,
+    activeWeaponKey: activeWeaponKey ?? '',
   })
 }
 
@@ -118,9 +191,17 @@ function presetTeamFingerprint(preset: Preset): string {
  */
 export function hydratePresetTeam(
   db: ArtCharDatabase,
-  preset: Preset
+  preset: Preset,
+  activeWeaponKey?: string
 ): HydratedPresetTeam {
-  const fingerprint = presetTeamFingerprint(preset)
+  const targetMember = preset.team[0]
+  const resolvedWeaponKey =
+    activeWeaponKey ??
+    (targetMember?.build.type === 'fixed'
+      ? targetMember.build.weapon.key
+      : undefined)
+
+  const fingerprint = presetTeamFingerprint(preset, resolvedWeaponKey)
   const cached = dbPresetCache.get(db as object)
   if (
     cached &&
@@ -155,15 +236,43 @@ export function hydratePresetTeam(
     const isTarget = i === 0
 
     // Supporting teammates with `build.type === 'tc'` use their BuildTc stats exclusively,
+    // and fixed Akasha targets use `overrideChar` + `overrideWeapon`,
     // but GO's TeamData requires the character key to exist in `db.chars`.
     if (!db.chars.get(mKey)) {
       db.chars.getWithInitWeapon(mKey)
     }
 
+    let memberConditional = member.conditional
+    if (
+      isTarget &&
+      member.build.type === 'fixed' &&
+      resolvedWeaponKey &&
+      !member.conditional[resolvedWeaponKey]
+    ) {
+      // Auto-populate GO weapon conditionals for a user-selected simulated weapon
+      // when that weapon has conditional states not explicitly authored in the preset.
+      const weaponConds = listConditionalsForCharacter(mKey).filter(
+        (c) => c.sheet === resolvedWeaponKey && c.states.length > 0
+      )
+      if (weaponConds.length > 0) {
+        const sheetStates: Record<string, string> = {}
+        for (const wc of weaponConds) {
+          const maxState = wc.states[wc.states.length - 1]
+          if (maxState) {
+            sheetStates[wc.key] = maxState.key
+          }
+        }
+        memberConditional = {
+          ...member.conditional,
+          [resolvedWeaponKey]: sheetStates,
+        }
+      }
+    }
+
     const tcId = db.teamChars.new(mKey, {
       name: `${preset.name} — ${mKey}`,
       description: preset.description ?? '',
-      conditional: member.conditional as never,
+      conditional: memberConditional as never,
       bonusStats: member.bonusStats as never,
       infusionAura: (member.infusionAura ?? '') as never,
       hitMode: member.hitMode ?? 'avgHit',
@@ -252,12 +361,43 @@ export function hydrateTeamIntoDb(
   const db = new ArtCharDatabase(1, new SandboxStorage())
   db.importGOOD(goodData as never, false, false, false)
 
-  const { teamId, targetTeamCharId } = hydratePresetTeam(db, preset)
+  const { isFixedTarget, overrideChar, overrideWeapon, effectiveWeaponSpec } =
+    resolveFixedTargetOverrides(preset, selection?.weaponOverride)
+
+  const { teamId, targetTeamCharId } = hydratePresetTeam(
+    db,
+    preset,
+    effectiveWeaponSpec?.key
+  )
   const targetCharKey = preset.target as CharacterKey
+  const locKey = charKeyToLocCharKey(targetCharKey)
+
+  if (isFixedTarget && overrideChar && overrideWeapon) {
+    // Write the fixed character spec and simulated weapon into the exported DB
+    // so "Verify in GO" exports and round-trips with exact Akasha fixed stats.
+    db.chars.set(targetCharKey, {
+      key: targetCharKey,
+      level: overrideChar.level,
+      ascension: overrideChar.ascension as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      constellation: overrideChar.constellation,
+      talent: { ...overrideChar.talent },
+    })
+    const existingEquippedId = db.chars.get(targetCharKey)?.equippedWeapon
+    if (existingEquippedId && db.weapons.get(existingEquippedId)) {
+      db.weapons.set(existingEquippedId, { location: '' })
+    }
+    db.weapons.new({
+      key: overrideWeapon.key,
+      level: overrideWeapon.level,
+      ascension: overrideWeapon.ascension,
+      refinement: overrideWeapon.refinement,
+      location: locKey,
+      lock: false,
+    })
+  }
 
   if (selection) {
-    const locKey = charKeyToLocCharKey(targetCharKey)
-    if (selection.weaponId) {
+    if (!isFixedTarget && selection.weaponId) {
       const w = db.weapons.get(selection.weaponId)
       if (w) {
         db.weapons.set(selection.weaponId, { location: locKey })
@@ -286,24 +426,48 @@ export function createSession(good: unknown): EngineSession {
     currentBuild(preset: Preset): BuildSelection {
       const targetKey = preset.target as CharacterKey
       const char = baseDb.chars.get(targetKey)
-      if (!char) {
-        return { artifactIds: {} }
-      }
       const artifactIds: Partial<Record<ArtifactSlot, string>> = {}
-      for (const slot of allArtifactSlotKeys) {
-        const id = char.equippedArtifacts[slot]
-        if (id) {
-          artifactIds[slot as ArtifactSlot] = id
+      if (char) {
+        for (const slot of allArtifactSlotKeys) {
+          const id = char.equippedArtifacts[slot]
+          if (id && baseDb.arts.get(id)) {
+            artifactIds[slot as ArtifactSlot] = id
+          }
         }
       }
+
+      const targetMember = preset.team[0]
+      if (targetMember?.build.type === 'fixed') {
+        return {
+          weaponOverride: {
+            key: targetMember.build.weapon.key,
+            level: targetMember.build.weapon.level,
+            ascension: targetMember.build.weapon.ascension,
+            refinement: targetMember.build.weapon.refinement,
+          },
+          artifactIds,
+        }
+      }
+
       return {
-        weaponId: char.equippedWeapon || undefined,
+        weaponId: char?.equippedWeapon || undefined,
         artifactIds,
       }
     },
 
     evaluate(preset: Preset, selection?: BuildSelection): RotationResult {
-      const { teamId, targetTeamCharId } = hydratePresetTeam(baseDb, preset)
+      const {
+        isFixedTarget,
+        overrideChar,
+        overrideWeapon: fixedOrSimWeapon,
+        effectiveWeaponSpec,
+      } = resolveFixedTargetOverrides(preset, selection?.weaponOverride)
+
+      const { teamId, targetTeamCharId } = hydratePresetTeam(
+        baseDb,
+        preset,
+        effectiveWeaponSpec?.key
+      )
       const targetKey = preset.target as CharacterKey
 
       let overrideArts: ICachedArtifact[] | undefined
@@ -316,8 +480,8 @@ export function createSession(good: unknown): EngineSession {
           .filter(notEmpty)
       }
 
-      let overrideWeapon: ICachedWeapon | undefined
-      if (selection?.weaponId) {
+      let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
+      if (!isFixedTarget && !overrideWeapon && selection?.weaponId) {
         overrideWeapon = baseDb.weapons.get(selection.weaponId)
       }
 
@@ -327,7 +491,8 @@ export function createSession(good: unknown): EngineSession {
         targetTeamCharId,
         0,
         overrideArts,
-        overrideWeapon
+        overrideWeapon,
+        overrideChar
       )
       if (!bundle) {
         throw new Error(
@@ -403,17 +568,34 @@ export function createSession(good: unknown): EngineSession {
       settings: OptimizerSettings,
       opts?: {
         weaponId?: string
+        weaponOverride?: SimulatedWeaponSpec
         onProgress?: (p: OptimizeProgress) => void
         signal?: AbortSignal
         maxWorkers?: number
       }
     ): Promise<OptimizeResult> {
-      const { teamId, targetTeamCharId } = hydratePresetTeam(baseDb, preset)
-      const overrideWeapon = opts?.weaponId
-        ? baseDb.weapons.get(opts.weaponId)
-        : undefined
+      const {
+        isFixedTarget,
+        overrideChar,
+        overrideWeapon: fixedOrSimWeapon,
+        effectiveWeaponSpec,
+      } = resolveFixedTargetOverrides(preset, opts?.weaponOverride)
+
+      const { teamId, targetTeamCharId } = hydratePresetTeam(
+        baseDb,
+        preset,
+        effectiveWeaponSpec?.key
+      )
+
+      let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
+      if (!isFixedTarget && !overrideWeapon && opts?.weaponId) {
+        overrideWeapon = baseDb.weapons.get(opts.weaponId)
+      }
+
       return runSolver(baseDb, teamId, targetTeamCharId, preset, settings, {
         overrideWeapon,
+        overrideChar,
+        weaponOverrideSpec: isFixedTarget ? effectiveWeaponSpec : opts?.weaponOverride,
         onProgress: opts?.onProgress,
         signal: opts?.signal,
       })

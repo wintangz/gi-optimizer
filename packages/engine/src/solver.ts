@@ -32,13 +32,19 @@ import {
   optimize,
   type NumNode,
 } from '@genshin-optimizer/gi/wr'
-import type { Preset } from '@gi/presets'
+import {
+  ALL_ARTIFACT_SET_KEYS,
+  resolveArtSetExclusion,
+  type Preset,
+  type TcCharacter,
+} from '@gi/presets'
 import type {
   ArtifactSlot,
   BuildSelection,
   OptimizeProgress,
   OptimizeResult,
   OptimizerSettings,
+  SimulatedWeaponSpec,
 } from './types'
 
 export function filterArtifactsForOptimizer(
@@ -75,6 +81,8 @@ export async function runSolver(
   settings: OptimizerSettings,
   opts?: {
     overrideWeapon?: ICachedWeapon
+    overrideChar?: TcCharacter
+    weaponOverrideSpec?: SimulatedWeaponSpec
     onProgress?: (p: OptimizeProgress) => void
     signal?: AbortSignal
   }
@@ -98,7 +106,8 @@ export async function runSolver(
     targetTeamCharId,
     settings.mainStatAssumptionLevel,
     [],
-    opts?.overrideWeapon
+    opts?.overrideWeapon,
+    opts?.overrideChar
   )
   if (!bundle) {
     return { builds: [], tested: 0, skipped: 0, durationMs: 0 }
@@ -142,7 +151,10 @@ export async function runSolver(
     ({ path: [p] }: { path: readonly string[] }) => p !== 'dyn'
   )
   const optTargetNode = compiledNodes.pop()!
-  const exclusion = (settings.setExclusion ?? {}) as ArtSetExclusion
+  const exclusion = resolveArtSetExclusion(
+    settings,
+    ALL_ARTIFACT_SET_KEYS
+  ) as ArtSetExclusion
   const topN = Math.max(1, settings.topN || 5)
 
   const problem: OptProblemInput = {
@@ -250,9 +262,10 @@ export async function runSolver(
   opts?.onProgress?.({ tested, skipped, total })
 
   const repeat = preset.rotation.repeat ?? 1
-  const equippedWeaponId =
-    opts?.overrideWeapon?.id ??
-    db.chars.get(targetKey)?.equippedWeapon
+  const isFixedTarget = preset.team[0]?.build.type === 'fixed'
+  const equippedWeaponId = isFixedTarget
+    ? undefined
+    : opts?.overrideWeapon?.id ?? db.chars.get(targetKey)?.equippedWeapon
 
   const builds = computeWorker.builds.map(
     (b: { value: number; artifactIds: string[] }) => {
@@ -264,7 +277,10 @@ export async function runSolver(
         }
       }
       return {
-        weaponId: equippedWeaponId,
+        ...(equippedWeaponId ? { weaponId: equippedWeaponId } : {}),
+        ...(opts?.weaponOverrideSpec
+          ? { weaponOverride: opts.weaponOverrideSpec }
+          : {}),
         artifactIds,
         total: b.value * repeat,
       }

@@ -6,6 +6,7 @@ import type {
   OptimizeResult,
   OptimizerSettings,
   RotationResult,
+  SimulatedWeaponSpec,
   TargetDescriptor,
 } from '@gi/engine'
 import type { IGOOD } from '@gi/good'
@@ -89,6 +90,12 @@ async function getFallbackSession(
   return fallbackSession
 }
 
+export function isEngineSessionHydrated(datasetKey: string): boolean {
+  return (
+    workerHydratedKey === datasetKey || fallbackDatasetKey === datasetKey
+  )
+}
+
 export async function initEngineSession(
   datasetKey: string,
   good: IGOOD
@@ -162,9 +169,18 @@ export async function optimizePresetInWorker(opts: {
   preset: Preset
   settings: OptimizerSettings
   weaponId?: string
+  weaponOverride?: SimulatedWeaponSpec
   onProgress?: (p: OptimizeProgress) => void
 }): Promise<OptimizeResult> {
-  const { datasetKey, good, preset, settings, weaponId, onProgress } = opts
+  const {
+    datasetKey,
+    good,
+    preset,
+    settings,
+    weaponId,
+    weaponOverride,
+    onProgress,
+  } = opts
   const worker = getOrCreateWorker()
   if (worker) {
     const requestId = makeRequestId('opt')
@@ -181,6 +197,7 @@ export async function optimizePresetInWorker(opts: {
         preset,
         settings,
         weaponId,
+        weaponOverride,
       }
       worker.postMessage(req)
     })
@@ -194,6 +211,7 @@ export async function optimizePresetInWorker(opts: {
   const session = await getFallbackSession(datasetKey, good)
   return session.optimize(preset, settings, {
     weaponId,
+    weaponOverride,
     onProgress,
     signal: controller.signal,
   })

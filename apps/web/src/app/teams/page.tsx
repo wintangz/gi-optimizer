@@ -1,13 +1,16 @@
 'use client'
 
+import TeamsLoading from './loading'
 import {
   ArtifactBadge,
   CharacterBadge,
   WeaponBadge,
 } from '@/components/Identifier'
+import { SkeletonBlock, Spinner } from '@/components/Loading'
 import {
   evaluatePresetInWorker,
   getCatalogInWorker,
+  isEngineSessionHydrated,
 } from '@/lib/engine/workerClient'
 import { useGoodStorage, useUserPresets } from '@/lib/storage/useGood'
 import type {
@@ -66,9 +69,13 @@ function TeamsInner() {
   const editParam = searchParams.get('edit')
   const forkParam = searchParams.get('fork')
 
-  const { record } = useGoodStorage()
-  const { presets: userPresets, save: saveUserPreset, remove: removeUserPreset } =
-    useUserPresets()
+  const { record, loading: goodLoading } = useGoodStorage()
+  const {
+    presets: userPresets,
+    loading: presetsLoading,
+    save: saveUserPreset,
+    remove: removeUserPreset,
+  } = useUserPresets()
 
   const [draft, setDraft] = useState<Preset>(() =>
     createBlankUserPreset('Furina', 'Furina Custom Setup', [
@@ -94,6 +101,9 @@ function TeamsInner() {
     result?: RotationResult
     error?: string
   }>({})
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewHydrating, setPreviewHydrating] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -133,6 +143,7 @@ function TeamsInner() {
     const keys = Array.from(
       new Set([draft.target, ...draft.team.map((m) => m.key)])
     )
+    setCatalogLoading(true)
     void (async () => {
       try {
         const res = await getCatalogInWorker(keys)
@@ -145,6 +156,10 @@ function TeamsInner() {
         }
       } catch {
         // Ignore catalog error
+      } finally {
+        if (!cancelled) {
+          setCatalogLoading(false)
+        }
       }
     })()
     return () => {
@@ -171,6 +186,8 @@ function TeamsInner() {
     }
 
     let cancelled = false
+    setPreviewLoading(true)
+    setPreviewHydrating(!isEngineSessionHydrated(record.importedAt))
     const timer = setTimeout(() => {
       void (async () => {
         try {
@@ -188,6 +205,11 @@ function TeamsInner() {
               error: err instanceof Error ? err.message : String(err),
             })
           }
+        } finally {
+          if (!cancelled) {
+            setPreviewLoading(false)
+            setPreviewHydrating(false)
+          }
         }
       })()
     }, 150)
@@ -195,6 +217,7 @@ function TeamsInner() {
     return () => {
       cancelled = true
       clearTimeout(timer)
+      setPreviewLoading(false)
     }
   }, [record, draft])
 
@@ -458,6 +481,10 @@ function TeamsInner() {
   }
 
   const badge = getPresetBadge(draft)
+
+  if (goodLoading || presetsLoading) {
+    return <TeamsLoading />
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -1351,15 +1378,28 @@ function TeamsInner() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <h3 style={{ margin: 0 }}>Live Rotation Preview</h3>
             <CharacterBadge characterKey={draft.target} role="target" compact />
+            {(previewLoading || catalogLoading) && (
+              <Spinner
+                label={
+                  previewHydrating || catalogLoading
+                    ? 'Loading optimizer engine…'
+                    : 'Evaluating…'
+                }
+                size="sm"
+                inline
+              />
+            )}
           </div>
-          {livePreview.result && (
+          {livePreview.result && !previewLoading && (
             <strong className="ok" style={{ fontSize: '1.25rem' }}>
               Total: {Math.round(livePreview.result.total).toLocaleString()} DMG
             </strong>
           )}
         </div>
 
-        {livePreview.error ? (
+        {previewLoading && !livePreview.result ? (
+          <SkeletonBlock height={28} count={4} gap="0.45rem" />
+        ) : livePreview.error ? (
           <div className="muted">{livePreview.error}</div>
         ) : livePreview.result ? (
           <table>
@@ -1392,9 +1432,7 @@ function TeamsInner() {
 
 export default function TeamsPage() {
   return (
-    <Suspense
-      fallback={<div className="panel muted">Loading team builder…</div>}
-    >
+    <Suspense fallback={<TeamsLoading />}>
       <TeamsInner />
     </Suspense>
   )

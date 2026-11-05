@@ -1,7 +1,8 @@
 # Architecture & Shared Contracts
 
 Binding for every feature (`good-import`, `single-character-optimizer`, `akasha-presets`,
-`official-presets`, `custom-teams-and-presets`, `performance`, `visual-identifiers`). Features are referred to by slug only.
+`official-presets`, `custom-teams-and-presets`, `performance`, `visual-identifiers`,
+`akasha-artifact-only-mode`, `loading-and-bundle`, `artifact-set-filter`). Features are referred to by slug only.
 The constitution is in `.specify/memory/constitution.md`.
 
 ## Layout
@@ -54,9 +55,20 @@ Rules:
 
 ```ts
 export type ArtifactSlot = 'flower'|'plume'|'sands'|'goblet'|'circlet'
-export interface BuildSelection { weaponId?: string; artifactIds: Partial<Record<ArtifactSlot, string>> }
+export interface SimulatedWeaponSpec {
+  key: string
+  level?: number       // default 90
+  ascension?: number   // default 6
+  refinement: number   // 1..5
+}
+export interface BuildSelection {
+  weaponId?: string
+  weaponOverride?: SimulatedWeaponSpec // used by akasha-artifact-only-mode for free weapon + refinement choice
+  artifactIds: Partial<Record<ArtifactSlot, string>>
+}
 export interface InstanceResult { label: string; path: string[]; count: number; perHit: number; subtotal: number }
 export interface RotationResult { total: number; instances: InstanceResult[]; stats: Record<string, number> /* final atk,hp,def,eleMas,critRate_,critDMG_,enerRech_, ... */ }
+export type SetFilterMode = 'all' | 'exclude' | 'include'
 export interface OptimizerSettings {
   erFloor?: number                         // e.g. 1.6 = 160%; undefined = no floor
   includeEquippedOnOthers: boolean         // GO "use equipped artifacts" (excludedLocations)
@@ -64,7 +76,9 @@ export interface OptimizerSettings {
   lockedOnly?: boolean
   mainStatAssumptionLevel: 0|4|8|12|16|20  // GO "Assume main stat level"
   levelLow: number; levelHigh: number      // artifact level filter
-  setExclusion?: Record<string, (2|4)[]>   // GO artSetExclusion
+  setExclusion?: Record<string, (2|4)[]>   // GO artSetExclusion (legacy / direct)
+  setFilterMode?: SetFilterMode            // 'all' | 'exclude' | 'include' (artifact-set-filter)
+  setFilterSelection?: Record<string, (2|4)[]> // selected sets -> [2], [4], or [2, 4]
   topN: number                             // builds to keep (default 5)
 }
 export interface OptimizeResult { builds: Array<BuildSelection & { total: number }>; tested: number; skipped: number; durationMs: number }
@@ -73,7 +87,7 @@ export function createSession(good: unknown): EngineSession     // hydrates GO d
 export interface EngineSession {
   evaluate(preset: Preset, selection?: BuildSelection): RotationResult
   currentBuild(preset: Preset): BuildSelection                    // target's equipped weapon + artifacts
-  optimize(preset: Preset, settings: OptimizerSettings, opts?: { weaponId?: string; onProgress?(p:{tested:number;skipped:number;total:number}):void; signal?: AbortSignal; maxWorkers?: number }): Promise<OptimizeResult>
+  optimize(preset: Preset, settings: OptimizerSettings, opts?: { weaponId?: string; weaponOverride?: SimulatedWeaponSpec; onProgress?(p:{tested:number;skipped:number;total:number}):void; signal?: AbortSignal; maxWorkers?: number }): Promise<OptimizeResult>
   listTargets(characterKey: string): Array<{ path: string[]; name: string; section: string }>  // display paths for rotation builders
   listConditionals(characterKey: string): ConditionalDescriptor[] // for custom team builder
   exportGODatabase(preset: Preset, selection?: BuildSelection): object // "Verify in GO"
@@ -83,14 +97,16 @@ export interface EngineSession {
 ## Presets — CONTRACT
 
 Schema: `packages/presets/src/schema.ts` (`presetSchema`, id `gi-optimizer/preset@1`).
-- `source`: `akasha` | `official` | `user`. Same schema; only authorship/badge/leaderboard differ.
+- `source`: `akasha` | `official` | `user`.
 - Bundled JSON: `packages/presets/data/akasha/*.json`, `packages/presets/data/official/*.json`.
 - User presets: IndexedDB store `presets`.
-- Matching (`packages/presets/src/match.ts`): `matchAccount(preset, account): MatchReport`
-  with one entry per requirement part (character owned, constellation, weapon key,
-  refinement, level, talents) → `{ part, expected, actual, ok, message }` in plain English.
-  Akasha presets with any failing part cannot run; nothing is substituted. Teammates with
-  `build.type: 'tc'` need no ownership (Akasha assumes fixed teammate builds).
+- **Akasha Artifact-Only Mode (`akasha-artifact-only-mode`)**:
+  - For `source === 'akasha'`, there is **NO account gate**: `matchAccount` does not block Akasha presets.
+  - `team[0].build` on Akasha presets uses `{ type: 'fixed', character: { level, ascension, constellation, talent }, weapon: { key, level, ascension, refinement } }`. The user's own copy of the target character (its level, talents, constellation, or absence in GOOD) has **zero effect** on numbers.
+  - The weapon is the user's free choice: any weapon matching the target character's weapon type at R1–R5, defaulting to `team[0].build.weapon`. Ownership is never checked. The chosen weapon is applied as a simulated weapon (with its GO conditionals) on the fixed target character.
+  - Only imported GOOD artifacts are used for optimization and for the optional "current build" comparison (artifacts currently equipped on that character in GOOD, if any; if unowned or unequipped, the optimised result is shown without a current build).
+- **Official & User Presets (`official-presets`, `custom-teams-and-presets`)**:
+  - Keep `team[0].build.type === 'owned'` and `matchAccount(preset, account): MatchReport`.
 - Badges: akasha → "Akasha · <label>" + verified only if golden fixture exists;
   official → "Official"; user → "Custom — use at your own risk", no verification badge.
 
@@ -99,7 +115,8 @@ Schema: `packages/presets/src/schema.ts` (`presetSchema`, id `gi-optimizer/prese
 Routes (static): `/` home, `/import` (good-import), `/optimize` (single-character-optimizer),
 `/presets` (browse akasha + official + user), `/teams` (custom-teams-and-presets builder).
 Shell/nav: `src/app/layout.tsx` + `src/components/Nav.tsx` (owned by bootstrap; add links only).
-Shared visual identifiers: `packages/presets/src/metadata.ts` + `src/components/Identifier.tsx` (`CharacterBadge`, `WeaponBadge`, `ArtifactBadge`, `ItemIdentifier`) used across all routes so no character, weapon, or artifact is shown as text alone and simulated (`tc`) teammates receive a distinct `SIM` + dashed ring treatment.
+Shared visual identifiers: `packages/presets/src/metadata.ts` + `src/components/Identifier.tsx` (`CharacterBadge`, `WeaponBadge`, `ArtifactBadge`, `ItemIdentifier`) used across all routes so no character, weapon, or artifact is shown as text alone and simulated (`tc`/`fixed`) characters receive a distinct `SIM` + dashed ring treatment.
+Shared loading feedback (`loading-and-bundle`): route-level `loading.tsx` skeletons with animated pulse on every route, shared animated `Spinner` (`src/components/Loading.tsx`) with labelled status for engine initialisation (`"Loading optimizer engine…"`), evaluation (`"Evaluating…"`) and GOOD import parsing, skeleton placeholders in `/optimize` results while evaluating, and a real progress bar (`tested / total`) during optimization.
 
 IndexedDB (`idb` library), database `gi-optimizer`, owned by good-import, module
 `src/lib/storage/db.ts`:
@@ -109,8 +126,10 @@ IndexedDB (`idb` library), database `gi-optimizer`, owned by good-import, module
 Exports: `loadGood()`, `saveGood()`, `clearGood()`, `listUserPresets()`, `saveUserPreset()`,
 `deleteUserPreset()`, `loadSettings()`, `saveSettings()`; React hook `useGood()`.
 
-GO code is heavy (sheets + MUI). Load the engine only on `/optimize` and `/teams` lazily,
-client-side only (no top-level runtime imports of `@gi/engine` in route modules; route all evaluations, catalog queries, and optimizations through `src/lib/engine/workerClient.ts` backed by `src/workers/optimizer.worker.ts` holding a single hydrated `EngineSession`).
+Bundle isolation (`loading-and-bundle`):
+- Optimizer settings types, defaults (`DEFAULT_OPTIMIZER_SETTINGS`), and set-filter translation (`resolveArtSetExclusion`) live in a pure module with zero `@gi/engine` or `@genshin-optimizer/gi/stats` runtime imports.
+- `@gi/presets` and `@gi/good` use compact static character/weapon/artifact metadata (`statMeta`) instead of importing the 2.4 MB `@genshin-optimizer/gi/stats` (`allStat_gen.json`).
+- The GO engine lives strictly in async/worker chunks loaded on demand when `/optimize` or `/teams` runs — never in the initial JS of `/`, `/import`, or `/presets`.
 
 ## Testing
 

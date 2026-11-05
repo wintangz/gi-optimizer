@@ -1,6 +1,5 @@
-import type { OptimizerSettings } from '@gi/engine'
 import type { GoodSummary, IGOOD } from '@gi/good'
-import type { Preset } from '@gi/presets'
+import type { OptimizerSettings, Preset } from '@gi/presets'
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 
 export interface StoredGoodRecord {

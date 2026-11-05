@@ -111,6 +111,15 @@ export function matchAccount(
   account: AccountDataLike,
   opts?: { selectedWeaponId?: string }
 ): MatchReport {
+  // Akasha presets run in artifact-only mode (no account gate on characters or weapons).
+  if (preset.source === 'akasha') {
+    return {
+      presetId: preset.id,
+      canRun: true,
+      parts: [],
+    }
+  }
+
   const parts: MatchPartResult[] = []
   const chars = account.characters ?? []
   const weapons = (account.weapons ?? []).map((w, idx) => ({

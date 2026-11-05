@@ -10,18 +10,28 @@
     "leaderboardUrl": "https://akasha.cv/leaderboards/1000005200",
     "label": "Hypercarry · Scarlet Sands R1 · C0",
     "retrievedAt": "2026-11-05",
-    "notes": "Requires Raiden Shogun C0 Lv. 90 and Staff of the Scarlet Sands R1. Assumes 60 Resolve stacks, Bennett Fantastic Voyage + Noblesse, Kazuha Electro Swirl, and Sara C6."
+    "notes": "Fixed Akasha target spec: Raiden Shogun C0, Lv. 90 (10/10/10), default weapon Staff of the Scarlet Sands R1 (user-selectable). Assumes 60 Resolve stacks, Bennett Fantastic Voyage + Noblesse, Kazuha Electro Swirl, and Sara C6."
   },
   "target": "RaidenShogun",
   "team": [
     {
       "key": "RaidenShogun",
-      "build": { "type": "owned" },
-      "requirement": {
-        "constellation": 0,
-        "minLevel": 90,
-        "weapon": { "key": "StaffOfTheScarletSands", "refinement": 1 }
+      "build": {
+        "type": "fixed",
+        "character": {
+          "level": 90,
+          "ascension": 6,
+          "constellation": 0,
+          "talent": { "auto": 10, "skill": 10, "burst": 10 }
+        },
+        "weapon": {
+          "key": "StaffOfTheScarletSands",
+          "level": 90,
+          "ascension": 6,
+          "refinement": 1
+        }
       },
+      "requirement": {},
       "conditional": {
         "RaidenShogun": {
           "skillEye": "on",

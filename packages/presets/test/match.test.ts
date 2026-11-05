@@ -7,6 +7,7 @@ import {
   getPresetBadge,
   listBundledPresets,
   matchAccount,
+  type Preset,
   validatePreset,
 } from '../src'
 
@@ -15,25 +16,73 @@ const sampleGood = JSON.parse(
 )
 
 describe('matchAccount & bundled presets', () => {
-  it('validates all bundled Akasha and Official presets', () => {
+  it('validates all bundled Akasha and Official presets and verifies Akasha target builds are fixed', () => {
     const all = listBundledPresets()
     expect(all.length).toBeGreaterThanOrEqual(11)
     for (const p of all) {
       const res = validatePreset(p)
       expect(res.ok, `${p.id}: ${JSON.stringify(res.issues)}`).toBe(true)
+      if (p.source === 'akasha') {
+        expect(p.team[0]?.build.type).toBe('fixed')
+        if (p.team[0]?.build.type === 'fixed') {
+          expect(p.team[0].build.character.level).toBe(90)
+          expect(p.team[0].build.character.ascension).toBe(6)
+          expect(p.team[0].build.character.talent).toEqual({
+            auto: 10,
+            skill: 10,
+            burst: 10,
+          })
+          expect(p.team[0].build.weapon.level).toBe(90)
+          expect(p.team[0].build.weapon.ascension).toBe(6)
+        }
+      } else {
+        expect(p.team[0]?.build.type).toBe('owned')
+      }
     }
   })
 
-  it('passes matchAccount for Furina C0 + PJC R1 on the sample GOOD file', () => {
-    const preset = getBundledPreset('akasha/furina-salon-pjc-c0')!
-    const report = matchAccount(preset, sampleGood)
-    expect(report.canRun).toBe(true)
-    expect(report.parts.every((p) => p.ok)).toBe(true)
+  it('bypasses account gating for all Akasha presets even when characters and weapons are empty (akasha-artifact-only-mode)', () => {
+    const akashaPresets = listBundledPresets({ source: 'akasha' })
+    expect(akashaPresets).toHaveLength(5)
+    for (const preset of akashaPresets) {
+      const reportEmpty = matchAccount(preset, { characters: [], weapons: [] })
+      expect(reportEmpty.canRun).toBe(true)
+      expect(reportEmpty.parts).toEqual([])
+
+      const reportSample = matchAccount(preset, sampleGood)
+      expect(reportSample.canRun).toBe(true)
+      expect(reportSample.parts).toEqual([])
+    }
   })
 
-  it('fails matchAccount plainly when constellation and weapon do not match (Furina C2 + Splendor)', () => {
-    const preset = getBundledPreset('akasha/furina-splendor-c2')!
-    const report = matchAccount(preset, sampleGood)
+  it('rejects Akasha presets whose team[0].build.type is owned', () => {
+    const akasha = structuredClone(getBundledPreset('akasha/furina-salon-pjc-c0')!)
+    ;(akasha.team[0] as any).build = { type: 'owned' }
+    const res = validatePreset(akasha)
+    expect(res.ok).toBe(false)
+    expect(res.issues.some((i) => i.message.includes('fixed'))).toBe(true)
+  })
+
+  it('enforces matchAccount on non-Akasha presets when constellation and weapon do not match', () => {
+    const officialBase = getBundledPreset('official/furina-salon-subdps')!
+    const strictPreset: Preset = {
+      ...structuredClone(officialBase),
+      id: 'user/furina-splendor-c2-strict',
+      source: 'user',
+      team: [
+        {
+          ...structuredClone(officialBase.team[0]!),
+          build: { type: 'owned' },
+          requirement: {
+            constellation: 2,
+            weapon: { key: 'SplendorOfTranquilWaters', refinement: 1 },
+          },
+        },
+        ...structuredClone(officialBase.team.slice(1)),
+      ],
+    }
+
+    const report = matchAccount(strictPreset, sampleGood)
     expect(report.canRun).toBe(false)
     const consPart = report.parts.find((p) => p.part === 'constellation')!
     expect(consPart.ok).toBe(false)
@@ -44,9 +93,26 @@ describe('matchAccount & bundled presets', () => {
     expect(weapPart.message).toContain('Primordial Jade Cutter R1')
   })
 
-  it('offers owned weapon candidate when target has a different weapon equipped (Neuvillette + Prototype Amber R5 on Charlotte)', () => {
-    const preset = getBundledPreset('akasha/neuvillette-hypercarry-protoamber-c0')!
-    const report1 = matchAccount(preset, sampleGood)
+  it('offers owned weapon candidate on non-Akasha presets when target has a different weapon equipped', () => {
+    const officialBase = getBundledPreset('official/neuvillette-hypercarry')!
+    const protoAmberPreset: Preset = {
+      ...structuredClone(officialBase),
+      id: 'user/neuvillette-protoamber-strict',
+      source: 'user',
+      team: [
+        {
+          ...structuredClone(officialBase.team[0]!),
+          build: { type: 'owned' },
+          requirement: {
+            constellation: 0,
+            weapon: { key: 'PrototypeAmber', refinement: 5 },
+          },
+        },
+        ...structuredClone(officialBase.team.slice(1)),
+      ],
+    }
+
+    const report1 = matchAccount(protoAmberPreset, sampleGood)
     expect(report1.canRun).toBe(false)
     const weapPart = report1.parts.find((p) => p.part === 'weapon')!
     expect(weapPart.ok).toBe(false)
@@ -54,13 +120,13 @@ describe('matchAccount & bundled presets', () => {
     expect(weapPart.candidates?.length).toBeGreaterThan(0)
 
     const candidateId = weapPart.candidates![0]!.id
-    const report2 = matchAccount(preset, sampleGood, { selectedWeaponId: candidateId })
+    const report2 = matchAccount(protoAmberPreset, sampleGood, { selectedWeaponId: candidateId })
     expect(report2.canRun).toBe(true)
     expect(report2.selectedWeaponId).toBe(candidateId)
   })
 
-  it('reports missing character plainly without checking further parts', () => {
-    const preset = getBundledPreset('akasha/furina-salon-pjc-c0')!
+  it('reports missing character plainly on Official/User presets without checking further parts', () => {
+    const preset = getBundledPreset('official/furina-salon-subdps')!
     const report = matchAccount(preset, { characters: [], weapons: [] })
     expect(report.canRun).toBe(false)
     expect(report.parts).toHaveLength(1)
@@ -82,4 +148,3 @@ describe('matchAccount & bundled presets', () => {
     }
   })
 })
-

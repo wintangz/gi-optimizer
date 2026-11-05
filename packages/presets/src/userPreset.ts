@@ -1,10 +1,10 @@
-import { allStats } from '@genshin-optimizer/gi/stats'
 import {
   PRESET_SCHEMA_ID,
   presetSchema,
   type Preset,
   type TcBuild,
 } from './schema'
+import { CHAR_STAT_META } from './statMeta.gen'
 
 export interface PresetImportIssue {
   path: string
@@ -60,9 +60,7 @@ export function generateUserPresetId(name: string): string {
 
 export function defaultTcBuildForCharacter(characterKey: string): TcBuild {
   const lookupKey = characterKey === 'Traveler' ? 'TravelerAnemo' : characterKey
-  const wType =
-    allStats.char.data[lookupKey as keyof typeof allStats.char.data]?.weaponType ??
-    'sword'
+  const wType = CHAR_STAT_META[lookupKey]?.weaponType ?? 'sword'
   const weaponKey = DEFAULT_WEAPON_BY_TYPE[wType] ?? 'FavoniusSword'
 
   return {
@@ -163,6 +161,10 @@ export function forkPresetToUser(sourcePreset: Preset, newName?: string): Preset
   cloned.name = finalName
   cloned.source = 'user'
   cloned.author = 'You'
+  if (Array.isArray(cloned.team) && cloned.team[0] && typeof cloned.team[0] === 'object') {
+    const t0 = cloned.team[0] as Record<string, unknown>
+    t0.build = { type: 'owned' }
+  }
   return presetSchema.parse(cloned)
 }
 
@@ -214,6 +216,10 @@ export function parsePresetJson(rawText: string): ParsePresetImportResult {
     const baseName = typeof candidate.name === 'string' && candidate.name ? candidate.name : 'Imported Preset'
     candidate.id = generateUserPresetId(baseName)
     candidate.author = 'You'
+    if (Array.isArray(candidate.team) && candidate.team[0] && typeof candidate.team[0] === 'object') {
+      const t0 = candidate.team[0] as Record<string, unknown>
+      t0.build = { type: 'owned' }
+    }
   }
 
   const res = presetSchema.safeParse(candidate)

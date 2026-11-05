@@ -34,10 +34,11 @@ describe('userPreset helpers', () => {
     expect(forked.id).toMatch(/^user\//)
     expect(forked.akasha).toBeUndefined()
     expect(forked.name).toContain('(copy)')
-    expect(forked.team).toEqual(akasha.team)
+    expect(forked.team.slice(1)).toEqual(akasha.team.slice(1))
     expect(forked.rotation).toEqual(akasha.rotation)
 
-    // Verify team[0] remains 'owned' and every teammate (team[1..3]) stays 'tc' with identical stats
+    // Verify team[0] is converted from 'fixed' to 'owned' and every teammate (team[1..3]) stays 'tc' with identical stats
+    expect(akasha.team[0]?.build.type).toBe('fixed')
     expect(forked.team[0]?.build.type).toBe('owned')
     for (let i = 1; i < forked.team.length; i++) {
       const m = forked.team[i]!

@@ -9,6 +9,7 @@ import {
   type OptimizeResult,
   type OptimizerSettings,
   type RotationResult,
+  type SimulatedWeaponSpec,
   type TargetDescriptor,
 } from '@gi/engine'
 import type { IGOOD } from '@gi/good'
@@ -38,6 +39,7 @@ export interface WorkerOptimizeRequest {
   preset: Preset
   settings: OptimizerSettings
   weaponId?: string
+  weaponOverride?: SimulatedWeaponSpec
 }
 
 export interface WorkerCatalogRequest {
@@ -198,6 +200,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       const session = ensureSession(msg.datasetKey, msg.good)
       const result = await session.optimize(msg.preset, msg.settings, {
         weaponId: msg.weaponId,
+        weaponOverride: msg.weaponOverride,
         signal: controller.signal,
         onProgress: (progress) => {
           const out: WorkerResponse = {

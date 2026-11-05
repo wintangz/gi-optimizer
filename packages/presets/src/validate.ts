@@ -1,5 +1,5 @@
-import { allStats } from '@genshin-optimizer/gi/stats'
 import { presetSchema, type Preset } from './schema'
+import { getCharStatMeta, getWeaponStatMeta } from './statMeta.gen'
 
 export interface ValidationIssue {
   path: string
@@ -13,12 +13,11 @@ export interface ValidatePresetResult {
 }
 
 function getCharWeaponType(charKey: string): string | undefined {
-  const lookupKey = charKey === 'Traveler' ? 'TravelerAnemo' : charKey
-  return allStats.char.data[lookupKey as keyof typeof allStats.char.data]?.weaponType
+  return getCharStatMeta(charKey)?.weaponType
 }
 
 function getWeaponType(weaponKey: string): string | undefined {
-  return allStats.weapon.data[weaponKey as keyof typeof allStats.weapon.data]?.weaponType
+  return getWeaponStatMeta(weaponKey)?.weaponType
 }
 
 /**
@@ -57,6 +56,17 @@ export function validatePreset(input: unknown): ValidatePresetResult {
       }
     }
 
+    if (member.build.type === 'fixed') {
+      const fixedWKey = member.build.weapon.key
+      const wType = getWeaponType(fixedWKey)
+      if (wType && wType !== charWType) {
+        issues.push({
+          path: `team.${i}.build.weapon.key`,
+          message: `Fixed target weapon '${fixedWKey}' (${wType}) does not match character '${member.key}' weapon type (${charWType}).`,
+        })
+      }
+    }
+
     if (member.build.type === 'tc') {
       const tcWKey = member.build.tc.weapon.key
       const wType = getWeaponType(tcWKey)
@@ -69,19 +79,13 @@ export function validatePreset(input: unknown): ValidatePresetResult {
     }
   }
 
-  // Akasha preset rules (FR-009):
+  // Akasha preset rules:
   if (preset.source === 'akasha') {
     const targetMember = preset.team[0]!
-    if (targetMember.requirement?.constellation === undefined) {
+    if (targetMember.build.type !== 'fixed') {
       issues.push({
-        path: 'team.0.requirement.constellation',
-        message: 'Akasha presets must specify a target constellation requirement.',
-      })
-    }
-    if (!targetMember.requirement?.weapon) {
-      issues.push({
-        path: 'team.0.requirement.weapon',
-        message: 'Akasha presets must specify a target weapon requirement.',
+        path: 'team.0.build.type',
+        message: "Akasha preset target member must use a fixed 'fixed' build spec.",
       })
     }
     for (let i = 1; i < preset.team.length; i++) {

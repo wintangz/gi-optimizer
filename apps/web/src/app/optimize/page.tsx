@@ -1,14 +1,18 @@
 'use client'
 
+import OptimizeLoading from './loading'
+import { ArtifactSetFilter } from '@/components/ArtifactSetFilter'
 import {
   ArtifactBadge,
   CharacterBadge,
   WeaponBadge,
 } from '@/components/Identifier'
+import { ProgressBar, ResultsSkeleton, Spinner } from '@/components/Loading'
 import {
   cancelOptimizationInWorker,
   evaluatePresetInWorker,
   exportGODatabaseInWorker,
+  isEngineSessionHydrated,
   optimizePresetInWorker,
 } from '@/lib/engine/workerClient'
 import {
@@ -22,13 +26,16 @@ import type {
   OptimizeProgress,
   OptimizeResult,
   RotationResult,
+  SimulatedWeaponSpec,
 } from '@gi/engine'
 import { humanizeKey, type IArtifact } from '@gi/good'
 import {
-  ALL_ARTIFACT_SET_KEYS,
   displayName,
+  getCharacterMeta,
   getPresetBadge,
+  getWeaponMeta,
   listBundledPresets,
+  listWeaponsForType,
   matchAccount,
   type IdentifierSlotKey,
   type Preset,
@@ -93,10 +100,16 @@ function OptimizeInner() {
   const searchParams = useSearchParams()
   const presetParam = searchParams.get('preset')
   const weaponParam = searchParams.get('weapon')
+  const weaponKeyParam = searchParams.get('weaponKey')
+  const refinementParam = searchParams.get('refinement')
 
-  const { record } = useGoodStorage()
-  const { presets: userPresets } = useUserPresets()
-  const { settings, update: updateSettings } = useOptimizerSettings()
+  const { record, loading: goodLoading } = useGoodStorage()
+  const { presets: userPresets, loading: presetsLoading } = useUserPresets()
+  const {
+    settings,
+    loading: settingsLoading,
+    update: updateSettings,
+  } = useOptimizerSettings()
 
   const allPresets = useMemo(
     () => [...listBundledPresets(), ...userPresets],
@@ -109,8 +122,24 @@ function OptimizeInner() {
   const [selectedWeaponId, setSelectedWeaponId] = useState<string>(
     weaponParam || ''
   )
+  const [akashaWeaponByPreset, setAkashaWeaponByPreset] = useState<
+    Record<string, { key: string; refinement: number }>
+  >(() => {
+    if (presetParam && weaponKeyParam) {
+      const refNum = Number(refinementParam)
+      return {
+        [presetParam]: {
+          key: weaponKeyParam,
+          refinement:
+            Number.isFinite(refNum) && refNum >= 1 && refNum <= 5
+              ? Math.round(refNum)
+              : 1,
+        },
+      }
+    }
+    return {}
+  })
   const [excludeCharInput, setExcludeCharInput] = useState<string>('')
-  const [excludeSetInput, setExcludeSetInput] = useState<string>('')
 
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState<OptimizeProgress | null>(null)
@@ -125,11 +154,25 @@ function OptimizeInner() {
     null
   )
   const [evaluating, setEvaluating] = useState(false)
+  const [hydratingEngine, setHydratingEngine] = useState(false)
 
   useEffect(() => {
     if (presetParam) setSelectedPresetId(presetParam)
     if (weaponParam) setSelectedWeaponId(weaponParam)
-  }, [presetParam, weaponParam])
+    if (presetParam && weaponKeyParam) {
+      const refNum = Number(refinementParam)
+      setAkashaWeaponByPreset((prev) => ({
+        ...prev,
+        [presetParam]: {
+          key: weaponKeyParam,
+          refinement:
+            Number.isFinite(refNum) && refNum >= 1 && refNum <= 5
+              ? Math.round(refNum)
+              : 1,
+        },
+      }))
+    }
+  }, [presetParam, weaponParam, weaponKeyParam, refinementParam])
 
   const activePreset: Preset | undefined = useMemo(
     () =>
@@ -137,15 +180,55 @@ function OptimizeInner() {
     [allPresets, selectedPresetId]
   )
 
+  const isAkashaPreset =
+    activePreset?.source === 'akasha' &&
+    activePreset.team[0]?.build.type === 'fixed'
+
+  const akashaWeaponSpec: SimulatedWeaponSpec | undefined = useMemo(() => {
+    if (!activePreset || activePreset.team[0]?.build.type !== 'fixed') {
+      return undefined
+    }
+    const defaultW = activePreset.team[0].build.weapon
+    const chosen = akashaWeaponByPreset[activePreset.id]
+    if (chosen) {
+      const wMeta = getWeaponMeta(chosen.key)
+      return {
+        key: chosen.key,
+        level: wMeta.rarity <= 2 ? 70 : 90,
+        ascension: wMeta.rarity <= 2 ? 4 : 6,
+        refinement: wMeta.rarity <= 2 ? 1 : chosen.refinement,
+      }
+    }
+    return {
+      key: defaultW.key,
+      level: defaultW.level,
+      ascension: defaultW.ascension,
+      refinement: defaultW.refinement,
+    }
+  }, [activePreset, akashaWeaponByPreset])
+
+  const availableAkashaWeapons = useMemo(() => {
+    if (!activePreset || !isAkashaPreset) return []
+    const charMeta = getCharacterMeta(activePreset.target)
+    return listWeaponsForType(charMeta.weaponType)
+  }, [activePreset, isAkashaPreset])
+
   const matchReport = useMemo(() => {
-    if (!activePreset || !record?.good) return null
+    if (!activePreset || !record?.good || isAkashaPreset) return null
     return matchAccount(activePreset, record.good, {
       selectedWeaponId: selectedWeaponId || undefined,
     })
-  }, [activePreset, record, selectedWeaponId])
+  }, [activePreset, record, selectedWeaponId, isAkashaPreset])
 
-  const effectiveWeaponId =
-    selectedWeaponId || matchReport?.selectedWeaponId || undefined
+  const effectiveWeaponId = isAkashaPreset
+    ? undefined
+    : selectedWeaponId || matchReport?.selectedWeaponId || undefined
+
+  const canRunPreset = useMemo(() => {
+    if (!record?.good || !activePreset) return false
+    if (isAkashaPreset) return true
+    return !matchReport || matchReport.canRun
+  }, [record, activePreset, isAkashaPreset, matchReport])
 
   const artifactById = useMemo(() => {
     const map = new Map<string, IArtifact>()
@@ -156,28 +239,26 @@ function OptimizeInner() {
     return map
   }, [record])
 
+  const hasCurrentEquippedArtifacts = useMemo(() => {
+    if (!currentSelection) return false
+    return Object.keys(currentSelection.artifactIds).length > 0
+  }, [currentSelection])
+
   // Off-main-thread evaluation of Current Build via the shared worker session
   useEffect(() => {
     let cancelled = false
-    if (!record?.good || !activePreset) {
-      setCurrentSelection(null)
-      setCurrentEval(null)
-      return
-    }
-    if (matchReport && !matchReport.canRun) {
+    if (!record?.good || !activePreset || !canRunPreset) {
       setCurrentSelection(null)
       setCurrentEval(null)
       return
     }
 
+    const coldHydration = !isEngineSessionHydrated(record.importedAt)
+    setHydratingEngine(coldHydration)
     setEvaluating(true)
-    const selectionOverride: BuildSelection | undefined = effectiveWeaponId
-      ? { weaponId: effectiveWeaponId, artifactIds: {} }
-      : undefined
 
     void (async () => {
       try {
-        // First get currentBuild and evaluate with equipped artifacts (and effectiveWeaponId if overridden)
         const baseRes = await evaluatePresetInWorker({
           datasetKey: record.importedAt,
           good: record.good,
@@ -185,16 +266,41 @@ function OptimizeInner() {
         })
         if (cancelled) return
 
-        const effectiveCurrent: BuildSelection = {
-          weaponId: effectiveWeaponId ?? baseRes.currentBuild.weaponId,
-          artifactIds: baseRes.currentBuild.artifactIds,
-        }
+        const hasEquipped =
+          Object.keys(baseRes.currentBuild.artifactIds).length > 0
+
+        const effectiveCurrent: BuildSelection = isAkashaPreset
+          ? {
+              weaponOverride: akashaWeaponSpec,
+              artifactIds: baseRes.currentBuild.artifactIds,
+            }
+          : {
+              weaponId: effectiveWeaponId ?? baseRes.currentBuild.weaponId,
+              artifactIds: baseRes.currentBuild.artifactIds,
+            }
         setCurrentSelection(effectiveCurrent)
 
-        if (
-          selectionOverride &&
-          effectiveWeaponId !== baseRes.currentBuild.weaponId
-        ) {
+        // For Akasha presets, if the target character is not owned or has no artifacts equipped,
+        // do not evaluate a current build — show the optimised result without a current build.
+        if (isAkashaPreset && !hasEquipped) {
+          setCurrentEval(null)
+          return
+        }
+
+        const needsReEval = isAkashaPreset
+          ? Boolean(
+              akashaWeaponSpec &&
+                (akashaWeaponSpec.key !==
+                  baseRes.currentBuild.weaponOverride?.key ||
+                  akashaWeaponSpec.refinement !==
+                    baseRes.currentBuild.weaponOverride?.refinement)
+            )
+          : Boolean(
+              effectiveWeaponId &&
+                effectiveWeaponId !== baseRes.currentBuild.weaponId
+            )
+
+        if (needsReEval) {
           const overrideRes = await evaluatePresetInWorker({
             datasetKey: record.importedAt,
             good: record.good,
@@ -213,6 +319,7 @@ function OptimizeInner() {
       } finally {
         if (!cancelled) {
           setEvaluating(false)
+          setHydratingEngine(false)
         }
       }
     })()
@@ -220,7 +327,14 @@ function OptimizeInner() {
     return () => {
       cancelled = true
     }
-  }, [record, activePreset, effectiveWeaponId, matchReport])
+  }, [
+    record,
+    activePreset,
+    canRunPreset,
+    isAkashaPreset,
+    akashaWeaponSpec,
+    effectiveWeaponId,
+  ])
 
   const activeOptBuild = optResult?.builds[selectedBuildIdx] ?? null
 
@@ -232,13 +346,16 @@ function OptimizeInner() {
       return
     }
 
+    setEvaluating(true)
     void (async () => {
       try {
         const res = await evaluatePresetInWorker({
           datasetKey: record.importedAt,
           good: record.good,
           preset: activePreset,
-          selection: activeOptBuild,
+          selection: isAkashaPreset
+            ? { ...activeOptBuild, weaponOverride: akashaWeaponSpec }
+            : activeOptBuild,
         })
         if (!cancelled) {
           setOptimisedEval(res.result)
@@ -247,16 +364,20 @@ function OptimizeInner() {
         if (!cancelled) {
           setOptimisedEval(null)
         }
+      } finally {
+        if (!cancelled) {
+          setEvaluating(false)
+        }
       }
     })()
 
     return () => {
       cancelled = true
     }
-  }, [record, activePreset, activeOptBuild])
+  }, [record, activePreset, activeOptBuild, isAkashaPreset, akashaWeaponSpec])
 
   async function startOptimization() {
-    if (!record?.good || !activePreset) return
+    if (!record?.good || !activePreset || !canRunPreset) return
     setRunning(true)
     setOptError(null)
     setOptResult(null)
@@ -270,6 +391,7 @@ function OptimizeInner() {
         preset: activePreset,
         settings,
         weaponId: effectiveWeaponId,
+        weaponOverride: isAkashaPreset ? akashaWeaponSpec : undefined,
         onProgress: (p) => setProgress({ ...p }),
       })
       setOptResult(res)
@@ -293,11 +415,18 @@ function OptimizeInner() {
     label: string
   ) {
     if (!record?.good || !activePreset) return
+    const effectiveSel: BuildSelection | undefined = selection
+      ? isAkashaPreset
+        ? { ...selection, weaponOverride: akashaWeaponSpec }
+        : selection
+      : isAkashaPreset && akashaWeaponSpec
+        ? { weaponOverride: akashaWeaponSpec, artifactIds: {} }
+        : undefined
     const exported = await exportGODatabaseInWorker({
       datasetKey: record.importedAt,
       good: record.good,
       preset: activePreset,
-      selection: selection ?? undefined,
+      selection: effectiveSel,
     })
     const blob = new Blob([JSON.stringify(exported, null, 2)], {
       type: 'application/json',
@@ -349,6 +478,15 @@ function OptimizeInner() {
     )
   }
 
+  if (goodLoading || presetsLoading || settingsLoading) {
+    return <OptimizeLoading />
+  }
+
+  const showCurrentComparison = Boolean(
+    currentEval && (!isAkashaPreset || hasCurrentEquippedArtifacts)
+  )
+  const primaryEval = showCurrentComparison ? currentEval : optimisedEval
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div>
@@ -373,9 +511,8 @@ function OptimizeInner() {
           }}
         >
           <span className="warn">
-            Import your GOOD JSON on the Import page to check whether your
-            target character and weapon satisfy this preset and run the
-            optimizer.
+            Import your GOOD JSON on the Import page to evaluate and optimise
+            your artifacts against this preset.
           </span>
           <Link href="/import">
             <button type="button">Import GOOD File →</button>
@@ -383,7 +520,7 @@ function OptimizeInner() {
         </div>
       )}
 
-      {/* Preset Selection & Compatibility Gate */}
+      {/* Preset Selection & Setup / Compatibility Gate */}
       <div
         className="panel"
         style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}
@@ -435,9 +572,7 @@ function OptimizeInner() {
               </Link>
               <button
                 type="button"
-                disabled={
-                  !record || Boolean(matchReport && !matchReport.canRun)
-                }
+                disabled={!canRunPreset}
                 onClick={() => void handleExportGO(currentSelection, 'current')}
                 title="Export a Genshin Optimizer database with this preset team & Custom Multi-Target pre-loaded"
               >
@@ -447,7 +582,7 @@ function OptimizeInner() {
           )}
         </div>
 
-        {/* Team Roster Visual Summary (Target vs Simulated Teammates) */}
+        {/* Team Roster Visual Summary */}
         {activePreset && (
           <div
             style={{
@@ -468,7 +603,7 @@ function OptimizeInner() {
               <CharacterBadge
                 key={m.key}
                 characterKey={m.key}
-                simulated={m.build.type === 'tc'}
+                simulated={m.build.type === 'tc' || m.build.type === 'fixed'}
                 role={idx === 0 ? 'target' : 'owned'}
                 compact
               />
@@ -476,7 +611,137 @@ function OptimizeInner() {
           </div>
         )}
 
-        {activePreset && matchReport && (
+        {/* Akasha Artifact-Only Mode Setup vs Owned Target Character & Weapon Check */}
+        {activePreset &&
+          isAkashaPreset &&
+          activePreset.team[0]?.build.type === 'fixed' &&
+          akashaWeaponSpec && (
+            <div
+              style={{
+                background: '#151821',
+                border: '1px solid var(--accent)',
+                borderRadius: '6px',
+                padding: '0.75rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.6rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                }}
+              >
+                <strong>
+                  Akasha Artifact-Only Mode — Fixed Target &amp; Free Weapon
+                  Selector
+                </strong>
+                <span className="ok" style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                  ✓ Fixed Spec: {displayName(activePreset.target)} Lv.
+                  {activePreset.team[0].build.character.level} C
+                  {activePreset.team[0].build.character.constellation} (Talents{' '}
+                  {activePreset.team[0].build.character.talent.auto}/
+                  {activePreset.team[0].build.character.talent.skill}/
+                  {activePreset.team[0].build.character.talent.burst})
+                </span>
+              </div>
+
+              <div className="muted" style={{ fontSize: '0.82rem' }}>
+                Your scanned character level, constellation, talents, and weapon
+                inventory are ignored. Select any compatible weapon and
+                refinement below; only your imported GOOD artifacts are
+                evaluated and optimised.
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.85rem',
+                  alignItems: 'center',
+                }}
+              >
+                <WeaponBadge
+                  weaponKey={akashaWeaponSpec.key}
+                  subtitle={`R${akashaWeaponSpec.refinement} · Lv.${akashaWeaponSpec.level ?? 90} Simulated`}
+                />
+
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    fontSize: '0.88rem',
+                  }}
+                >
+                  <span className="muted">Weapon:</span>
+                  <select
+                    aria-label="Simulated Weapon"
+                    value={akashaWeaponSpec.key}
+                    onChange={(e) => {
+                      const nextKey = e.target.value
+                      const meta = getWeaponMeta(nextKey)
+                      const nextRef =
+                        meta.rarity <= 2 ? 1 : akashaWeaponSpec.refinement
+                      setAkashaWeaponByPreset((prev) => ({
+                        ...prev,
+                        [activePreset.id]: {
+                          key: nextKey,
+                          refinement: nextRef,
+                        },
+                      }))
+                      setOptResult(null)
+                    }}
+                  >
+                    {availableAkashaWeapons.map((w) => (
+                      <option key={w.key} value={w.key}>
+                        {w.displayName} ({w.rarity}★)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    fontSize: '0.88rem',
+                  }}
+                >
+                  <span className="muted">Refinement:</span>
+                  <select
+                    aria-label="Weapon Refinement"
+                    value={akashaWeaponSpec.refinement}
+                    disabled={getWeaponMeta(akashaWeaponSpec.key).rarity <= 2}
+                    onChange={(e) => {
+                      const nextRef = Number(e.target.value)
+                      setAkashaWeaponByPreset((prev) => ({
+                        ...prev,
+                        [activePreset.id]: {
+                          key: akashaWeaponSpec.key,
+                          refinement: nextRef,
+                        },
+                      }))
+                      setOptResult(null)
+                    }}
+                  >
+                    {[1, 2, 3, 4, 5].map((r) => (
+                      <option key={r} value={r}>
+                        R{r}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+          )}
+
+        {activePreset && !isAkashaPreset && matchReport && (
           <div
             style={{
               background: '#151821',
@@ -738,11 +1003,11 @@ function OptimizeInner() {
           </label>
         </div>
 
-        {/* Excluded Characters & Excluded Sets */}
+        {/* Protected Characters & Multi-Mode Artifact Set Filter */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
             gap: '1rem',
           }}
         >
@@ -833,149 +1098,88 @@ function OptimizeInner() {
             )}
           </div>
 
-          <div>
-            <div
-              className="muted"
-              style={{ fontSize: '0.85rem', marginBottom: '0.3rem' }}
-            >
-              Excluded Artifact Sets (2p &amp; 4p):
-            </div>
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-              <select
-                value={excludeSetInput}
-                onChange={(e) => setExcludeSetInput(e.target.value)}
-              >
-                <option value="">— Exclude an artifact set —</option>
-                {ALL_ARTIFACT_SET_KEYS.map((sk) => (
-                  <option key={sk} value={sk}>
-                    {displayName(sk)}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                disabled={!excludeSetInput}
-                onClick={() => {
-                  if (!excludeSetInput) return
-                  const next = {
-                    ...(settings.setExclusion ?? {}),
-                    [excludeSetInput]: [2, 4] as (2 | 4)[],
-                  }
-                  void updateSettings({ ...settings, setExclusion: next })
-                  setExcludeSetInput('')
-                }}
-              >
-                Exclude Set
-              </button>
-            </div>
-            {Object.keys(settings.setExclusion ?? {}).length > 0 && (
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '0.35rem',
-                  flexWrap: 'wrap',
-                  marginTop: '0.4rem',
-                }}
-              >
-                {Object.keys(settings.setExclusion ?? {}).map((sk) => (
-                  <span
-                    key={sk}
-                    style={{
-                      background: '#252a3a',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '4px',
-                      fontSize: '0.85rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                    }}
-                  >
-                    <ArtifactBadge setKey={sk} compact />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = { ...(settings.setExclusion ?? {}) }
-                        delete next[sk]
-                        void updateSettings({ ...settings, setExclusion: next })
-                      }}
-                      style={{
-                        padding: '0 0.25rem',
-                        border: 'none',
-                        background: 'transparent',
-                      }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          <ArtifactSetFilter
+            settings={settings}
+            onChange={(next) => void updateSettings(next)}
+          />
         </div>
 
-        {/* Action Row */}
+        {/* Action Row & Real Optimization Progress Bar */}
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            flexWrap: 'wrap',
+            flexDirection: 'column',
+            gap: '0.75rem',
             paddingTop: '0.5rem',
             borderTop: '1px solid var(--border)',
           }}
         >
-          {!running ? (
-            <button
-              type="button"
-              disabled={!record || Boolean(matchReport && !matchReport.canRun)}
-              onClick={() => void startOptimization()}
-              style={{
-                background: 'var(--accent)',
-                color: '#0b0d12',
-                fontWeight: 700,
-                padding: '0.55rem 1.25rem',
-              }}
-            >
-              Run Rotation Optimizer
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={cancelOptimization}
-              style={{
-                background: 'var(--err)',
-                color: '#0b0d12',
-                fontWeight: 700,
-                padding: '0.55rem 1.25rem',
-              }}
-            >
-              Cancel Optimization
-            </button>
-          )}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            {!running ? (
+              <button
+                type="button"
+                disabled={!canRunPreset}
+                onClick={() => void startOptimization()}
+                style={{
+                  background: 'var(--accent)',
+                  color: '#0b0d12',
+                  fontWeight: 700,
+                  padding: '0.55rem 1.25rem',
+                }}
+              >
+                Run Rotation Optimizer
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={cancelOptimization}
+                style={{
+                  background: 'var(--err)',
+                  color: '#0b0d12',
+                  fontWeight: 700,
+                  padding: '0.55rem 1.25rem',
+                }}
+              >
+                Cancel Optimization
+              </button>
+            )}
 
-          {evaluating && !running && (
-            <span className="muted" style={{ fontSize: '0.88rem' }}>
-              Evaluating rotation in background worker…
-            </span>
-          )}
+            {evaluating && !running && (
+              <Spinner
+                label={
+                  hydratingEngine
+                    ? 'Loading optimizer engine…'
+                    : 'Evaluating…'
+                }
+                size="sm"
+                inline
+              />
+            )}
 
-          {progress && (
-            <div style={{ fontSize: '0.9rem' }}>
-              <span className="muted">Progress:</span>{' '}
-              <strong>
-                {(progress.tested + progress.skipped).toLocaleString()}
-              </strong>{' '}
-              / {progress.total.toLocaleString()} builds processed (Tested:{' '}
-              {progress.tested.toLocaleString()} · Pruned:{' '}
-              {progress.skipped.toLocaleString()})
-            </div>
-          )}
+            {optResult && !running && (
+              <span className="ok" style={{ fontSize: '0.9rem' }}>
+                ✓ Finished in {(optResult.durationMs / 1000).toFixed(2)}s —
+                found {optResult.builds.length} qualifying build(s) (
+                {optResult.tested.toLocaleString()} tested,{' '}
+                {optResult.skipped.toLocaleString()} pruned).
+              </span>
+            )}
+          </div>
 
-          {optResult && !running && (
-            <span className="ok" style={{ fontSize: '0.9rem' }}>
-              ✓ Finished in {(optResult.durationMs / 1000).toFixed(2)}s — found{' '}
-              {optResult.builds.length} qualifying build(s).
-            </span>
+          {running && progress && (
+            <ProgressBar
+              tested={progress.tested}
+              skipped={progress.skipped}
+              total={progress.total}
+              label="Optimizing builds…"
+            />
           )}
         </div>
 
@@ -983,6 +1187,39 @@ function OptimizeInner() {
       </div>
 
       {/* Results & Current vs Optimised Comparison */}
+      {evaluating && !primaryEval && (
+        <ResultsSkeleton
+          label={
+            hydratingEngine ? 'Loading optimizer engine…' : 'Evaluating…'
+          }
+        />
+      )}
+
+      {isAkashaPreset &&
+        !evaluating &&
+        !hasCurrentEquippedArtifacts &&
+        !optimisedEval &&
+        record && (
+          <div
+            className="panel"
+            style={{
+              borderColor: 'var(--accent)',
+              background: 'rgba(122, 162, 255, 0.06)',
+            }}
+          >
+            <strong>
+              No current build equipped on {displayName(activePreset!.target)} in
+              your GOOD file.
+            </strong>
+            <p className="muted" style={{ margin: '0.3rem 0 0' }}>
+              Because Akasha presets run in artifact-only mode, you do not need{' '}
+              {displayName(activePreset!.target)} or their weapon in your
+              account. Click <strong>Run Rotation Optimizer</strong> above to
+              find the best artifact build from your imported artifact pool.
+            </p>
+          </div>
+        )}
+
       {optResult && optResult.builds.length === 0 && !running && (
         <div className="panel" style={{ borderColor: 'var(--err)' }}>
           <strong className="error">
@@ -990,12 +1227,12 @@ function OptimizeInner() {
           </strong>
           <p className="muted" style={{ margin: '0.35rem 0 0' }}>
             Try lowering the Minimum Energy Recharge floor, enabling artifacts
-            equipped on other characters, or widening the artifact level range.
+            equipped on other characters, or widening the artifact set filter.
           </p>
         </div>
       )}
 
-      {currentEval && activePreset && (
+      {primaryEval && activePreset && (
         <div
           className="panel"
           style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}
@@ -1010,12 +1247,25 @@ function OptimizeInner() {
             }}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                <CharacterBadge characterKey={activePreset.target} role="target" />
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <CharacterBadge
+                  characterKey={activePreset.target}
+                  simulated={isAkashaPreset}
+                  role="target"
+                />
                 <h2 style={{ margin: 0 }}>
-                  {optimisedEval
+                  {showCurrentComparison && optimisedEval
                     ? 'Current Build vs. Optimised Build Comparison'
-                    : 'Current Equipped Build Rotation Breakdown'}
+                    : showCurrentComparison
+                      ? 'Current Equipped Build Rotation Breakdown'
+                      : 'Optimised Build Rotation Breakdown (No Current Build Equipped)'}
                 </h2>
               </div>
               <div className="muted" style={{ fontSize: '0.9rem' }}>
@@ -1025,7 +1275,9 @@ function OptimizeInner() {
             </div>
 
             {optResult && optResult.builds.length > 0 && (
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <div
+                style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+              >
                 <span className="muted">Rank:</span>
                 <select
                   value={selectedBuildIdx}
@@ -1060,67 +1312,69 @@ function OptimizeInner() {
               gap: '0.85rem',
             }}
           >
-            <div
-              style={{
-                background: '#151821',
-                padding: '0.85rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-              }}
-            >
-              <div className="muted" style={{ fontSize: '0.85rem' }}>
-                Current Build Rotation Total
+            {showCurrentComparison && currentEval && (
+              <div
+                style={{
+                  background: '#151821',
+                  padding: '0.85rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <div className="muted" style={{ fontSize: '0.85rem' }}>
+                  Current Build Rotation Total
+                </div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                  {formatNum(currentEval.total)}
+                </div>
               </div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-                {formatNum(currentEval.total)}
-              </div>
-            </div>
+            )}
 
             {optimisedEval && (
-              <>
-                <div
-                  style={{
-                    background: '#151821',
-                    padding: '0.85rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--accent)',
-                  }}
-                >
-                  <div className="muted" style={{ fontSize: '0.85rem' }}>
-                    Optimised Build Rotation Total (#{selectedBuildIdx + 1})
-                  </div>
-                  <div
-                    className="ok"
-                    style={{ fontSize: '1.5rem', fontWeight: 700 }}
-                  >
-                    {formatNum(optimisedEval.total)}
-                  </div>
+              <div
+                style={{
+                  background: '#151821',
+                  padding: '0.85rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--accent)',
+                }}
+              >
+                <div className="muted" style={{ fontSize: '0.85rem' }}>
+                  Optimised Build Rotation Total (#{selectedBuildIdx + 1})
                 </div>
+                <div
+                  className="ok"
+                  style={{ fontSize: '1.5rem', fontWeight: 700 }}
+                >
+                  {formatNum(optimisedEval.total)}
+                </div>
+              </div>
+            )}
 
-                <div
-                  style={{
-                    background: '#151821',
-                    padding: '0.85rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border)',
-                  }}
-                >
-                  <div className="muted" style={{ fontSize: '0.85rem' }}>
-                    Rotation Damage Difference
-                  </div>
-                  {(() => {
-                    const d = formatDiff(currentEval.total, optimisedEval.total)
-                    return (
-                      <div
-                        className={d.cls}
-                        style={{ fontSize: '1.5rem', fontWeight: 700 }}
-                      >
-                        {d.text}
-                      </div>
-                    )
-                  })()}
+            {showCurrentComparison && currentEval && optimisedEval && (
+              <div
+                style={{
+                  background: '#151821',
+                  padding: '0.85rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <div className="muted" style={{ fontSize: '0.85rem' }}>
+                  Rotation Damage Difference
                 </div>
-              </>
+                {(() => {
+                  const d = formatDiff(currentEval.total, optimisedEval.total)
+                  return (
+                    <div
+                      className={d.cls}
+                      style={{ fontSize: '1.5rem', fontWeight: 700 }}
+                    >
+                      {d.text}
+                    </div>
+                  )
+                })()}
+              </div>
             )}
           </div>
 
@@ -1134,38 +1388,54 @@ function OptimizeInner() {
                 <tr>
                   <th>Damage Instance</th>
                   <th>Hits</th>
-                  <th>Current Per-Hit</th>
-                  <th>Current Subtotal</th>
+                  {showCurrentComparison && (
+                    <>
+                      <th>Current Per-Hit</th>
+                      <th>Current Subtotal</th>
+                    </>
+                  )}
                   {optimisedEval && (
                     <>
                       <th>Optimised Per-Hit</th>
                       <th>Optimised Subtotal</th>
-                      <th>Difference</th>
+                      {showCurrentComparison && <th>Difference</th>}
                     </>
                   )}
                 </tr>
               </thead>
               <tbody>
-                {currentEval.instances.map((inst, idx) => {
+                {primaryEval.instances.map((inst, idx) => {
                   const optInst = optimisedEval?.instances[idx]
-                  const diff = optInst
-                    ? formatDiff(inst.subtotal, optInst.subtotal)
-                    : null
+                  const diff =
+                    showCurrentComparison && currentEval && optInst
+                      ? formatDiff(
+                          currentEval.instances[idx]!.subtotal,
+                          optInst.subtotal
+                        )
+                      : null
                   return (
                     <tr key={idx}>
                       <td>
                         <strong>{inst.label}</strong>
                       </td>
                       <td>×{inst.count}</td>
-                      <td>{formatNum(inst.perHit)}</td>
-                      <td>{formatNum(inst.subtotal)}</td>
-                      {optInst && diff && (
+                      {showCurrentComparison && currentEval && (
+                        <>
+                          <td>{formatNum(currentEval.instances[idx]!.perHit)}</td>
+                          <td>
+                            {formatNum(currentEval.instances[idx]!.subtotal)}
+                          </td>
+                        </>
+                      )}
+                      {optInst && (
                         <>
                           <td>{formatNum(optInst.perHit)}</td>
                           <td>
                             <strong>{formatNum(optInst.subtotal)}</strong>
                           </td>
-                          <td className={diff.cls}>{diff.text}</td>
+                          {showCurrentComparison && diff && (
+                            <td className={diff.cls}>{diff.text}</td>
+                          )}
                         </>
                       )}
                     </tr>
@@ -1178,17 +1448,17 @@ function OptimizeInner() {
           {/* Artifact Slot Comparison */}
           <div>
             <h3 style={{ margin: '0 0 0.5rem' }}>
-              Artifact Loadout Comparison (Slot by Slot)
+              Artifact Loadout {showCurrentComparison ? 'Comparison (Slot by Slot)' : '(Optimised Build)'}
             </h3>
             <table>
               <thead>
                 <tr>
                   <th>Slot</th>
-                  <th>Current Equipped Artifact</th>
+                  {showCurrentComparison && <th>Current Equipped Artifact</th>}
                   {activeOptBuild && (
                     <>
                       <th>Optimised Artifact</th>
-                      <th>Status</th>
+                      {showCurrentComparison && <th>Status</th>}
                     </>
                   )}
                 </tr>
@@ -1213,17 +1483,21 @@ function OptimizeInner() {
                           compact
                         />
                       </td>
-                      <td style={{ fontSize: '0.88rem' }}>
-                        {renderArtifactCell(currId)}
-                      </td>
+                      {showCurrentComparison && (
+                        <td style={{ fontSize: '0.88rem' }}>
+                          {renderArtifactCell(currId)}
+                        </td>
+                      )}
                       {activeOptBuild && (
                         <>
                           <td style={{ fontSize: '0.88rem' }}>
                             {renderArtifactCell(optId)}
                           </td>
-                          <td className={changed ? 'warn' : 'muted'}>
-                            {changed ? 'Swapped' : 'Kept'}
-                          </td>
+                          {showCurrentComparison && (
+                            <td className={changed ? 'warn' : 'muted'}>
+                              {changed ? 'Swapped' : 'Kept'}
+                            </td>
+                          )}
                         </>
                       )}
                     </tr>
@@ -1240,38 +1514,43 @@ function OptimizeInner() {
               <thead>
                 <tr>
                   <th>Stat</th>
-                  <th>Current Build</th>
+                  {showCurrentComparison && <th>Current Build</th>}
                   {optimisedEval && (
                     <>
                       <th>Optimised Build</th>
-                      <th>Delta</th>
+                      {showCurrentComparison && <th>Delta</th>}
                     </>
                   )}
                 </tr>
               </thead>
               <tbody>
                 {DISPLAY_STATS.filter((st) => {
-                  const cVal = currentEval.stats[st.key] ?? 0
+                  const cVal = currentEval?.stats[st.key] ?? 0
                   const oVal = optimisedEval?.stats[st.key] ?? 0
                   if (st.key.endsWith('_dmg_') && cVal === 0 && oVal === 0)
                     return false
                   return true
                 }).map((st) => {
-                  const cVal = currentEval.stats[st.key] ?? 0
+                  const cVal = currentEval?.stats[st.key] ?? 0
                   const oVal = optimisedEval?.stats[st.key] ?? 0
-                  const diff = optimisedEval
-                    ? formatDiff(cVal, oVal, st.isPercent)
-                    : null
+                  const diff =
+                    showCurrentComparison && currentEval && optimisedEval
+                      ? formatDiff(cVal, oVal, st.isPercent)
+                      : null
                   return (
                     <tr key={st.key}>
                       <td>{st.label}</td>
-                      <td>{formatStat(cVal, st.isPercent)}</td>
-                      {optimisedEval && diff && (
+                      {showCurrentComparison && currentEval && (
+                        <td>{formatStat(cVal, st.isPercent)}</td>
+                      )}
+                      {optimisedEval && (
                         <>
                           <td>
                             <strong>{formatStat(oVal, st.isPercent)}</strong>
                           </td>
-                          <td className={diff.cls}>{diff.text}</td>
+                          {showCurrentComparison && diff && (
+                            <td className={diff.cls}>{diff.text}</td>
+                          )}
                         </>
                       )}
                     </tr>
@@ -1288,7 +1567,7 @@ function OptimizeInner() {
 
 export default function OptimizePage() {
   return (
-    <Suspense fallback={<div className="panel muted">Loading optimizer…</div>}>
+    <Suspense fallback={<OptimizeLoading />}>
       <OptimizeInner />
     </Suspense>
   )

@@ -1,5 +1,6 @@
 'use client'
 
+import PresetsLoading from './loading'
 import {
   ArtifactBadge,
   CharacterBadge,
@@ -11,8 +12,11 @@ import {
   displayName,
   formatConstellationReq,
   formatRefinementReq,
+  getCharacterMeta,
   getPresetBadge,
+  getWeaponMeta,
   listBundledPresets,
+  listWeaponsForType,
   matchAccount,
   type Preset,
   type PresetSource,
@@ -21,14 +25,21 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
 export default function PresetsPage() {
-  const { record } = useGoodStorage()
-  const { presets: userPresets, remove: removeUserPreset } = useUserPresets()
+  const { record, loading: goodLoading } = useGoodStorage()
+  const {
+    presets: userPresets,
+    loading: userLoading,
+    remove: removeUserPreset,
+  } = useUserPresets()
 
   const [sourceFilter, setSourceFilter] = useState<'all' | PresetSource>('all')
   const [targetFilter, setTargetFilter] = useState<string>('')
   const [selectedPresetId, setSelectedPresetId] = useState<string>('')
   const [selectedWeapons, setSelectedWeapons] = useState<
     Record<string, string>
+  >({})
+  const [akashaWeaponChoices, setAkashaWeaponChoices] = useState<
+    Record<string, { key: string; refinement: number }>
   >({})
 
   const allPresets = useMemo(() => {
@@ -61,11 +72,38 @@ export default function PresetsPage() {
     : undefined
 
   const activeMatch = useMemo(() => {
-    if (!activePreset || !record?.good) return null
+    if (!activePreset || !record?.good || activePreset.source === 'akasha')
+      return null
     return matchAccount(activePreset, record.good, {
       selectedWeaponId: activeWeaponOverride,
     })
   }, [activePreset, record, activeWeaponOverride])
+
+  const activeAkashaDefaultWeapon = useMemo(() => {
+    if (!activePreset || activePreset.team[0]?.build.type !== 'fixed')
+      return null
+    return activePreset.team[0].build.weapon
+  }, [activePreset])
+
+  const activeAkashaChoice = useMemo(() => {
+    if (!activePreset || !activeAkashaDefaultWeapon) return null
+    return (
+      akashaWeaponChoices[activePreset.id] ?? {
+        key: activeAkashaDefaultWeapon.key,
+        refinement: activeAkashaDefaultWeapon.refinement,
+      }
+    )
+  }, [activePreset, activeAkashaDefaultWeapon, akashaWeaponChoices])
+
+  const availableAkashaWeapons = useMemo(() => {
+    if (!activePreset || activePreset.source !== 'akasha') return []
+    const charMeta = getCharacterMeta(activePreset.target)
+    return listWeaponsForType(charMeta.weaponType)
+  }, [activePreset])
+
+  if (goodLoading || userLoading) {
+    return <PresetsLoading />
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -81,9 +119,9 @@ export default function PresetsPage() {
         <div>
           <h1 style={{ margin: 0 }}>Presets Library</h1>
           <p className="muted" style={{ margin: '0.25rem 0 0' }}>
-            Browse Akasha leaderboard setups, Official meta team presets, and
-            your own Custom presets. Every preset is a setup bundle — damage
-            numbers come from your own artifacts when evaluated.
+            Browse Akasha leaderboard setups (artifact-only mode with fixed
+            target &amp; free weapon choice), Official meta team presets, and
+            your own Custom presets.
           </p>
         </div>
         <Link href="/teams">
@@ -113,8 +151,8 @@ export default function PresetsPage() {
           }}
         >
           <span className="warn">
-            No GOOD account data imported yet. Import your scanner file to see
-            live Akasha requirement matching and run the optimizer.
+            No GOOD account data imported yet. Import your scanner file to
+            optimise your artifacts against any preset.
           </span>
           <Link href="/import">
             <button type="button">Go to Import →</button>
@@ -143,7 +181,9 @@ export default function PresetsPage() {
             <option value="all">All Sources ({allPresets.length})</option>
             <option value="akasha">Akasha Leaderboard Presets</option>
             <option value="official">Official Meta Presets</option>
-            <option value="user">Custom User Presets ({userPresets.length})</option>
+            <option value="user">
+              Custom User Presets ({userPresets.length})
+            </option>
           </select>
         </label>
 
@@ -162,7 +202,10 @@ export default function PresetsPage() {
           </select>
         </label>
 
-        <span className="muted" style={{ marginLeft: 'auto', fontSize: '0.9rem' }}>
+        <span
+          className="muted"
+          style={{ marginLeft: 'auto', fontSize: '0.9rem' }}
+        >
           Showing {filteredPresets.length} presets
         </span>
       </div>
@@ -187,11 +230,13 @@ export default function PresetsPage() {
           {filteredPresets.map((p) => {
             const badge = getPresetBadge(p)
             const isSelected = activePreset?.id === p.id
-            const quickMatch = record?.good
-              ? matchAccount(p, record.good, {
-                  selectedWeaponId: selectedWeapons[p.id],
-                })
-              : null
+            const isAkasha = p.source === 'akasha'
+            const quickMatch =
+              !isAkasha && record?.good
+                ? matchAccount(p, record.good, {
+                    selectedWeaponId: selectedWeapons[p.id],
+                  })
+                : null
 
             return (
               <div
@@ -228,10 +273,14 @@ export default function PresetsPage() {
                     {badge.label}
                     {badge.verified ? ' · Verified' : ''}
                   </span>
-                  {quickMatch && (
-                    <span className={quickMatch.canRun ? 'ok' : 'error'}>
-                      {quickMatch.canRun ? '✓ Ready' : '✕ Mismatch'}
-                    </span>
+                  {isAkasha ? (
+                    <span className="ok">Artifact-Only</span>
+                  ) : (
+                    quickMatch && (
+                      <span className={quickMatch.canRun ? 'ok' : 'error'}>
+                        {quickMatch.canRun ? '✓ Ready' : '✕ Mismatch'}
+                      </span>
+                    )
                   )}
                 </div>
                 <strong style={{ fontSize: '0.98rem' }}>{p.name}</strong>
@@ -248,7 +297,9 @@ export default function PresetsPage() {
                     <CharacterBadge
                       key={m.key}
                       characterKey={m.key}
-                      simulated={m.build.type === 'tc'}
+                      simulated={
+                        m.build.type === 'tc' || m.build.type === 'fixed'
+                      }
                       role={mIdx === 0 ? 'target' : 'owned'}
                       compact
                     />
@@ -267,6 +318,27 @@ export default function PresetsPage() {
           >
             {(() => {
               const badge = getPresetBadge(activePreset)
+              const isAkasha = activePreset.source === 'akasha'
+              const canOptimize = isAkasha
+                ? Boolean(record)
+                : Boolean(record && (!activeMatch || activeMatch.canRun))
+
+              const optimizeUrl = !canOptimize
+                ? '#'
+                : isAkasha && activeAkashaChoice
+                  ? `/optimize?preset=${encodeURIComponent(
+                      activePreset.id
+                    )}&weaponKey=${encodeURIComponent(
+                      activeAkashaChoice.key
+                    )}&refinement=${activeAkashaChoice.refinement}`
+                  : `/optimize?preset=${encodeURIComponent(activePreset.id)}${
+                      activeMatch?.selectedWeaponId
+                        ? `&weapon=${encodeURIComponent(
+                            activeMatch.selectedWeaponId
+                          )}`
+                        : ''
+                    }`
+
               return (
                 <div
                   style={{
@@ -307,25 +379,13 @@ export default function PresetsPage() {
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <Link
-                      href={
-                        !record || (activeMatch && !activeMatch.canRun)
-                          ? '#'
-                          : `/optimize?preset=${encodeURIComponent(
-                              activePreset.id
-                            )}${
-                              activeMatch?.selectedWeaponId
-                                ? `&weapon=${encodeURIComponent(
-                                    activeMatch.selectedWeaponId
-                                  )}`
-                                : ''
-                            }`
-                      }
-                    >
+                  <div
+                    style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
+                  >
+                    <Link href={optimizeUrl}>
                       <button
                         type="button"
-                        disabled={!record || Boolean(activeMatch && !activeMatch.canRun)}
+                        disabled={!canOptimize}
                         style={{
                           background: 'var(--accent)',
                           color: '#0b0d12',
@@ -396,88 +456,222 @@ export default function PresetsPage() {
               </div>
             )}
 
-            {/* Target Character & Weapon Check */}
-            <div
-              style={{
-                background: '#151821',
-                border: '1px solid var(--border)',
-                borderRadius: '6px',
-                padding: '0.85rem',
-              }}
-            >
-              <strong>Target Character &amp; Weapon Check (Akasha-style)</strong>
-              <div className="muted" style={{ fontSize: '0.83rem', marginTop: '0.15rem' }}>
-                Only your target character ({displayName(activePreset.target)}) and its required weapon are checked against your account. Simulated (<code>SIM</code>) preset teammates use fixed assumed stats and are never required in your account.
-              </div>
-              {!record ? (
-                <p className="muted" style={{ margin: '0.4rem 0 0' }}>
-                  Import your GOOD JSON on the <Link href="/import">Import</Link>{' '}
-                  page to check whether your target character and weapon satisfy
-                  this preset.
-                </p>
-              ) : activeMatch ? (
-                <div style={{ marginTop: '0.5rem' }}>
-                  <ul
+            {/* Akasha Artifact-Only Mode Setup vs Owned Target Character & Weapon Check */}
+            {activePreset.source === 'akasha' &&
+            activePreset.team[0]?.build.type === 'fixed' &&
+            activeAkashaChoice ? (
+              <div
+                style={{
+                  background: '#151821',
+                  border: '1px solid var(--accent)',
+                  borderRadius: '6px',
+                  padding: '0.85rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.65rem',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <strong>
+                    Akasha Artifact-Only Mode — Fixed Target &amp; Free Weapon
+                    Selection
+                  </strong>
+                  <span className="ok" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                    ✓ No Account Character / Weapon Gate
+                  </span>
+                </div>
+                <div className="muted" style={{ fontSize: '0.84rem' }}>
+                  This Akasha leaderboard preset evaluates{' '}
+                  <strong>{displayName(activePreset.target)}</strong> using the
+                  preset&apos;s fixed simulated character spec (
+                  <code>
+                    Lv.{activePreset.team[0].build.character.level} · C
+                    {activePreset.team[0].build.character.constellation} ·
+                    Talents{' '}
+                    {activePreset.team[0].build.character.talent.auto}/
+                    {activePreset.team[0].build.character.talent.skill}/
+                    {activePreset.team[0].build.character.talent.burst}
+                  </code>
+                  ) and any weapon of your choice. Only your imported GOOD
+                  artifacts enter the calculation.
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '0.85rem',
+                    alignItems: 'center',
+                  }}
+                >
+                  <WeaponBadge
+                    weaponKey={activeAkashaChoice.key}
+                    subtitle={`R${activeAkashaChoice.refinement} · Lv.90 Simulated`}
+                  />
+
+                  <label
                     style={{
-                      margin: 0,
-                      paddingLeft: '1.2rem',
                       display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.35rem',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      fontSize: '0.88rem',
                     }}
                   >
-                    {activeMatch.parts.map((part, idx) => (
-                      <li
-                        key={idx}
-                        className={part.ok ? 'ok' : 'error'}
-                        style={{ fontSize: '0.92rem' }}
-                      >
-                        <strong>{part.ok ? '✓' : '✕'}</strong> {part.message}
-                        {part.part === 'weapon' &&
-                          part.candidates &&
-                          part.candidates.length > 0 && (
-                            <div
-                              style={{
-                                marginTop: '0.4rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                flexWrap: 'wrap',
-                                gap: '0.5rem',
-                              }}
-                            >
-                              <span className="muted">
-                                Qualifying copy in your inventory:
-                              </span>
-                              <select
-                                value={activeWeaponOverride ?? ''}
-                                onChange={(e) =>
-                                  setSelectedWeapons((prev) => ({
-                                    ...prev,
-                                    [activePreset.id]: e.target.value,
-                                  }))
-                                }
-                              >
-                                <option value="">
-                                  — Select owned weapon copy —
-                                </option>
-                                {part.candidates.map((cand) => (
-                                  <option key={cand.id} value={cand.id}>
-                                    {displayName(cand.key)} R{cand.refinement}{' '}
-                                    Lv.{cand.level}{' '}
-                                    {cand.location
-                                      ? `(on ${displayName(cand.location)})`
-                                      : '(in inventory)'}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                      </li>
-                    ))}
-                  </ul>
+                    <span className="muted">Simulated Weapon:</span>
+                    <select
+                      aria-label="Akasha Simulated Weapon"
+                      value={activeAkashaChoice.key}
+                      onChange={(e) => {
+                        const nextKey = e.target.value
+                        const meta = getWeaponMeta(nextKey)
+                        const nextRef =
+                          meta.rarity <= 2 ? 1 : activeAkashaChoice.refinement
+                        setAkashaWeaponChoices((prev) => ({
+                          ...prev,
+                          [activePreset.id]: {
+                            key: nextKey,
+                            refinement: nextRef,
+                          },
+                        }))
+                      }}
+                    >
+                      {availableAkashaWeapons.map((w) => (
+                        <option key={w.key} value={w.key}>
+                          {w.displayName} ({w.rarity}★)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      fontSize: '0.88rem',
+                    }}
+                  >
+                    <span className="muted">Refinement:</span>
+                    <select
+                      aria-label="Akasha Weapon Refinement"
+                      value={activeAkashaChoice.refinement}
+                      disabled={getWeaponMeta(activeAkashaChoice.key).rarity <= 2}
+                      onChange={(e) =>
+                        setAkashaWeaponChoices((prev) => ({
+                          ...prev,
+                          [activePreset.id]: {
+                            key: activeAkashaChoice.key,
+                            refinement: Number(e.target.value),
+                          },
+                        }))
+                      }
+                    >
+                      {[1, 2, 3, 4, 5].map((r) => (
+                        <option key={r} value={r}>
+                          R{r}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
-              ) : null}
-            </div>
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: '#151821',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  padding: '0.85rem',
+                }}
+              >
+                <strong>Target Character &amp; Weapon Check</strong>
+                <div
+                  className="muted"
+                  style={{ fontSize: '0.83rem', marginTop: '0.15rem' }}
+                >
+                  Only your target character ({displayName(activePreset.target)})
+                  and its required weapon are checked against your account.
+                  Simulated (<code>SIM</code>) preset teammates use fixed
+                  assumed stats and are never required in your account.
+                </div>
+                {!record ? (
+                  <p className="muted" style={{ margin: '0.4rem 0 0' }}>
+                    Import your GOOD JSON on the{' '}
+                    <Link href="/import">Import</Link> page to check whether
+                    your target character and weapon satisfy this preset.
+                  </p>
+                ) : activeMatch ? (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: '1.2rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      {activeMatch.parts.map((part, idx) => (
+                        <li
+                          key={idx}
+                          className={part.ok ? 'ok' : 'error'}
+                          style={{ fontSize: '0.92rem' }}
+                        >
+                          <strong>{part.ok ? '✓' : '✕'}</strong> {part.message}
+                          {part.part === 'weapon' &&
+                            part.candidates &&
+                            part.candidates.length > 0 && (
+                              <div
+                                style={{
+                                  marginTop: '0.4rem',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: '0.5rem',
+                                }}
+                              >
+                                <span className="muted">
+                                  Qualifying copy in your inventory:
+                                </span>
+                                <select
+                                  value={activeWeaponOverride ?? ''}
+                                  onChange={(e) =>
+                                    setSelectedWeapons((prev) => ({
+                                      ...prev,
+                                      [activePreset.id]: e.target.value,
+                                    }))
+                                  }
+                                >
+                                  <option value="">
+                                    — Select owned weapon copy —
+                                  </option>
+                                  {part.candidates.map((cand) => (
+                                    <option key={cand.id} value={cand.id}>
+                                      {displayName(cand.key)} R{cand.refinement}{' '}
+                                      Lv.{cand.level}{' '}
+                                      {cand.location
+                                        ? `(on ${displayName(cand.location)})`
+                                        : '(in inventory)'}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            )}
 
             {/* Team Context & Assumed Buffs */}
             <div>
@@ -494,7 +688,8 @@ export default function PresetsPage() {
                 </thead>
                 <tbody>
                   {activePreset.team.map((m, idx) => {
-                    const isSim = m.build.type === 'tc'
+                    const isSim =
+                      m.build.type === 'tc' || m.build.type === 'fixed'
                     const reqParts: string[] = []
                     if (m.requirement?.constellation !== undefined) {
                       reqParts.push(
@@ -518,7 +713,15 @@ export default function PresetsPage() {
                       <tr key={m.key}>
                         <td>
                           {idx === 0 ? (
-                            <strong className="ok">Your Character · Target</strong>
+                            m.build.type === 'fixed' ? (
+                              <strong className="warn">
+                                Simulated Target (Akasha)
+                              </strong>
+                            ) : (
+                              <strong className="ok">
+                                Your Character · Target
+                              </strong>
+                            )
                           ) : isSim ? (
                             <span className="warn">Simulated Teammate</span>
                           ) : (
@@ -535,6 +738,11 @@ export default function PresetsPage() {
                         <td>
                           {m.build.type === 'owned' ? (
                             <span className="ok">Your Scanned Character</span>
+                          ) : m.build.type === 'fixed' ? (
+                            <span className="warn">
+                              Fixed Preset Character + Simulated Weapon + Your
+                              Artifacts
+                            </span>
                           ) : (
                             <span className="warn">
                               Simulated / Assumed Preset Build (Not Your Account)
@@ -572,6 +780,35 @@ export default function PresetsPage() {
                                   Any owned weapon &amp; constellation
                                 </span>
                               )}
+                            </div>
+                          ) : m.build.type === 'fixed' ? (
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                              }}
+                            >
+                              <span>
+                                Lv.{m.build.character.level} C
+                                {m.build.character.constellation} (
+                                {m.build.character.talent.auto}/
+                                {m.build.character.talent.skill}/
+                                {m.build.character.talent.burst})
+                              </span>
+                              <WeaponBadge
+                                weaponKey={
+                                  activeAkashaChoice?.key ?? m.build.weapon.key
+                                }
+                                compact
+                                subtitle={`R${
+                                  activeAkashaChoice?.refinement ??
+                                  m.build.weapon.refinement
+                                } (Default: ${displayName(
+                                  m.build.weapon.key
+                                )} R${m.build.weapon.refinement})`}
+                              />
                             </div>
                           ) : (
                             <div

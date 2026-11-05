@@ -10,18 +10,28 @@
     "leaderboardUrl": "https://akasha.cv/leaderboards/1000008900",
     "label": "Salon Solitaire · PJC R1 · 200 Fanfare",
     "retrievedAt": "2026-11-05",
-    "notes": "Requires Furina C0, Lv. 90, Primordial Jade Cutter R1. Assumes 4 allies >=50% HP for Salon Solitaire (140% original DMG) and 200 average Fanfare stacks."
+    "notes": "Fixed Akasha target spec: Furina C0, Lv. 90 (10/10/10), default weapon Primordial Jade Cutter R1 (user-selectable). Assumes 4 allies >=50% HP for Salon Solitaire (140% original DMG) and 200 average Fanfare stacks."
   },
   "target": "Furina",
   "team": [
     {
       "key": "Furina",
-      "build": { "type": "owned" },
-      "requirement": {
-        "constellation": 0,
-        "minLevel": 90,
-        "weapon": { "key": "PrimordialJadeCutter", "refinement": 1 }
+      "build": {
+        "type": "fixed",
+        "character": {
+          "level": 90,
+          "ascension": 6,
+          "constellation": 0,
+          "talent": { "auto": 10, "skill": 10, "burst": 10 }
+        },
+        "weapon": {
+          "key": "PrimordialJadeCutter",
+          "level": 90,
+          "ascension": 6,
+          "refinement": 1
+        }
       },
+      "requirement": {},
       "conditional": {
         "Furina": {
           "skillHpConsumeStacks": "4",

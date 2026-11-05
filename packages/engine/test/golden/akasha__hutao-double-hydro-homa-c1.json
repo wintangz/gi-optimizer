@@ -1,7 +1,7 @@
 {
   "presetId": "akasha/hutao-double-hydro-homa-c1",
   "target": "HuTao",
-  "total": 455687.47904496663,
+  "total": 690029.2491013235,
   "instances": [
     {
       "label": "Normal 1-Hit (No Reaction ×5)",
@@ -10,8 +10,8 @@
         "0"
       ],
       "count": 5,
-      "perHit": 7351.491214857589,
-      "subtotal": 36757.45607428794
+      "perHit": 11278.49798899154,
+      "subtotal": 56392.4899449577
     },
     {
       "label": "Normal 1-Hit (Vaporize ×3)",
@@ -20,8 +20,8 @@
         "0"
       ],
       "count": 3,
-      "perHit": 14992.070056438306,
-      "subtotal": 44976.210169314916
+      "perHit": 23000.50792968747,
+      "subtotal": 69001.5237890624
     },
     {
       "label": "Charged Attack (Vaporize ×8)",
@@ -30,8 +30,8 @@
         "dmg"
       ],
       "count": 8,
-      "perHit": 43473.626571316025,
-      "subtotal": 347789.0125705282
+      "perHit": 66696.29270151492,
+      "subtotal": 533570.3416121193
     },
     {
       "label": "Blood Blossom (Vaporize ×2)",
@@ -40,13 +40,13 @@
         "dmg"
       ],
       "count": 2,
-      "perHit": 13082.400115417797,
-      "subtotal": 26164.800230835594
+      "perHit": 15532.446877592065,
+      "subtotal": 31064.89375518413
     }
   ],
   "stats": {
     "hp": 40758.16222861,
-    "atk": 4402.8419123788435,
+    "atk": 4646.5757225059315,
     "def": 937.0357328718,
     "eleMas": 114.22999999999999,
     "critRate_": 0.8003,

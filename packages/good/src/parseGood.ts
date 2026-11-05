@@ -10,7 +10,7 @@ import {
   artMaxLevel,
   artSlotMainKeys,
 } from '@genshin-optimizer/gi/consts'
-import { allStats } from '@genshin-optimizer/gi/stats'
+import { CHAR_STAT_META, WEAPON_STAT_META } from './statMeta.gen'
 import { didYouMean } from './suggest'
 import type {
   ArtifactSlotKey,
@@ -448,7 +448,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
       continue
     }
 
-    const wStat = allStats.weapon.data[key as keyof typeof allStats.weapon.data]
+    const wStat = WEAPON_STAT_META[key]
     const rarity: number = wStat?.rarity ?? 4
     const maxLevel = rarity <= 2 ? 70 : 90
     const maxAsc = rarity <= 2 ? 4 : 6
@@ -519,7 +519,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
     if (location) {
       const charKeyForStat =
         location === 'Traveler' ? 'TravelerAnemo' : location
-      const cStat = allStats.char.data[charKeyForStat as keyof typeof allStats.char.data]
+      const cStat = CHAR_STAT_META[charKeyForStat]
       if (cStat && wStat && cStat.weaponType !== wStat.weaponType) {
         summary.weapons.skipped++
         addIssue(

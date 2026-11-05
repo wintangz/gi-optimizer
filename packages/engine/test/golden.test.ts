@@ -30,13 +30,20 @@ describe('GO Golden Fixture Parity & Export Round-Trip', () => {
 
   beforeAll(() => {
     // Ensure golden fixtures are captured on disk
-    const firstFile = resolve(
+    const firstAkashaFile = resolve(
       __dirname,
       'golden',
-      presets[0]!.id.replace(/\//g, '__') + '.json'
+      'akasha__furina-salon-pjc-c0.json'
     )
-    if (!existsSync(firstFile)) {
+    const firstOfficialFile = resolve(
+      __dirname,
+      'golden',
+      'official__alhaitham-quickbloom.json'
+    )
+    if (!existsSync(firstOfficialFile)) {
       captureAllGoldenFixtures()
+    } else if (!existsSync(firstAkashaFile)) {
+      captureAllGoldenFixtures({ source: 'akasha' })
     }
   }, 60_000)
 
