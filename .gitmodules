@@ -1,0 +1,4 @@
+[submodule "vendor/genshin-optimizer"]
+	path = vendor/genshin-optimizer
+	url = https://github.com/frzyc/genshin-optimizer.git
+	shallow = true

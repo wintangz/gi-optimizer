@@ -1,0 +1,13 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# vendor/genshin-optimizer (pinned GO source) resolves its third-party imports
+# (MUI, i18next, zod, ...) by walking up to the repo-root node_modules, so
+# those packages must be hoisted publicly.
+shamefullyHoist: true
+
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
+  esbuild: true

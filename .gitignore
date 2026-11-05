@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+.env*
+.DS_Store
+Thumbs.db
+playwright-report/
+test-results/
+# agent folders may hold local credentials
+.agents/*
+!.agents/skills/
+# per-session Spec Kit pointer
+.specify/feature.json
+
