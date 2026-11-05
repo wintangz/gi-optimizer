@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import { goAliases } from './go-paths.mjs'
+import { goAliases } from '../../tooling/go-paths.mjs'
 
 const aliases = goAliases()
 

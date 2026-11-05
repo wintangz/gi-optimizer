@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-export const GO_ROOT = resolve(here, '../../vendor/genshin-optimizer')
+export const GO_ROOT = resolve(here, '../vendor/genshin-optimizer')
 export const STUBS_ROOT = resolve(here, 'go-stubs')
 
 /**
