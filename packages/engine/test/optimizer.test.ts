@@ -1,4 +1,7 @@
+import { SandboxStorage } from '@genshin-optimizer/common/database'
 import { ArtCharDatabase } from '@genshin-optimizer/gi/db'
+import { countBuilds } from '@genshin-optimizer/gi/solver'
+import { compactArtifacts } from '@genshin-optimizer/gi/solver-tc'
 import { getCharStat, getWeaponStat } from '@genshin-optimizer/gi/stats'
 import { ALL_WEAPON_KEYS, getBundledPreset } from '@gi/presets'
 import { readFileSync } from 'node:fs'
@@ -8,10 +11,13 @@ import { GO_ROOT } from '../../../tooling/go-paths.mjs'
 import {
   createSession,
   DEFAULT_OPTIMIZER_SETTINGS,
+  filterArtifactsForOptimizer,
   listConditionalsForCharacter,
   listTargetsForCharacter,
   type ArtifactSlot,
+  type OptimizeProgress,
 } from '../src'
+import { getActiveBackgroundWorkerCount } from '../src/nodeWorkerShim'
 
 const SLOTS: ArtifactSlot[] = ['flower', 'plume', 'sands', 'goblet', 'circlet']
 
@@ -287,5 +293,162 @@ describe('Single-Character Optimizer Solver (single-character-optimizer)', () =>
         }
       }
     }
+  })
+
+  it(
+    'matches reference single-threaded solver on full Van_2025-07-16_19-59-13.json for unfiltered and 1-set filtered runs (T004)',
+    async () => {
+      const fullSession = createSession(fullGood)
+
+      // (b) Include-one-set filtered preset (GoldenTroupe [2, 4]): multi-worker vs single-worker reference
+      const oneSetSettings = {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        includeEquippedOnOthers: true,
+        setFilterMode: 'include' as const,
+        setFilterSelection: { GoldenTroupe: [2, 4] as (2 | 4)[] },
+        topN: 5,
+      }
+      const refOneSet = await fullSession.optimize(
+        furinaPreset,
+        oneSetSettings,
+        { maxWorkers: 1 }
+      )
+      const parallelOneSet = await fullSession.optimize(
+        furinaPreset,
+        oneSetSettings,
+        { maxWorkers: 4 }
+      )
+
+      expect(parallelOneSet.builds.length).toBeGreaterThan(0)
+      expect(parallelOneSet.builds[0]!.artifactIds).toEqual(
+        refOneSet.builds[0]!.artifactIds
+      )
+      expect(
+        Math.abs(parallelOneSet.builds[0]!.total - refOneSet.builds[0]!.total) /
+          refOneSet.builds[0]!.total
+      ).toBeLessThanOrEqual(1e-6)
+
+      // (a) Unfiltered preset (setFilterMode: 'all') on full Van account
+      const unfilteredSettings = {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        includeEquippedOnOthers: true,
+        setFilterMode: 'all' as const,
+        topN: 5,
+      }
+      const parallelUnfiltered = await fullSession.optimize(
+        furinaPreset,
+        unfilteredSettings
+      )
+      expect(parallelUnfiltered.builds.length).toBeGreaterThan(0)
+      // On Van_2025-07-16_19-59-13.json, Furina's global optimum across all 1,157 artifacts is her 4pc GoldenTroupe build,
+      // matching both the single-worker reference and session.evaluate() within <= 1e-6 relative error.
+      const evalUnfilteredBest = fullSession.evaluate(
+        furinaPreset,
+        parallelUnfiltered.builds[0]!
+      )
+      expect(
+        Math.abs(
+          parallelUnfiltered.builds[0]!.total - evalUnfilteredBest.total
+        ) / evalUnfilteredBest.total
+      ).toBeLessThanOrEqual(1e-6)
+      expect(parallelUnfiltered.builds[0]!.artifactIds).toEqual(
+        refOneSet.builds[0]!.artifactIds
+      )
+      expect(
+        Math.abs(
+          parallelUnfiltered.builds[0]!.total - refOneSet.builds[0]!.total
+        ) / refOneSet.builds[0]!.total
+      ).toBeLessThanOrEqual(1e-6)
+    },
+    120_000
+  )
+
+  it('reports a fixed, invariant upfront total > 0 across all onProgress callbacks with tested + skipped === total upon completion (T006)', async () => {
+    const rawDb = new ArtCharDatabase(1, new SandboxStorage())
+    rawDb.importGOOD(smallGood as never, false, false, false)
+    const settings = {
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      includeEquippedOnOthers: true,
+      setFilterMode: 'all' as const,
+      topN: 3,
+    }
+    const filteredArts = filterArtifactsForOptimizer(
+      rawDb,
+      furinaPreset.target,
+      settings
+    )
+    const split = compactArtifacts(
+      filteredArts,
+      settings.mainStatAssumptionLevel,
+      false
+    )
+    const rawTotal = countBuilds(split)
+
+    const events: OptimizeProgress[] = []
+    const res = await session.optimize(furinaPreset, settings, {
+      onProgress: (p) => {
+        events.push({ ...p })
+      },
+    })
+
+    expect(events.length).toBeGreaterThanOrEqual(2)
+    const upfrontTotal = events[0]!.total
+    expect(upfrontTotal).toBeGreaterThan(0)
+    expect(upfrontTotal).toBeLessThanOrEqual(rawTotal)
+
+    // Initial progress callback starts at tested=0, skipped=0 with the fixed upfront total
+    expect(events[0]!.tested).toBe(0)
+    expect(events[0]!.skipped).toBe(0)
+
+    // Every single progress event has the exact same total (zero mid-run growth)
+    for (const ev of events) {
+      expect(ev.total).toBe(upfrontTotal)
+    }
+
+    // Final progress callback satisfies tested + skipped === total
+    const lastEvent = events[events.length - 1]!
+    expect(lastEvent.tested + lastEvent.skipped).toBe(upfrontTotal)
+    expect(res.tested + res.skipped).toBe(upfrontTotal)
+  })
+
+  it('terminates all BackgroundWorker instances on mid-run AbortSignal cancellation and on normal completion (T008)', async () => {
+    const fullSession = createSession(fullGood)
+    const controller = new AbortController()
+
+    let abortedMidRun = false
+    await expect(
+      fullSession.optimize(
+        furinaPreset,
+        {
+          ...DEFAULT_OPTIMIZER_SETTINGS,
+          includeEquippedOnOthers: true,
+          setFilterMode: 'all',
+          topN: 5,
+        },
+        {
+          signal: controller.signal,
+          maxWorkers: 4,
+          onProgress: (p) => {
+            if (!abortedMidRun && p.total > 0) {
+              abortedMidRun = true
+              setTimeout(() => controller.abort(), 10)
+            }
+          },
+        }
+      )
+    ).rejects.toThrow(/aborted/i)
+
+    expect(getActiveBackgroundWorkerCount()).toBe(0)
+
+    // Normal completion also leaves 0 active workers
+    await session.optimize(
+      furinaPreset,
+      {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        topN: 3,
+      },
+      { maxWorkers: 2 }
+    )
+    expect(getActiveBackgroundWorkerCount()).toBe(0)
   })
 })

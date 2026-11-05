@@ -2,12 +2,12 @@
 // uiDataForTeam) computing damage headlessly from a GOOD file.
 import { SandboxStorage } from '@genshin-optimizer/common/database'
 import { ArtCharDatabase, type LoadoutDatum } from '@genshin-optimizer/gi/db'
-import { getTeamData } from '@genshin-optimizer/gi/ui/useTeamData'
 import { uiDataForTeam } from '@genshin-optimizer/gi/uidata'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { GO_ROOT } from '../../../tooling/go-paths.mjs'
+import { getTeamData, getTeamDataCalc } from '../src/teamData'
 
 describe('GO engine spike', () => {
   it('computes Furina damage via GO team data', () => {
@@ -30,6 +30,9 @@ describe('GO engine spike', () => {
     const display = ui.getDisplay()
     const sections = Object.keys(display)
     expect(sections.length).toBeGreaterThan(0)
+
+    const calcDirect = getTeamDataCalc(db, teamId, 'F', tcId, 0)
+    expect(calcDirect?.['Furina']?.target).toBeDefined()
   })
 })
 

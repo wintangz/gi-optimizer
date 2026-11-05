@@ -1,16 +1,17 @@
 import {
-  allArtifactSetKeys,
-  allArtifactSlotKeys,
-  allCharacterKeys,
-  allLocationCharacterKeys,
-  allMainStatKeys,
-  allSubstatKeys,
-  allTravelerKeys,
-  allWeaponKeys,
-  artMaxLevel,
-  artSlotMainKeys,
-} from '@genshin-optimizer/gi/consts'
-import { CHAR_STAT_META, WEAPON_STAT_META } from './statMeta.gen'
+  ALL_ARTIFACT_SET_KEYS,
+  ALL_ARTIFACT_SLOT_KEYS,
+  ALL_CHARACTER_KEYS,
+  ALL_LOCATION_CHARACTER_KEYS,
+  ALL_MAIN_STAT_KEYS,
+  ALL_SUBSTAT_KEYS,
+  ALL_TRAVELER_KEYS,
+  ALL_WEAPON_KEYS,
+  ART_MAX_LEVEL,
+  ART_SLOT_MAIN_KEYS,
+  CHAR_STAT_META,
+  WEAPON_STAT_META,
+} from './statMeta.gen'
 import { didYouMean } from './suggest'
 import type {
   ArtifactSlotKey,
@@ -53,13 +54,13 @@ const GO_EXTRA_KEYS = new Set([
   'display_archive',
 ])
 
-const CHAR_KEYS_SET = new Set<string>(allCharacterKeys as readonly string[])
-const LOC_KEYS_SET = new Set<string>(allLocationCharacterKeys as readonly string[])
-const WEAPON_KEYS_SET = new Set<string>(allWeaponKeys as readonly string[])
-const ART_SET_KEYS_SET = new Set<string>(allArtifactSetKeys as readonly string[])
-const ART_SLOT_KEYS_SET = new Set<string>(allArtifactSlotKeys as readonly string[])
-const MAIN_STAT_KEYS_SET = new Set<string>(allMainStatKeys as readonly string[])
-const SUBSTAT_KEYS_SET = new Set<string>(allSubstatKeys as readonly string[])
+const CHAR_KEYS_SET = new Set<string>(ALL_CHARACTER_KEYS)
+const LOC_KEYS_SET = new Set<string>(ALL_LOCATION_CHARACTER_KEYS)
+const WEAPON_KEYS_SET = new Set<string>(ALL_WEAPON_KEYS)
+const ART_SET_KEYS_SET = new Set<string>(ALL_ARTIFACT_SET_KEYS)
+const ART_SLOT_KEYS_SET = new Set<string>(ALL_ARTIFACT_SLOT_KEYS)
+const MAIN_STAT_KEYS_SET = new Set<string>(ALL_MAIN_STAT_KEYS)
+const SUBSTAT_KEYS_SET = new Set<string>(ALL_SUBSTAT_KEYS)
 
 function emptySummary(): GoodSummary {
   return {
@@ -304,7 +305,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
 
     // Legacy Traveler expansion (spec edge case GI-7)
     const keysToImport: string[] =
-      rawKey === 'Traveler' ? [...(allTravelerKeys as readonly string[])] : [rawKey]
+      rawKey === 'Traveler' ? [...ALL_TRAVELER_KEYS] : [rawKey]
 
     if (rawKey === 'Traveler') {
       addIssue(
@@ -314,7 +315,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
       )
     } else if (!CHAR_KEYS_SET.has(rawKey)) {
       summary.characters.skipped++
-      const sug = didYouMean(rawKey, allCharacterKeys as readonly string[])
+      const sug = didYouMean(rawKey, ALL_CHARACTER_KEYS)
       addIssue(
         'warning',
         `${cPath}.key`,
@@ -438,7 +439,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
     }
     if (!WEAPON_KEYS_SET.has(key)) {
       summary.weapons.skipped++
-      const sug = didYouMean(key, allWeaponKeys as readonly string[])
+      const sug = didYouMean(key, ALL_WEAPON_KEYS)
       addIssue(
         'warning',
         `${wPath}.key`,
@@ -518,7 +519,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
     // Check weapon type vs character weapon type
     if (location) {
       const charKeyForStat =
-        location === 'Traveler' ? 'TravelerAnemo' : location
+        location === 'Traveler' ? 'Traveler' : location
       const cStat = CHAR_STAT_META[charKeyForStat]
       if (cStat && wStat && cStat.weaponType !== wStat.weaponType) {
         summary.weapons.skipped++
@@ -605,7 +606,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
     }
     if (!ART_SET_KEYS_SET.has(setKey)) {
       summary.artifacts.skipped++
-      const sug = didYouMean(setKey, allArtifactSetKeys as readonly string[])
+      const sug = didYouMean(setKey, ALL_ARTIFACT_SET_KEYS)
       addIssue(
         'warning',
         `${aPath}.setKey`,
@@ -618,7 +619,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
     const slotKey = typeof rec.slotKey === 'string' ? rec.slotKey : ''
     if (!ART_SLOT_KEYS_SET.has(slotKey)) {
       summary.artifacts.skipped++
-      const sug = didYouMean(slotKey, allArtifactSlotKeys as readonly string[])
+      const sug = didYouMean(slotKey, ALL_ARTIFACT_SLOT_KEYS)
       addIssue(
         'error',
         `${aPath}.slotKey`,
@@ -640,7 +641,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
       continue
     }
 
-    const maxLevel = artMaxLevel[rarity as 3 | 4 | 5] ?? 20
+    const maxLevel = ART_MAX_LEVEL[rarity as 3 | 4 | 5] ?? 20
     const level =
       typeof rec.level === 'number' && Number.isFinite(rec.level) ? Math.round(rec.level) : -1
     if (level < 0 || level > maxLevel) {
@@ -657,7 +658,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
     let mainStatKey = typeof rec.mainStatKey === 'string' ? rec.mainStatKey : ''
     if (!MAIN_STAT_KEYS_SET.has(mainStatKey)) {
       summary.artifacts.skipped++
-      const sug = didYouMean(mainStatKey, allMainStatKeys as readonly string[])
+      const sug = didYouMean(mainStatKey, ALL_MAIN_STAT_KEYS)
       addIssue(
         'error',
         `${aPath}.mainStatKey`,
@@ -667,7 +668,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
       continue
     }
 
-    const validSlotMains = artSlotMainKeys[slotKey as ArtifactSlotKey] as readonly string[]
+    const validSlotMains = ART_SLOT_MAIN_KEYS[slotKey as ArtifactSlotKey] as readonly string[]
     if (slotKey === 'flower' && mainStatKey !== 'hp') {
       addIssue(
         'warning',
@@ -718,7 +719,7 @@ export function parseGood(input: string | unknown): ParseGoodResult {
       if (!sKey) continue // GO uses empty key "" for unused substat slots
 
       if (!SUBSTAT_KEYS_SET.has(sKey)) {
-        const sug = didYouMean(sKey, allSubstatKeys as readonly string[])
+        const sug = didYouMean(sKey, ALL_SUBSTAT_KEYS)
         addIssue(
           'error',
           `${sPath}.key`,

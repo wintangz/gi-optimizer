@@ -1,7 +1,6 @@
 import { SandboxStorage } from '@genshin-optimizer/common/database'
 import type { CharacterKey } from '@genshin-optimizer/gi/consts'
 import { ArtCharDatabase } from '@genshin-optimizer/gi/db'
-import { getTeamDataCalc } from '@genshin-optimizer/gi/ui/useTeamData'
 import { listBundledPresets } from '@gi/presets'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -11,7 +10,12 @@ import {
   captureAllGoldenFixtures,
   type GoldenFixture,
 } from '../scripts/capture-golden'
-import { createSession } from '../src'
+import {
+  createSession,
+  listConditionalsForCharacter,
+  listTargetsForCharacter,
+} from '../src'
+import { getTeamDataCalc } from '../src/teamData'
 
 function relError(actual: number, expected: number): number {
   if (expected === 0) return Math.abs(actual)
@@ -105,18 +109,38 @@ describe('GO Golden Fixture Parity & Export Round-Trip', () => {
   })
 
   it('lists targets and conditionals for bundled characters from GO sheets', () => {
-    const furinaTargets = session.listTargets('Furina')
+    const furinaTargets = listTargetsForCharacter('Furina')
     expect(furinaTargets.length).toBeGreaterThan(5)
     expect(
       furinaTargets.some(
-        (t) => t.path[0] === 'skill' && t.path[1] === 'usherDmg'
+        (t) =>
+          t.path[0] === 'skill' &&
+          t.path[1] === 'usherDmg' &&
+          t.name.length > 0
       )
     ).toBe(true)
 
-    const furinaConds = session.listConditionals('Furina')
+    const furinaConds = listConditionalsForCharacter('Furina')
     expect(furinaConds.length).toBeGreaterThan(3)
+    const fanfare = furinaConds.find(
+      (c) => c.sheet === 'Furina' && c.key === 'burstFanfare'
+    )
+    expect(fanfare).toBeDefined()
+    expect(fanfare!.name).toContain('Furina')
+    expect(fanfare!.states.length).toBeGreaterThan(0)
+    expect(fanfare!.states.every((s) => s.name.length > 0)).toBe(true)
+
+    const hutaoTargets = listTargetsForCharacter('HuTao')
+    expect(hutaoTargets.length).toBeGreaterThanOrEqual(18)
+    const hutaoConds = listConditionalsForCharacter('HuTao')
+    expect(hutaoConds.length).toBeGreaterThan(10)
     expect(
-      furinaConds.some((c) => c.sheet === 'Furina' && c.key === 'burstFanfare')
+      hutaoConds.every(
+        (c) =>
+          typeof c.name === 'string' &&
+          c.name.trim().length > 0 &&
+          !c.name.includes('[object Object]')
+      )
     ).toBe(true)
   })
 })

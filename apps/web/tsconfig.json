@@ -21,8 +21,9 @@
     "paths": {
       "@/*": ["./src/*"],
       "@gi/good": ["../../packages/good/src/index.ts"],
+      "@gi/good/src/*": ["../../packages/good/src/*.ts", "../../packages/good/src/*"],
       "@gi/presets": ["../../packages/presets/src/index.ts"],
-      "@gi/engine": ["../../packages/engine/src/index.ts"]
+      "@gi/presets/src/*": ["../../packages/presets/src/*.ts", "../../packages/presets/src/*"]
     }
   },
   "include": [

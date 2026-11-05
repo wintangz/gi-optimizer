@@ -15,9 +15,9 @@ import {
   type DocumentSection,
 } from '@genshin-optimizer/gi/sheets'
 import { getCharStat, getWeaponStat } from '@genshin-optimizer/gi/stats'
-import { getTeamData } from '@genshin-optimizer/gi/ui/useTeamData'
 import { uiDataForTeam, type UIData } from '@genshin-optimizer/gi/uidata'
 import { displayName } from '@gi/presets'
+import { getTeamData } from './teamData'
 import type {
   ConditionalDescriptor,
   ConditionalStateDescriptor,

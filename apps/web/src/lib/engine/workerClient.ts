@@ -41,9 +41,7 @@ function getOrCreateWorker(): Worker | null {
   if (typeof Worker === 'undefined') return null
   if (sharedWorker) return sharedWorker
   try {
-    const w = new Worker(
-      new URL('../../workers/optimizer.worker.ts', import.meta.url)
-    )
+    const w = new Worker('/workers/optimizer.worker.js')
     w.onmessage = (ev: MessageEvent<WorkerResponse>) => {
       const data = ev.data
       if (data.type === 'progress') {

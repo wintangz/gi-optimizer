@@ -1,4 +1,8 @@
-import { allArtifactSetKeys, allCharacterKeys, allWeaponKeys } from '@genshin-optimizer/gi/consts'
+import {
+  ALL_ARTIFACT_SET_KEYS,
+  ALL_CHARACTER_KEYS,
+  ALL_WEAPON_KEYS,
+} from '@gi/good'
 
 const DISPLAY_OVERRIDES: Record<string, string> = {
   HuTao: 'Hu Tao',
@@ -81,7 +85,5 @@ export function displayName(key: string): string {
     .trim()
 }
 
-export const ALL_CHARACTER_KEYS: readonly string[] = allCharacterKeys as readonly string[]
-export const ALL_WEAPON_KEYS: readonly string[] = allWeaponKeys as readonly string[]
-export const ALL_ARTIFACT_SET_KEYS: readonly string[] = allArtifactSetKeys as readonly string[]
+export { ALL_ARTIFACT_SET_KEYS, ALL_CHARACTER_KEYS, ALL_WEAPON_KEYS }
 

@@ -1,14 +1,42 @@
 import {
+  allArtifactSetKeys,
+  allArtifactSlotKeys,
+  allCharacterKeys,
+  allLocationCharacterKeys,
+  allMainStatKeys,
+  allSubstatKeys,
+  allTravelerKeys,
+  allWeaponKeys,
+  artMaxLevel,
+  artSlotMainKeys,
+  charKeyToLocCharKey as goCharKeyToLocCharKey,
+} from '@genshin-optimizer/gi/consts'
+import {
   getArtSetStat,
   getCharEle,
   getCharStat,
   getWeaponStat,
 } from '@genshin-optimizer/gi/stats'
-import { describe, expect, it } from 'vitest'
 import {
   ALL_ARTIFACT_SET_KEYS,
+  ALL_ARTIFACT_SLOT_KEYS,
   ALL_CHARACTER_KEYS,
+  ALL_LOCATION_CHARACTER_KEYS,
+  ALL_MAIN_STAT_KEYS,
+  ALL_SUBSTAT_KEYS,
+  ALL_TRAVELER_KEYS,
   ALL_WEAPON_KEYS,
+  ART_MAX_LEVEL,
+  ART_SLOT_MAIN_KEYS,
+  charKeyToLocCharKey,
+  getArtSetStatMeta,
+  getCharStatMeta,
+  getWeaponStatMeta,
+} from '@gi/good'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { describe, expect, it } from 'vitest'
+import {
   getArtifactMeta,
   getCharacterInitials,
   getCharacterMeta,
@@ -17,13 +45,8 @@ import {
   listWeaponsForType,
   type IdentifierSlotKey,
 } from '../src/index'
-import {
-  getArtSetStatMeta,
-  getCharStatMeta,
-  getWeaponStatMeta,
-} from '../src/statMeta.gen'
 
-describe('Visual Identifier & Static Metadata Lookup (visual-identifiers & loading-and-bundle)', () => {
+describe('Visual Identifier & Static Metadata Lookup (visual-identifiers, loading-and-bundle & slim-data-pages)', () => {
   it('resolves valid element, 2-letter uppercase initials, and weaponType for all character keys', () => {
     for (const ck of ALL_CHARACTER_KEYS) {
       const meta = getCharacterMeta(ck)
@@ -97,6 +120,25 @@ describe('Visual Identifier & Static Metadata Lookup (visual-identifiers & loadi
     expect(totalCount).toBe(ALL_WEAPON_KEYS.length)
   })
 
+  it('matches @genshin-optimizer/gi/consts 100% for all key arrays, slot tables, and charKeyToLocCharKey', () => {
+    expect([...ALL_CHARACTER_KEYS]).toEqual([...allCharacterKeys])
+    expect([...ALL_LOCATION_CHARACTER_KEYS]).toEqual([
+      ...allLocationCharacterKeys,
+    ])
+    expect([...ALL_TRAVELER_KEYS]).toEqual([...allTravelerKeys])
+    expect([...ALL_WEAPON_KEYS]).toEqual([...allWeaponKeys])
+    expect([...ALL_ARTIFACT_SET_KEYS]).toEqual([...allArtifactSetKeys])
+    expect([...ALL_ARTIFACT_SLOT_KEYS]).toEqual([...allArtifactSlotKeys])
+    expect([...ALL_MAIN_STAT_KEYS]).toEqual([...allMainStatKeys])
+    expect([...ALL_SUBSTAT_KEYS]).toEqual([...allSubstatKeys])
+    expect(ART_MAX_LEVEL).toEqual(artMaxLevel)
+    expect(ART_SLOT_MAIN_KEYS).toEqual(artSlotMainKeys)
+
+    for (const ck of ALL_CHARACTER_KEYS) {
+      expect(charKeyToLocCharKey(ck)).toBe(goCharKeyToLocCharKey(ck as any))
+    }
+  })
+
   it('matches @genshin-optimizer/gi/stats 100% for every character, weapon, and artifact set in statMeta.gen.ts', () => {
     for (const ck of ALL_CHARACTER_KEYS) {
       const lookupKey = ck === 'Traveler' ? 'TravelerAnemo' : ck
@@ -121,6 +163,27 @@ describe('Visual Identifier & Static Metadata Lookup (visual-identifiers & loadi
       expect(getArtSetStatMeta(sk)).toEqual({
         rarities: [...rarities],
       })
+    }
+  })
+
+  it('ensures single canonical statMeta.gen.ts in @gi/good and zero runtime gi/consts or gi/stats imports in @gi/good and @gi/presets', () => {
+    const presetsStatMeta = resolve(__dirname, '../src/statMeta.gen.ts')
+    const goodStatMeta = resolve(__dirname, '../../good/src/statMeta.gen.ts')
+    expect(existsSync(presetsStatMeta)).toBe(false)
+    expect(existsSync(goodStatMeta)).toBe(true)
+
+    for (const dir of [
+      resolve(__dirname, '../src'),
+      resolve(__dirname, '../../good/src'),
+    ]) {
+      for (const file of readdirSync(dir)) {
+        if (!file.endsWith('.ts')) continue
+        const src = readFileSync(resolve(dir, file), 'utf8')
+        expect(src, `${dir}/${file}`).not.toMatch(
+          /from\s+['"]@genshin-optimizer\/gi\/(consts|stats)['"]/
+        )
+        expect(src, `${dir}/${file}`).not.toMatch(/from\s+['"]zod['"]/)
+      }
     }
   })
 

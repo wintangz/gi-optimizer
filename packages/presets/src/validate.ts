@@ -1,5 +1,5 @@
+import { getCharStatMeta, getWeaponStatMeta } from '@gi/good'
 import { presetSchema, type Preset } from './schema'
-import { getCharStatMeta, getWeaponStatMeta } from './statMeta.gen'
 
 export interface ValidationIssue {
   path: string

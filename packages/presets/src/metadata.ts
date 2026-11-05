@@ -1,9 +1,9 @@
-import { ALL_WEAPON_KEYS, displayName } from './names'
 import {
   ART_SET_STAT_META,
   CHAR_STAT_META,
   WEAPON_STAT_META,
-} from './statMeta.gen'
+} from '@gi/good'
+import { ALL_WEAPON_KEYS, displayName } from './names'
 
 export type IdentifierElement =
   | 'pyro'
@@ -170,7 +170,7 @@ export function getCharacterInitials(
 
 export function getCharacterMeta(characterKey: string): CharacterMeta {
   const normalizedKey =
-    characterKey === 'Traveler' ? 'TravelerAnemo' : characterKey
+    characterKey.startsWith('Traveler') ? 'Traveler' : characterKey
   const name = displayName(characterKey) || characterKey || 'Unknown'
   const initials = getCharacterInitials(characterKey, name)
 

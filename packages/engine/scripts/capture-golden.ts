@@ -10,13 +10,13 @@ import {
   type ICachedWeapon,
   type LoadoutDatum,
 } from '@genshin-optimizer/gi/db'
-import { getTeamDataCalc } from '@genshin-optimizer/gi/ui/useTeamData'
 import { input } from '@genshin-optimizer/gi/wr'
 import { listBundledPresets, type Preset } from '@gi/presets'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { GO_ROOT } from '../../../tooling/go-paths.mjs'
+import { getTeamDataCalc } from '../src/teamData'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const GOLDEN_DIR = resolve(here, '../test/golden')

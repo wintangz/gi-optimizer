@@ -25,14 +25,33 @@ const RAW_BUNDLED: unknown[] = [
   mavuikaMelt,
 ]
 
-const BUNDLED_PRESETS: Preset[] = RAW_BUNDLED.map((raw) => presetSchema.parse(raw))
+let cachedPresets: Preset[] | null = null
+
+function getBundledPresetsInternal(): Preset[] {
+  if (!cachedPresets) {
+    cachedPresets = RAW_BUNDLED.map((raw) => presetSchema.parse(raw))
+  }
+  return cachedPresets
+}
 
 /**
  * IDs of presets backed by golden reference fixtures in `packages/engine/test/golden/`.
+ * Initialized without invoking `presetSchema.parse()` at module load time so
+ * webpack can tree-shake `registry.ts` out of routes that do not call its functions.
  */
-export const VERIFIED_PRESET_IDS: ReadonlySet<string> = new Set(
-  BUNDLED_PRESETS.map((p) => p.id)
-)
+export const VERIFIED_PRESET_IDS: ReadonlySet<string> = /*#__PURE__*/ new Set([
+  'akasha/furina-salon-pjc-c0',
+  'akasha/furina-splendor-c2',
+  'akasha/neuvillette-hypercarry-protoamber-c0',
+  'akasha/hutao-double-hydro-homa-c1',
+  'akasha/raiden-hypercarry-scarlet-c0',
+  'official/neuvillette-hypercarry',
+  'official/furina-salon-subdps',
+  'official/hutao-double-hydro-vape',
+  'official/raiden-hypercarry',
+  'official/arlecchino-vaporize',
+  'official/mavuika-melt-hypercarry',
+])
 
 export interface PresetBadge {
   kind: 'akasha' | 'official' | 'user'
@@ -63,7 +82,8 @@ export function getPresetBadge(preset: Preset): PresetBadge {
     kind: 'user',
     label: 'Custom — use at your own risk',
     verified: false,
-    warning: 'User presets are unverified setup bundles — numbers depend on your own setup and artifacts.',
+    warning:
+      'User presets are unverified setup bundles — numbers depend on your own setup and artifacts.',
   }
 }
 
@@ -71,7 +91,7 @@ export function listBundledPresets(filter?: {
   source?: 'akasha' | 'official'
   target?: string
 }): Preset[] {
-  return BUNDLED_PRESETS.filter((p) => {
+  return getBundledPresetsInternal().filter((p) => {
     if (filter?.source && p.source !== filter.source) return false
     if (filter?.target && p.target !== filter.target) return false
     return true
@@ -79,6 +99,5 @@ export function listBundledPresets(filter?: {
 }
 
 export function getBundledPreset(id: string): Preset | undefined {
-  return BUNDLED_PRESETS.find((p) => p.id === id)
+  return getBundledPresetsInternal().find((p) => p.id === id)
 }
-

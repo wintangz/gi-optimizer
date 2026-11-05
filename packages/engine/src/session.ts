@@ -16,7 +16,6 @@ import {
   type LoadoutDatum,
 } from '@genshin-optimizer/gi/db'
 import { getWeaponStat } from '@genshin-optimizer/gi/stats'
-import { getTeamData } from '@genshin-optimizer/gi/ui/useTeamData'
 import { uiDataForTeam } from '@genshin-optimizer/gi/uidata'
 import { input } from '@genshin-optimizer/gi/wr'
 import type { Preset, RotationTarget, TcCharacter } from '@gi/presets'
@@ -25,6 +24,7 @@ import {
   listTargetsForCharacter,
 } from './catalog'
 import { runSolver } from './solver'
+import { getTeamData, getTeamDataCalc } from './teamData'
 import type {
   ArtifactSlot,
   BuildSelection,
@@ -598,6 +598,7 @@ export function createSession(good: unknown): EngineSession {
         weaponOverrideSpec: isFixedTarget ? effectiveWeaponSpec : opts?.weaponOverride,
         onProgress: opts?.onProgress,
         signal: opts?.signal,
+        maxWorkers: opts?.maxWorkers,
       })
     },
 

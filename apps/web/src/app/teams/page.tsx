@@ -104,8 +104,15 @@ function TeamsInner() {
   const [catalogLoading, setCatalogLoading] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewHydrating, setPreviewHydrating] = useState(false)
+  const [engineStarted, setEngineStarted] = useState<boolean>(() =>
+    Boolean(forkParam || editParam)
+  )
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  function startEngine() {
+    setEngineStarted(true)
+  }
 
   const allPresets = useMemo(
     () => [...listBundledPresets(), ...userPresets],
@@ -115,6 +122,7 @@ function TeamsInner() {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (forkParam) {
+      setEngineStarted(true)
       const src =
         getBundledPreset(forkParam) ??
         userPresets.find((p) => p.id === forkParam)
@@ -125,6 +133,7 @@ function TeamsInner() {
         )
       }
     } else if (editParam) {
+      setEngineStarted(true)
       const existing = userPresets.find((p) => p.id === editParam)
       if (existing) {
         setDraft(structuredClone(existing))
@@ -141,6 +150,7 @@ function TeamsInner() {
   )
 
   useEffect(() => {
+    if (!engineStarted) return
     let cancelled = false
     const keys = Array.from(
       new Set([draft.target, ...draft.team.map((m) => m.key)])
@@ -167,13 +177,14 @@ function TeamsInner() {
     return () => {
       cancelled = true
     }
-  }, [teamMemberKeysKey, draft.target, draft.team])
+  }, [engineStarted, teamMemberKeysKey, draft.target, draft.team])
 
   const targetCatalog = targetsByChar[draft.target] ?? []
 
   /* eslint-disable react-hooks/set-state-in-effect */
   // Debounced (150ms) off-main-thread live rotation damage preview
   useEffect(() => {
+    if (!engineStarted) return
     if (!record?.good) {
       setLivePreview({
         error: 'Import a GOOD file to see live rotation damage preview.',
@@ -222,12 +233,14 @@ function TeamsInner() {
       clearTimeout(timer)
       setPreviewLoading(false)
     }
-  }, [record, draft])
+  }, [engineStarted, record, draft])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleTargetChange(nextTargetKey: string) {
+    startEngine()
     let nextTargets = targetsByChar[nextTargetKey]
     if (!nextTargets) {
+      setCatalogLoading(true)
       try {
         const cat = await getCatalogInWorker([nextTargetKey])
         nextTargets = cat.targetsByChar[nextTargetKey] ?? []
@@ -238,6 +251,8 @@ function TeamsInner() {
         }))
       } catch {
         nextTargets = []
+      } finally {
+        setCatalogLoading(false)
       }
     }
     const firstPath = nextTargets[0]?.path ?? ['normal', '0']
@@ -286,6 +301,7 @@ function TeamsInner() {
       ])
       return
     }
+    startEngine()
     setValidationErrors([])
     const newMember: TeamMember = {
       key: newMemberKey as never,
@@ -306,6 +322,7 @@ function TeamsInner() {
 
   function removeTeammate(idx: number) {
     if (idx === 0) return
+    startEngine()
     setDraft((prev) => ({
       ...prev,
       team: prev.team.filter((_, i) => i !== idx),
@@ -314,6 +331,7 @@ function TeamsInner() {
 
   function toggleTeammateBuildType(idx: number, type: 'owned' | 'tc') {
     if (idx === 0) return
+    startEngine()
     setDraft((prev) => {
       const nextTeam = [...prev.team]
       const m = nextTeam[idx]!
@@ -333,6 +351,7 @@ function TeamsInner() {
     idx: number,
     updater: (tc: ReturnType<typeof defaultTcBuildForCharacter>) => void
   ) {
+    startEngine()
     setDraft((prev) => {
       const nextTeam = [...prev.team]
       const m = nextTeam[idx]!
@@ -350,6 +369,7 @@ function TeamsInner() {
     condKey: string,
     stateVal: string
   ) {
+    startEngine()
     setDraft((prev) => {
       const nextTeam = [...prev.team]
       const m = nextTeam[idx]!
@@ -370,6 +390,7 @@ function TeamsInner() {
   }
 
   function addRotationRow() {
+    startEngine()
     const first = targetCatalog[0] ?? {
       path: ['normal', '0'],
       name: 'Normal 1-Hit',
@@ -391,6 +412,7 @@ function TeamsInner() {
   }
 
   function updateRotationRow(idx: number, patch: Partial<RotationTarget>) {
+    startEngine()
     setDraft((prev) => {
       const nextTargets = [...prev.rotation.targets]
       nextTargets[idx] = { ...nextTargets[idx]!, ...patch }
@@ -403,6 +425,7 @@ function TeamsInner() {
 
   function removeRotationRow(idx: number) {
     if (draft.rotation.targets.length <= 1) return
+    startEngine()
     setDraft((prev) => ({
       ...prev,
       rotation: {
@@ -473,6 +496,7 @@ function TeamsInner() {
         setImportCollision(res.preset)
         return
       }
+      startEngine()
       await saveUserPreset(res.preset)
       setDraft(res.preset)
       setStatusMessage(
@@ -588,6 +612,7 @@ function TeamsInner() {
               if (!id) return
               const found = allPresets.find((p) => p.id === id)
               if (!found) return
+              startEngine()
               if (found.source === 'user') {
                 setDraft(structuredClone(found))
                 setStatusMessage(`Loaded user preset '${found.name}'.`)
@@ -650,6 +675,7 @@ function TeamsInner() {
             <button
               type="button"
               onClick={async () => {
+                startEngine()
                 await saveUserPreset(importCollision)
                 setDraft(importCollision)
                 setImportCollision(null)
@@ -662,6 +688,7 @@ function TeamsInner() {
             <button
               type="button"
               onClick={async () => {
+                startEngine()
                 const copy = forkPresetToUser(
                   importCollision,
                   `${importCollision.name} (Imported)`
@@ -746,7 +773,8 @@ function TeamsInner() {
                 min={1}
                 max={200}
                 value={draft.enemy.level}
-                onChange={(e) =>
+                onChange={(e) => {
+                  startEngine()
                   setDraft({
                     ...draft,
                     enemy: {
@@ -754,7 +782,7 @@ function TeamsInner() {
                       level: Math.max(1, Number(e.target.value) || 100),
                     },
                   })
-                }
+                }}
                 style={{ width: '90px' }}
               />
             </label>
@@ -774,7 +802,8 @@ function TeamsInner() {
                 <input
                   type="number"
                   value={draft.enemy.overrides[rk] ?? 10}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    startEngine()
                     setDraft({
                       ...draft,
                       enemy: {
@@ -785,7 +814,7 @@ function TeamsInner() {
                         },
                       },
                     })
-                  }
+                  }}
                   style={{ width: '75px' }}
                 />
               </label>
@@ -1136,12 +1165,15 @@ function TeamsInner() {
                   >
                     <select
                       value={selectedCondId}
-                      onChange={(e) =>
+                      onFocus={startEngine}
+                      onMouseDown={startEngine}
+                      onChange={(e) => {
+                        startEngine()
                         setSelectedCondByMember((prev) => ({
                           ...prev,
                           [idx]: e.target.value,
                         }))
-                      }
+                      }}
                       style={{ flex: 1, maxWidth: '190px' }}
                     >
                       <option value="">+ Add Conditional Buff…</option>
@@ -1230,7 +1262,8 @@ function TeamsInner() {
                 min={1}
                 max={20}
                 value={draft.rotation.repeat}
-                onChange={(e) =>
+                onChange={(e) => {
+                  startEngine()
                   setDraft({
                     ...draft,
                     rotation: {
@@ -1238,7 +1271,7 @@ function TeamsInner() {
                       repeat: Math.max(1, Number(e.target.value) || 1),
                     },
                   })
-                }
+                }}
                 style={{ width: '65px' }}
               />
             </label>
@@ -1266,6 +1299,9 @@ function TeamsInner() {
                 rt.path[0] === draft.target
                   ? rt.path.slice(1).join('.')
                   : rt.path.join('.')
+              const hasTargetOption = targetCatalog.some(
+                (t) => t.path.join('.') === normPathKey
+              )
               return (
                 <tr key={idx}>
                   <td>
@@ -1281,6 +1317,8 @@ function TeamsInner() {
                   <td>
                     <select
                       value={normPathKey}
+                      onFocus={startEngine}
+                      onMouseDown={startEngine}
                       onChange={(e) => {
                         const parts = e.target.value.split('.')
                         const desc = targetCatalog.find(
@@ -1292,6 +1330,13 @@ function TeamsInner() {
                         })
                       }}
                     >
+                      {!hasTargetOption && normPathKey && (
+                        <option value={normPathKey}>
+                          {rt.label
+                            ? `${rt.label} (${normPathKey})`
+                            : normPathKey}
+                        </option>
+                      )}
                       {targetCatalog.map((t) => (
                         <option
                           key={t.path.join('.')}
@@ -1382,7 +1427,7 @@ function TeamsInner() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <h3 style={{ margin: 0 }}>Live Rotation Preview</h3>
             <CharacterBadge characterKey={draft.target} role="target" compact />
-            {(previewLoading || catalogLoading) && (
+            {engineStarted && (previewLoading || catalogLoading) && (
               <Spinner
                 label={
                   previewHydrating || catalogLoading
@@ -1394,14 +1439,40 @@ function TeamsInner() {
               />
             )}
           </div>
-          {livePreview.result && !previewLoading && (
+          {engineStarted && livePreview.result && !previewLoading && (
             <strong className="ok" style={{ fontSize: '1.25rem' }}>
               Total: {Math.round(livePreview.result.total).toLocaleString()} DMG
             </strong>
           )}
         </div>
 
-        {previewLoading && !livePreview.result ? (
+        {!engineStarted ? (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+            }}
+          >
+            <span className="muted">
+              The optimizer engine starts automatically when you edit the team
+              or rotation, or you can load it now.
+            </span>
+            <button
+              type="button"
+              data-testid="load-engine-preview-btn"
+              onClick={startEngine}
+            >
+              Load Engine &amp; Preview
+            </button>
+          </div>
+        ) : (previewLoading || catalogLoading) &&
+          !livePreview.result &&
+          !livePreview.error ? (
+          <SkeletonBlock height={28} count={4} gap="0.45rem" />
+        ) : previewLoading && !livePreview.result ? (
           <SkeletonBlock height={28} count={4} gap="0.45rem" />
         ) : livePreview.error ? (
           <div className="muted">{livePreview.error}</div>

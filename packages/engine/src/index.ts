@@ -11,7 +11,25 @@ export {
   type HydratedPresetTeam,
   type HydratedTeam,
 } from './session'
-export { filterArtifactsForOptimizer, runSolver } from './solver'
+export {
+  getActiveBackgroundWorkerCount,
+  installNodeWorkerShim,
+} from './nodeWorkerShim'
+export {
+  computeUpfrontTotal,
+  filterArtifactsForOptimizer,
+  resolveMaxWorkers,
+  runSolver,
+} from './solver'
+export {
+  getBuildTcArtifactData,
+  getBuildTcWeaponData,
+  getTeamData,
+  getTeamDataCalc,
+  type CharBundle,
+  type TeamData,
+  type TeamDataBundle,
+} from './teamData'
 export {
   DEFAULT_OPTIMIZER_SETTINGS,
   type ArtifactSlot,

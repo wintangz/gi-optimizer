@@ -10,7 +10,6 @@ import { Spinner } from '@/components/Loading'
 import { useGoodStorage } from '@/lib/storage/useGood'
 import {
   humanizeKey,
-  parseGood,
   type IArtifact,
   type ICharacter,
   type IssueSeverity,
@@ -18,7 +17,8 @@ import {
   type ParseGoodResult,
   type ParseIssue,
 } from '@gi/good'
-import { displayName, type IdentifierSlotKey } from '@gi/presets'
+import type { IdentifierSlotKey } from '@gi/presets/src/metadata'
+import { displayName } from '@gi/presets/src/names'
 import Link from 'next/link'
 import { useMemo, useRef, useState } from 'react'
 
@@ -58,6 +58,7 @@ export default function ImportPage() {
     setParsing(true)
     await new Promise((r) => setTimeout(r, 0))
     try {
+      const { parseGood } = await import('@gi/good/src/parseGood')
       const res = parseGood(raw)
       setParseResult(res)
       if (!res.ok || !res.good) {

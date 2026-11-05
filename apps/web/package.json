@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "pnpm --filter @gi/engine build",
     "dev": "next dev --webpack",
+    "prebuild": "pnpm --filter @gi/engine build",
     "build": "next build --webpack",
     "lint": "eslint",
     "test": "vitest run",

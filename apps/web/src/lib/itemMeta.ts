@@ -15,5 +15,5 @@ export {
   type IdentifierSlotKey,
   type IdentifierWeaponType,
   type WeaponMeta,
-} from '@gi/presets'
+} from '@gi/presets/src/metadata'
 

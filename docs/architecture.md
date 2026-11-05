@@ -2,7 +2,8 @@
 
 Binding for every feature (`good-import`, `single-character-optimizer`, `akasha-presets`,
 `official-presets`, `custom-teams-and-presets`, `performance`, `visual-identifiers`,
-`akasha-artifact-only-mode`, `loading-and-bundle`, `artifact-set-filter`). Features are referred to by slug only.
+`akasha-artifact-only-mode`, `loading-and-bundle`, `artifact-set-filter`, `trim-go-runtime`,
+`slim-data-pages`, `teams-deferred-start`, `solver-parallelization`). Features are referred to by slug only.
 The constitution is in `.specify/memory/constitution.md`.
 
 ## Layout
@@ -14,7 +15,8 @@ packages/engine/          GO adapter: GOOD -> GO ArtCharDatabase, preset -> GO t
                           rotation evaluation, optimization via GO's GOSolver  (single-character-optimizer)
 packages/presets/         Preset schema (src/schema.ts, CONTRACT), validation, account
                           matching, bundled akasha/official preset JSON        (akasha-presets, official-presets)
-tooling/go-paths.mjs      Resolves @genshin-optimizer/* to vendor/genshin-optimizer (shared by Vitest + Next)
+tooling/go-paths.mjs      Resolves @genshin-optimizer/* to vendor/genshin-optimizer & tooling/go-stubs/*
+tooling/go-stubs/         Headless stubs for GO assets, UI, i18n, db-ui, and schema coercion (trim-go-runtime)
 vendor/genshin-optimizer  git submodule, GO source pinned at aa908fd (MIT). NEVER edit.
 specs/<slug>/             Spec Kit artifacts per feature (spec, plan, tasks, ...)
 ```
@@ -30,7 +32,7 @@ Proven by `packages/engine/test/spike.test.ts`: GO's own code path computes dama
 GOOD JSON ──► new ArtCharDatabase(1, new SandboxStorage()).importGOOD(good,false,false,false)
 preset    ──► db.teamChars.new(key, {conditional, customMultiTargets:[rotation], hitMode, ...})
               db.buildTcs.new(...) for 'tc' teammates; db.teams.new({loadoutData, conditional, enemyOverride})
-          ──► getTeamData(db, teamId, targetTeamCharId, 0, overrideArt?, overrideWeapon?)   [GO libs/gi/ui/src/hooks/useTeamData.ts]
+          ──► getTeamData(db, teamId, targetTeamCharId, 0, overrideArt?, overrideWeapon?)   [packages/engine/src/teamData.ts, headless port of GO useTeamData.ts]
           ──► uiDataForTeam(teamData, gender, activeCharKey)[target].target                [GO uidata]
           ──► display path ['custom', '0'] = rotation total (GO custom multi-target sum)
 Optimizer ──► exactly GO TabOptimize.generateBuilds: workerData + dynamicData, optimize(nodes),
@@ -126,10 +128,13 @@ IndexedDB (`idb` library), database `gi-optimizer`, owned by good-import, module
 Exports: `loadGood()`, `saveGood()`, `clearGood()`, `listUserPresets()`, `saveUserPreset()`,
 `deleteUserPreset()`, `loadSettings()`, `saveSettings()`; React hook `useGood()`.
 
-Bundle isolation (`loading-and-bundle`):
+Bundle isolation, GO runtime trimming & parallel solver (`loading-and-bundle`, `trim-go-runtime`, `slim-data-pages`, `teams-deferred-start`, `solver-parallelization`):
 - Optimizer settings types, defaults (`DEFAULT_OPTIMIZER_SETTINGS`), and set-filter translation (`resolveArtSetExclusion`) live in a pure module with zero `@gi/engine` or `@genshin-optimizer/gi/stats` runtime imports.
-- `@gi/presets` and `@gi/good` use compact static character/weapon/artifact metadata (`statMeta`) instead of importing the 2.4 MB `@genshin-optimizer/gi/stats` (`allStat_gen.json`).
-- The GO engine lives strictly in async/worker chunks loaded on demand when `/optimize` or `/teams` runs — never in the initial JS of `/`, `/import`, or `/presets`.
+- `@gi/good` holds the single canonical compact metadata module (`packages/good/src/statMeta.gen.ts`) containing character/weapon/artifact metadata and key lists (`ALL_CHARACTER_KEYS`, `ALL_WEAPON_KEYS`, `ALL_ARTIFACT_SET_KEYS`, etc.) with zero runtime imports from `@genshin-optimizer/gi/consts` or `@genshin-optimizer/gi/stats`; `@gi/presets` imports that shared module from `@gi/good` and validates presets with a lightweight zero-dependency validator (`packages/presets/src/schema.ts`, no runtime `zod`).
+- `@genshin-optimizer/gi/assets`, `@genshin-optimizer/gi/assets-data`, `@genshin-optimizer/common/ui`, `@genshin-optimizer/gi/i18n`, `@genshin-optimizer/gi/ui`, and `@genshin-optimizer/gi/db-ui` resolve to headless stubs in `tooling/go-stubs/` (`tooling/go-paths.mjs`), and `@gi/engine` uses headless `packages/engine/src/teamData.ts` (`getTeamData`, `getTeamDataCalc`, `getBuildTcArtifactData`) instead of `@genshin-optimizer/gi/ui/useTeamData`, ensuring zero game PNGs are emitted into `apps/web/out`.
+- `@gi/engine` and its Web Workers are prebuilt once into tree-shaken, minified worker bundles (`apps/web/public/workers/optimizer.worker.js` and `apps/web/public/workers/BackgroundWorker.js`) and headless modules (`packages/engine/dist/index.mjs`, `packages/engine/dist/BackgroundWorker.mjs`, and `packages/engine/dist/gi-consts.mjs`) via `packages/engine/scripts/build-engine.mjs`; Next.js never transpiles raw GO TypeScript source during `next dev` or `next build`.
+- `packages/engine/src/solver.ts` delegates build search directly to GO's multi-worker `GOSolver` (`new GOSolver(problem, status, maxWorkers).solve()`), computing the exact post-`pruneAll` feasible `total` upfront before solving, throttling progress callbacks to ~4 Hz (`250 ms`), and terminating all spawned `BackgroundWorker` instances on completion or `AbortSignal` cancellation.
+- On `/teams` (`teams-deferred-start`), the page shell and saved-preset list render immediately without spawning the worker; engine startup (`optimizer.worker.js` + catalog + live preview) begins on first real user interaction (picking/forking/editing a preset, changing target or team member, editing rotation/conditionals, or clicking preview).
 
 ## Testing
 

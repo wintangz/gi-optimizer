@@ -7,22 +7,22 @@ import {
   WeaponBadge,
 } from '@/components/Identifier'
 import { useGoodStorage, useUserPresets } from '@/lib/storage/useGood'
-import { humanizeKey } from '@gi/good'
+import { humanizeKey } from '@gi/good/src/suggest'
 import {
-  displayName,
   formatConstellationReq,
   formatRefinementReq,
-  getCharacterMeta,
-  getPresetBadge,
-  getWeaponMeta,
-  listBundledPresets,
-  listWeaponsForType,
   matchAccount,
-  type Preset,
-  type PresetSource,
-} from '@gi/presets'
+} from '@gi/presets/src/match'
+import {
+  getCharacterMeta,
+  getWeaponMeta,
+  listWeaponsForType,
+} from '@gi/presets/src/metadata'
+import { displayName } from '@gi/presets/src/names'
+import type { PresetBadge } from '@gi/presets/src/registry'
+import type { Preset, PresetSource } from '@gi/presets/src/schema'
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 export default function PresetsPage() {
   const { record, loading: goodLoading } = useGoodStorage()
@@ -31,6 +31,26 @@ export default function PresetsPage() {
     loading: userLoading,
     remove: removeUserPreset,
   } = useUserPresets()
+
+  const [registryMod, setRegistryMod] = useState<{
+    bundled: readonly Preset[]
+    getPresetBadge: (p: Preset) => PresetBadge
+  } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void import('@gi/presets/src/registry').then((mod) => {
+      if (!cancelled) {
+        setRegistryMod({
+          bundled: mod.listBundledPresets(),
+          getPresetBadge: mod.getPresetBadge,
+        })
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const [sourceFilter, setSourceFilter] = useState<'all' | PresetSource>('all')
   const [targetFilter, setTargetFilter] = useState<string>('')
@@ -43,9 +63,9 @@ export default function PresetsPage() {
   >({})
 
   const allPresets = useMemo(() => {
-    const bundled = listBundledPresets()
+    const bundled = registryMod?.bundled ?? []
     return [...bundled, ...userPresets]
-  }, [userPresets])
+  }, [registryMod, userPresets])
 
   const availableTargets = useMemo(() => {
     return Array.from(new Set(allPresets.map((p) => p.target))).sort()
@@ -101,9 +121,11 @@ export default function PresetsPage() {
     return listWeaponsForType(charMeta.weaponType)
   }, [activePreset])
 
-  if (goodLoading || userLoading) {
+  if (goodLoading || userLoading || !registryMod) {
     return <PresetsLoading />
   }
+
+  const { getPresetBadge } = registryMod
 
   return (
     <div className="presets-page">

@@ -1,10 +1,10 @@
+import { CHAR_STAT_META } from '@gi/good'
 import {
   PRESET_SCHEMA_ID,
   presetSchema,
   type Preset,
   type TcBuild,
 } from './schema'
-import { CHAR_STAT_META } from './statMeta.gen'
 
 export interface PresetImportIssue {
   path: string
@@ -59,7 +59,7 @@ export function generateUserPresetId(name: string): string {
 }
 
 export function defaultTcBuildForCharacter(characterKey: string): TcBuild {
-  const lookupKey = characterKey === 'Traveler' ? 'TravelerAnemo' : characterKey
+  const lookupKey = characterKey.startsWith('Traveler') ? 'Traveler' : characterKey
   const wType = CHAR_STAT_META[lookupKey]?.weaponType ?? 'sword'
   const weaponKey = DEFAULT_WEAPON_BY_TYPE[wType] ?? 'FavoniusSword'
 
@@ -154,7 +154,7 @@ export function createBlankUserPreset(
  * Strips Akasha leaderboard metadata and assigns a new `user/` id.
  */
 export function forkPresetToUser(sourcePreset: Preset, newName?: string): Preset {
-  const cloned = structuredClone(sourcePreset) as Record<string, unknown>
+  const cloned = structuredClone(sourcePreset) as unknown as Record<string, unknown>
   delete cloned.akasha
   const finalName = (newName ?? `${sourcePreset.name} (copy)`).slice(0, 200)
   cloned.id = generateUserPresetId(finalName)
