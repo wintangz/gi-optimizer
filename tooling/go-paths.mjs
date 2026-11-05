@@ -16,6 +16,15 @@ export const STUBS_ROOT = resolve(here, 'go-stubs')
  */
 const STUBBED = {}
 
+/**
+ * Deep entry points into GO files that are not exported from a lib index
+ * (importing the whole lib index would drag in unrelated UI). Paths are
+ * relative to GO_ROOT.
+ */
+const DEEP = {
+  '@genshin-optimizer/gi/ui/useTeamData': 'libs/gi/ui/src/hooks/useTeamData.ts',
+}
+
 function stripJsonComments(text) {
   return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 }
@@ -31,6 +40,7 @@ export function goAliases() {
     if (spec.includes('*')) continue
     out[spec] = resolve(GO_ROOT, targets[0])
   }
+  for (const [spec, file] of Object.entries(DEEP)) out[spec] = resolve(GO_ROOT, file)
   for (const [spec, file] of Object.entries(STUBBED)) out[spec] = resolve(STUBS_ROOT, file)
   return out
 }

@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { GO_ROOT } from '../../../tooling/go-paths.mjs'
-import { getTeamData } from '../../../vendor/genshin-optimizer/libs/gi/ui/src/hooks/useTeamData'
+import { getTeamData } from '@genshin-optimizer/gi/ui/useTeamData'
 import { uiDataForTeam } from '@genshin-optimizer/gi/uidata'
 
 describe('GO engine spike', () => {

@@ -14,3 +14,4 @@ export default defineConfig({
     server: { deps: { inline: [/vendor[\\/]genshin-optimizer/] } },
   },
 })
+

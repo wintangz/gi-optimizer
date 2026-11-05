@@ -133,3 +133,4 @@ Global assumptions live here; feature-specific ones in each `specs/<slug>/spec.m
 - **A5 (Weapon)**: for an `owned` target the user may pick any weapon instance from their own
   inventory (default: equipped). It must still meet the preset's weapon requirement.
 - **A6 (Gender)**: Traveler gender defaults to 'F' unless the GOOD/settings say otherwise.
+

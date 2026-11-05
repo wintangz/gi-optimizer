@@ -2,12 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "noUncheckedIndexedAccess": false,
     "allowJs": true,
-    "baseUrl": ".",
-    "paths": {
-      "@genshin-optimizer/*": ["../../vendor/genshin-optimizer/libs/*/src/index.ts"]
-    }
+    "types": ["node"]
   },
-  "include": ["src", "test", "*.mts"]
+  "include": ["src", "test", "scripts", "*.mts", "../../tooling/go-shim.d.ts"]
 }
