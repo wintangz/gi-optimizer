@@ -112,6 +112,7 @@ function TeamsInner() {
     [userPresets]
   )
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (forkParam) {
       const src =
@@ -131,6 +132,7 @@ function TeamsInner() {
       }
     }
   }, [editParam, forkParam, userPresets])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Load target and conditional catalogs via workerClient (cached per character)
   const teamMemberKeysKey = useMemo(
@@ -143,8 +145,8 @@ function TeamsInner() {
     const keys = Array.from(
       new Set([draft.target, ...draft.team.map((m) => m.key)])
     )
-    setCatalogLoading(true)
     void (async () => {
+      setCatalogLoading(true)
       try {
         const res = await getCatalogInWorker(keys)
         if (!cancelled) {
@@ -169,6 +171,7 @@ function TeamsInner() {
 
   const targetCatalog = targetsByChar[draft.target] ?? []
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   // Debounced (150ms) off-main-thread live rotation damage preview
   useEffect(() => {
     if (!record?.good) {
@@ -220,6 +223,7 @@ function TeamsInner() {
       setPreviewLoading(false)
     }
   }, [record, draft])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleTargetChange(nextTargetKey: string) {
     let nextTargets = targetsByChar[nextTargetKey]

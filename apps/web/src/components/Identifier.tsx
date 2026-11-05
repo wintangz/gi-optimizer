@@ -408,14 +408,33 @@ export function ArtifactBadge({
 
 export function ItemIdentifier(props: ItemIdentifierProps) {
   if (props.kind === 'character') {
-    const { kind: _, ...rest } = props
-    return <CharacterBadge {...rest} />
+    return (
+      <CharacterBadge
+        characterKey={props.characterKey}
+        simulated={props.simulated}
+        role={props.role}
+        subtitle={props.subtitle}
+        compact={props.compact}
+      />
+    )
   }
   if (props.kind === 'weapon') {
-    const { kind: _, ...rest } = props
-    return <WeaponBadge {...rest} />
+    return (
+      <WeaponBadge
+        weaponKey={props.weaponKey}
+        subtitle={props.subtitle}
+        compact={props.compact}
+      />
+    )
   }
-  const { kind: _, ...rest } = props
-  return <ArtifactBadge {...rest} />
+  return (
+    <ArtifactBadge
+      setKey={props.setKey}
+      slotKey={props.slotKey}
+      rarity={props.rarity}
+      subtitle={props.subtitle}
+      compact={props.compact}
+    />
+  )
 }
 

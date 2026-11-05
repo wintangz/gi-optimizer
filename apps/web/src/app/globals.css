@@ -189,3 +189,285 @@ td {
   background-size: 200% 100%;
   animation: gi-progress-shimmer 1.4s linear infinite;
 }
+
+/* Presets page layout & utility classes */
+.presets-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.presets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.presets-title {
+  margin: 0;
+}
+
+.presets-subtitle {
+  margin: 0.25rem 0 0;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #0b0d12;
+  font-weight: 600;
+}
+
+.btn-danger {
+  border-color: var(--err);
+  color: var(--err);
+}
+
+.presets-warn-banner {
+  border-color: var(--warn);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.presets-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.presets-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.presets-filter-label-sm {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+}
+
+.presets-count {
+  margin-left: auto;
+  font-size: 0.9rem;
+}
+
+.presets-split {
+  display: grid;
+  grid-template-columns: minmax(290px, 380px) 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.presets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.preset-card {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.preset-card-selected {
+  border-color: var(--accent);
+}
+
+.preset-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.fw-600 {
+  font-weight: 600;
+}
+
+.preset-card-name {
+  font-size: 0.98rem;
+}
+
+.preset-card-team {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  margin-top: 0.15rem;
+}
+
+.preset-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.preset-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.preset-detail-badge {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.preset-detail-title {
+  margin: 0.2rem 0;
+}
+
+.m-0 {
+  margin: 0;
+}
+
+.preset-detail-warning {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+}
+
+.preset-detail-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.preset-provenance-box {
+  background: #151821;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.mt-xs {
+  margin-top: 0.25rem;
+}
+
+.preset-akasha-box {
+  background: #151821;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.preset-akasha-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.preset-akasha-desc {
+  font-size: 0.84rem;
+}
+
+.preset-akasha-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: center;
+}
+
+.preset-match-box {
+  background: #151821;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.85rem;
+}
+
+.preset-match-desc {
+  font-size: 0.83rem;
+  margin-top: 0.15rem;
+}
+
+.preset-match-empty {
+  margin: 0.4rem 0 0;
+}
+
+.preset-match-results {
+  margin-top: 0.5rem;
+}
+
+.preset-match-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.preset-match-item {
+  font-size: 0.92rem;
+}
+
+.preset-match-candidates {
+  margin-top: 0.4rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.preset-section-heading {
+  margin: 0 0 0.5rem;
+}
+
+.preset-td-gear {
+  font-size: 0.88rem;
+}
+
+.preset-td-conds {
+  font-size: 0.85rem;
+}
+
+.preset-gear-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.preset-gear-row-md {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.presets-loading-bar {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.presets-loading-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.presets-loading-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mb-sm {
+  margin-bottom: 0.5rem;
+}

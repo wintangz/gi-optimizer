@@ -19,7 +19,10 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@gi/good": ["../../packages/good/src/index.ts"],
+      "@gi/presets": ["../../packages/presets/src/index.ts"],
+      "@gi/engine": ["../../packages/engine/src/index.ts"]
     }
   },
   "include": [

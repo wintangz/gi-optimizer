@@ -21,7 +21,7 @@ let workerHydratedKey: string | null = null
 let nextRequestCounter = 1
 
 interface PendingEntry {
-  resolve: (val: any) => void
+  resolve: (val: never) => void
   reject: (err: Error) => void
   onProgress?: (p: OptimizeProgress) => void
 }
@@ -60,7 +60,7 @@ function getOrCreateWorker(): Worker | null {
       if (data.type === 'error') {
         entry.reject(new Error(data.message))
       } else {
-        entry.resolve(data)
+        ;(entry.resolve as (val: WorkerResponse) => void)(data)
       }
     }
     w.onerror = (err) => {

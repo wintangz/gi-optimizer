@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "paths": {
+      "@/*": ["./apps/web/src/*"],
+      "@gi/good": ["./packages/good/src/index.ts"],
+      "@gi/presets": ["./packages/presets/src/index.ts"],
+      "@gi/engine": ["./packages/engine/src/index.ts"]
+    }
+  },
+  "include": [
+    "tooling/go-shim.d.ts",
+    "apps/web/next-env.d.ts",
+    "apps/web/.next/types/**/*.ts",
+    "packages/*/src/**/*.ts",
+    "packages/*/test/**/*.ts",
+    "apps/web/src/**/*.ts",
+    "apps/web/src/**/*.tsx",
+    "apps/web/test/**/*.tsx"
+  ],
+  "exclude": ["node_modules", "vendor"]
+}

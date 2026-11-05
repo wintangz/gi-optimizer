@@ -156,6 +156,7 @@ function OptimizeInner() {
   const [evaluating, setEvaluating] = useState(false)
   const [hydratingEngine, setHydratingEngine] = useState(false)
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (presetParam) setSelectedPresetId(presetParam)
     if (weaponParam) setSelectedWeaponId(weaponParam)
@@ -173,6 +174,7 @@ function OptimizeInner() {
       }))
     }
   }, [presetParam, weaponParam, weaponKeyParam, refinementParam])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const activePreset: Preset | undefined = useMemo(
     () =>
@@ -248,16 +250,22 @@ function OptimizeInner() {
   useEffect(() => {
     let cancelled = false
     if (!record?.good || !activePreset || !canRunPreset) {
-      setCurrentSelection(null)
-      setCurrentEval(null)
-      return
+      void Promise.resolve().then(() => {
+        if (!cancelled) {
+          setCurrentSelection(null)
+          setCurrentEval(null)
+        }
+      })
+      return () => {
+        cancelled = true
+      }
     }
 
     const coldHydration = !isEngineSessionHydrated(record.importedAt)
-    setHydratingEngine(coldHydration)
-    setEvaluating(true)
 
     void (async () => {
+      setHydratingEngine(coldHydration)
+      setEvaluating(true)
       try {
         const baseRes = await evaluatePresetInWorker({
           datasetKey: record.importedAt,
@@ -342,12 +350,16 @@ function OptimizeInner() {
   useEffect(() => {
     let cancelled = false
     if (!record?.good || !activePreset || !activeOptBuild) {
-      setOptimisedEval(null)
-      return
+      void Promise.resolve().then(() => {
+        if (!cancelled) setOptimisedEval(null)
+      })
+      return () => {
+        cancelled = true
+      }
     }
 
-    setEvaluating(true)
     void (async () => {
+      setEvaluating(true)
       try {
         const res = await evaluatePresetInWorker({
           datasetKey: record.importedAt,

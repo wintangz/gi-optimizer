@@ -106,50 +106,25 @@ export default function PresetsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
+    <div className="presets-page">
+      <div className="presets-header">
         <div>
-          <h1 style={{ margin: 0 }}>Presets Library</h1>
-          <p className="muted" style={{ margin: '0.25rem 0 0' }}>
+          <h1 className="presets-title">Presets Library</h1>
+          <p className="muted presets-subtitle">
             Browse Akasha leaderboard setups (artifact-only mode with fixed
             target &amp; free weapon choice), Official meta team presets, and
             your own Custom presets.
           </p>
         </div>
         <Link href="/teams">
-          <button
-            type="button"
-            style={{
-              background: 'var(--accent)',
-              color: '#0b0d12',
-              fontWeight: 600,
-            }}
-          >
+          <button type="button" className="btn-primary">
             + Create Custom Team / Preset
           </button>
         </Link>
       </div>
 
       {!record && (
-        <div
-          className="panel"
-          style={{
-            borderColor: 'var(--warn)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}
-        >
+        <div className="panel presets-warn-banner">
           <span className="warn">
             No GOOD account data imported yet. Import your scanner file to
             optimise your artifacts against any preset.
@@ -161,18 +136,11 @@ export default function PresetsPage() {
       )}
 
       {/* Filter Bar */}
-      <div
-        className="panel"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          alignItems: 'center',
-        }}
-      >
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+      <div className="panel presets-filter-bar">
+        <label className="presets-filter-label">
           <span className="muted">Source:</span>
           <select
+            aria-label="Filter presets by source"
             value={sourceFilter}
             onChange={(e) =>
               setSourceFilter(e.target.value as 'all' | PresetSource)
@@ -187,9 +155,10 @@ export default function PresetsPage() {
           </select>
         </label>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <label className="presets-filter-label">
           <span className="muted">Target Character:</span>
           <select
+            aria-label="Filter presets by target character"
             value={targetFilter}
             onChange={(e) => setTargetFilter(e.target.value)}
           >
@@ -202,31 +171,15 @@ export default function PresetsPage() {
           </select>
         </label>
 
-        <span
-          className="muted"
-          style={{ marginLeft: 'auto', fontSize: '0.9rem' }}
-        >
+        <span className="muted presets-count">
           Showing {filteredPresets.length} presets
         </span>
       </div>
 
       {/* Master-Detail Split */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(290px, 380px) 1fr',
-          gap: '1.25rem',
-          alignItems: 'start',
-        }}
-      >
+      <div className="presets-split">
         {/* Left List */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.6rem',
-          }}
-        >
+        <div className="presets-list">
           {filteredPresets.map((p) => {
             const badge = getPresetBadge(p)
             const isSelected = activePreset?.id === p.id
@@ -242,33 +195,17 @@ export default function PresetsPage() {
               <div
                 key={p.id}
                 onClick={() => setSelectedPresetId(p.id)}
-                className="panel"
-                style={{
-                  cursor: 'pointer',
-                  borderColor: isSelected ? 'var(--accent)' : undefined,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.35rem',
-                }}
+                className={`panel preset-card${isSelected ? ' preset-card-selected' : ''}`}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontSize: '0.78rem',
-                  }}
-                >
+                <div className="preset-card-top">
                   <span
-                    className={
+                    className={`fw-600 ${
                       badge.kind === 'user'
                         ? 'warn'
                         : badge.verified
                           ? 'ok'
                           : 'muted'
-                    }
-                    style={{ fontWeight: 600 }}
+                    }`}
                   >
                     {badge.label}
                     {badge.verified ? ' · Verified' : ''}
@@ -283,16 +220,8 @@ export default function PresetsPage() {
                     )
                   )}
                 </div>
-                <strong style={{ fontSize: '0.98rem' }}>{p.name}</strong>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '0.45rem',
-                    alignItems: 'center',
-                    marginTop: '0.15rem',
-                  }}
-                >
+                <strong className="preset-card-name">{p.name}</strong>
+                <div className="preset-card-team">
                   {p.team.map((m, mIdx) => (
                     <CharacterBadge
                       key={m.key}
@@ -312,10 +241,7 @@ export default function PresetsPage() {
 
         {/* Right Detail Panel */}
         {activePreset ? (
-          <div
-            className="panel"
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}
-          >
+          <div className="panel preset-detail">
             {(() => {
               const badge = getPresetBadge(activePreset)
               const isAkasha = activePreset.source === 'akasha'
@@ -340,57 +266,37 @@ export default function PresetsPage() {
                     }`
 
               return (
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    flexWrap: 'wrap',
-                    gap: '0.75rem',
-                  }}
-                >
+                <div className="preset-detail-header">
                   <div>
                     <div
-                      className={
+                      className={`preset-detail-badge ${
                         badge.kind === 'user'
                           ? 'warn'
                           : badge.verified
                             ? 'ok'
                             : 'muted'
-                      }
-                      style={{ fontSize: '0.85rem', fontWeight: 600 }}
+                      }`}
                     >
                       {badge.label}
                       {badge.verified ? ' · Verified against GO' : ''}
                     </div>
-                    <h2 style={{ margin: '0.2rem 0' }}>{activePreset.name}</h2>
+                    <h2 className="preset-detail-title">{activePreset.name}</h2>
                     {activePreset.description && (
-                      <p className="muted" style={{ margin: 0 }}>
-                        {activePreset.description}
-                      </p>
+                      <p className="muted m-0">{activePreset.description}</p>
                     )}
                     {badge.warning && (
-                      <p
-                        className="warn"
-                        style={{ margin: '0.35rem 0 0', fontSize: '0.88rem' }}
-                      >
+                      <p className="warn preset-detail-warning">
                         ⚠ {badge.warning}
                       </p>
                     )}
                   </div>
 
-                  <div
-                    style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
-                  >
+                  <div className="preset-detail-actions">
                     <Link href={optimizeUrl}>
                       <button
                         type="button"
                         disabled={!canOptimize}
-                        style={{
-                          background: 'var(--accent)',
-                          color: '#0b0d12',
-                          fontWeight: 600,
-                        }}
+                        className="btn-primary"
                       >
                         Optimize with this Preset →
                       </button>
@@ -414,10 +320,7 @@ export default function PresetsPage() {
                         <button
                           type="button"
                           onClick={() => void removeUserPreset(activePreset.id)}
-                          style={{
-                            borderColor: 'var(--err)',
-                            color: 'var(--err)',
-                          }}
+                          className="btn-danger"
                         >
                           Delete
                         </button>
@@ -430,28 +333,18 @@ export default function PresetsPage() {
 
             {/* Akasha Provenance Box */}
             {activePreset.akasha && (
-              <div
-                style={{
-                  background: '#151821',
-                  border: '1px solid var(--border)',
-                  borderRadius: '6px',
-                  padding: '0.75rem',
-                  fontSize: '0.9rem',
-                }}
-              >
+              <div className="preset-provenance-box">
                 <strong>Akasha Leaderboard Provenance:</strong>{' '}
                 <span>{activePreset.akasha.label}</span> ·{' '}
                 <a
                   href={activePreset.akasha.leaderboardUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                 >
                   {activePreset.akasha.leaderboardUrl}
                 </a>
                 {activePreset.akasha.notes && (
-                  <div className="muted" style={{ marginTop: '0.25rem' }}>
-                    {activePreset.akasha.notes}
-                  </div>
+                  <div className="muted mt-xs">{activePreset.akasha.notes}</div>
                 )}
               </div>
             )}
@@ -460,35 +353,17 @@ export default function PresetsPage() {
             {activePreset.source === 'akasha' &&
             activePreset.team[0]?.build.type === 'fixed' &&
             activeAkashaChoice ? (
-              <div
-                style={{
-                  background: '#151821',
-                  border: '1px solid var(--accent)',
-                  borderRadius: '6px',
-                  padding: '0.85rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.65rem',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '0.5rem',
-                  }}
-                >
+              <div className="preset-akasha-box">
+                <div className="preset-akasha-top">
                   <strong>
                     Akasha Artifact-Only Mode — Fixed Target &amp; Free Weapon
                     Selection
                   </strong>
-                  <span className="ok" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                  <span className="ok preset-detail-badge">
                     ✓ No Account Character / Weapon Gate
                   </span>
                 </div>
-                <div className="muted" style={{ fontSize: '0.84rem' }}>
+                <div className="muted preset-akasha-desc">
                   This Akasha leaderboard preset evaluates{' '}
                   <strong>{displayName(activePreset.target)}</strong> using the
                   preset&apos;s fixed simulated character spec (
@@ -504,27 +379,13 @@ export default function PresetsPage() {
                   artifacts enter the calculation.
                 </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '0.85rem',
-                    alignItems: 'center',
-                  }}
-                >
+                <div className="preset-akasha-controls">
                   <WeaponBadge
                     weaponKey={activeAkashaChoice.key}
                     subtitle={`R${activeAkashaChoice.refinement} · Lv.90 Simulated`}
                   />
 
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      fontSize: '0.88rem',
-                    }}
-                  >
+                  <label className="presets-filter-label-sm">
                     <span className="muted">Simulated Weapon:</span>
                     <select
                       aria-label="Akasha Simulated Weapon"
@@ -551,14 +412,7 @@ export default function PresetsPage() {
                     </select>
                   </label>
 
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      fontSize: '0.88rem',
-                    }}
-                  >
+                  <label className="presets-filter-label-sm">
                     <span className="muted">Refinement:</span>
                     <select
                       aria-label="Akasha Weapon Refinement"
@@ -584,64 +438,40 @@ export default function PresetsPage() {
                 </div>
               </div>
             ) : (
-              <div
-                style={{
-                  background: '#151821',
-                  border: '1px solid var(--border)',
-                  borderRadius: '6px',
-                  padding: '0.85rem',
-                }}
-              >
+              <div className="preset-match-box">
                 <strong>Target Character &amp; Weapon Check</strong>
-                <div
-                  className="muted"
-                  style={{ fontSize: '0.83rem', marginTop: '0.15rem' }}
-                >
+                <div className="muted preset-match-desc">
                   Only your target character ({displayName(activePreset.target)})
                   and its required weapon are checked against your account.
                   Simulated (<code>SIM</code>) preset teammates use fixed
                   assumed stats and are never required in your account.
                 </div>
                 {!record ? (
-                  <p className="muted" style={{ margin: '0.4rem 0 0' }}>
+                  <p className="muted preset-match-empty">
                     Import your GOOD JSON on the{' '}
                     <Link href="/import">Import</Link> page to check whether
                     your target character and weapon satisfy this preset.
                   </p>
                 ) : activeMatch ? (
-                  <div style={{ marginTop: '0.5rem' }}>
-                    <ul
-                      style={{
-                        margin: 0,
-                        paddingLeft: '1.2rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.35rem',
-                      }}
-                    >
+                  <div className="preset-match-results">
+                    <ul className="preset-match-list">
                       {activeMatch.parts.map((part, idx) => (
                         <li
                           key={idx}
-                          className={part.ok ? 'ok' : 'error'}
-                          style={{ fontSize: '0.92rem' }}
+                          className={`preset-match-item ${
+                            part.ok ? 'ok' : 'error'
+                          }`}
                         >
                           <strong>{part.ok ? '✓' : '✕'}</strong> {part.message}
                           {part.part === 'weapon' &&
                             part.candidates &&
                             part.candidates.length > 0 && (
-                              <div
-                                style={{
-                                  marginTop: '0.4rem',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  flexWrap: 'wrap',
-                                  gap: '0.5rem',
-                                }}
-                              >
+                              <div className="preset-match-candidates">
                                 <span className="muted">
                                   Qualifying copy in your inventory:
                                 </span>
                                 <select
+                                  aria-label="Qualifying weapon copy in your inventory"
                                   value={activeWeaponOverride ?? ''}
                                   onChange={(e) =>
                                     setSelectedWeapons((prev) => ({
@@ -675,7 +505,9 @@ export default function PresetsPage() {
 
             {/* Team Context & Assumed Buffs */}
             <div>
-              <h3 style={{ margin: '0 0 0.5rem' }}>Team &amp; Buff Assumptions</h3>
+              <h3 className="preset-section-heading">
+                Team &amp; Buff Assumptions
+              </h3>
               <table>
                 <thead>
                   <tr>
@@ -749,16 +581,9 @@ export default function PresetsPage() {
                             </span>
                           )}
                         </td>
-                        <td style={{ fontSize: '0.88rem' }}>
+                        <td className="preset-td-gear">
                           {m.build.type === 'owned' ? (
-                            <div
-                              style={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                alignItems: 'center',
-                                gap: '0.45rem',
-                              }}
-                            >
+                            <div className="preset-gear-row">
                               {reqParts.length > 0 && (
                                 <span>{reqParts.join(' · ')}</span>
                               )}
@@ -782,14 +607,7 @@ export default function PresetsPage() {
                               )}
                             </div>
                           ) : m.build.type === 'fixed' ? (
-                            <div
-                              style={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                              }}
-                            >
+                            <div className="preset-gear-row-md">
                               <span>
                                 Lv.{m.build.character.level} C
                                 {m.build.character.constellation} (
@@ -811,14 +629,7 @@ export default function PresetsPage() {
                               />
                             </div>
                           ) : (
-                            <div
-                              style={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                              }}
-                            >
+                            <div className="preset-gear-row-md">
                               <span>
                                 Lv.{m.build.tc.character.level} C
                                 {m.build.tc.character.constellation}
@@ -841,7 +652,7 @@ export default function PresetsPage() {
                             </div>
                           )}
                         </td>
-                        <td style={{ fontSize: '0.85rem' }}>
+                        <td className="preset-td-conds">
                           {condList.length ? (
                             condList.join(', ')
                           ) : (
@@ -857,7 +668,7 @@ export default function PresetsPage() {
 
             {/* Rotation Breakdown */}
             <div>
-              <h3 style={{ margin: '0 0 0.5rem' }}>
+              <h3 className="preset-section-heading">
                 Rotation: {activePreset.rotation.name} (Repeat ×
                 {activePreset.rotation.repeat})
               </h3>
