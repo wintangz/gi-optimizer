@@ -527,11 +527,25 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
     ).toBeUndefined()
     expect(findByTestId(tree1, 'member-buffs-panel-Zhongli')).toBeUndefined()
 
-    // Furina's 4 groups are rendered
+    // Furina's 4 groups are rendered with responsive column grids (buff-panel-columns)
     expect(findByTestId(tree1, 'buff-group-weapon-Furina')).toBeDefined()
     expect(findByTestId(tree1, 'buff-group-artifact-Furina')).toBeDefined()
     expect(findByTestId(tree1, 'buff-group-character-Furina')).toBeDefined()
     expect(findByTestId(tree1, 'buff-group-constellation-Furina')).toBeDefined()
+
+    for (const groupSlug of ['weapon', 'artifact', 'character', 'constellation']) {
+      const gridContainer = findByTestId(
+        tree1,
+        `buff-group-grid-${groupSlug}-Furina`
+      )!
+      expect(gridContainer).toBeDefined()
+      expect(gridContainer.props.className).toBe('gi-buffs-rows gi-buffs-grid')
+    }
+    const sampleCell = findByTestId(
+      tree1,
+      'cond-row-Furina-SplendorOfTranquilWaters-hpIncrease'
+    )!
+    expect(String(sampleCell.props.className)).toContain('gi-buff-cell')
 
     // 3. Artifact set filtering:
     // - GoldenTroupe (4pc worn on Furina) IS shown and active ('on')

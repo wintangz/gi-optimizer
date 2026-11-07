@@ -627,7 +627,10 @@ export function ConditionalTogglePanel({
                 )}
               </div>
               {activeEntry.weaponConditionals.length > 0 ? (
-                <div className="gi-buffs-rows">
+                <div
+                  className="gi-buffs-rows gi-buffs-grid"
+                  data-testid={`buff-group-grid-weapon-${activeEntry.mKey}`}
+                >
                   {activeEntry.weaponConditionals.map((cond) =>
                     renderConditionalRow({
                       characterKey: activeEntry.mKey,
@@ -664,7 +667,10 @@ export function ConditionalTogglePanel({
                 </span>
               </div>
               {activeEntry.visibleArtifactConditionals.length > 0 ? (
-                <div className="gi-buffs-rows">
+                <div
+                  className="gi-buffs-rows gi-buffs-grid"
+                  data-testid={`buff-group-grid-artifact-${activeEntry.mKey}`}
+                >
                   {activeEntry.visibleArtifactConditionals.map((cond) =>
                     renderConditionalRow({
                       characterKey: activeEntry.mKey,
@@ -705,7 +711,10 @@ export function ConditionalTogglePanel({
                 </span>
               </div>
               {activeEntry.characterConditionals.length > 0 ? (
-                <div className="gi-buffs-rows">
+                <div
+                  className="gi-buffs-rows gi-buffs-grid"
+                  data-testid={`buff-group-grid-character-${activeEntry.mKey}`}
+                >
                   {activeEntry.characterConditionals.map((cond) =>
                     renderConditionalRow({
                       characterKey: activeEntry.mKey,
@@ -743,7 +752,10 @@ export function ConditionalTogglePanel({
                 </span>
               </div>
               {activeEntry.constellationConditionals.length > 0 ? (
-                <div className="gi-buffs-rows">
+                <div
+                  className="gi-buffs-rows gi-buffs-grid"
+                  data-testid={`buff-group-grid-constellation-${activeEntry.mKey}`}
+                >
                   {activeEntry.constellationConditionals.map((cond) =>
                     renderConditionalRow({
                       characterKey: activeEntry.mKey,
@@ -798,7 +810,7 @@ function renderConditionalRow(opts: {
   return (
     <div
       key={`${cond.sheet}:${cond.key}`}
-      className={`gi-buff-row${isOn ? ' is-on' : ''}`}
+      className={`gi-buff-row gi-buff-cell${isOn ? ' is-on' : ''}`}
       data-testid={`cond-row-${characterKey}-${cond.sheet}-${cond.key}`}
       data-conditional-sheet={cond.sheet}
       data-conditional-key={cond.key}
