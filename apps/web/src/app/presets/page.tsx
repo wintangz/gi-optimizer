@@ -1,6 +1,7 @@
 'use client'
 
 import PresetsLoading from './loading'
+import { ConditionalTogglePanel } from '@/components/ConditionalTogglePanel'
 import {
   ArtifactBadge,
   CharacterBadge,
@@ -911,6 +912,25 @@ export default function PresetsPage() {
                 </table>
               </div>
             </div>
+
+            <ConditionalTogglePanel
+              preset={activePreset}
+              settings={settings}
+              onChangeSettings={(next) => void updateSettings(next)}
+              good={record?.good}
+              activeTargetWeaponKey={
+                activePreset.source === 'akasha'
+                  ? activeAkashaChoice?.key
+                  : record?.good.weapons.find(
+                      (w) =>
+                        w.id ===
+                        (activeWeaponOverride || activeMatch?.selectedWeaponId)
+                    )?.key ??
+                    record?.good.weapons.find(
+                      (w) => w.location === activePreset.target
+                    )?.key
+              }
+            />
 
             {/* Rotation Breakdown */}
             <div>

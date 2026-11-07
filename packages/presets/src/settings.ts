@@ -8,6 +8,12 @@ export type ArtSetExclusionMap = Record<string, SetPieceCount[]>
 export type MemberBuildMode = 'owned' | 'tc'
 export type MemberBuildModesMap = Record<string, MemberBuildMode>
 
+export type MemberConditionalsMap = Record<string, Record<string, string>>
+export type PresetMemberConditionalOverrides = Record<
+  string,
+  MemberConditionalsMap
+>
+
 export interface ResolvedMemberBuild {
   characterKey: string
   /** Effective build mode ('owned' uses the user's GOOD character/weapon/artifacts; 'tc' uses the preset's simulated build). */
@@ -105,6 +111,11 @@ export interface OptimizerSettings {
    * Keyed by `[presetId][characterKey]`.
    */
   memberBuildModes?: Record<string, MemberBuildModesMap>
+  /**
+   * Per-preset, per-member conditional overrides (`[presetId][characterKey][sheetKey][condKey]`).
+   * A value of `'off'` explicitly disables the conditional; any other string sets the conditional state.
+   */
+  memberConditionalOverrides?: Record<string, PresetMemberConditionalOverrides>
   topN: number
 }
 
@@ -120,6 +131,7 @@ export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
   setFilterMode: 'all',
   setFilterSelection: {},
   memberBuildModes: {},
+  memberConditionalOverrides: {},
   topN: 5,
 }
 
@@ -202,6 +214,167 @@ export function setPresetMemberBuildMode(
       },
     },
   }
+}
+
+export function getPresetConditionalOverrides(
+  settings: Pick<OptimizerSettings, 'memberConditionalOverrides'> | undefined,
+  presetId: string
+): PresetMemberConditionalOverrides {
+  return settings?.memberConditionalOverrides?.[presetId] ?? {}
+}
+
+export function setMemberConditionalOverride(
+  settings: OptimizerSettings,
+  presetId: string,
+  characterKey: string,
+  sheetKey: string,
+  condKey: string,
+  value: string
+): OptimizerSettings {
+  const currentPresetMap = settings.memberConditionalOverrides?.[presetId] ?? {}
+  const currentMemberMap = currentPresetMap[characterKey] ?? {}
+  const currentSheetMap = currentMemberMap[sheetKey] ?? {}
+  return {
+    ...settings,
+    memberConditionalOverrides: {
+      ...(settings.memberConditionalOverrides ?? {}),
+      [presetId]: {
+        ...currentPresetMap,
+        [characterKey]: {
+          ...currentMemberMap,
+          [sheetKey]: {
+            ...currentSheetMap,
+            [condKey]: value,
+          },
+        },
+      },
+    },
+  }
+}
+
+export function resetMemberConditionalOverrides(
+  settings: OptimizerSettings,
+  presetId: string,
+  characterKey?: string
+): OptimizerSettings {
+  const currentAll = { ...(settings.memberConditionalOverrides ?? {}) }
+  if (!characterKey) {
+    delete currentAll[presetId]
+    return {
+      ...settings,
+      memberConditionalOverrides: currentAll,
+    }
+  }
+  const currentPresetMap = { ...(currentAll[presetId] ?? {}) }
+  delete currentPresetMap[characterKey]
+  if (Object.keys(currentPresetMap).length === 0) {
+    delete currentAll[presetId]
+  } else {
+    currentAll[presetId] = currentPresetMap
+  }
+  return {
+    ...settings,
+    memberConditionalOverrides: currentAll,
+  }
+}
+
+export function hasMemberConditionalOverrides(
+  settings: Pick<OptimizerSettings, 'memberConditionalOverrides'> | undefined,
+  presetId: string,
+  characterKey?: string
+): boolean {
+  const presetMap = settings?.memberConditionalOverrides?.[presetId]
+  if (!presetMap) return false
+  if (characterKey) {
+    const memberMap = presetMap[characterKey]
+    if (!memberMap) return false
+    return Object.values(memberMap).some(
+      (sheetMap) => sheetMap && Object.keys(sheetMap).length > 0
+    )
+  }
+  return Object.values(presetMap).some(
+    (memberMap) =>
+      memberMap &&
+      Object.values(memberMap).some(
+        (sheetMap) => sheetMap && Object.keys(sheetMap).length > 0
+      )
+  )
+}
+
+export const CONDITIONAL_KEY_ALIASES: Record<string, Record<string, string>> = {
+  ArchaicPetra: {
+    element: 'ele',
+    ele: 'element',
+  },
+}
+
+export function readEffectiveConditionalValue(
+  effectiveMap: MemberConditionalsMap | undefined,
+  sheet: string,
+  condKey: string
+): string {
+  const sheetMap = effectiveMap?.[sheet]
+  if (!sheetMap) return 'off'
+
+  const direct = sheetMap[condKey]
+  if (direct !== undefined) {
+    if (!direct || direct === 'off') return 'off'
+    return direct
+  }
+
+  const aliasKey = CONDITIONAL_KEY_ALIASES[sheet]?.[condKey]
+  if (aliasKey) {
+    const aliasVal = sheetMap[aliasKey]
+    if (aliasVal && aliasVal !== 'off') {
+      return aliasVal
+    }
+  }
+
+  return 'off'
+}
+
+export function applyMemberConditionalOverrides(
+  baseConditionals: MemberConditionalsMap,
+  memberOverrides?: MemberConditionalsMap
+): MemberConditionalsMap {
+  if (!memberOverrides) return baseConditionals
+  const hasAnyOverride = Object.values(memberOverrides).some(
+    (sheetMap) => sheetMap && Object.keys(sheetMap).length > 0
+  )
+  if (!hasAnyOverride) return baseConditionals
+
+  const out: MemberConditionalsMap = {}
+  for (const [sKey, sMap] of Object.entries(baseConditionals)) {
+    if (sMap) {
+      out[sKey] = { ...sMap }
+    }
+  }
+
+  for (const [sheetKey, sheetOverrides] of Object.entries(memberOverrides)) {
+    if (!sheetOverrides) continue
+    const targetSheet = { ...(out[sheetKey] ?? {}) }
+    for (const [condKey, rawVal] of Object.entries(sheetOverrides)) {
+      const aliasKey = CONDITIONAL_KEY_ALIASES[sheetKey]?.[condKey]
+      if (!rawVal || rawVal === 'off') {
+        delete targetSheet[condKey]
+        if (aliasKey) {
+          delete targetSheet[aliasKey]
+        }
+      } else {
+        targetSheet[condKey] = rawVal
+        if (aliasKey && targetSheet[aliasKey] !== undefined) {
+          targetSheet[aliasKey] = rawVal
+        }
+      }
+    }
+    if (Object.keys(targetSheet).length === 0) {
+      delete out[sheetKey]
+    } else {
+      out[sheetKey] = targetSheet
+    }
+  }
+
+  return out
 }
 
 /**

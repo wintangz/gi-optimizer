@@ -20,6 +20,7 @@ import { displayName } from '@gi/presets'
 import { getTeamData } from './teamData'
 import type {
   ConditionalDescriptor,
+  ConditionalSourceCategory,
   ConditionalStateDescriptor,
   TargetDescriptor,
 } from './types'
@@ -189,11 +190,60 @@ export function listTargetsForCharacter(
   return out
 }
 
+interface CollectConditionalsOptions {
+  defaultCategory?: ConditionalSourceCategory
+  section?: string
+}
+
+function resolveSectionCategory(
+  sec: DocumentSection,
+  key: string,
+  opts?: CollectConditionalsOptions
+): { category?: ConditionalSourceCategory; section?: string } {
+  const defaultCategory = opts?.defaultCategory
+  const baseSection = opts?.section
+  if (defaultCategory !== 'character' && defaultCategory !== 'constellation') {
+    return { category: defaultCategory, section: baseSection }
+  }
+
+  const headerAction = extractReactNodeText(
+    (sec as { header?: { action?: unknown } }).header?.action,
+    ''
+  )
+  const secName = extractReactNodeText(sec.name, '')
+  const constMatch =
+    headerAction.match(/constellation[1-6]/i)?.[0]?.toLowerCase() ??
+    (baseSection?.startsWith('constellation') ? baseSection : undefined)
+
+  if (
+    constMatch ||
+    headerAction.toLowerCase().includes('constellation') ||
+    secName.toLowerCase().includes('constellation') ||
+    /^c[1-6](?:[A-Z0-9_p]|$)/.test(key)
+  ) {
+    const inferredConst =
+      constMatch ??
+      (/^c([1-6])/.test(key)
+        ? `constellation${key.match(/^c([1-6])/)?.[1]}`
+        : baseSection)
+    return {
+      category: 'constellation',
+      section: inferredConst ?? 'constellation',
+    }
+  }
+
+  return {
+    category: 'character',
+    section: baseSection,
+  }
+}
+
 function collectConditionalsFromSections(
   sections: DocumentSection[] | undefined,
   uiData: UIData,
   seen: Set<string>,
-  out: ConditionalDescriptor[]
+  out: ConditionalDescriptor[],
+  opts?: CollectConditionalsOptions
 ) {
   if (!sections) return
   for (const sec of sections) {
@@ -210,6 +260,7 @@ function collectConditionalsFromSections(
       if (seen.has(id)) continue
       seen.add(id)
 
+      const { category, section } = resolveSectionCategory(sec, key, opts)
       const states: ConditionalStateDescriptor[] = Object.entries(
         rawStates
       ).map(([stKey, stVal]) => ({
@@ -226,10 +277,12 @@ function collectConditionalsFromSections(
         states,
         canShow: true,
         isTeamBuff,
+        ...(category ? { category } : {}),
+        ...(section ? { section } : {}),
       })
     } else {
-      // MultipleConditionalStates (e.g. Kazuha swirl elements)
-      for (const [, stVal] of Object.entries(rawStates)) {
+      // MultipleConditionalStates (e.g. Kazuha swirl elements, ScrollOfTheHeroOfCinderCity reactions)
+      for (const [stKey, stVal] of Object.entries(rawStates)) {
         const multi = stVal as {
           path?: readonly string[]
           name?: unknown
@@ -240,16 +293,24 @@ function collectConditionalsFromSections(
         const id = `${sheet}:${key}`
         if (seen.has(id)) continue
         seen.add(id)
+        const { category, section } = resolveSectionCategory(sec, key, opts)
         const stateValue = key.startsWith('swirl')
           ? key.slice('swirl'.length)
-          : 'on'
+          : stKey || 'on'
         out.push({
           sheet,
           key,
           name: `${displayName(sheet)} — ${extractReactNodeText(multi.name, key)}`,
-          states: [{ key: stateValue, name: stateValue }],
+          states: [
+            {
+              key: stateValue,
+              name: extractReactNodeText(multi.name, stateValue),
+            },
+          ],
           canShow: true,
           isTeamBuff,
+          ...(category ? { category } : {}),
+          ...(section ? { section } : {}),
         })
       }
     }
@@ -273,15 +334,16 @@ function getGlobalConditionalBuckets(uiData: UIData): GlobalConditionalBuckets {
   for (const setKey of allArtifactSetKeys as readonly ArtifactSetKey[]) {
     const artSheet = getArtSheet(setKey)
     if (!artSheet?.setEffects) continue
-    for (const entry of Object.values(artSheet.setEffects) as Array<{
-      document?: DocumentSection[]
-    }>) {
+    for (const [setNum, entry] of Object.entries(
+      artSheet.setEffects
+    ) as Array<[string, { document?: DocumentSection[] }]>) {
       if (entry?.document) {
         collectConditionalsFromSections(
           entry.document,
           uiData,
           artSeen,
-          artifactConditionals
+          artifactConditionals,
+          { defaultCategory: 'artifact', section: `set${setNum}` }
         )
       }
     }
@@ -294,7 +356,10 @@ function getGlobalConditionalBuckets(uiData: UIData): GlobalConditionalBuckets {
     const wSheet = getWeaponSheet(wKey)
     if (!wSheet?.document) continue
     const wTemp: ConditionalDescriptor[] = []
-    collectConditionalsFromSections(wSheet.document, uiData, wepSeen, wTemp)
+    collectConditionalsFromSections(wSheet.document, uiData, wepSeen, wTemp, {
+      defaultCategory: 'weapon',
+      section: 'weapon',
+    })
     if (wTemp.length === 0) continue
     allWeapons.push(...wTemp)
     const wType = (getWeaponStat(wKey) as { weaponType?: string } | undefined)
@@ -313,14 +378,16 @@ function getGlobalConditionalBuckets(uiData: UIData): GlobalConditionalBuckets {
       res.sections,
       uiData,
       resSeen,
-      resonanceAndReaction
+      resonanceAndReaction,
+      { defaultCategory: 'character', section: 'resonance' }
     )
   }
   collectConditionalsFromSections(
     reactionConditionals,
     uiData,
     resSeen,
-    resonanceAndReaction
+    resonanceAndReaction,
+    { defaultCategory: 'character', section: 'reaction' }
   )
 
   globalBuckets = {
@@ -341,7 +408,8 @@ const singleWeaponCondCache = new Map<string, ConditionalDescriptor[]>()
 function collectStaticOrLazyConditionals(
   sections: DocumentSection[] | undefined,
   seen: Set<string>,
-  out: ConditionalDescriptor[]
+  out: ConditionalDescriptor[],
+  opts?: CollectConditionalsOptions
 ) {
   if (!sections) return
   for (const sec of sections) {
@@ -364,6 +432,7 @@ function collectStaticOrLazyConditionals(
       if (seen.has(id)) continue
       seen.add(id)
 
+      const { category, section } = resolveSectionCategory(sec, key, opts)
       const states: ConditionalStateDescriptor[] = Object.entries(
         rawStates
       ).map(([stKey, stVal]) => ({
@@ -380,6 +449,8 @@ function collectStaticOrLazyConditionals(
         states,
         canShow: true,
         isTeamBuff,
+        ...(category ? { category } : {}),
+        ...(section ? { section } : {}),
       })
     }
   }
@@ -401,14 +472,15 @@ export function getDefaultTargetArtifactSetConditionals(): Record<
   for (const setKey of allArtifactSetKeys as readonly ArtifactSetKey[]) {
     const artSheet = getArtSheet(setKey)
     if (!artSheet?.setEffects) continue
-    for (const entry of Object.values(artSheet.setEffects) as Array<{
-      document?: DocumentSection[]
-    }>) {
+    for (const [setNum, entry] of Object.entries(
+      artSheet.setEffects
+    ) as Array<[string, { document?: DocumentSection[] }]>) {
       if (entry?.document) {
         collectStaticOrLazyConditionals(
           entry.document,
           artSeen,
-          artifactConditionals
+          artifactConditionals,
+          { defaultCategory: 'artifact', section: `set${setNum}` }
         )
       }
     }
@@ -445,7 +517,10 @@ export function listWeaponConditionals(
   }
   const out: ConditionalDescriptor[] = []
   const seen = new Set<string>()
-  collectStaticOrLazyConditionals(wSheet.document, seen, out)
+  collectStaticOrLazyConditionals(wSheet.document, seen, out, {
+    defaultCategory: 'weapon',
+    section: 'weapon',
+  })
   const filtered = out.filter(
     (c) => c.sheet === weaponKey && c.states.length > 0
   )
@@ -471,11 +546,22 @@ export function listConditionalsForCharacter(
   // 1. Character sheet conditionals
   const charSheet = getCharSheet(cKey, 'F')
   if (charSheet?.sheet) {
-    for (const talentEl of Object.values(charSheet.sheet) as Array<{
-      sections?: DocumentSection[]
-    }>) {
+    for (const [sectionKey, talentEl] of Object.entries(
+      charSheet.sheet
+    ) as Array<[string, { sections?: DocumentSection[] }]>) {
       if (talentEl?.sections) {
-        collectConditionalsFromSections(talentEl.sections, uiData, seen, out)
+        collectConditionalsFromSections(
+          talentEl.sections,
+          uiData,
+          seen,
+          out,
+          {
+            defaultCategory: sectionKey.startsWith('constellation')
+              ? 'constellation'
+              : 'character',
+            section: sectionKey,
+          }
+        )
       }
     }
   }

@@ -2,6 +2,7 @@
 
 import OptimizeLoading from './loading'
 import { ArtifactSetFilter } from '@/components/ArtifactSetFilter'
+import { ConditionalTogglePanel } from '@/components/ConditionalTogglePanel'
 import { CharacterBadge, WeaponBadge } from '@/components/Identifier'
 import { ProgressBar, ResultsSkeleton, Spinner } from '@/components/Loading'
 import {
@@ -44,8 +45,10 @@ import { type IArtifact } from '@gi/good'
 import {
   displayName,
   getCharacterMeta,
+  getPresetConditionalOverrides,
   getPresetMemberBuildModes,
   getWeaponMeta,
+  hasMemberConditionalOverrides,
   listBundledPresets,
   listWeaponsForType,
   matchAccount,
@@ -156,6 +159,22 @@ function OptimizeInner() {
       activePreset
         ? getPresetMemberBuildModes(settings, activePreset.id)
         : {},
+    [activePreset, settings]
+  )
+
+  const activeMemberConditionals = useMemo(
+    () =>
+      activePreset
+        ? getPresetConditionalOverrides(settings, activePreset.id)
+        : {},
+    [activePreset, settings]
+  )
+
+  const hasActiveConditionalOverrides = useMemo(
+    () =>
+      activePreset
+        ? hasMemberConditionalOverrides(settings, activePreset.id)
+        : false,
     [activePreset, settings]
   )
 
@@ -278,6 +297,9 @@ function OptimizeInner() {
           ? {
               weaponOverride: akashaWeaponSpec,
               artifactIds: baseRes.currentBuild.artifactIds,
+              ...(hasActiveConditionalOverrides
+                ? { memberConditionals: activeMemberConditionals }
+                : {}),
             }
           : {
               weaponId: effectiveWeaponId ?? baseRes.currentBuild.weaponId,
@@ -285,6 +307,9 @@ function OptimizeInner() {
               ...(activePreset.source === 'official' &&
               Object.keys(activeMemberBuildModes).length > 0
                 ? { memberBuildModes: activeMemberBuildModes }
+                : {}),
+              ...(hasActiveConditionalOverrides
+                ? { memberConditionals: activeMemberConditionals }
                 : {}),
             }
         setCurrentSelection(effectiveCurrent)
@@ -302,16 +327,18 @@ function OptimizeInner() {
 
         const needsReEval = isAkashaPreset
           ? Boolean(
-              akashaWeaponSpec &&
-                (akashaWeaponSpec.key !==
-                  baseRes.currentBuild.weaponOverride?.key ||
-                  akashaWeaponSpec.refinement !==
-                    baseRes.currentBuild.weaponOverride?.refinement)
+              hasActiveConditionalOverrides ||
+                (akashaWeaponSpec &&
+                  (akashaWeaponSpec.key !==
+                    baseRes.currentBuild.weaponOverride?.key ||
+                    akashaWeaponSpec.refinement !==
+                      baseRes.currentBuild.weaponOverride?.refinement))
             )
           : Boolean(
               (effectiveWeaponId &&
                 effectiveWeaponId !== baseRes.currentBuild.weaponId) ||
-                hasOfficialMemberModeOverrides
+                hasOfficialMemberModeOverrides ||
+                hasActiveConditionalOverrides
             )
 
         if (needsReEval) {
@@ -349,6 +376,8 @@ function OptimizeInner() {
     akashaWeaponSpec,
     effectiveWeaponId,
     activeMemberBuildModes,
+    activeMemberConditionals,
+    hasActiveConditionalOverrides,
   ])
 
   // Off-main-thread evaluation of all returned Top-N Optimised Builds via the shared worker session
@@ -372,9 +401,14 @@ function OptimizeInner() {
               datasetKey: record.importedAt,
               good: record.good,
               preset: activePreset,
-              selection: isAkashaPreset
-                ? { ...b, weaponOverride: akashaWeaponSpec }
-                : b,
+              selection: {
+                ...(isAkashaPreset
+                  ? { ...b, weaponOverride: akashaWeaponSpec }
+                  : b),
+                ...(hasActiveConditionalOverrides
+                  ? { memberConditionals: activeMemberConditionals }
+                  : {}),
+              },
             })
             return res.result
           })
@@ -396,7 +430,15 @@ function OptimizeInner() {
     return () => {
       cancelled = true
     }
-  }, [record, activePreset, optResult, isAkashaPreset, akashaWeaponSpec])
+  }, [
+    record,
+    activePreset,
+    optResult,
+    isAkashaPreset,
+    akashaWeaponSpec,
+    activeMemberConditionals,
+    hasActiveConditionalOverrides,
+  ])
 
   async function startOptimization() {
     if (!record?.good || !activePreset || !canRunPreset) return
@@ -987,7 +1029,30 @@ function OptimizeInner() {
         </div>
       </section>
 
-      {/* 2. CONSTRAINTS CARD */}
+      {/* 2. BUFFS & PASSIVES PANEL */}
+      {activePreset && (
+        <ConditionalTogglePanel
+          preset={activePreset}
+          settings={settings}
+          onChangeSettings={(next) => {
+            void updateSettings(next)
+            setOptResult(null)
+            setOptimisedEvals([])
+          }}
+          good={record?.good}
+          activeTargetWeaponKey={
+            isAkashaPreset
+              ? akashaWeaponSpec?.key
+              : record?.good.weapons.find((w) => w.id === effectiveWeaponId)
+                  ?.key ??
+                record?.good.weapons.find(
+                  (w) => w.location === activePreset.target
+                )?.key
+          }
+        />
+      )}
+
+      {/* 3. CONSTRAINTS CARD */}
       <ConstraintsCard
         settings={settings}
         onChange={(next) => void updateSettings(next)}

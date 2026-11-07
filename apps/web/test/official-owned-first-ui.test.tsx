@@ -223,6 +223,10 @@ const mockOptimizePresetInWorker = vi.fn(async () => ({
 vi.mock('@/lib/engine/workerClient', () => ({
   evaluatePresetInWorker: () => mockEvaluatePresetInWorker(),
   optimizePresetInWorker: () => mockOptimizePresetInWorker(),
+  getCatalogInWorker: async () => ({
+    targetsByChar: {},
+    conditionalsByChar: {},
+  }),
   exportGODatabaseInWorker: vi.fn(),
   cancelOptimizationInWorker: vi.fn(),
   isEngineSessionHydrated: () => true,

@@ -1,19 +1,25 @@
 import {
   DEFAULT_OPTIMIZER_SETTINGS,
   STAT_CONSTRAINT_KEYS,
+  getPresetConditionalOverrides,
   getPresetMemberBuildModes,
+  hasMemberConditionalOverrides,
   isActiveStatConstraint,
   isPercentStatConstraintKey,
   migrateOptimizerSettings,
   normalizeStatConstraintValue,
+  resetMemberConditionalOverrides,
   resolvePresetMemberBuildMode,
+  setMemberConditionalOverride,
   setPresetMemberBuildMode,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
   type MemberBuildMode,
   type MemberBuildModesMap,
+  type MemberConditionalsMap,
   type OptimizerSettings,
   type Preset,
+  type PresetMemberConditionalOverrides,
   type ResolvedMemberBuild,
   type SetFilterMode,
   type SetPieceCount,
@@ -24,18 +30,24 @@ import {
 export {
   DEFAULT_OPTIMIZER_SETTINGS,
   STAT_CONSTRAINT_KEYS,
+  getPresetConditionalOverrides,
   getPresetMemberBuildModes,
+  hasMemberConditionalOverrides,
   isActiveStatConstraint,
   isPercentStatConstraintKey,
   migrateOptimizerSettings,
   normalizeStatConstraintValue,
+  resetMemberConditionalOverrides,
   resolvePresetMemberBuildMode,
+  setMemberConditionalOverride,
   setPresetMemberBuildMode,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
   type MemberBuildMode,
   type MemberBuildModesMap,
+  type MemberConditionalsMap,
   type OptimizerSettings,
+  type PresetMemberConditionalOverrides,
   type ResolvedMemberBuild,
   type SetFilterMode,
   type SetPieceCount,
@@ -58,6 +70,8 @@ export interface BuildSelection {
   artifactIds: Partial<Record<ArtifactSlot, string>>
   /** Optional per-member build mode overrides ('owned' | 'tc') for official preset teammates. */
   memberBuildModes?: Record<string, MemberBuildMode>
+  /** Optional per-member conditional overrides (`[characterKey][sheetKey][condKey]`). */
+  memberConditionals?: PresetMemberConditionalOverrides
 }
 
 export interface InstanceResult {
@@ -93,6 +107,12 @@ export interface TargetDescriptor {
   section: string
 }
 
+export type ConditionalSourceCategory =
+  | 'weapon'
+  | 'artifact'
+  | 'character'
+  | 'constellation'
+
 export interface ConditionalStateDescriptor {
   key: string
   name: string
@@ -105,6 +125,8 @@ export interface ConditionalDescriptor {
   states: ConditionalStateDescriptor[]
   canShow: boolean
   isTeamBuff?: boolean
+  category?: ConditionalSourceCategory
+  section?: string
 }
 
 export interface EngineSession {
@@ -117,6 +139,7 @@ export interface EngineSession {
       weaponId?: string
       weaponOverride?: SimulatedWeaponSpec
       memberBuildModes?: Record<string, MemberBuildMode>
+      memberConditionals?: PresetMemberConditionalOverrides
       onProgress?: (p: OptimizeProgress) => void
       signal?: AbortSignal
       maxWorkers?: number

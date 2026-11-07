@@ -49,6 +49,7 @@ import type {
   OptimizeProgress,
   OptimizeResult,
   OptimizerSettings,
+  PresetMemberConditionalOverrides,
   SimulatedWeaponSpec,
 } from './types'
 
@@ -337,6 +338,7 @@ export async function runSolver(
     overrideChar?: TcCharacter
     weaponOverrideSpec?: SimulatedWeaponSpec
     memberBuildModes?: Record<string, MemberBuildMode>
+    memberConditionals?: PresetMemberConditionalOverrides
     onProgress?: (p: OptimizeProgress) => void
     signal?: AbortSignal
     maxWorkers?: number
@@ -559,6 +561,10 @@ export async function runSolver(
         ...(opts?.memberBuildModes &&
         Object.keys(opts.memberBuildModes).length > 0
           ? { memberBuildModes: { ...opts.memberBuildModes } }
+          : {}),
+        ...(opts?.memberConditionals &&
+        Object.keys(opts.memberConditionals).length > 0
+          ? { memberConditionals: opts.memberConditionals }
           : {}),
         artifactIds,
         total: b.value * repeat,

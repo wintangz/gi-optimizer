@@ -1393,6 +1393,231 @@ td {
   text-align: center;
 }
 
+/* Conditional Toggle Panel (conditional-toggle-panel) */
+.gi-buffs-member-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 0.9rem;
+}
+
+.gi-buffs-member-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gi-buffs-member-card-target {
+  border-color: rgba(122, 162, 255, 0.5);
+}
+
+.gi-buffs-member-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.gi-buffs-member-identity {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.gi-buffs-member-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.gi-buffs-count-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.46rem;
+  border-radius: 999px;
+  background: #222634;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.gi-buffs-count-pill.is-active {
+  background: rgba(76, 195, 138, 0.15);
+  color: var(--ok);
+  border-color: rgba(76, 195, 138, 0.45);
+}
+
+.gi-buffs-modified-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.42rem;
+  border-radius: 4px;
+  background: rgba(122, 162, 255, 0.16);
+  color: var(--accent);
+  border: 1px solid rgba(122, 162, 255, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.gi-buffs-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.gi-buffs-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: #12151e;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.68rem;
+}
+
+.gi-buffs-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.gi-buffs-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.gi-buffs-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.gi-buffs-empty {
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding: 0.15rem 0;
+}
+
+.gi-buff-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.32rem 0.48rem;
+  background: #191d29;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.gi-buff-row.is-on {
+  border-color: rgba(76, 195, 138, 0.42);
+  background: rgba(76, 195, 138, 0.06);
+}
+
+.gi-buff-row-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.34rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.gi-buff-row-label {
+  font-size: 0.8rem;
+  color: var(--fg);
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.gi-buff-sec-tag {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 0.05rem 0.32rem;
+  border-radius: 4px;
+  background: #252a3b;
+  color: var(--accent);
+  border: 1px solid rgba(122, 162, 255, 0.32);
+  flex-shrink: 0;
+}
+
+.gi-buff-team-tag {
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 0.04rem 0.3rem;
+  border-radius: 4px;
+  background: rgba(242, 184, 75, 0.15);
+  color: var(--warn);
+  border: 1px solid rgba(242, 184, 75, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.gi-buff-row-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.gi-buff-select {
+  font-size: 0.76rem;
+  padding: 0.18rem 0.42rem;
+  max-width: 150px;
+}
+
+.gi-buff-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.16rem 0.42rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #232734;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.gi-buff-switch.is-on {
+  background: rgba(76, 195, 138, 0.18);
+  color: var(--ok);
+  border-color: rgba(76, 195, 138, 0.55);
+}
+
+.gi-buff-switch-thumb {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.gi-buff-switch.is-on .gi-buff-switch-thumb {
+  background: var(--ok);
+}
+
+.gi-buff-switch-text {
+  line-height: 1;
+}
+
 /* Responsive layout down to ~390px phone viewport */
 @media (max-width: 820px) {
   .presets-split {

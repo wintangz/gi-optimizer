@@ -19,9 +19,14 @@ import { getCharStat, getWeaponStat } from '@genshin-optimizer/gi/stats'
 import { uiDataForTeam } from '@genshin-optimizer/gi/uidata'
 import { input } from '@genshin-optimizer/gi/wr'
 import {
+  applyMemberConditionalOverrides,
+  readEffectiveConditionalValue,
   resolvePresetMemberBuildMode,
   type MemberBuildMode,
+  type MemberConditionalsMap,
   type Preset,
+  type PresetMemberConditionalOverrides,
+  type ResolvedMemberBuild,
   type RotationTarget,
   type TcCharacter,
 } from '@gi/presets'
@@ -193,15 +198,253 @@ function extractGoodCharKeys(good: unknown): Set<string> {
   )
 }
 
+export { applyMemberConditionalOverrides, readEffectiveConditionalValue }
+
 export interface HydratePresetTeamOptions {
   ownedCharKeys?: ReadonlySet<string>
   memberBuildModes?: Record<string, MemberBuildMode>
+  memberConditionals?: PresetMemberConditionalOverrides
+}
+
+export function computeDefaultMemberConditionals(opts: {
+  preset: Preset
+  memberIndex: number
+  resolvedMemberMode: MemberBuildMode
+  activeTargetWeaponKey?: string
+  memberOwnedWeaponKey?: string
+}): MemberConditionalsMap {
+  const {
+    preset,
+    memberIndex,
+    resolvedMemberMode,
+    activeTargetWeaponKey,
+    memberOwnedWeaponKey,
+  } = opts
+  const member = preset.team[memberIndex]
+  if (!member) return {}
+  const isTarget = memberIndex === 0
+  const isOfficialOwnedMember =
+    !isTarget && preset.source === 'official' && resolvedMemberMode === 'owned'
+
+  let memberConditional: MemberConditionalsMap
+
+  if (isOfficialOwnedMember) {
+    // Preset-authored conditionals describe the simulated ('tc') build only.
+    // An owned member gets the same conditional derivation an owned target gets today:
+    // worn artifact-set conditionals + weapon conditionals from the member's actual build in db.
+    memberConditional = {}
+    const defaultArtSetConds = getDefaultTargetArtifactSetConditionals()
+    for (const [setKey, defaultStates] of Object.entries(defaultArtSetConds)) {
+      memberConditional[setKey] = { ...defaultStates }
+    }
+
+    if (memberOwnedWeaponKey) {
+      const weaponConds = listWeaponConditionals(memberOwnedWeaponKey)
+      if (weaponConds.length > 0) {
+        const sheetStates: Record<string, string> = {}
+        for (const wc of weaponConds) {
+          const maxState = wc.states[wc.states.length - 1]
+          if (maxState) {
+            sheetStates[wc.key] = maxState.key
+          }
+        }
+        memberConditional[memberOwnedWeaponKey] = sheetStates
+      }
+    }
+  } else {
+    memberConditional = {}
+    for (const [sKey, sMap] of Object.entries(member.conditional ?? {})) {
+      if (sMap) {
+        memberConditional[sKey] = { ...sMap }
+      }
+    }
+
+    // Target boolean artifact-set conditionals default to 'on' for every set
+    // unless the preset explicitly authors an entry for that set.
+    if (isTarget) {
+      const defaultArtSetConds = getDefaultTargetArtifactSetConditionals()
+      for (const [setKey, defaultStates] of Object.entries(
+        defaultArtSetConds
+      )) {
+        if (!member.conditional[setKey]) {
+          memberConditional[setKey] = { ...defaultStates }
+        }
+      }
+    }
+
+    // Auto-populate GO weapon conditionals at their max state when the target
+    // ('fixed' or 'owned') has an explicit weapon choice and the preset's
+    // conditional map has no entry for that weapon's sheet.
+    if (
+      isTarget &&
+      (member.build.type === 'fixed' || member.build.type === 'owned') &&
+      activeTargetWeaponKey &&
+      !member.conditional[activeTargetWeaponKey]
+    ) {
+      const weaponConds = listWeaponConditionals(activeTargetWeaponKey)
+      if (weaponConds.length > 0) {
+        const sheetStates: Record<string, string> = {}
+        for (const wc of weaponConds) {
+          const maxState = wc.states[wc.states.length - 1]
+          if (maxState) {
+            sheetStates[wc.key] = maxState.key
+          }
+        }
+        memberConditional = {
+          ...memberConditional,
+          [activeTargetWeaponKey]: sheetStates,
+        }
+      }
+    }
+
+    // Bridge ArchaicPetra `ele` -> GO's `element` conditional key when authored
+    // as `ele` (except on legacy bundled presets whose golden fixtures predate this fix).
+    if (
+      memberConditional.ArchaicPetra?.ele &&
+      !memberConditional.ArchaicPetra.element &&
+      preset.id !== 'akasha/furina-salon-pjc-c0' &&
+      preset.id !== 'akasha/neuvillette-hypercarry-protoamber-c0' &&
+      preset.id !== 'official/neuvillette-hypercarry'
+    ) {
+      memberConditional = {
+        ...memberConditional,
+        ArchaicPetra: {
+          ...memberConditional.ArchaicPetra,
+          element: memberConditional.ArchaicPetra.ele,
+        },
+      }
+    }
+  }
+
+  return memberConditional
+}
+
+export function resolveEffectiveTeamConditionals(opts: {
+  preset: Preset
+  goodData?: unknown
+  activeTargetWeaponKey?: string
+  memberBuildModes?: Record<string, MemberBuildMode>
+  memberConditionals?: PresetMemberConditionalOverrides
+}): {
+  defaultsByMember: Record<string, MemberConditionalsMap>
+  effectiveByMember: Record<string, MemberConditionalsMap>
+  activeWeaponKeyByMember: Record<string, string | undefined>
+  activeArtSetsByMember: Record<string, Record<string, number>>
+  resolvedBuildByMember: Record<string, ResolvedMemberBuild>
+} {
+  const {
+    preset,
+    goodData,
+    activeTargetWeaponKey,
+    memberBuildModes,
+    memberConditionals,
+  } = opts
+  const ownedCharKeys = extractGoodCharKeys(goodData)
+  const goodObj =
+    typeof goodData === 'object' && goodData !== null
+      ? (goodData as {
+          weapons?: Array<{ key?: string; location?: string }>
+          artifacts?: Array<{ setKey?: string; location?: string }>
+        })
+      : {}
+  const weaponsList = Array.isArray(goodObj.weapons) ? goodObj.weapons : []
+  const artifactsList = Array.isArray(goodObj.artifacts)
+    ? goodObj.artifacts
+    : []
+
+  const defaultsByMember: Record<string, MemberConditionalsMap> = {}
+  const effectiveByMember: Record<string, MemberConditionalsMap> = {}
+  const activeWeaponKeyByMember: Record<string, string | undefined> = {}
+  const activeArtSetsByMember: Record<string, Record<string, number>> = {}
+  const resolvedBuildByMember: Record<string, ResolvedMemberBuild> = {}
+
+  const targetMember = preset.team[0]
+  const resolvedTargetWepKey =
+    activeTargetWeaponKey ??
+    (targetMember?.build.type === 'fixed'
+      ? targetMember.build.weapon.key
+      : undefined)
+
+  for (let i = 0; i < Math.min(4, preset.team.length); i++) {
+    const member = preset.team[i]!
+    const mKey = member.key
+    const isTarget = i === 0
+    const locKey = charKeyToLocCharKey(mKey as CharacterKey)
+    const resolvedMember = resolvePresetMemberBuildMode({
+      presetSource: preset.source,
+      isTarget,
+      memberBuildType: member.build.type,
+      characterKey: mKey,
+      ownedCharKeys,
+      overrideMode: memberBuildModes?.[mKey],
+    })
+    resolvedBuildByMember[mKey] = resolvedMember
+
+    const equippedWeaponInGood = weaponsList.find(
+      (w) => w?.location === locKey && w.key
+    )?.key
+
+    let memberWeaponKey: string | undefined
+    const artSetCounts: Record<string, number> = {}
+
+    if (isTarget) {
+      memberWeaponKey = resolvedTargetWepKey ?? equippedWeaponInGood
+      for (const art of artifactsList) {
+        if (art?.location === locKey && art.setKey) {
+          artSetCounts[art.setKey] = (artSetCounts[art.setKey] ?? 0) + 1
+        }
+      }
+    } else if (resolvedMember.mode === 'owned') {
+      memberWeaponKey = equippedWeaponInGood
+      for (const art of artifactsList) {
+        if (art?.location === locKey && art.setKey) {
+          artSetCounts[art.setKey] = (artSetCounts[art.setKey] ?? 0) + 1
+        }
+      }
+    } else if (member.build.type === 'tc') {
+      memberWeaponKey = member.build.tc.weapon.key
+      for (const [setKey, count] of Object.entries(
+        member.build.tc.artifact.sets ?? {}
+      )) {
+        if (typeof count === 'number' && count > 0) {
+          artSetCounts[setKey] = count
+        }
+      }
+    } else if (member.build.type === 'fixed') {
+      memberWeaponKey = member.build.weapon.key
+    }
+
+    activeWeaponKeyByMember[mKey] = memberWeaponKey
+    activeArtSetsByMember[mKey] = artSetCounts
+
+    const defaultMap = computeDefaultMemberConditionals({
+      preset,
+      memberIndex: i,
+      resolvedMemberMode: resolvedMember.mode,
+      activeTargetWeaponKey: resolvedTargetWepKey,
+      memberOwnedWeaponKey: equippedWeaponInGood,
+    })
+    defaultsByMember[mKey] = defaultMap
+    effectiveByMember[mKey] = applyMemberConditionalOverrides(
+      defaultMap,
+      memberConditionals?.[mKey]
+    )
+  }
+
+  return {
+    defaultsByMember,
+    effectiveByMember,
+    activeWeaponKeyByMember,
+    activeArtSetsByMember,
+    resolvedBuildByMember,
+  }
 }
 
 function presetTeamFingerprint(
   preset: Preset,
   activeWeaponKey: string | undefined,
-  effectiveMemberModes: MemberBuildMode[]
+  effectiveMemberModes: MemberBuildMode[],
+  memberConditionals?: PresetMemberConditionalOverrides
 ): string {
   return JSON.stringify({
     id: preset.id,
@@ -213,6 +456,7 @@ function presetTeamFingerprint(
     rotation: preset.rotation,
     activeWeaponKey: activeWeaponKey ?? '',
     effectiveMemberModes,
+    memberConditionals: memberConditionals ?? {},
   })
 }
 
@@ -257,7 +501,8 @@ export function hydratePresetTeam(
   const fingerprint = presetTeamFingerprint(
     preset,
     resolvedWeaponKey,
-    resolvedMembers.map((m) => m.mode)
+    resolvedMembers.map((m) => m.mode),
+    opts?.memberConditionals
   )
   const cached = dbPresetCache.get(db as object)
   if (
@@ -292,10 +537,6 @@ export function hydratePresetTeam(
     const mKey = member.key as CharacterKey
     const isTarget = i === 0
     const resolvedMember = resolvedMembers[i]!
-    const isOfficialOwnedMember =
-      !isTarget &&
-      preset.source === 'official' &&
-      resolvedMember.mode === 'owned'
 
     // Supporting teammates with `build.type === 'tc'` use their BuildTc stats exclusively,
     // and fixed Akasha targets use `overrideChar` + `overrideWeapon`,
@@ -304,98 +545,23 @@ export function hydratePresetTeam(
       db.chars.getWithInitWeapon(mKey)
     }
 
-    let memberConditional: Record<string, Record<string, string>>
+    const charInDb = db.chars.get(mKey)
+    const equippedWeaponKey = charInDb?.equippedWeapon
+      ? db.weapons.get(charInDb.equippedWeapon)?.key
+      : undefined
 
-    if (isOfficialOwnedMember) {
-      // Preset-authored conditionals describe the simulated ('tc') build only.
-      // An owned member gets the same conditional derivation an owned target gets today:
-      // worn artifact-set conditionals + weapon conditionals from the member's actual build in db.
-      memberConditional = {}
-      const defaultArtSetConds = getDefaultTargetArtifactSetConditionals()
-      for (const [setKey, defaultStates] of Object.entries(
-        defaultArtSetConds
-      )) {
-        memberConditional[setKey] = { ...defaultStates }
-      }
+    const defaultMemberConditional = computeDefaultMemberConditionals({
+      preset,
+      memberIndex: i,
+      resolvedMemberMode: resolvedMember.mode,
+      activeTargetWeaponKey: resolvedWeaponKey,
+      memberOwnedWeaponKey: equippedWeaponKey,
+    })
 
-      const charInDb = db.chars.get(mKey)
-      const equippedWeaponKey = charInDb?.equippedWeapon
-        ? db.weapons.get(charInDb.equippedWeapon)?.key
-        : undefined
-      if (equippedWeaponKey) {
-        const weaponConds = listWeaponConditionals(equippedWeaponKey)
-        if (weaponConds.length > 0) {
-          const sheetStates: Record<string, string> = {}
-          for (const wc of weaponConds) {
-            const maxState = wc.states[wc.states.length - 1]
-            if (maxState) {
-              sheetStates[wc.key] = maxState.key
-            }
-          }
-          memberConditional[equippedWeaponKey] = sheetStates
-        }
-      }
-    } else {
-      memberConditional = {
-        ...member.conditional,
-      }
-
-      // Target boolean artifact-set conditionals default to 'on' for every set
-      // unless the preset explicitly authors an entry for that set.
-      if (isTarget) {
-        const defaultArtSetConds = getDefaultTargetArtifactSetConditionals()
-        for (const [setKey, defaultStates] of Object.entries(
-          defaultArtSetConds
-        )) {
-          if (!member.conditional[setKey]) {
-            memberConditional[setKey] = { ...defaultStates }
-          }
-        }
-      }
-
-      // Auto-populate GO weapon conditionals at their max state when the target
-      // ('fixed' or 'owned') has an explicit weapon choice and the preset's
-      // conditional map has no entry for that weapon's sheet.
-      if (
-        isTarget &&
-        (member.build.type === 'fixed' || member.build.type === 'owned') &&
-        resolvedWeaponKey &&
-        !member.conditional[resolvedWeaponKey]
-      ) {
-        const weaponConds = listWeaponConditionals(resolvedWeaponKey)
-        if (weaponConds.length > 0) {
-          const sheetStates: Record<string, string> = {}
-          for (const wc of weaponConds) {
-            const maxState = wc.states[wc.states.length - 1]
-            if (maxState) {
-              sheetStates[wc.key] = maxState.key
-            }
-          }
-          memberConditional = {
-            ...memberConditional,
-            [resolvedWeaponKey]: sheetStates,
-          }
-        }
-      }
-
-      // Bridge ArchaicPetra `ele` -> GO's `element` conditional key when authored
-      // as `ele` (except on legacy bundled presets whose golden fixtures predate this fix).
-      if (
-        memberConditional.ArchaicPetra?.ele &&
-        !memberConditional.ArchaicPetra.element &&
-        preset.id !== 'akasha/furina-salon-pjc-c0' &&
-        preset.id !== 'akasha/neuvillette-hypercarry-protoamber-c0' &&
-        preset.id !== 'official/neuvillette-hypercarry'
-      ) {
-        memberConditional = {
-          ...memberConditional,
-          ArchaicPetra: {
-            ...memberConditional.ArchaicPetra,
-            element: memberConditional.ArchaicPetra.ele,
-          },
-        }
-      }
-    }
+    const memberConditional = applyMemberConditionalOverrides(
+      defaultMemberConditional,
+      opts?.memberConditionals?.[mKey]
+    )
 
     const tcId = db.teamChars.new(mKey, {
       name: `${preset.name} — ${mKey}`,
@@ -542,6 +708,7 @@ export function hydrateTeamIntoDb(
     {
       ownedCharKeys: goodCharKeys,
       memberBuildModes: selection?.memberBuildModes,
+      memberConditionals: selection?.memberConditionals,
     }
   )
   const targetCharKey = preset.target as CharacterKey
@@ -686,6 +853,7 @@ export function createSession(good: unknown): EngineSession {
         {
           ownedCharKeys: goodCharKeys,
           memberBuildModes: selection?.memberBuildModes,
+          memberConditionals: selection?.memberConditionals,
         }
       )
       const targetKey = preset.target as CharacterKey
@@ -785,6 +953,7 @@ export function createSession(good: unknown): EngineSession {
         weaponId?: string
         weaponOverride?: SimulatedWeaponSpec
         memberBuildModes?: Record<string, MemberBuildMode>
+        memberConditionals?: PresetMemberConditionalOverrides
         onProgress?: (p: OptimizeProgress) => void
         signal?: AbortSignal
         maxWorkers?: number
@@ -804,6 +973,9 @@ export function createSession(good: unknown): EngineSession {
 
       const effectiveMemberBuildModes =
         opts?.memberBuildModes ?? settings.memberBuildModes?.[preset.id]
+      const effectiveMemberConditionals =
+        opts?.memberConditionals ??
+        settings.memberConditionalOverrides?.[preset.id]
 
       const { teamId, targetTeamCharId } = hydratePresetTeam(
         baseDb,
@@ -812,6 +984,7 @@ export function createSession(good: unknown): EngineSession {
         {
           ownedCharKeys: goodCharKeys,
           memberBuildModes: effectiveMemberBuildModes,
+          memberConditionals: effectiveMemberConditionals,
         }
       )
 
@@ -820,6 +993,7 @@ export function createSession(good: unknown): EngineSession {
         overrideChar,
         weaponOverrideSpec: isFixedTarget ? effectiveWeaponSpec : opts?.weaponOverride,
         memberBuildModes: effectiveMemberBuildModes,
+        memberConditionals: effectiveMemberConditionals,
         onProgress: opts?.onProgress,
         signal: opts?.signal,
         maxWorkers: opts?.maxWorkers,
