@@ -660,12 +660,26 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
   })
 
   it('formats core stat comparisons with current -> build -> signed diff and ok/error/muted classes', () => {
-    // Flat stat increase
+    // Flat stat increase: relative % by default, raw signed delta in rawDiffText (stat-diff-percent)
     expect(formatCoreStatComparison('hp', 41200, 38500)).toEqual({
       currentText: (38500).toLocaleString(),
       buildText: (41200).toLocaleString(),
-      diffText: `+${(2700).toLocaleString()}`,
-      asciiDiffText: `+${(2700).toLocaleString()}`,
+      diffText: '+7.0%',
+      asciiDiffText: '+7.0%',
+      rawDiffText: `+${(2700).toLocaleString()}`,
+      asciiRawDiffText: `+${(2700).toLocaleString()}`,
+      sign: '+',
+      cls: 'ok',
+    })
+
+    // +489 HP on 18,554 -> +2.6% with raw +489
+    expect(formatCoreStatComparison('hp', 19043, 18554)).toEqual({
+      currentText: (18554).toLocaleString(),
+      buildText: (19043).toLocaleString(),
+      diffText: '+2.6%',
+      asciiDiffText: '+2.6%',
+      rawDiffText: '+489',
+      asciiRawDiffText: '+489',
       sign: '+',
       cls: 'ok',
     })
@@ -674,8 +688,10 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(formatCoreStatComparison('atk', 1150, 1210)).toEqual({
       currentText: (1210).toLocaleString(),
       buildText: (1150).toLocaleString(),
-      diffText: '−60',
-      asciiDiffText: '-60',
+      diffText: '−5.0%',
+      asciiDiffText: '-5.0%',
+      rawDiffText: '−60',
+      asciiRawDiffText: '-60',
       sign: '-',
       cls: 'error',
     })
@@ -684,10 +700,24 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(formatCoreStatComparison('def', 850, 850)).toEqual({
       currentText: '850',
       buildText: '850',
-      diffText: '0',
-      asciiDiffText: '0',
+      diffText: '0.0%',
+      asciiDiffText: '0.0%',
+      rawDiffText: '0',
+      asciiRawDiffText: '0',
       sign: '0',
       cls: 'muted',
+    })
+
+    // Flat stat with 0 Current baseline (e.g. 0 EM -> 40 EM) falls back to raw number
+    expect(formatCoreStatComparison('eleMas', 40, 0)).toEqual({
+      currentText: '0',
+      buildText: '40',
+      diffText: '+40',
+      asciiDiffText: '+40',
+      rawDiffText: '+40',
+      asciiRawDiffText: '+40',
+      sign: '+',
+      cls: 'ok',
     })
 
     // Percent stat increase
@@ -799,15 +829,15 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         `data-testid="comp-stat-diff-opt-0-${statKey}"`
       )
     }
-    // Check green (ok), red (error), grey (muted) classes and signed values
+    // Check green (ok), red (error), grey (muted) classes, relative % for flat stats + raw delta tooltip, and point diffs for % stats
     expect(optExpandedHtml).toContain(
-      'class="comp-stat-num comp-stat-diff-delta ok" data-testid="comp-stat-diff-opt-0-hp" data-diff-sign="+" data-diff-ascii="+2,700">+2,700<'
+      `class="comp-stat-num comp-stat-diff-delta ok" data-testid="comp-stat-diff-opt-0-hp" data-diff-sign="+" data-diff-ascii="+7.0%" data-raw-diff="+${(2700).toLocaleString()}" data-raw-diff-ascii="+${(2700).toLocaleString()}" title="+${(2700).toLocaleString()}">+7.0%<`
     )
     expect(optExpandedHtml).toContain(
-      'class="comp-stat-num comp-stat-diff-delta error" data-testid="comp-stat-diff-opt-0-atk" data-diff-sign="-" data-diff-ascii="-60">−60<'
+      'class="comp-stat-num comp-stat-diff-delta error" data-testid="comp-stat-diff-opt-0-atk" data-diff-sign="-" data-diff-ascii="-5.0%" data-raw-diff="−60" data-raw-diff-ascii="-60" title="−60">−5.0%<'
     )
     expect(optExpandedHtml).toContain(
-      'class="comp-stat-num comp-stat-diff-delta muted" data-testid="comp-stat-diff-opt-0-def" data-diff-sign="0" data-diff-ascii="0">0<'
+      'class="comp-stat-num comp-stat-diff-delta muted" data-testid="comp-stat-diff-opt-0-def" data-diff-sign="0" data-diff-ascii="0.0%" data-raw-diff="0" data-raw-diff-ascii="0" title="0">0.0%<'
     )
     expect(optExpandedHtml).toContain(
       'class="comp-stat-num comp-stat-diff-delta error" data-testid="comp-stat-diff-opt-0-enerRech_" data-diff-sign="-" data-diff-ascii="-12.0%">−12.0%<'
@@ -1948,11 +1978,14 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
               statBreakdowns: {
                 atk: {
                   statKey: 'atk',
-                  label: 'ATK',
-                  unit: '',
-                  finalValue: 2500,
-                  reconciledValue: 2500,
+                  total: 2500,
+                  unit: '' as const,
+                  base: 1000,
+                  baseContributors: [],
+                  percentContributors: [],
+                  flatContributors: [],
                   contributors: [],
+                  reconciledTotal: 2500,
                 },
               },
               instances: [

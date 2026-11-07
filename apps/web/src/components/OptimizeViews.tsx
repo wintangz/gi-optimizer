@@ -95,6 +95,8 @@ export interface CoreStatComparisonFormatted {
   buildText: string
   diffText: string | null
   asciiDiffText: string | null
+  rawDiffText?: string | null
+  asciiRawDiffText?: string | null
   sign: '+' | '-' | '0' | null
   cls: 'ok' | 'error' | 'muted'
 }
@@ -167,6 +169,8 @@ export function formatCoreStatComparison(
       buildText,
       diffText: null,
       asciiDiffText: null,
+      rawDiffText: null,
+      asciiRawDiffText: null,
       sign: null,
       cls: 'muted',
     }
@@ -176,33 +180,90 @@ export function formatCoreStatComparison(
   const currentText = currInt.toLocaleString()
   const diffInt = buildInt - currInt
 
+  const rawDiffText =
+    diffInt === 0
+      ? '0'
+      : diffInt > 0
+        ? `+${diffInt.toLocaleString()}`
+        : `−${Math.abs(diffInt).toLocaleString()}`
+  const asciiRawDiffText =
+    diffInt === 0
+      ? '0'
+      : diffInt > 0
+        ? `+${diffInt.toLocaleString()}`
+        : `-${Math.abs(diffInt).toLocaleString()}`
+
+  if (currInt <= 0) {
+    if (diffInt === 0) {
+      return {
+        currentText,
+        buildText,
+        diffText: '0',
+        asciiDiffText: '0',
+        rawDiffText,
+        asciiRawDiffText,
+        sign: '0',
+        cls: 'muted',
+      }
+    }
+    if (diffInt > 0) {
+      return {
+        currentText,
+        buildText,
+        diffText: rawDiffText,
+        asciiDiffText: asciiRawDiffText,
+        rawDiffText,
+        asciiRawDiffText,
+        sign: '+',
+        cls: 'ok',
+      }
+    }
+    return {
+      currentText,
+      buildText,
+      diffText: rawDiffText,
+      asciiDiffText: asciiRawDiffText,
+      rawDiffText,
+      asciiRawDiffText,
+      sign: '-',
+      cls: 'error',
+    }
+  }
+
   if (diffInt === 0) {
     return {
       currentText,
       buildText,
-      diffText: '0',
-      asciiDiffText: '0',
+      diffText: '0.0%',
+      asciiDiffText: '0.0%',
+      rawDiffText,
+      asciiRawDiffText,
       sign: '0',
       cls: 'muted',
     }
   }
   if (diffInt > 0) {
-    const val = `+${diffInt.toLocaleString()}`
+    const pct = ((diffInt / currInt) * 100).toFixed(1)
+    const val = `+${pct}%`
     return {
       currentText,
       buildText,
       diffText: val,
       asciiDiffText: val,
+      rawDiffText,
+      asciiRawDiffText,
       sign: '+',
       cls: 'ok',
     }
   }
-  const abs = Math.abs(diffInt).toLocaleString()
+  const absPct = ((Math.abs(diffInt) / currInt) * 100).toFixed(1)
   return {
     currentText,
     buildText,
-    diffText: `−${abs}`,
-    asciiDiffText: `-${abs}`,
+    diffText: `−${absPct}%`,
+    asciiDiffText: `-${absPct}%`,
+    rawDiffText,
+    asciiRawDiffText,
     sign: '-',
     cls: 'error',
   }
@@ -977,6 +1038,11 @@ function BuildStatComparisonSection({
                           data-testid={`comp-stat-diff-${rowKey}-${statKey}`}
                           data-diff-sign={formatted.sign ?? '0'}
                           data-diff-ascii={formatted.asciiDiffText ?? ''}
+                          data-raw-diff={formatted.rawDiffText ?? undefined}
+                          data-raw-diff-ascii={
+                            formatted.asciiRawDiffText ?? undefined
+                          }
+                          title={formatted.rawDiffText ?? undefined}
                         >
                           {formatted.diffText}
                         </td>
