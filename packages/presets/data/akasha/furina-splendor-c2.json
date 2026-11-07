@@ -1,7 +1,7 @@
 {
   "schema": "gi-optimizer/preset@1",
   "id": "akasha/furina-splendor-c2",
-  "name": "Furina — Salon Solitaire C2 (Splendor of Tranquil Waters R1)",
+  "name": "Furina — Salon Solitaire C2",
   "description": "Akasha C2 Furina leaderboard case requiring Constellation 2 and Splendor of Tranquil Waters R1 with 300 Fanfare and C2 HP overstack.",
   "source": "akasha",
   "author": "akasha.cv",

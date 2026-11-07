@@ -147,4 +147,44 @@ describe('matchAccount & bundled presets', () => {
       expect(badge.label).toBe('Official')
     }
   })
+
+  it('drops weapon names and refinements from all bundled preset display names while keeping case descriptors and akasha provenance notes (preset-names-drop-weapon)', () => {
+    expect(getBundledPreset('akasha/furina-salon-pjc-c0')?.name).toBe(
+      'Furina — Salon Solitaire (Avg 200 Fanfare)'
+    )
+    expect(getBundledPreset('akasha/furina-splendor-c2')?.name).toBe(
+      'Furina — Salon Solitaire C2'
+    )
+    expect(getBundledPreset('akasha/hutao-double-hydro-homa-c1')?.name).toBe(
+      'Hu Tao — Double Hydro Vaporize Combo (C1)'
+    )
+    expect(
+      getBundledPreset('akasha/neuvillette-hypercarry-protoamber-c0')?.name
+    ).toBe('Neuvillette — Hypercarry Double Hydro')
+    expect(
+      getBundledPreset('akasha/raiden-hypercarry-scarlet-c0')?.name
+    ).toBe('Raiden Shogun — Hypercarry (Sara C6 + Kazuha + Bennett)')
+
+    const forbiddenWeaponPatterns = [
+      /\bR[1-5]\b/,
+      /Primordial Jade Cutter/i,
+      /PJC\b/i,
+      /Splendor/i,
+      /Staff of Homa/i,
+      /\bHoma\b/i,
+      /Prototype Amber/i,
+      /Scarlet Sands/i,
+    ]
+
+    for (const p of listBundledPresets()) {
+      for (const pat of forbiddenWeaponPatterns) {
+        expect(p.name, `${p.id} name "${p.name}" matched ${pat}`).not.toMatch(
+          pat
+        )
+      }
+      if (p.source === 'akasha') {
+        expect(p.akasha?.notes.length).toBeGreaterThan(20)
+      }
+    }
+  })
 })

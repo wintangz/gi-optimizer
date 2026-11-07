@@ -1,7 +1,7 @@
 {
   "schema": "gi-optimizer/preset@1",
   "id": "akasha/raiden-hypercarry-scarlet-c0",
-  "name": "Raiden Shogun — Hypercarry (Sara C6 + Kazuha + Bennett, Scarlet Sands R1)",
+  "name": "Raiden Shogun — Hypercarry (Sara C6 + Kazuha + Bennett)",
   "description": "Akasha Raiden Hypercarry leaderboard setup with Kujou Sara C6, Kaedehara Kazuha, and Bennett at 60 Chakra Desiderata Resolve stacks.",
   "source": "akasha",
   "author": "akasha.cv",

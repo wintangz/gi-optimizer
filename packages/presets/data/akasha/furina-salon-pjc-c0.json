@@ -1,7 +1,7 @@
 {
   "schema": "gi-optimizer/preset@1",
   "id": "akasha/furina-salon-pjc-c0",
-  "name": "Furina — Salon Solitaire (Primordial Jade Cutter, Avg 200 Fanfare)",
+  "name": "Furina — Salon Solitaire (Avg 200 Fanfare)",
   "description": "Akasha leaderboard case for off-field Furina C0 with Primordial Jade Cutter R1, 4p Golden Troupe, Hydro Resonance, and 200 average Fanfare stacks over a 20s rotation (7× Usher, 14× Chevalmarin, 4× Crabaletta, 1× Burst).",
   "source": "akasha",
   "author": "akasha.cv",

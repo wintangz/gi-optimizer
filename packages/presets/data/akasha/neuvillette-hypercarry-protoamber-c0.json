@@ -1,7 +1,7 @@
 {
   "schema": "gi-optimizer/preset@1",
   "id": "akasha/neuvillette-hypercarry-protoamber-c0",
-  "name": "Neuvillette — Hypercarry Double Hydro (Prototype Amber R5)",
+  "name": "Neuvillette — Hypercarry Double Hydro",
   "description": "Akasha Neuvillette Hypercarry leaderboard (Neuvillette + Furina + Kazuha + Zhongli) with Prototype Amber R5, 3× Charged Attack Equitable Judgment (24 ticks), Skill, and Burst.",
   "source": "akasha",
   "author": "akasha.cv",

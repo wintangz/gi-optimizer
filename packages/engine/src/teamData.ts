@@ -337,6 +337,7 @@ export function getTeamData(
   let smallTeamEleCounts: Record<string, number> | undefined
   if (
     activeLoadouts.length < 4 &&
+    team.name !== 'Furina — Salon Solitaire C2' &&
     team.name !== 'Furina — Salon Solitaire C2 (Splendor of Tranquil Waters R1)'
   ) {
     smallTeamEleCounts = {}
