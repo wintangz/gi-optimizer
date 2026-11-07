@@ -336,6 +336,54 @@ let defaultTargetArtSetCondsCache: Record<
   string,
   Record<string, string>
 > | null = null
+const singleWeaponCondCache = new Map<string, ConditionalDescriptor[]>()
+
+function collectStaticOrLazyConditionals(
+  sections: DocumentSection[] | undefined,
+  seen: Set<string>,
+  out: ConditionalDescriptor[]
+) {
+  if (!sections) return
+  for (const sec of sections) {
+    if (!sec || !('states' in sec) || !sec.states) continue
+    const isTeamBuff = Boolean(sec.teamBuff)
+    let rawStates: Record<string, unknown> | undefined
+    if (typeof sec.states === 'function') {
+      const uiData = getScratchUiData('Furina' as CharacterKey)
+      if (!uiData) continue
+      rawStates = sec.states(uiData) as Record<string, unknown> | undefined
+    } else {
+      rawStates = sec.states as Record<string, unknown>
+    }
+    if (!rawStates) continue
+
+    if ('path' in sec && Array.isArray(sec.path) && sec.path.length >= 2) {
+      const sheet = String(sec.path[0])
+      const key = String(sec.path[1])
+      const id = `${sheet}:${key}`
+      if (seen.has(id)) continue
+      seen.add(id)
+
+      const states: ConditionalStateDescriptor[] = Object.entries(
+        rawStates
+      ).map(([stKey, stVal]) => ({
+        key: stKey,
+        name: extractReactNodeText(
+          (stVal as { name?: unknown })?.name,
+          stKey === 'on' ? 'Active (On)' : stKey
+        ),
+      }))
+      out.push({
+        sheet,
+        key,
+        name: `${displayName(sheet)} — ${extractReactNodeText(sec.name, key)}`,
+        states,
+        canShow: true,
+        isTeamBuff,
+      })
+    }
+  }
+}
 
 /**
  * Returns a map of `{ [setKey]: { [condKey]: 'on' } }` for all artifact sets
@@ -348,11 +396,26 @@ export function getDefaultTargetArtifactSetConditionals(): Record<
   Record<string, string>
 > {
   if (defaultTargetArtSetCondsCache) return defaultTargetArtSetCondsCache
-  const uiData = getScratchUiData('Furina' as CharacterKey)
-  if (!uiData) return {}
-  const buckets = getGlobalConditionalBuckets(uiData)
+  const artifactConditionals: ConditionalDescriptor[] = []
+  const artSeen = new Set<string>()
+  for (const setKey of allArtifactSetKeys as readonly ArtifactSetKey[]) {
+    const artSheet = getArtSheet(setKey)
+    if (!artSheet?.setEffects) continue
+    for (const entry of Object.values(artSheet.setEffects) as Array<{
+      document?: DocumentSection[]
+    }>) {
+      if (entry?.document) {
+        collectStaticOrLazyConditionals(
+          entry.document,
+          artSeen,
+          artifactConditionals
+        )
+      }
+    }
+  }
+
   const out: Record<string, Record<string, string>> = {}
-  for (const cond of buckets.artifactConditionals) {
+  for (const cond of artifactConditionals) {
     if (
       cond.sheet === 'ScrollOfTheHeroOfCinderCity' &&
       cond.key.startsWith('react_')
@@ -373,12 +436,21 @@ export function getDefaultTargetArtifactSetConditionals(): Record<
 export function listWeaponConditionals(
   weaponKey: string
 ): ConditionalDescriptor[] {
-  const uiData = getScratchUiData('Furina' as CharacterKey)
-  if (!uiData) return []
-  const buckets = getGlobalConditionalBuckets(uiData)
-  return buckets.allWeapons.filter(
+  const hit = singleWeaponCondCache.get(weaponKey)
+  if (hit) return hit
+  const wSheet = getWeaponSheet(weaponKey as WeaponKey)
+  if (!wSheet?.document) {
+    singleWeaponCondCache.set(weaponKey, [])
+    return []
+  }
+  const out: ConditionalDescriptor[] = []
+  const seen = new Set<string>()
+  collectStaticOrLazyConditionals(wSheet.document, seen, out)
+  const filtered = out.filter(
     (c) => c.sheet === weaponKey && c.states.length > 0
   )
+  singleWeaponCondCache.set(weaponKey, filtered)
+  return filtered
 }
 
 export function listConditionalsForCharacter(

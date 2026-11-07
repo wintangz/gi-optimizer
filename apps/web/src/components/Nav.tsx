@@ -1,3 +1,5 @@
+'use client'
+
 import {
   FunnelIcon,
   GearIcon,
@@ -5,6 +7,7 @@ import {
   UploadIcon,
 } from '@/components/SvgIcons'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 /** App shell navigation. Features add links here; do not add server logic. */
 export const NAV_LINKS = [
@@ -15,23 +18,24 @@ export const NAV_LINKS = [
 ] as const
 
 export function Nav() {
+  const pathname = usePathname()
+
   return (
     <header className="nav">
       <Link href="/" className="brand">
         gi-optimizer
       </Link>
-      <nav>
+      <nav aria-label="Main navigation">
         {NAV_LINKS.map((l) => {
           const Icon = l.icon
+          const isActive =
+            pathname === l.href || pathname?.startsWith(`${l.href}/`)
           return (
             <Link
               key={l.href}
               href={l.href}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
+              aria-current={isActive ? 'page' : undefined}
+              className={`nav-link${isActive ? ' nav-link-active' : ''}`}
             >
               <Icon size={15} />
               <span>{l.label}</span>

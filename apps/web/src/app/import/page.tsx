@@ -67,7 +67,6 @@ export default function ImportPage() {
         setPendingRecord(null)
         return
       }
-      // If an existing GOOD record is already stored, ask for replacement confirmation first
       if (record) {
         setPendingRecord({ res, fileName })
       } else {
@@ -124,7 +123,6 @@ export default function ImportPage() {
 
   const good = record?.good
 
-  // Build lookup of equipped weapon per character
   const weaponByChar = useMemo(() => {
     const map = new Map<string, IWeapon>()
     if (!good) return map
@@ -134,7 +132,6 @@ export default function ImportPage() {
     return map
   }, [good])
 
-  // Build lookup of artifact set counts per character
   const artSetsByChar = useMemo(() => {
     const map = new Map<string, Record<string, number>>()
     if (!good) return map
@@ -223,45 +220,24 @@ export default function ImportPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div className="gi-page">
       {parsing && (
-        <div
-          className="panel"
-          style={{
-            borderColor: 'var(--accent)',
-            background: 'rgba(122, 162, 255, 0.08)',
-          }}
-        >
+        <div className="panel preset-akasha-box">
           <Spinner label="Parsing GOOD file…" />
         </div>
       )}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
+
+      <header className="gi-page-header">
         <div>
-          <h1 style={{ margin: 0 }}>Import Account Data (GOOD Format)</h1>
-          <p className="muted" style={{ margin: '0.25rem 0 0' }}>
+          <h1 className="gi-page-title">Import Account Data (GOOD Format)</h1>
+          <p className="gi-page-subtitle">
             Import GOOD v1–v3 scanner JSON locally into IndexedDB.
           </p>
         </div>
         {record && (
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div className="preset-detail-actions">
             <Link href="/presets">
-              <button
-                type="button"
-                className="btn-icon"
-                style={{
-                  background: 'var(--accent)',
-                  color: '#0b0d12',
-                  fontWeight: 600,
-                }}
-              >
+              <button type="button" className="btn-primary btn-icon">
                 <FunnelIcon size={15} />
                 <span>Presets</span>
               </button>
@@ -269,66 +245,51 @@ export default function ImportPage() {
             {!confirmClear ? (
               <button
                 type="button"
-                className="btn-icon"
+                className="btn-danger btn-icon"
                 onClick={() => setConfirmClear(true)}
-                style={{ borderColor: 'var(--err)', color: 'var(--err)' }}
               >
                 <TrashIcon size={15} />
                 <span>Clear</span>
               </button>
             ) : (
-              <div
-                style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}
-              >
-                <span className="warn" style={{ fontSize: '0.9rem' }}>
+              <div className="preset-gear-row">
+                <span className="warn" style={{ fontSize: '0.88rem' }}>
                   Remove imported GOOD data?
                 </span>
                 <button
                   type="button"
+                  className="btn-danger"
                   onClick={async () => {
                     await clear()
                     setConfirmClear(false)
                     setParseResult(null)
                     setPendingRecord(null)
                   }}
-                  style={{ background: 'var(--err)', color: '#0b0d12' }}
                 >
                   Confirm Clear
                 </button>
-                <button type="button" onClick={() => setConfirmClear(false)}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setConfirmClear(false)}
+                >
                   Cancel
                 </button>
               </div>
             )}
           </div>
         )}
-      </div>
+      </header>
 
       {/* File Drop + Paste Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: '1rem',
-        }}
-      >
+      <div className="gi-import-grid">
         <div
-          className="panel"
+          className="gi-dropzone"
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center',
-            borderStyle: 'dashed',
-            minHeight: '170px',
-            gap: '0.75rem',
-          }}
         >
           <strong>Upload or Drag &amp; Drop a GOOD .json file</strong>
-          <span className="muted" style={{ fontSize: '0.9rem' }}>
+          <span className="muted" style={{ fontSize: '0.88rem' }}>
             Supports GOOD v1, v2, and v3 scanner exports. UID / Enka showcase
             exports are not supported because they omit unequipped artifacts.
           </span>
@@ -341,47 +302,50 @@ export default function ImportPage() {
           />
           <button
             type="button"
-            className="btn-icon"
+            className="btn-primary btn-icon"
             onClick={() => fileInputRef.current?.click()}
-            style={{
-              background: 'var(--accent)',
-              color: '#0b0d12',
-              fontWeight: 600,
-            }}
           >
             <UploadIcon size={15} />
             <span>Import JSON…</span>
           </button>
         </div>
 
-        <div
-          className="panel"
-          style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
-        >
-          <strong>Or Paste Raw GOOD JSON</strong>
+        <div className="panel gi-card">
+          <div>
+            <h2 className="gi-card-title">Paste Raw GOOD JSON</h2>
+            <p className="gi-card-subtitle">
+              Paste your exported scanner JSON payload directly.
+            </p>
+          </div>
           <textarea
-            rows={5}
+            rows={4}
             placeholder='{"format": "GOOD", "version": 3, "source": "Irminsul", "characters": [...], "weapons": [...], "artifacts": [...]}'
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
-            style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.85rem' }}
+            style={{
+              width: '100%',
+              fontFamily: 'monospace',
+              fontSize: '0.84rem',
+            }}
           />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div
+            className="preset-detail-actions"
+            style={{ justifyContent: 'flex-end' }}
+          >
             {pasteText && (
-              <button type="button" onClick={() => setPasteText('')}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setPasteText('')}
+              >
                 Clear
               </button>
             )}
             <button
               type="button"
-              className="btn-icon"
+              className="btn-primary btn-icon"
               disabled={!pasteText.trim()}
               onClick={() => void handleRawInput(pasteText, 'Pasted JSON')}
-              style={{
-                background: 'var(--accent)',
-                color: '#0b0d12',
-                fontWeight: 600,
-              }}
             >
               <UploadIcon size={15} />
               <span>Import Pasted</span>
@@ -392,44 +356,40 @@ export default function ImportPage() {
 
       {/* Replace Confirmation Banner */}
       {pendingRecord && record && (
-        <div
-          className="panel"
-          style={{
-            borderColor: 'var(--warn)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.6rem',
-          }}
-        >
-          <strong className="warn">
-            Replace existing account data in local storage?
-          </strong>
-          <p style={{ margin: 0, fontSize: '0.95rem' }}>
-            Current stored dataset ({record.fileName || record.source}):{' '}
-            <strong>{record.good.characters.length}</strong> characters,{' '}
-            <strong>{record.good.weapons.length}</strong> weapons,{' '}
-            <strong>{record.good.artifacts.length}</strong> artifacts.
-            <br />
-            New import ({pendingRecord.fileName || pendingRecord.res.good?.source}):{' '}
-            <strong>{pendingRecord.res.summary.characters.imported}</strong>{' '}
-            characters,{' '}
-            <strong>{pendingRecord.res.summary.weapons.imported}</strong> weapons,{' '}
-            <strong>{pendingRecord.res.summary.artifacts.imported}</strong>{' '}
-            artifacts.
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="panel gi-card presets-warn-banner">
+          <div>
+            <strong className="warn">
+              Replace existing account data in local storage?
+            </strong>
+            <p style={{ margin: '0.35rem 0 0', fontSize: '0.9rem' }}>
+              Current stored dataset ({record.fileName || record.source}):{' '}
+              <strong>{record.good.characters.length}</strong> characters,{' '}
+              <strong>{record.good.weapons.length}</strong> weapons,{' '}
+              <strong>{record.good.artifacts.length}</strong> artifacts.
+              <br />
+              New import (
+              {pendingRecord.fileName || pendingRecord.res.good?.source}):{' '}
+              <strong>{pendingRecord.res.summary.characters.imported}</strong>{' '}
+              characters,{' '}
+              <strong>{pendingRecord.res.summary.weapons.imported}</strong>{' '}
+              weapons,{' '}
+              <strong>{pendingRecord.res.summary.artifacts.imported}</strong>{' '}
+              artifacts.
+            </p>
+          </div>
+          <div className="preset-detail-actions">
             <button
               type="button"
+              className="btn-primary"
               onClick={() => void confirmReplace()}
-              style={{
-                background: 'var(--ok)',
-                color: '#0b0d12',
-                fontWeight: 600,
-              }}
             >
               Confirm Replace
             </button>
-            <button type="button" onClick={() => setPendingRecord(null)}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setPendingRecord(null)}
+            >
               Keep Existing Data
             </button>
           </div>
@@ -438,16 +398,8 @@ export default function ImportPage() {
 
       {/* Parse Diagnostics Report */}
       {parseResult && groupedIssues && (
-        <div className="panel">
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
-            }}
-          >
+        <div className="panel gi-card">
+          <div className="gi-card-header">
             <strong>
               Parse Report:{' '}
               {parseResult.ok ? (
@@ -456,7 +408,7 @@ export default function ImportPage() {
                 <span className="error">Import Failed</span>
               )}
             </strong>
-            <span className="muted" style={{ fontSize: '0.9rem' }}>
+            <span className="muted" style={{ fontSize: '0.88rem' }}>
               Characters: {parseResult.summary.characters.imported}/
               {parseResult.summary.characters.read} · Weapons:{' '}
               {parseResult.summary.weapons.imported}/
@@ -467,18 +419,11 @@ export default function ImportPage() {
           </div>
 
           {parseResult.issues.length === 0 ? (
-            <p className="ok" style={{ margin: '0.5rem 0 0' }}>
+            <p className="ok m-0">
               ✓ Parsed cleanly with 0 errors or warnings.
             </p>
           ) : (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-                marginTop: '0.75rem',
-              }}
-            >
+            <div className="presets-loading-col">
               {SEVERITY_ORDER.map((sev) => {
                 const list = groupedIssues[sev]
                 if (!list.length) return null
@@ -494,16 +439,15 @@ export default function ImportPage() {
                       {SEVERITY_LABEL[sev]} ({list.length})
                     </div>
                     <ul
+                      className="preset-match-list"
                       style={{
-                        margin: '0.35rem 0 0',
-                        paddingLeft: '1.25rem',
+                        marginTop: '0.35rem',
                         maxHeight: '220px',
                         overflowY: 'auto',
-                        fontSize: '0.9rem',
                       }}
                     >
                       {list.slice(0, 100).map((iss, idx) => (
-                        <li key={idx}>
+                        <li key={idx} className="preset-match-item">
                           <code>{iss.path}</code>: {iss.message}
                           {iss.suggestion && (
                             <span className="ok"> ({iss.suggestion})</span>
@@ -525,67 +469,57 @@ export default function ImportPage() {
       )}
 
       {/* Stored Account Summary & Filterable Tables */}
-      {loading ? (
-        <div className="panel muted">Loading stored account data…</div>
-      ) : !record || !good ? (
-        <div className="panel muted">
+      {!record || !good ? (
+        <div className="gi-empty-card">
           No GOOD file is currently stored in your browser. Upload or paste a
           GOOD JSON file above to inspect your characters, weapons, and
           artifacts.
         </div>
       ) : (
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '0.75rem',
-            }}
-          >
+        <section className="panel gi-card">
+          <div className="gi-card-header">
             <div>
-              <strong>
+              <h2 className="gi-card-title">
                 Stored Account: {record.fileName ? `${record.fileName} ` : ''}(
                 {record.source})
-              </strong>
-              <div className="muted" style={{ fontSize: '0.85rem' }}>
+              </h2>
+              <p className="gi-card-subtitle">
                 Imported {new Date(record.importedAt).toLocaleString()} ·{' '}
                 {good.characters.length} Characters · {good.weapons.length}{' '}
                 Weapons · {good.artifacts.length} Artifacts
-              </div>
+              </p>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className="gi-tabs" role="tablist" aria-label="Inventory tabs">
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'characters'}
+                className={`gi-tab${
+                  activeTab === 'characters' ? ' gi-tab-active' : ''
+                }`}
                 onClick={() => setActiveTab('characters')}
-                style={{
-                  borderColor:
-                    activeTab === 'characters' ? 'var(--accent)' : undefined,
-                  fontWeight: activeTab === 'characters' ? 600 : 400,
-                }}
               >
                 Characters ({good.characters.length})
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'weapons'}
+                className={`gi-tab${
+                  activeTab === 'weapons' ? ' gi-tab-active' : ''
+                }`}
                 onClick={() => setActiveTab('weapons')}
-                style={{
-                  borderColor:
-                    activeTab === 'weapons' ? 'var(--accent)' : undefined,
-                  fontWeight: activeTab === 'weapons' ? 600 : 400,
-                }}
               >
                 Weapons ({good.weapons.length})
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'artifacts'}
+                className={`gi-tab${
+                  activeTab === 'artifacts' ? ' gi-tab-active' : ''
+                }`}
                 onClick={() => setActiveTab('artifacts')}
-                style={{
-                  borderColor:
-                    activeTab === 'artifacts' ? 'var(--accent)' : undefined,
-                  fontWeight: activeTab === 'artifacts' ? 600 : 400,
-                }}
               >
                 Artifacts ({good.artifacts.length})
               </button>
@@ -593,18 +527,22 @@ export default function ImportPage() {
           </div>
 
           {activeTab === 'characters' && (
-            <div>
-              <div style={{ marginBottom: '0.75rem' }}>
+            <div className="presets-loading-col">
+              <div className="presets-filter-bar">
                 <input
                   type="search"
+                  aria-label="Search characters"
                   placeholder="Search characters by name…"
                   value={charSearch}
                   onChange={(e) => setCharSearch(e.target.value)}
-                  style={{ width: '280px' }}
+                  style={{ minWidth: '240px' }}
                 />
+                <span className="muted presets-count">
+                  Showing {filteredChars.length} of {good.characters.length}
+                </span>
               </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table>
+              <div className="gi-table-wrap">
+                <table className="gi-table">
                   <thead>
                     <tr>
                       <th>Character</th>
@@ -647,13 +585,7 @@ export default function ImportPage() {
                           </td>
                           <td>
                             {activeSets.length ? (
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  flexWrap: 'wrap',
-                                  gap: '0.45rem',
-                                }}
-                              >
+                              <div className="preset-gear-row">
                                 {activeSets.map(([s, n]) => (
                                   <ArtifactBadge
                                     key={s}
@@ -677,18 +609,25 @@ export default function ImportPage() {
           )}
 
           {activeTab === 'weapons' && (
-            <div>
-              <div style={{ marginBottom: '0.75rem' }}>
+            <div className="presets-loading-col">
+              <div className="presets-filter-bar">
                 <input
                   type="search"
+                  aria-label="Search weapons"
                   placeholder="Search weapons or equipped character…"
                   value={weaponSearch}
                   onChange={(e) => setWeaponSearch(e.target.value)}
-                  style={{ width: '320px' }}
+                  style={{ minWidth: '260px' }}
                 />
+                <span className="muted presets-count">
+                  Showing {filteredWeapons.length} of {good.weapons.length}
+                </span>
               </div>
-              <div style={{ overflowX: 'auto', maxHeight: '520px' }}>
-                <table>
+              <div
+                className="gi-table-wrap"
+                style={{ maxHeight: '520px', overflowY: 'auto' }}
+              >
+                <table className="gi-table">
                   <thead>
                     <tr>
                       <th>Weapon</th>
@@ -725,16 +664,10 @@ export default function ImportPage() {
           )}
 
           {activeTab === 'artifacts' && (
-            <div>
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                  marginBottom: '0.75rem',
-                }}
-              >
+            <div className="presets-loading-col">
+              <div className="presets-filter-bar">
                 <select
+                  aria-label="Filter artifacts by set"
                   value={artSetFilter}
                   onChange={(e) => setArtSetFilter(e.target.value)}
                 >
@@ -747,6 +680,7 @@ export default function ImportPage() {
                 </select>
 
                 <select
+                  aria-label="Filter artifacts by slot"
                   value={artSlotFilter}
                   onChange={(e) => setArtSlotFilter(e.target.value)}
                 >
@@ -759,6 +693,7 @@ export default function ImportPage() {
                 </select>
 
                 <select
+                  aria-label="Filter artifacts by main stat"
                   value={artMainStatFilter}
                   onChange={(e) => setArtMainStatFilter(e.target.value)}
                 >
@@ -771,6 +706,7 @@ export default function ImportPage() {
                 </select>
 
                 <select
+                  aria-label="Filter artifacts by character"
                   value={artEquippedFilter}
                   onChange={(e) => setArtEquippedFilter(e.target.value)}
                 >
@@ -783,13 +719,16 @@ export default function ImportPage() {
                   ))}
                 </select>
 
-                <span className="muted" style={{ alignSelf: 'center', fontSize: '0.9rem' }}>
+                <span className="muted presets-count">
                   Showing {filteredArtifacts.length} of {good.artifacts.length}
                 </span>
               </div>
 
-              <div style={{ overflowX: 'auto', maxHeight: '520px' }}>
-                <table>
+              <div
+                className="gi-table-wrap"
+                style={{ maxHeight: '520px', overflowY: 'auto' }}
+              >
+                <table className="gi-table">
                   <thead>
                     <tr>
                       <th>Slot / Set</th>
@@ -812,17 +751,7 @@ export default function ImportPage() {
                           />
                         </td>
                         <td>
-                          <span
-                            style={{
-                              fontSize: '0.76rem',
-                              fontWeight: 700,
-                              padding: '0.08rem 0.34rem',
-                              borderRadius: '4px',
-                              background: '#232736',
-                            }}
-                          >
-                            +{a.level}
-                          </span>
+                          <span className="gi-level-pill">+{a.level}</span>
                         </td>
                         <td>
                           <StatChip
@@ -832,14 +761,7 @@ export default function ImportPage() {
                           />
                         </td>
                         <td>
-                          <div
-                            style={{
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              gap: '0.28rem',
-                              alignItems: 'center',
-                            }}
-                          >
+                          <div className="preset-gear-row">
                             {a.substats
                               .filter((s) => s.key)
                               .map((s, sIdx) => (
@@ -867,7 +789,7 @@ export default function ImportPage() {
               </div>
             </div>
           )}
-        </div>
+        </section>
       )}
     </div>
   )

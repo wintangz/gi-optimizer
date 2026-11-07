@@ -522,47 +522,32 @@ function TeamsInner() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
+    <div className="gi-page">
+      <div className="gi-page-header">
         <div>
           <div className="warn" style={{ fontSize: '0.82rem', fontWeight: 600 }}>
             {badge.label} (Unverified Setup Bundle)
           </div>
-          <h1 style={{ margin: '0.15rem 0 0' }}>
-            Custom Team &amp; Preset Builder
-          </h1>
-          <p className="muted" style={{ margin: '0.2rem 0 0' }}>
+          <h1 className="gi-page-title">Custom Team &amp; Preset Builder</h1>
+          <p className="gi-page-subtitle">
             Configure your team members, GO conditional buffs, enemy resistances,
             and rotation hits. Save as a reusable custom preset or export as
             plain JSON.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="preset-detail-actions">
           <button
             type="button"
-            className="btn-icon"
+            className="btn-primary btn-icon"
             onClick={() => void handleSavePreset(false)}
-            style={{
-              background: 'var(--ok)',
-              color: '#0b0d12',
-              fontWeight: 700,
-            }}
           >
             <DownloadIcon size={15} />
             <span>Save</span>
           </button>
           <button
             type="button"
-            className="btn-icon"
+            className="btn-secondary btn-icon"
             onClick={() => void handleSavePreset(true)}
           >
             <CopyIcon size={15} />
@@ -570,7 +555,7 @@ function TeamsInner() {
           </button>
           <button
             type="button"
-            className="btn-icon"
+            className="btn-secondary btn-icon"
             onClick={handleExportJson}
           >
             <DownloadIcon size={15} />
@@ -585,22 +570,14 @@ function TeamsInner() {
           />
           <button
             type="button"
-            className="btn-icon"
+            className="btn-secondary btn-icon"
             onClick={() => fileInputRef.current?.click()}
           >
             <UploadIcon size={15} />
             <span>Import JSON…</span>
           </button>
           <Link href={`/optimize?preset=${encodeURIComponent(draft.id)}`}>
-            <button
-              type="button"
-              className="btn-icon"
-              style={{
-                background: 'var(--accent)',
-                color: '#0b0d12',
-                fontWeight: 600,
-              }}
-            >
+            <button type="button" className="btn-primary btn-icon">
               <PlayIcon size={15} />
               <span>Optimize</span>
             </button>
@@ -609,24 +586,8 @@ function TeamsInner() {
       </div>
 
       {/* Saved User Presets Quick Switcher / Fork */}
-      <div
-        className="panel"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            gap: '0.5rem',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
+      <div className="panel presets-filter-bar">
+        <div className="presets-filter-label">
           <span className="muted">Load or Fork Existing Preset:</span>
           <select
             value=""
@@ -659,13 +620,12 @@ function TeamsInner() {
         {userPresets.some((p) => p.id === draft.id) && (
           <button
             type="button"
-            className="btn-icon"
+            className="btn-danger btn-icon"
             onClick={async () => {
               await removeUserPreset(draft.id)
               setStatusMessage(`Deleted preset '${draft.name}'.`)
               router.push('/presets')
             }}
-            style={{ borderColor: 'var(--err)', color: 'var(--err)' }}
           >
             <TrashIcon size={15} />
             <span>Delete Preset</span>
@@ -850,24 +810,13 @@ function TeamsInner() {
       </div>
 
       {/* Team Members (1 to 4) */}
-      <div
-        className="panel"
-        style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}
-        >
-          <h2 style={{ margin: 0 }}>
+      <div className="panel gi-card">
+        <div className="gi-card-header">
+          <h2 className="gi-card-title">
             Team Setup ({draft.team.length}/4 Members)
           </h2>
           {draft.team.length < 4 && (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div className="preset-gear-row-md">
               <CharacterBadge characterKey={newMemberKey} compact />
               <select
                 value={newMemberKey}
@@ -879,20 +828,18 @@ function TeamsInner() {
                   </option>
                 ))}
               </select>
-              <button type="button" onClick={addTeammate}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={addTeammate}
+              >
                 + Add Simulated Teammate
               </button>
             </div>
           )}
         </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '0.9rem',
-          }}
-        >
+        <div className="gi-team-grid">
           {draft.team.map((member, idx) => {
             const isTarget = idx === 0
             const isSim = member.build.type === 'tc'
@@ -902,27 +849,15 @@ function TeamsInner() {
             return (
               <div
                 key={`${member.key}-${idx}`}
-                style={{
-                  background: '#151821',
-                  border: isTarget
-                    ? '1px solid var(--accent)'
+                className={`gi-member-card${
+                  isTarget
+                    ? ' gi-member-card-target'
                     : isSim
-                      ? '1px dashed var(--warn)'
-                      : '1px solid var(--border)',
-                  borderRadius: '6px',
-                  padding: '0.85rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.65rem',
-                }}
+                      ? ' gi-member-card-sim'
+                      : ''
+                }`}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
+                <div className="preset-card-top">
                   <span
                     className={isTarget ? 'ok' : isSim ? 'warn' : 'muted'}
                     style={{ fontSize: '0.8rem', fontWeight: 600 }}
@@ -936,12 +871,11 @@ function TeamsInner() {
                   {!isTarget && (
                     <button
                       type="button"
+                      className="btn-danger"
                       onClick={() => removeTeammate(idx)}
                       style={{
                         padding: '0.1rem 0.4rem',
                         fontSize: '0.8rem',
-                        borderColor: 'var(--err)',
-                        color: 'var(--err)',
                       }}
                     >
                       Remove
@@ -1247,28 +1181,10 @@ function TeamsInner() {
       </div>
 
       {/* Rotation Builder */}
-      <div
-        className="panel"
-        style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              gap: '0.75rem',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
-            <h2 style={{ margin: 0 }}>Target Rotation</h2>
+      <div className="panel gi-card">
+        <div className="gi-card-header">
+          <div className="preset-gear-row-md">
+            <h2 className="gi-card-title">Target Rotation</h2>
             <CharacterBadge characterKey={draft.target} role="target" compact />
             <input
               type="text"
@@ -1282,9 +1198,7 @@ function TeamsInner() {
               placeholder="Rotation Name"
               style={{ width: '240px' }}
             />
-            <label
-              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-            >
+            <label className="presets-filter-label-sm">
               <span className="muted">Repeat ×</span>
               <input
                 type="number"
@@ -1306,155 +1220,146 @@ function TeamsInner() {
             </label>
           </div>
 
-          <button type="button" onClick={addRotationRow}>
+          <button type="button" className="btn-secondary" onClick={addRotationRow}>
             + Add Damage Instance Row
           </button>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Label</th>
-              <th>GO Formula Target</th>
-              <th>Hit Count</th>
-              <th>Hit Mode</th>
-              <th>Reaction</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {draft.rotation.targets.map((rt, idx) => {
-              const normPathKey =
-                rt.path[0] === draft.target
-                  ? rt.path.slice(1).join('.')
-                  : rt.path.join('.')
-              const hasTargetOption = targetCatalog.some(
-                (t) => t.path.join('.') === normPathKey
-              )
-              return (
-                <tr key={idx}>
-                  <td>
-                    <input
-                      type="text"
-                      value={rt.label}
-                      onChange={(e) =>
-                        updateRotationRow(idx, { label: e.target.value })
-                      }
-                      style={{ width: '100%' }}
-                    />
-                  </td>
-                  <td>
-                    <select
-                      value={normPathKey}
-                      onFocus={startEngine}
-                      onMouseDown={startEngine}
-                      onChange={(e) => {
-                        const parts = e.target.value.split('.')
-                        const desc = targetCatalog.find(
-                          (t) => t.path.join('.') === e.target.value
-                        )
-                        updateRotationRow(idx, {
-                          path: parts,
-                          label: desc?.name ?? e.target.value,
-                        })
-                      }}
-                    >
-                      {!hasTargetOption && normPathKey && (
-                        <option value={normPathKey}>
-                          {rt.label
-                            ? `${rt.label} (${normPathKey})`
-                            : normPathKey}
-                        </option>
-                      )}
-                      {targetCatalog.map((t) => (
-                        <option
-                          key={t.path.join('.')}
-                          value={t.path.join('.')}
-                        >
-                          {t.name} ({t.path.join('.')})
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      min={1}
-                      max={200}
-                      value={rt.count}
-                      onChange={(e) =>
-                        updateRotationRow(idx, {
-                          count: Math.max(1, Number(e.target.value) || 1),
-                        })
-                      }
-                      style={{ width: '75px' }}
-                    />
-                  </td>
-                  <td>
-                    <select
-                      value={rt.hitMode}
-                      onChange={(e) =>
-                        updateRotationRow(idx, {
-                          hitMode: e.target.value as never,
-                        })
-                      }
-                    >
-                      {HIT_MODES.map((hm) => (
-                        <option key={hm} value={hm}>
-                          {humanizeKey(hm)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <select
-                      value={rt.reaction ?? ''}
-                      onChange={(e) =>
-                        updateRotationRow(idx, {
-                          reaction: (e.target.value || undefined) as never,
-                        })
-                      }
-                    >
-                      {REACTIONS.map((rx) => (
-                        <option key={rx} value={rx}>
-                          {rx ? humanizeKey(rx) : 'None'}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      disabled={draft.rotation.targets.length <= 1}
-                      onClick={() => removeRotationRow(idx)}
-                      style={{ color: 'var(--err)' }}
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <div className="gi-table-wrap">
+          <table className="gi-table">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>GO Formula Target</th>
+                <th>Hit Count</th>
+                <th>Hit Mode</th>
+                <th>Reaction</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {draft.rotation.targets.map((rt, idx) => {
+                const normPathKey =
+                  rt.path[0] === draft.target
+                    ? rt.path.slice(1).join('.')
+                    : rt.path.join('.')
+                const hasTargetOption = targetCatalog.some(
+                  (t) => t.path.join('.') === normPathKey
+                )
+                return (
+                  <tr key={idx}>
+                    <td>
+                      <input
+                        type="text"
+                        value={rt.label}
+                        onChange={(e) =>
+                          updateRotationRow(idx, { label: e.target.value })
+                        }
+                        style={{ width: '100%' }}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        value={normPathKey}
+                        onFocus={startEngine}
+                        onMouseDown={startEngine}
+                        onChange={(e) => {
+                          const parts = e.target.value.split('.')
+                          const desc = targetCatalog.find(
+                            (t) => t.path.join('.') === e.target.value
+                          )
+                          updateRotationRow(idx, {
+                            path: parts,
+                            label: desc?.name ?? e.target.value,
+                          })
+                        }}
+                      >
+                        {!hasTargetOption && normPathKey && (
+                          <option value={normPathKey}>
+                            {rt.label
+                              ? `${rt.label} (${normPathKey})`
+                              : normPathKey}
+                          </option>
+                        )}
+                        {targetCatalog.map((t) => (
+                          <option
+                            key={t.path.join('.')}
+                            value={t.path.join('.')}
+                          >
+                            {t.name} ({t.path.join('.')})
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        min={1}
+                        max={200}
+                        value={rt.count}
+                        onChange={(e) =>
+                          updateRotationRow(idx, {
+                            count: Math.max(1, Number(e.target.value) || 1),
+                          })
+                        }
+                        style={{ width: '75px' }}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        value={rt.hitMode}
+                        onChange={(e) =>
+                          updateRotationRow(idx, {
+                            hitMode: e.target.value as never,
+                          })
+                        }
+                      >
+                        {HIT_MODES.map((hm) => (
+                          <option key={hm} value={hm}>
+                            {humanizeKey(hm)}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        value={rt.reaction ?? ''}
+                        onChange={(e) =>
+                          updateRotationRow(idx, {
+                            reaction: (e.target.value || undefined) as never,
+                          })
+                        }
+                      >
+                        {REACTIONS.map((rx) => (
+                          <option key={rx} value={rx}>
+                            {rx ? humanizeKey(rx) : 'None'}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        disabled={draft.rotation.targets.length <= 1}
+                        onClick={() => removeRotationRow(idx)}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Live Rotation Damage Preview */}
-      <div
-        className="panel"
-        style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '0.5rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <h3 style={{ margin: 0 }}>Live Rotation Preview</h3>
+      <div className="panel gi-card">
+        <div className="gi-card-header">
+          <div className="preset-gear-row-md">
+            <h3 className="gi-card-title">Live Rotation Preview</h3>
             <CharacterBadge characterKey={draft.target} role="target" compact />
             {engineStarted && (previewLoading || catalogLoading) && (
               <Spinner
@@ -1476,21 +1381,14 @@ function TeamsInner() {
         </div>
 
         {!engineStarted ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '0.75rem',
-            }}
-          >
+          <div className="presets-header">
             <span className="muted">
               The optimizer engine starts automatically when you edit the team
               or rotation, or you can load it now.
             </span>
             <button
               type="button"
+              className="btn-primary"
               data-testid="load-engine-preview-btn"
               onClick={startEngine}
             >
@@ -1504,30 +1402,32 @@ function TeamsInner() {
         ) : previewLoading && !livePreview.result ? (
           <SkeletonBlock height={28} count={4} gap="0.45rem" />
         ) : livePreview.error ? (
-          <div className="muted">{livePreview.error}</div>
+          <div className="gi-empty-card">{livePreview.error}</div>
         ) : livePreview.result ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Instance</th>
-                <th>Count</th>
-                <th>Per-Hit DMG</th>
-                <th>Subtotal DMG</th>
-              </tr>
-            </thead>
-            <tbody>
-              {livePreview.result.instances.map((inst, i) => (
-                <tr key={i}>
-                  <td>{inst.label}</td>
-                  <td>×{inst.count}</td>
-                  <td>{Math.round(inst.perHit).toLocaleString()}</td>
-                  <td>
-                    <strong>{Math.round(inst.subtotal).toLocaleString()}</strong>
-                  </td>
+          <div className="gi-table-wrap">
+            <table className="gi-table">
+              <thead>
+                <tr>
+                  <th>Instance</th>
+                  <th>Count</th>
+                  <th>Per-Hit DMG</th>
+                  <th>Subtotal DMG</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {livePreview.result.instances.map((inst, i) => (
+                  <tr key={i}>
+                    <td>{inst.label}</td>
+                    <td>×{inst.count}</td>
+                    <td>{Math.round(inst.perHit).toLocaleString()}</td>
+                    <td>
+                      <strong>{Math.round(inst.subtotal).toLocaleString()}</strong>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : null}
       </div>
     </div>

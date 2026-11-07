@@ -154,8 +154,8 @@ export default function PresetsPage() {
     <div className="presets-page">
       <div className="presets-header">
         <div>
-          <h1 className="presets-title">Presets Library</h1>
-          <p className="muted presets-subtitle">
+          <h1 className="gi-page-title">Presets Library</h1>
+          <p className="gi-page-subtitle">
             Akasha leaderboards, Official meta setups, and Custom team presets.
           </p>
         </div>
@@ -173,7 +173,7 @@ export default function PresetsPage() {
             Import a GOOD scanner file to evaluate your artifacts.
           </span>
           <Link href="/import">
-            <button type="button" className="btn-icon">
+            <button type="button" className="btn-secondary btn-icon">
               <UploadIcon size={15} />
               <span>Import</span>
             </button>
@@ -380,7 +380,7 @@ export default function PresetsPage() {
                     <Link
                       href={`/teams?fork=${encodeURIComponent(activePreset.id)}`}
                     >
-                      <button type="button" className="btn-icon">
+                      <button type="button" className="btn-secondary btn-icon">
                         <CopyIcon size={15} />
                         <span>Fork</span>
                       </button>
@@ -393,7 +393,10 @@ export default function PresetsPage() {
                             activePreset.id
                           )}`}
                         >
-                          <button type="button" className="btn-icon">
+                          <button
+                            type="button"
+                            className="btn-secondary btn-icon"
+                          >
                             <GearIcon size={15} />
                             <span>Edit</span>
                           </button>
@@ -592,187 +595,191 @@ export default function PresetsPage() {
               <h3 className="preset-section-heading">
                 Team &amp; Buff Assumptions
               </h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Slot</th>
-                    <th>Character</th>
-                    <th>Build Source</th>
-                    <th>Requirements / Assumed Gear</th>
-                    <th>Active Conditionals</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activePreset.team.map((m, idx) => {
-                    const isSim =
-                      m.build.type === 'tc' || m.build.type === 'fixed'
-                    const reqParts: string[] = []
-                    if (m.requirement?.constellation !== undefined) {
-                      reqParts.push(
-                        formatConstellationReq(m.requirement.constellation)
-                      )
-                    }
-                    if (m.requirement?.minLevel !== undefined) {
-                      reqParts.push(`Lv. >= ${m.requirement.minLevel}`)
-                    }
-
-                    const condList: string[] = []
-                    for (const [sheet, map] of Object.entries(
-                      m.conditional ?? {}
-                    )) {
-                      for (const [ck, cv] of Object.entries(map)) {
-                        condList.push(`${displayName(sheet)}.${ck} = ${cv}`)
+              <div className="gi-table-wrap">
+                <table className="gi-table">
+                  <thead>
+                    <tr>
+                      <th>Slot</th>
+                      <th>Character</th>
+                      <th>Build Source</th>
+                      <th>Requirements / Assumed Gear</th>
+                      <th>Active Conditionals</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activePreset.team.map((m, idx) => {
+                      const isSim =
+                        m.build.type === 'tc' || m.build.type === 'fixed'
+                      const reqParts: string[] = []
+                      if (m.requirement?.constellation !== undefined) {
+                        reqParts.push(
+                          formatConstellationReq(m.requirement.constellation)
+                        )
                       }
-                    }
+                      if (m.requirement?.minLevel !== undefined) {
+                        reqParts.push(`Lv. >= ${m.requirement.minLevel}`)
+                      }
 
-                    return (
-                      <tr key={m.key}>
-                        <td>
-                          {idx === 0 ? (
-                            m.build.type === 'fixed' ? (
-                              <strong className="warn">
-                                Simulated Target (Akasha)
-                              </strong>
+                      const condList: string[] = []
+                      for (const [sheet, map] of Object.entries(
+                        m.conditional ?? {}
+                      )) {
+                        for (const [ck, cv] of Object.entries(map)) {
+                          condList.push(`${displayName(sheet)}.${ck} = ${cv}`)
+                        }
+                      }
+
+                      return (
+                        <tr key={m.key}>
+                          <td>
+                            {idx === 0 ? (
+                              m.build.type === 'fixed' ? (
+                                <strong className="warn">
+                                  Simulated Target (Akasha)
+                                </strong>
+                              ) : (
+                                <strong className="ok">
+                                  Your Character · Target
+                                </strong>
+                              )
+                            ) : isSim ? (
+                              <span className="warn">Simulated Teammate</span>
                             ) : (
-                              <strong className="ok">
-                                Your Character · Target
-                              </strong>
-                            )
-                          ) : isSim ? (
-                            <span className="warn">Simulated Teammate</span>
-                          ) : (
-                            <span>Member {idx + 1} (Owned)</span>
-                          )}
-                        </td>
-                        <td>
-                          <CharacterBadge
-                            characterKey={m.key}
-                            simulated={isSim}
-                            role={idx === 0 ? 'target' : 'owned'}
-                          />
-                        </td>
-                        <td>
-                          {m.build.type === 'owned' ? (
-                            <span className="ok">Your Scanned Character</span>
-                          ) : m.build.type === 'fixed' ? (
-                            <span className="warn">
-                              Fixed Preset Character + Simulated Weapon + Your
-                              Artifacts
-                            </span>
-                          ) : (
-                            <span className="warn">
-                              Simulated / Assumed Preset Build (Not Your Account)
-                            </span>
-                          )}
-                        </td>
-                        <td className="preset-td-gear">
-                          {m.build.type === 'owned' ? (
-                            <div className="preset-gear-row">
-                              {reqParts.length > 0 && (
-                                <span>{reqParts.join(' · ')}</span>
-                              )}
-                              {m.requirement?.weapon && (
-                                <WeaponBadge
-                                  weaponKey={m.requirement.weapon.key}
-                                  compact
-                                  subtitle={
-                                    m.requirement.weapon.refinement
-                                      ? formatRefinementReq(
-                                          m.requirement.weapon.refinement
-                                        )
-                                      : undefined
-                                  }
-                                />
-                              )}
-                              {reqParts.length === 0 && !m.requirement?.weapon && (
-                                <span className="muted">
-                                  Any owned weapon &amp; constellation
-                                </span>
-                              )}
-                            </div>
-                          ) : m.build.type === 'fixed' ? (
-                            <div className="preset-gear-row-md">
-                              <span>
-                                Lv.{m.build.character.level} C
-                                {m.build.character.constellation} (
-                                {m.build.character.talent.auto}/
-                                {m.build.character.talent.skill}/
-                                {m.build.character.talent.burst})
+                              <span>Member {idx + 1} (Owned)</span>
+                            )}
+                          </td>
+                          <td>
+                            <CharacterBadge
+                              characterKey={m.key}
+                              simulated={isSim}
+                              role={idx === 0 ? 'target' : 'owned'}
+                            />
+                          </td>
+                          <td>
+                            {m.build.type === 'owned' ? (
+                              <span className="ok">Your Scanned Character</span>
+                            ) : m.build.type === 'fixed' ? (
+                              <span className="warn">
+                                Fixed Preset Character + Simulated Weapon + Your
+                                Artifacts
                               </span>
-                              <WeaponBadge
-                                weaponKey={
-                                  activeAkashaChoice?.key ?? m.build.weapon.key
-                                }
-                                compact
-                                subtitle={`R${
-                                  activeAkashaChoice?.refinement ??
-                                  m.build.weapon.refinement
-                                } (Default: ${displayName(
-                                  m.build.weapon.key
-                                )} R${m.build.weapon.refinement})`}
-                              />
-                            </div>
-                          ) : (
-                            <div className="preset-gear-row-md">
-                              <span>
-                                Lv.{m.build.tc.character.level} C
-                                {m.build.tc.character.constellation}
+                            ) : (
+                              <span className="warn">
+                                Simulated / Assumed Preset Build (Not Your
+                                Account)
                               </span>
-                              <WeaponBadge
-                                weaponKey={m.build.tc.weapon.key}
-                                compact
-                                subtitle={`R${m.build.tc.weapon.refinement}`}
-                              />
-                              {Object.entries(m.build.tc.artifact.sets).map(
-                                ([s, n]) => (
-                                  <ArtifactBadge
-                                    key={s}
-                                    setKey={s}
+                            )}
+                          </td>
+                          <td className="preset-td-gear">
+                            {m.build.type === 'owned' ? (
+                              <div className="preset-gear-row">
+                                {reqParts.length > 0 && (
+                                  <span>{reqParts.join(' · ')}</span>
+                                )}
+                                {m.requirement?.weapon && (
+                                  <WeaponBadge
+                                    weaponKey={m.requirement.weapon.key}
                                     compact
-                                    subtitle={`(${n}p)`}
+                                    subtitle={
+                                      m.requirement.weapon.refinement
+                                        ? formatRefinementReq(
+                                            m.requirement.weapon.refinement
+                                          )
+                                        : undefined
+                                    }
                                   />
-                                )
-                              )}
-                              {(['sands', 'goblet', 'circlet'] as const).map(
-                                (sk: GiSlotKey) => {
-                                  const mk =
-                                    m.build.type === 'tc'
-                                      ? m.build.tc.artifact.slots[sk]?.statKey
-                                      : undefined
-                                  if (!mk) return null
-                                  return (
-                                    <span
-                                      key={sk}
-                                      style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.18rem',
-                                      }}
-                                    >
-                                      <SlotIcon
-                                        slotKey={sk}
-                                        iconProps={{ size: 13 }}
-                                      />
-                                      <StatChip statKey={mk} compact />
+                                )}
+                                {reqParts.length === 0 &&
+                                  !m.requirement?.weapon && (
+                                    <span className="muted">
+                                      Any owned weapon &amp; constellation
                                     </span>
+                                  )}
+                              </div>
+                            ) : m.build.type === 'fixed' ? (
+                              <div className="preset-gear-row-md">
+                                <span>
+                                  Lv.{m.build.character.level} C
+                                  {m.build.character.constellation} (
+                                  {m.build.character.talent.auto}/
+                                  {m.build.character.talent.skill}/
+                                  {m.build.character.talent.burst})
+                                </span>
+                                <WeaponBadge
+                                  weaponKey={
+                                    activeAkashaChoice?.key ?? m.build.weapon.key
+                                  }
+                                  compact
+                                  subtitle={`R${
+                                    activeAkashaChoice?.refinement ??
+                                    m.build.weapon.refinement
+                                  } (Default: ${displayName(
+                                    m.build.weapon.key
+                                  )} R${m.build.weapon.refinement})`}
+                                />
+                              </div>
+                            ) : (
+                              <div className="preset-gear-row-md">
+                                <span>
+                                  Lv.{m.build.tc.character.level} C
+                                  {m.build.tc.character.constellation}
+                                </span>
+                                <WeaponBadge
+                                  weaponKey={m.build.tc.weapon.key}
+                                  compact
+                                  subtitle={`R${m.build.tc.weapon.refinement}`}
+                                />
+                                {Object.entries(m.build.tc.artifact.sets).map(
+                                  ([s, n]) => (
+                                    <ArtifactBadge
+                                      key={s}
+                                      setKey={s}
+                                      compact
+                                      subtitle={`(${n}p)`}
+                                    />
                                   )
-                                }
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className="preset-td-conds">
-                          {condList.length ? (
-                            condList.join(', ')
-                          ) : (
-                            <span className="muted">None</span>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                                )}
+                                {(['sands', 'goblet', 'circlet'] as const).map(
+                                  (sk: GiSlotKey) => {
+                                    const mk =
+                                      m.build.type === 'tc'
+                                        ? m.build.tc.artifact.slots[sk]?.statKey
+                                        : undefined
+                                    if (!mk) return null
+                                    return (
+                                      <span
+                                        key={sk}
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '0.18rem',
+                                        }}
+                                      >
+                                        <SlotIcon
+                                          slotKey={sk}
+                                          iconProps={{ size: 13 }}
+                                        />
+                                        <StatChip statKey={mk} compact />
+                                      </span>
+                                    )
+                                  }
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className="preset-td-conds">
+                            {condList.length ? (
+                              condList.join(', ')
+                            ) : (
+                              <span className="muted">None</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Rotation Breakdown */}
@@ -781,50 +788,52 @@ export default function PresetsPage() {
                 Rotation: {activePreset.rotation.name} (Repeat ×
                 {activePreset.rotation.repeat})
               </h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Damage Instance</th>
-                    <th>GO Formula Path</th>
-                    <th>Hit Count</th>
-                    <th>Hit Mode</th>
-                    <th>Reaction</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activePreset.rotation.targets.map((rt, i) => (
-                    <tr key={i}>
-                      <td>
-                        <strong>{rt.label || rt.path.join('.')}</strong>
-                      </td>
-                      <td>
-                        <code>{rt.path.join('.')}</code>
-                      </td>
-                      <td>×{rt.count}</td>
-                      <td>{humanizeKey(rt.hitMode)}</td>
-                      <td>
-                        {rt.reaction ? (
-                          REACTION_ELEMENT[rt.reaction] ? (
-                            <ElementBadge
-                              element={REACTION_ELEMENT[rt.reaction]!}
-                              label={humanizeKey(rt.reaction)}
-                              compact
-                            />
-                          ) : (
-                            humanizeKey(rt.reaction)
-                          )
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                      </td>
+              <div className="gi-table-wrap">
+                <table className="gi-table">
+                  <thead>
+                    <tr>
+                      <th>Damage Instance</th>
+                      <th>GO Formula Path</th>
+                      <th>Hit Count</th>
+                      <th>Hit Mode</th>
+                      <th>Reaction</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {activePreset.rotation.targets.map((rt, i) => (
+                      <tr key={i}>
+                        <td>
+                          <strong>{rt.label || rt.path.join('.')}</strong>
+                        </td>
+                        <td>
+                          <code>{rt.path.join('.')}</code>
+                        </td>
+                        <td>×{rt.count}</td>
+                        <td>{humanizeKey(rt.hitMode)}</td>
+                        <td>
+                          {rt.reaction ? (
+                            REACTION_ELEMENT[rt.reaction] ? (
+                              <ElementBadge
+                                element={REACTION_ELEMENT[rt.reaction]!}
+                                label={humanizeKey(rt.reaction)}
+                                compact
+                              />
+                            ) : (
+                              humanizeKey(rt.reaction)
+                            )
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="panel muted">No preset matches your filters.</div>
+          <div className="gi-empty-card">No preset matches your filters.</div>
         )}
       </div>
     </div>

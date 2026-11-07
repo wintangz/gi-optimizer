@@ -14,6 +14,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <Nav />
         <main className="container">{children}</main>
+        <footer className="gi-footer">
+          <div className="gi-footer-inner">
+            <span>
+              <strong>gi-optimizer</strong> · Preset-first Genshin Impact build
+              optimizer powered by Genshin Optimizer formulas.
+            </span>
+            <span>100% client-side · Zero server uploads</span>
+          </div>
+        </footer>
       </body>
     </html>
   );
