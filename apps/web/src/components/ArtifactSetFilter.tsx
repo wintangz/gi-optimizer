@@ -111,8 +111,7 @@ export function ArtifactSetFilter({
     } else {
       nextSel[setKey] = [2, 4]
     }
-    const nextMode: SetFilterMode = mode === 'all' ? 'exclude' : mode
-    commitFilter(nextMode, nextSel)
+    commitFilter(mode, nextSel)
   }
 
   const handlePieceChange = (setKey: string, pieces: SetPieceCount[]) => {
@@ -120,14 +119,12 @@ export function ArtifactSetFilter({
       ...selection,
       [setKey]: normalizePieceCounts(pieces),
     }
-    const nextMode: SetFilterMode = mode === 'all' ? 'exclude' : mode
-    commitFilter(nextMode, nextSel)
+    commitFilter(mode, nextSel)
   }
 
   const handleSelectAll = () => {
     const nextSel = selectAllSets(selection, filteredSetKeys, [2, 4])
-    const nextMode: SetFilterMode = mode === 'all' ? 'exclude' : mode
-    commitFilter(nextMode, nextSel)
+    commitFilter(mode, nextSel)
   }
 
   const handleClear = () => {
@@ -137,8 +134,7 @@ export function ArtifactSetFilter({
 
   const handleInvert = () => {
     const nextSel = invertSets(selection, filteredSetKeys, [2, 4])
-    const nextMode: SetFilterMode = mode === 'all' ? 'exclude' : mode
-    commitFilter(nextMode, nextSel)
+    commitFilter(mode, nextSel)
   }
 
   return (

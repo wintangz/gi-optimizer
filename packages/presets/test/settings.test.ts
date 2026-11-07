@@ -37,6 +37,10 @@ describe('Artifact Set Filter Translation & Helpers (artifact-set-filter)', () =
     expect(summary.mode).toBe('all')
     expect(summary.allowedCount).toBe(ALL_ARTIFACT_SET_KEYS.length)
     expect(summary.totalSets).toBe(ALL_ARTIFACT_SET_KEYS.length)
+    expect(summary.selectedCount).toBe(2)
+    expect(summary.text).toBe(
+      `All ${ALL_ARTIFACT_SET_KEYS.length} artifact sets allowed (2 selected — choose Exclude selected or Only these sets to apply)`
+    )
   })
 
   it('passes selected sets through with normalized piece counts in "exclude" mode', () => {

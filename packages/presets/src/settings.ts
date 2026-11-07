@@ -691,7 +691,10 @@ export function summarizeArtSetFilter(
   const selectedCount = selectedKeys.length
 
   if (mode === 'all') {
-    const text = `All ${totalSets} artifact sets allowed`
+    const text =
+      selectedCount > 0
+        ? `All ${totalSets} artifact sets allowed (${selectedCount} selected — choose Exclude selected or Only these sets to apply)`
+        : `All ${totalSets} artifact sets allowed`
     return {
       mode: 'all',
       totalSets,
