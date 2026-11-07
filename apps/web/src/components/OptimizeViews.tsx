@@ -552,7 +552,7 @@ export function BuildComparisonList({
                           title={`No ${slot} equipped`}
                         >
                           <ArtifactBadge
-                            setKey="GoldenTroupe"
+                            setKey=""
                             slotKey={slot as IdentifierSlotKey}
                             rarity={1}
                             slotOnly

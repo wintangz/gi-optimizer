@@ -14,6 +14,7 @@ import {
   CLOUDINARY_GENSHIN_BASE_URL,
   formatRarityStars,
   getArtifactMeta,
+  getCdnArtifactIconUrl,
   getCdnIconUrl,
   getCharacterMeta,
   getElementColor,
@@ -25,7 +26,7 @@ import {
 } from '@/lib/itemMeta'
 import { useState, type ReactNode } from 'react'
 
-export { CLOUDINARY_GENSHIN_BASE_URL, getCdnIconUrl }
+export { CLOUDINARY_GENSHIN_BASE_URL, getCdnArtifactIconUrl, getCdnIconUrl }
 
 export type CharacterRoleTag = 'target' | 'owned' | 'none'
 
@@ -371,6 +372,11 @@ export function ArtifactBadge({
   slotOnly = false,
   subtitle,
 }: ArtifactBadgeProps) {
+  const [failedKey, setFailedKey] = useState<string | null>(null)
+  const pieceKey = setKey && slotKey ? `${setKey}-${slotKey}` : null
+  const imageFailed = pieceKey !== null && failedKey === pieceKey
+  const iconUrl =
+    setKey && slotKey ? getCdnArtifactIconUrl(setKey, slotKey) : null
   const meta = getArtifactMeta({ setKey, slotKey, rarity })
   const stripSize = compact ? 22 : 26
   const iconSize = compact ? 14 : 16
@@ -390,7 +396,7 @@ export function ArtifactBadge({
         verticalAlign: 'middle',
       }}
     >
-      {/* Rarity-coloured strip/background behind the slot SVG glyph */}
+      {/* Rarity-coloured strip/background behind the artifact piece image or slot SVG glyph */}
       <span
         data-testid="artifact-slot-strip"
         title={`${meta.setDisplayName}${
@@ -401,6 +407,7 @@ export function ArtifactBadge({
           height: `${stripSize}px`,
           minWidth: `${stripSize}px`,
           borderRadius: '5px',
+          overflow: 'hidden',
           background: meta.rarityColor.bg,
           color: meta.rarityColor.fg,
           border: `1px solid ${meta.rarityColor.border}`,
@@ -411,7 +418,26 @@ export function ArtifactBadge({
         }}
       >
         {slotKey ? (
-          <SlotIcon slotKey={slotKey} iconProps={{ size: iconSize }} />
+          iconUrl && !imageFailed ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={iconUrl}
+              alt={`${meta.setDisplayName} · ${meta.slotDisplayName}`}
+              width={stripSize}
+              height={stripSize}
+              loading="lazy"
+              decoding="async"
+              onError={() => setFailedKey(pieceKey)}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+          ) : (
+            <SlotIcon slotKey={slotKey} iconProps={{ size: iconSize }} />
+          )
         ) : (
           <SetEmblemIcon size={iconSize} />
         )}

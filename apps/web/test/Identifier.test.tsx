@@ -47,6 +47,7 @@ import {
   CharacterBadge,
   CLOUDINARY_GENSHIN_BASE_URL,
   ElementBadge,
+  getCdnArtifactIconUrl,
   getCdnIconUrl,
   ItemIdentifier,
   RarityStars,
@@ -158,6 +159,12 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     )
     expect(getCdnIconUrl('QuantumCatalyst')).toBe(
       'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/QuantumCatalyst.png'
+    )
+    expect(getCdnArtifactIconUrl('GoldenTroupe', 'flower')).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/GoldenTroupe-flower.png'
+    )
+    expect(getCdnArtifactIconUrl('MarechausseeHunter', 'goblet')).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/MarechausseeHunter-goblet.png'
     )
   })
 
@@ -297,7 +304,7 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     )
   })
 
-  it('renders ArtifactBadge with deterministic set hue, rarity border, and slot glyph', () => {
+  it('renders ArtifactBadge with Cloudinary piece image when slotKey is present and falls back to SlotIcon on error (cdn-artifact-icons)', () => {
     const artHtml = renderToStaticMarkup(
       <ArtifactBadge
         setKey="GoldenTroupe"
@@ -310,8 +317,51 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(artHtml).toContain('data-artifact-set="GoldenTroupe"')
     expect(artHtml).toContain('data-slot="goblet"')
     expect(artHtml).toContain('data-rarity="5"')
+    expect(artHtml).toContain(
+      'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/GoldenTroupe-goblet.png"'
+    )
     expect(artHtml).toContain('Golden Troupe')
     expect(artHtml).toContain('+20 Hydro DMG%')
+
+    // Verify per-key onError fallback to SlotIcon
+    hookStore.reset()
+    let artTree = renderWithHooks(
+      <ArtifactBadge setKey="GoldenTroupe" slotKey="flower" rarity={5} />
+    )
+    let artImgs = findAllElements(artTree, (el) => el.type === 'img')
+    expect(artImgs).toHaveLength(1)
+    expect(artImgs[0]!.props.src).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/GoldenTroupe-flower.png'
+    )
+    expect(
+      findAllElements(
+        artTree,
+        (el) => el.type === 'svg' && el.props['data-gi-icon'] === 'FlowerIcon'
+      )
+    ).toHaveLength(0)
+
+    // Trigger onError -> falls back to today's SlotIcon (FlowerIcon)
+    ;(artImgs[0]!.props.onError as () => void)()
+    artTree = renderWithHooks(
+      <ArtifactBadge setKey="GoldenTroupe" slotKey="flower" rarity={5} />
+    )
+    expect(findAllElements(artTree, (el) => el.type === 'img')).toHaveLength(0)
+    expect(
+      findAllElements(
+        artTree,
+        (el) => el.type === 'svg' && el.props['data-gi-icon'] === 'FlowerIcon'
+      )
+    ).toHaveLength(1)
+
+    // Changing slotKey or setKey resets error state for the new piece
+    artTree = renderWithHooks(
+      <ArtifactBadge setKey="GoldenTroupe" slotKey="plume" rarity={5} />
+    )
+    artImgs = findAllElements(artTree, (el) => el.type === 'img')
+    expect(artImgs).toHaveLength(1)
+    expect(artImgs[0]!.props.src).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/GoldenTroupe-plume.png'
+    )
   })
 
   it('dispatches ItemIdentifier across character, weapon, and artifact kinds', () => {
@@ -379,7 +429,9 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
         compact
       />
     )
-    expect(rowHtml).toContain('data-gi-icon="FlowerIcon"')
+    expect(rowHtml).toContain(
+      'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/GoldenTroupe-flower.png"'
+    )
     expect(rowHtml).toContain('data-testid="artifact-slot-strip"')
     expect(rowHtml).toContain('data-testid="artifact-set-chip"')
     expect(rowHtml).toContain('Golden Troupe')

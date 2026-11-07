@@ -1,3 +1,5 @@
+import type { IdentifierSlotKey } from '@gi/presets/src/metadata'
+
 export {
   ELEMENT_COLORS,
   formatRarityStars,
@@ -27,6 +29,13 @@ export const CLOUDINARY_GENSHIN_BASE_URL =
 
 export function getCdnIconUrl(key: string): string {
   return `${CLOUDINARY_GENSHIN_BASE_URL}/${key}.png`
+}
+
+export function getCdnArtifactIconUrl(
+  setKey: string,
+  slotKey: IdentifierSlotKey
+): string {
+  return `${CLOUDINARY_GENSHIN_BASE_URL}/${setKey}-${slotKey}.png`
 }
 
 
