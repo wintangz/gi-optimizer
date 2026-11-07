@@ -1,8 +1,22 @@
 import { ALL_ARTIFACT_SET_KEYS } from './names'
+import type { PresetSource } from './schema'
 
 export type SetPieceCount = 2 | 4
 export type SetFilterMode = 'all' | 'exclude' | 'include'
 export type ArtSetExclusionMap = Record<string, SetPieceCount[]>
+
+export type MemberBuildMode = 'owned' | 'tc'
+export type MemberBuildModesMap = Record<string, MemberBuildMode>
+
+export interface ResolvedMemberBuild {
+  characterKey: string
+  /** Effective build mode ('owned' uses the user's GOOD character/weapon/artifacts; 'tc' uses the preset's simulated build). */
+  mode: MemberBuildMode
+  /** Whether the character is present in the user's imported GOOD characters array. */
+  ownedInGood: boolean
+  /** True when an official preset member runs as 'tc' because the user does not own the character in GOOD. */
+  forcedSimulated: boolean
+}
 
 export const STAT_CONSTRAINT_KEYS = [
   'hp',
@@ -86,6 +100,11 @@ export interface OptimizerSettings {
    * - In 'include' mode: piece counts to allow for each checked set.
    */
   setFilterSelection?: ArtSetExclusionMap
+  /**
+   * Per-preset, per-member build mode choice ('owned' | 'tc') for official preset teammates.
+   * Keyed by `[presetId][characterKey]`.
+   */
+  memberBuildModes?: Record<string, MemberBuildModesMap>
   topN: number
 }
 
@@ -100,7 +119,89 @@ export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
   setExclusion: {},
   setFilterMode: 'all',
   setFilterSelection: {},
+  memberBuildModes: {},
   topN: 5,
+}
+
+export function resolvePresetMemberBuildMode(opts: {
+  presetSource: PresetSource
+  isTarget: boolean
+  memberBuildType: 'owned' | 'fixed' | 'tc'
+  characterKey: string
+  ownedCharKeys: ReadonlySet<string> | readonly string[]
+  overrideMode?: MemberBuildMode
+}): ResolvedMemberBuild {
+  const {
+    presetSource,
+    isTarget,
+    memberBuildType,
+    characterKey,
+    ownedCharKeys,
+    overrideMode,
+  } = opts
+  const ownedInGood = Array.isArray(ownedCharKeys)
+    ? ownedCharKeys.includes(characterKey)
+    : (ownedCharKeys as ReadonlySet<string>).has(characterKey)
+
+  if (isTarget) {
+    return {
+      characterKey,
+      mode: memberBuildType === 'owned' ? 'owned' : 'tc',
+      ownedInGood,
+      forcedSimulated: false,
+    }
+  }
+
+  if (presetSource === 'official') {
+    if (!ownedInGood) {
+      return {
+        characterKey,
+        mode: 'tc',
+        ownedInGood: false,
+        forcedSimulated: true,
+      }
+    }
+    const mode: MemberBuildMode = overrideMode === 'tc' ? 'tc' : 'owned'
+    return {
+      characterKey,
+      mode,
+      ownedInGood: true,
+      forcedSimulated: false,
+    }
+  }
+
+  return {
+    characterKey,
+    mode: memberBuildType === 'owned' ? 'owned' : 'tc',
+    ownedInGood,
+    forcedSimulated: false,
+  }
+}
+
+export function getPresetMemberBuildModes(
+  settings: Pick<OptimizerSettings, 'memberBuildModes'> | undefined,
+  presetId: string
+): MemberBuildModesMap {
+  return settings?.memberBuildModes?.[presetId] ?? {}
+}
+
+export function setPresetMemberBuildMode(
+  settings: OptimizerSettings,
+  presetId: string,
+  characterKey: string,
+  mode: MemberBuildMode
+): OptimizerSettings {
+  const currentForPreset = settings.memberBuildModes?.[presetId] ?? {}
+  return {
+    ...settings,
+    memberBuildModes: {
+      ...(settings.memberBuildModes ?? {}),
+      [presetId]: {
+        ...currentForPreset,
+        [characterKey]: mode,
+      },
+    },
+  }
 }
 
 /**

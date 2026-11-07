@@ -1,14 +1,20 @@
 import {
   DEFAULT_OPTIMIZER_SETTINGS,
   STAT_CONSTRAINT_KEYS,
+  getPresetMemberBuildModes,
   isActiveStatConstraint,
   isPercentStatConstraintKey,
   migrateOptimizerSettings,
   normalizeStatConstraintValue,
+  resolvePresetMemberBuildMode,
+  setPresetMemberBuildMode,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
+  type MemberBuildMode,
+  type MemberBuildModesMap,
   type OptimizerSettings,
   type Preset,
+  type ResolvedMemberBuild,
   type SetFilterMode,
   type SetPieceCount,
   type StatConstraint,
@@ -18,13 +24,19 @@ import {
 export {
   DEFAULT_OPTIMIZER_SETTINGS,
   STAT_CONSTRAINT_KEYS,
+  getPresetMemberBuildModes,
   isActiveStatConstraint,
   isPercentStatConstraintKey,
   migrateOptimizerSettings,
   normalizeStatConstraintValue,
+  resolvePresetMemberBuildMode,
+  setPresetMemberBuildMode,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
+  type MemberBuildMode,
+  type MemberBuildModesMap,
   type OptimizerSettings,
+  type ResolvedMemberBuild,
   type SetFilterMode,
   type SetPieceCount,
   type StatConstraint,
@@ -44,6 +56,8 @@ export interface BuildSelection {
   weaponId?: string
   weaponOverride?: SimulatedWeaponSpec
   artifactIds: Partial<Record<ArtifactSlot, string>>
+  /** Optional per-member build mode overrides ('owned' | 'tc') for official preset teammates. */
+  memberBuildModes?: Record<string, MemberBuildMode>
 }
 
 export interface InstanceResult {
@@ -102,6 +116,7 @@ export interface EngineSession {
     opts?: {
       weaponId?: string
       weaponOverride?: SimulatedWeaponSpec
+      memberBuildModes?: Record<string, MemberBuildMode>
       onProgress?: (p: OptimizeProgress) => void
       signal?: AbortSignal
       maxWorkers?: number

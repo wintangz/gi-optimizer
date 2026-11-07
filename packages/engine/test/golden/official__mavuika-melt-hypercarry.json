@@ -1,7 +1,7 @@
 {
   "presetId": "official/mavuika-melt-hypercarry",
   "target": "Mavuika",
-  "total": 89389.76243736036,
+  "total": 47237.04653061048,
   "instances": [
     {
       "label": "Hour of Burning Skies: Sunfell Slice (Melt)",
@@ -10,8 +10,8 @@
         "skillDmg"
       ],
       "count": 1,
-      "perHit": 30270.39530756369,
-      "subtotal": 30270.39530756369
+      "perHit": 16164.864367113812,
+      "subtotal": 16164.864367113812
     },
     {
       "label": "Flamestrider Charged Cyclic (Melt ×4)",
@@ -20,8 +20,8 @@
         "chargedCyclicDmg"
       ],
       "count": 4,
-      "perHit": 8220.740399705453,
-      "subtotal": 32882.961598821814
+      "perHit": 4320.688052320542,
+      "subtotal": 17282.752209282167
     },
     {
       "label": "Flamestrider Charged Cyclic (No Reaction ×4)",
@@ -30,8 +30,8 @@
         "chargedCyclicDmg"
       ],
       "count": 4,
-      "perHit": 4110.370199852727,
-      "subtotal": 16441.480799410907
+      "perHit": 2160.344026160271,
+      "subtotal": 8641.376104641084
     },
     {
       "label": "Flamestrider Charged Final DMG (Melt)",
@@ -40,13 +40,13 @@
         "chargedFinalDmg"
       ],
       "count": 1,
-      "perHit": 9794.924731563944,
-      "subtotal": 9794.924731563944
+      "perHit": 5148.053849573413,
+      "subtotal": 5148.053849573413
     }
   ],
   "stats": {
     "hp": 12552.058567,
-    "atk": 939.6114744999998,
+    "atk": 843.6511536999999,
     "def": 791.6110011000001,
     "eleMas": 0,
     "critRate_": 0.05,
@@ -58,7 +58,7 @@
     "geo_dmg_": 0,
     "electro_dmg_": 0,
     "hydro_dmg_": 0,
-    "pyro_dmg_": 0.35,
+    "pyro_dmg_": 0,
     "cryo_dmg_": 0,
     "dendro_dmg_": 0
   }

@@ -23,7 +23,11 @@ import {
    type GiElementWithPhyKey,
   type GiSlotKey,
 } from '@/components/SvgIcons'
-import { useGoodStorage, useUserPresets } from '@/lib/storage/useGood'
+import {
+  useGoodStorage,
+  useOptimizerSettings,
+  useUserPresets,
+} from '@/lib/storage/useGood'
 import { humanizeKey } from '@gi/good/src/suggest'
 import {
   formatConstellationReq,
@@ -38,6 +42,12 @@ import {
 import { displayName } from '@gi/presets/src/names'
 import type { PresetBadge } from '@gi/presets/src/registry'
 import type { Preset, PresetSource } from '@gi/presets/src/schema'
+import {
+  getPresetMemberBuildModes,
+  resolvePresetMemberBuildMode,
+  setPresetMemberBuildMode,
+  type MemberBuildMode,
+} from '@gi/presets/src/settings'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -50,11 +60,17 @@ const REACTION_ELEMENT: Record<string, GiElementWithPhyKey> = {
 
 export default function PresetsPage() {
   const { record, loading: goodLoading } = useGoodStorage()
+  const { settings, update: updateSettings } = useOptimizerSettings()
   const {
     presets: userPresets,
     loading: userLoading,
     remove: removeUserPreset,
   } = useUserPresets()
+
+  const ownedCharKeys = useMemo(
+    () => new Set((record?.good.characters ?? []).map((c) => c.key)),
+    [record]
+  )
 
   const [registryMod, setRegistryMod] = useState<{
     bundled: readonly Preset[]
@@ -290,17 +306,31 @@ export default function PresetsPage() {
                 </div>
                 <strong className="preset-card-name">{p.name}</strong>
                 <div className="preset-card-team">
-                  {p.team.map((m, mIdx) => (
-                    <CharacterBadge
-                      key={m.key}
-                      characterKey={m.key}
-                      simulated={
-                        m.build.type === 'tc' || m.build.type === 'fixed'
-                      }
-                      role={mIdx === 0 ? 'target' : 'owned'}
-                      compact
-                    />
-                  ))}
+                  {p.team.map((m, mIdx) => {
+                    const isTarget = mIdx === 0
+                    const resolved = resolvePresetMemberBuildMode({
+                      presetSource: p.source,
+                      isTarget,
+                      memberBuildType: m.build.type,
+                      characterKey: m.key,
+                      ownedCharKeys,
+                      overrideMode: getPresetMemberBuildModes(settings, p.id)[
+                        m.key
+                      ],
+                    })
+                    const isSim = isTarget
+                      ? m.build.type === 'tc' || m.build.type === 'fixed'
+                      : resolved.mode === 'tc'
+                    return (
+                      <CharacterBadge
+                        key={m.key}
+                        characterKey={m.key}
+                        simulated={isSim}
+                        role={isTarget ? 'target' : 'owned'}
+                        compact
+                      />
+                    )
+                  })}
                 </div>
                 <div className="preset-card-summary-line">
                   {oneLineSummary}
@@ -613,8 +643,25 @@ export default function PresetsPage() {
                   </thead>
                   <tbody>
                     {activePreset.team.map((m, idx) => {
-                      const isSim =
-                        m.build.type === 'tc' || m.build.type === 'fixed'
+                      const isTarget = idx === 0
+                      const resolved = resolvePresetMemberBuildMode({
+                        presetSource: activePreset.source,
+                        isTarget,
+                        memberBuildType: m.build.type,
+                        characterKey: m.key,
+                        ownedCharKeys,
+                        overrideMode: getPresetMemberBuildModes(
+                          settings,
+                          activePreset.id
+                        )[m.key],
+                      })
+                      const isSim = isTarget
+                        ? m.build.type === 'tc' || m.build.type === 'fixed'
+                        : resolved.mode === 'tc'
+                      const isOfficialOwnedMember =
+                        !isTarget &&
+                        activePreset.source === 'official' &&
+                        resolved.mode === 'owned'
                       const reqParts: string[] = []
                       if (m.requirement?.constellation !== undefined) {
                         reqParts.push(
@@ -626,11 +673,13 @@ export default function PresetsPage() {
                       }
 
                       const condList: string[] = []
-                      for (const [sheet, map] of Object.entries(
-                        m.conditional ?? {}
-                      )) {
-                        for (const [ck, cv] of Object.entries(map)) {
-                          condList.push(`${displayName(sheet)}.${ck} = ${cv}`)
+                      if (!isOfficialOwnedMember) {
+                        for (const [sheet, map] of Object.entries(
+                          m.conditional ?? {}
+                        )) {
+                          for (const [ck, cv] of Object.entries(map)) {
+                            condList.push(`${displayName(sheet)}.${ck} = ${cv}`)
+                          }
                         }
                       }
 
@@ -648,9 +697,13 @@ export default function PresetsPage() {
                                 </strong>
                               )
                             ) : isSim ? (
-                              <span className="warn">Simulated Teammate</span>
+                              <span className="warn">
+                                {resolved.forcedSimulated
+                                  ? 'Simulated Teammate (Not in GOOD)'
+                                  : 'Simulated Teammate'}
+                              </span>
                             ) : (
-                              <span>Member {idx + 1} (Owned)</span>
+                              <span className="ok">Member {idx + 1} (Owned)</span>
                             )}
                           </td>
                           <td>
@@ -661,19 +714,86 @@ export default function PresetsPage() {
                             />
                           </td>
                           <td>
-                            {m.build.type === 'owned' ? (
-                              <span className="ok">Your Scanned Character</span>
-                            ) : m.build.type === 'fixed' ? (
-                              <span className="warn">
-                                Fixed Preset Character + Simulated Weapon + Your
-                                Artifacts
-                              </span>
-                            ) : (
-                              <span className="warn">
-                                Simulated / Assumed Preset Build (Not Your
-                                Account)
-                              </span>
-                            )}
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                flexWrap: 'wrap',
+                              }}
+                            >
+                              {isTarget ? (
+                                m.build.type === 'owned' ? (
+                                  <span className="ok">
+                                    Your Scanned Character
+                                  </span>
+                                ) : (
+                                  <span className="warn">
+                                    Fixed Preset Character + Simulated Weapon +
+                                    Your Artifacts
+                                  </span>
+                                )
+                              ) : isOfficialOwnedMember ? (
+                                <span className="ok">
+                                  Your Scanned Character (GOOD)
+                                </span>
+                              ) : resolved.forcedSimulated ? (
+                                <span className="warn">
+                                  Not in GOOD — Simulated Preset Build
+                                </span>
+                              ) : (
+                                <span className="warn">
+                                  Simulated / Assumed Preset Build (Not Your
+                                  Account)
+                                </span>
+                              )}
+                              {!isTarget &&
+                                activePreset.source === 'official' && (
+                                  <button
+                                    type="button"
+                                    className="btn-secondary"
+                                    data-testid={`preset-member-build-toggle-${m.key}`}
+                                    data-character-key={m.key}
+                                    data-build-mode={resolved.mode}
+                                    data-owned-in-good={
+                                      resolved.ownedInGood ? 'true' : 'false'
+                                    }
+                                    data-forced-simulated={
+                                      resolved.forcedSimulated
+                                        ? 'true'
+                                        : 'false'
+                                    }
+                                    aria-pressed={resolved.mode === 'tc'}
+                                    onClick={() => {
+                                      const nextMode: MemberBuildMode =
+                                        !resolved.ownedInGood
+                                          ? 'tc'
+                                          : resolved.mode === 'owned'
+                                            ? 'tc'
+                                            : 'owned'
+                                      void updateSettings(
+                                        setPresetMemberBuildMode(
+                                          settings,
+                                          activePreset.id,
+                                          m.key,
+                                          nextMode
+                                        )
+                                      )
+                                    }}
+                                    style={{
+                                      fontSize: '0.74rem',
+                                      padding: '0.16rem 0.45rem',
+                                      lineHeight: 1.2,
+                                    }}
+                                  >
+                                    {resolved.forcedSimulated
+                                      ? 'Simulated (Not in GOOD)'
+                                      : resolved.mode === 'owned'
+                                        ? 'Owned Build'
+                                        : 'Simulated (TC)'}
+                                  </button>
+                                )}
+                            </div>
                           </td>
                           <td className="preset-td-gear">
                             {m.build.type === 'owned' ? (
@@ -773,7 +893,12 @@ export default function PresetsPage() {
                             )}
                           </td>
                           <td className="preset-td-conds">
-                            {condList.length ? (
+                            {isOfficialOwnedMember ? (
+                              <span className="muted">
+                                Derived from your equipped weapon &amp; artifact
+                                sets in GOOD
+                              </span>
+                            ) : condList.length ? (
                               condList.join(', ')
                             ) : (
                               <span className="muted">None</span>

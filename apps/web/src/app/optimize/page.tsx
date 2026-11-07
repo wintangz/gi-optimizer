@@ -44,10 +44,14 @@ import { type IArtifact } from '@gi/good'
 import {
   displayName,
   getCharacterMeta,
+  getPresetMemberBuildModes,
   getWeaponMeta,
   listBundledPresets,
   listWeaponsForType,
   matchAccount,
+  resolvePresetMemberBuildMode,
+  setPresetMemberBuildMode,
+  type MemberBuildMode,
   type Preset,
 } from '@gi/presets'
 import Link from 'next/link'
@@ -141,6 +145,19 @@ function OptimizeInner() {
   const isAkashaPreset =
     activePreset?.source === 'akasha' &&
     activePreset.team[0]?.build.type === 'fixed'
+
+  const ownedCharKeys = useMemo(
+    () => new Set((record?.good.characters ?? []).map((c) => c.key)),
+    [record]
+  )
+
+  const activeMemberBuildModes = useMemo(
+    () =>
+      activePreset
+        ? getPresetMemberBuildModes(settings, activePreset.id)
+        : {},
+    [activePreset, settings]
+  )
 
   const akashaWeaponSpec: SimulatedWeaponSpec | undefined = useMemo(() => {
     if (!activePreset || activePreset.team[0]?.build.type !== 'fixed') {
@@ -265,6 +282,10 @@ function OptimizeInner() {
           : {
               weaponId: effectiveWeaponId ?? baseRes.currentBuild.weaponId,
               artifactIds: baseRes.currentBuild.artifactIds,
+              ...(activePreset.source === 'official' &&
+              Object.keys(activeMemberBuildModes).length > 0
+                ? { memberBuildModes: activeMemberBuildModes }
+                : {}),
             }
         setCurrentSelection(effectiveCurrent)
 
@@ -275,6 +296,10 @@ function OptimizeInner() {
           return
         }
 
+        const hasOfficialMemberModeOverrides =
+          activePreset.source === 'official' &&
+          Object.keys(activeMemberBuildModes).length > 0
+
         const needsReEval = isAkashaPreset
           ? Boolean(
               akashaWeaponSpec &&
@@ -284,8 +309,9 @@ function OptimizeInner() {
                     baseRes.currentBuild.weaponOverride?.refinement)
             )
           : Boolean(
-              effectiveWeaponId &&
-                effectiveWeaponId !== baseRes.currentBuild.weaponId
+              (effectiveWeaponId &&
+                effectiveWeaponId !== baseRes.currentBuild.weaponId) ||
+                hasOfficialMemberModeOverrides
             )
 
         if (needsReEval) {
@@ -322,6 +348,7 @@ function OptimizeInner() {
     isAkashaPreset,
     akashaWeaponSpec,
     effectiveWeaponId,
+    activeMemberBuildModes,
   ])
 
   // Off-main-thread evaluation of all returned Top-N Optimised Builds via the shared worker session
@@ -541,19 +568,105 @@ function OptimizeInner() {
         </div>
 
         {activePreset && (
-          <div className="preset-gear-row-md preset-provenance-box">
+          <div
+            className="preset-gear-row-md preset-provenance-box"
+            data-testid="preset-team-roster"
+          >
             <span className="muted" style={{ fontSize: '0.84rem' }}>
               Preset Team:
             </span>
-            {activePreset.team.map((m, idx) => (
-              <CharacterBadge
-                key={m.key}
-                characterKey={m.key}
-                simulated={m.build.type === 'tc' || m.build.type === 'fixed'}
-                role={idx === 0 ? 'target' : 'owned'}
-                compact
-              />
-            ))}
+            {activePreset.team.map((m, idx) => {
+              const isTarget = idx === 0
+              const resolved = resolvePresetMemberBuildMode({
+                presetSource: activePreset.source,
+                isTarget,
+                memberBuildType: m.build.type,
+                characterKey: m.key,
+                ownedCharKeys,
+                overrideMode: activeMemberBuildModes[m.key],
+              })
+              const isSimulated = isTarget
+                ? m.build.type === 'tc' || m.build.type === 'fixed'
+                : resolved.mode === 'tc'
+
+              return (
+                <div
+                  key={m.key}
+                  data-testid={`preset-team-member-${m.key}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                >
+                  <CharacterBadge
+                    characterKey={m.key}
+                    simulated={isSimulated}
+                    role={isTarget ? 'target' : 'owned'}
+                    compact
+                  />
+                  {activePreset.source === 'official' && !isTarget && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      data-testid={`member-build-toggle-${m.key}`}
+                      data-character-key={m.key}
+                      data-build-mode={resolved.mode}
+                      data-owned-in-good={
+                        resolved.ownedInGood ? 'true' : 'false'
+                      }
+                      data-forced-simulated={
+                        resolved.forcedSimulated ? 'true' : 'false'
+                      }
+                      aria-pressed={resolved.mode === 'tc'}
+                      aria-label={
+                        resolved.forcedSimulated
+                          ? `${displayName(m.key)}: Simulated (Not in GOOD)`
+                          : `${displayName(m.key)} build source: ${
+                              resolved.mode === 'owned'
+                                ? 'Owned Build'
+                                : 'Simulated (TC)'
+                            }`
+                      }
+                      title={
+                        resolved.forcedSimulated
+                          ? `${displayName(m.key)} is not in your imported GOOD file — running simulated preset build`
+                          : 'Switch teammate between your Owned GOOD build and the preset Simulated (TC) build'
+                      }
+                      onClick={() => {
+                        const nextMode: MemberBuildMode =
+                          !resolved.ownedInGood
+                            ? 'tc'
+                            : resolved.mode === 'owned'
+                              ? 'tc'
+                              : 'owned'
+                        void updateSettings(
+                          setPresetMemberBuildMode(
+                            settings,
+                            activePreset.id,
+                            m.key,
+                            nextMode
+                          )
+                        )
+                        setOptResult(null)
+                        setOptimisedEvals([])
+                      }}
+                      style={{
+                        fontSize: '0.74rem',
+                        padding: '0.18rem 0.48rem',
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {resolved.forcedSimulated
+                        ? 'Simulated (Not in GOOD)'
+                        : resolved.mode === 'owned'
+                          ? 'Owned Build'
+                          : 'Simulated (TC)'}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 

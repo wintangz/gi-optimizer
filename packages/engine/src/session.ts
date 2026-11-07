@@ -18,7 +18,13 @@ import {
 import { getCharStat, getWeaponStat } from '@genshin-optimizer/gi/stats'
 import { uiDataForTeam } from '@genshin-optimizer/gi/uidata'
 import { input } from '@genshin-optimizer/gi/wr'
-import type { Preset, RotationTarget, TcCharacter } from '@gi/presets'
+import {
+  resolvePresetMemberBuildMode,
+  type MemberBuildMode,
+  type Preset,
+  type RotationTarget,
+  type TcCharacter,
+} from '@gi/presets'
 import {
   getDefaultTargetArtifactSetConditionals,
   listConditionalsForCharacter,
@@ -171,18 +177,42 @@ const dbPresetCache = new WeakMap<
   { fingerprint: string; hydrated: HydratedPresetTeam }
 >()
 
+const dbImportedCharKeys = new WeakMap<object, ReadonlySet<string>>()
+
+function extractGoodCharKeys(good: unknown): Set<string> {
+  const goodObj =
+    typeof good === 'object' && good !== null
+      ? (good as { characters?: Array<{ key?: string }> })
+      : {}
+  return new Set<string>(
+    Array.isArray(goodObj.characters)
+      ? goodObj.characters
+          .map((c) => c?.key)
+          .filter((k): k is string => Boolean(k))
+      : []
+  )
+}
+
+export interface HydratePresetTeamOptions {
+  ownedCharKeys?: ReadonlySet<string>
+  memberBuildModes?: Record<string, MemberBuildMode>
+}
+
 function presetTeamFingerprint(
   preset: Preset,
-  activeWeaponKey?: string
+  activeWeaponKey: string | undefined,
+  effectiveMemberModes: MemberBuildMode[]
 ): string {
   return JSON.stringify({
     id: preset.id,
+    source: preset.source,
     target: preset.target,
     team: preset.team,
     enemy: preset.enemy,
     teamConditional: preset.teamConditional,
     rotation: preset.rotation,
     activeWeaponKey: activeWeaponKey ?? '',
+    effectiveMemberModes,
   })
 }
 
@@ -194,8 +224,16 @@ function presetTeamFingerprint(
 export function hydratePresetTeam(
   db: ArtCharDatabase,
   preset: Preset,
-  activeWeaponKey?: string
+  activeWeaponKey?: string,
+  opts?: HydratePresetTeamOptions
 ): HydratedPresetTeam {
+  let ownedCharKeys =
+    opts?.ownedCharKeys ?? dbImportedCharKeys.get(db as object)
+  if (!ownedCharKeys) {
+    ownedCharKeys = new Set<string>(db.chars.keys as string[])
+    dbImportedCharKeys.set(db as object, ownedCharKeys)
+  }
+
   const targetMember = preset.team[0]
   const resolvedWeaponKey =
     activeWeaponKey ??
@@ -203,7 +241,24 @@ export function hydratePresetTeam(
       ? targetMember.build.weapon.key
       : undefined)
 
-  const fingerprint = presetTeamFingerprint(preset, resolvedWeaponKey)
+  const resolvedMembers = preset.team
+    .slice(0, 4)
+    .map((member, idx) =>
+      resolvePresetMemberBuildMode({
+        presetSource: preset.source,
+        isTarget: idx === 0,
+        memberBuildType: member.build.type,
+        characterKey: member.key,
+        ownedCharKeys,
+        overrideMode: opts?.memberBuildModes?.[member.key],
+      })
+    )
+
+  const fingerprint = presetTeamFingerprint(
+    preset,
+    resolvedWeaponKey,
+    resolvedMembers.map((m) => m.mode)
+  )
   const cached = dbPresetCache.get(db as object)
   if (
     cached &&
@@ -236,6 +291,11 @@ export function hydratePresetTeam(
     const member = preset.team[i]!
     const mKey = member.key as CharacterKey
     const isTarget = i === 0
+    const resolvedMember = resolvedMembers[i]!
+    const isOfficialOwnedMember =
+      !isTarget &&
+      preset.source === 'official' &&
+      resolvedMember.mode === 'owned'
 
     // Supporting teammates with `build.type === 'tc'` use their BuildTc stats exclusively,
     // and fixed Akasha targets use `overrideChar` + `overrideWeapon`,
@@ -244,63 +304,96 @@ export function hydratePresetTeam(
       db.chars.getWithInitWeapon(mKey)
     }
 
-    let memberConditional: Record<string, Record<string, string>> = {
-      ...member.conditional,
-    }
+    let memberConditional: Record<string, Record<string, string>>
 
-    // Target boolean artifact-set conditionals default to 'on' for every set
-    // unless the preset explicitly authors an entry for that set.
-    if (isTarget) {
+    if (isOfficialOwnedMember) {
+      // Preset-authored conditionals describe the simulated ('tc') build only.
+      // An owned member gets the same conditional derivation an owned target gets today:
+      // worn artifact-set conditionals + weapon conditionals from the member's actual build in db.
+      memberConditional = {}
       const defaultArtSetConds = getDefaultTargetArtifactSetConditionals()
       for (const [setKey, defaultStates] of Object.entries(
         defaultArtSetConds
       )) {
-        if (!member.conditional[setKey]) {
-          memberConditional[setKey] = { ...defaultStates }
+        memberConditional[setKey] = { ...defaultStates }
+      }
+
+      const charInDb = db.chars.get(mKey)
+      const equippedWeaponKey = charInDb?.equippedWeapon
+        ? db.weapons.get(charInDb.equippedWeapon)?.key
+        : undefined
+      if (equippedWeaponKey) {
+        const weaponConds = listWeaponConditionals(equippedWeaponKey)
+        if (weaponConds.length > 0) {
+          const sheetStates: Record<string, string> = {}
+          for (const wc of weaponConds) {
+            const maxState = wc.states[wc.states.length - 1]
+            if (maxState) {
+              sheetStates[wc.key] = maxState.key
+            }
+          }
+          memberConditional[equippedWeaponKey] = sheetStates
         }
       }
-    }
+    } else {
+      memberConditional = {
+        ...member.conditional,
+      }
 
-    // Auto-populate GO weapon conditionals at their max state when the target
-    // ('fixed' or 'owned') has an explicit weapon choice and the preset's
-    // conditional map has no entry for that weapon's sheet.
-    if (
-      isTarget &&
-      (member.build.type === 'fixed' || member.build.type === 'owned') &&
-      resolvedWeaponKey &&
-      !member.conditional[resolvedWeaponKey]
-    ) {
-      const weaponConds = listWeaponConditionals(resolvedWeaponKey)
-      if (weaponConds.length > 0) {
-        const sheetStates: Record<string, string> = {}
-        for (const wc of weaponConds) {
-          const maxState = wc.states[wc.states.length - 1]
-          if (maxState) {
-            sheetStates[wc.key] = maxState.key
+      // Target boolean artifact-set conditionals default to 'on' for every set
+      // unless the preset explicitly authors an entry for that set.
+      if (isTarget) {
+        const defaultArtSetConds = getDefaultTargetArtifactSetConditionals()
+        for (const [setKey, defaultStates] of Object.entries(
+          defaultArtSetConds
+        )) {
+          if (!member.conditional[setKey]) {
+            memberConditional[setKey] = { ...defaultStates }
           }
         }
-        memberConditional = {
-          ...memberConditional,
-          [resolvedWeaponKey]: sheetStates,
+      }
+
+      // Auto-populate GO weapon conditionals at their max state when the target
+      // ('fixed' or 'owned') has an explicit weapon choice and the preset's
+      // conditional map has no entry for that weapon's sheet.
+      if (
+        isTarget &&
+        (member.build.type === 'fixed' || member.build.type === 'owned') &&
+        resolvedWeaponKey &&
+        !member.conditional[resolvedWeaponKey]
+      ) {
+        const weaponConds = listWeaponConditionals(resolvedWeaponKey)
+        if (weaponConds.length > 0) {
+          const sheetStates: Record<string, string> = {}
+          for (const wc of weaponConds) {
+            const maxState = wc.states[wc.states.length - 1]
+            if (maxState) {
+              sheetStates[wc.key] = maxState.key
+            }
+          }
+          memberConditional = {
+            ...memberConditional,
+            [resolvedWeaponKey]: sheetStates,
+          }
         }
       }
-    }
 
-    // Bridge ArchaicPetra `ele` -> GO's `element` conditional key when authored
-    // as `ele` (except on legacy bundled presets whose golden fixtures predate this fix).
-    if (
-      memberConditional.ArchaicPetra?.ele &&
-      !memberConditional.ArchaicPetra.element &&
-      preset.id !== 'akasha/furina-salon-pjc-c0' &&
-      preset.id !== 'akasha/neuvillette-hypercarry-protoamber-c0' &&
-      preset.id !== 'official/neuvillette-hypercarry'
-    ) {
-      memberConditional = {
-        ...memberConditional,
-        ArchaicPetra: {
-          ...memberConditional.ArchaicPetra,
-          element: memberConditional.ArchaicPetra.ele,
-        },
+      // Bridge ArchaicPetra `ele` -> GO's `element` conditional key when authored
+      // as `ele` (except on legacy bundled presets whose golden fixtures predate this fix).
+      if (
+        memberConditional.ArchaicPetra?.ele &&
+        !memberConditional.ArchaicPetra.element &&
+        preset.id !== 'akasha/furina-salon-pjc-c0' &&
+        preset.id !== 'akasha/neuvillette-hypercarry-protoamber-c0' &&
+        preset.id !== 'official/neuvillette-hypercarry'
+      ) {
+        memberConditional = {
+          ...memberConditional,
+          ArchaicPetra: {
+            ...memberConditional.ArchaicPetra,
+            element: memberConditional.ArchaicPetra.ele,
+          },
+        }
       }
     }
 
@@ -321,7 +414,7 @@ export function hydratePresetTeam(
       targetTeamCharId = tcId
     }
 
-    if (!isTarget && member.build.type === 'tc') {
+    if (!isTarget && resolvedMember.mode === 'tc' && member.build.type === 'tc') {
       const tc = member.build.tc
       const buildTcId = db.buildTcs.new({
         characterKey: mKey,
@@ -428,8 +521,10 @@ export function hydrateTeamIntoDb(
   preset: Preset,
   selection?: BuildSelection
 ): HydratedTeam {
+  const goodCharKeys = extractGoodCharKeys(goodData)
   const db = new ArtCharDatabase(1, new SandboxStorage())
   db.importGOOD(goodData as never, false, false, false)
+  dbImportedCharKeys.set(db as object, goodCharKeys)
 
   const { isFixedTarget, overrideChar, overrideWeapon, effectiveWeaponSpec } =
     resolveFixedTargetOverrides(preset, selection?.weaponOverride)
@@ -443,7 +538,11 @@ export function hydrateTeamIntoDb(
   const { teamId, targetTeamCharId } = hydratePresetTeam(
     db,
     preset,
-    selectedWeaponKey
+    selectedWeaponKey,
+    {
+      ownedCharKeys: goodCharKeys,
+      memberBuildModes: selection?.memberBuildModes,
+    }
   )
   const targetCharKey = preset.target as CharacterKey
   const locKey = charKeyToLocCharKey(targetCharKey)
@@ -500,13 +599,7 @@ export function createSession(good: unknown): EngineSession {
           weapons?: Array<{ key?: string; location?: string }>
         })
       : {}
-  const goodCharKeys = new Set<string>(
-    Array.isArray(goodObj.characters)
-      ? goodObj.characters
-          .map((c) => c?.key)
-          .filter((k): k is string => Boolean(k))
-      : []
-  )
+  const goodCharKeys = extractGoodCharKeys(goodObj)
   const goodEquippedWeaponByChar = new Set<string>(
     Array.isArray(goodObj.weapons)
       ? goodObj.weapons
@@ -516,6 +609,7 @@ export function createSession(good: unknown): EngineSession {
   )
   const baseDb = new ArtCharDatabase(1, new SandboxStorage())
   baseDb.importGOOD(goodObj as never, false, false, false)
+  dbImportedCharKeys.set(baseDb as object, goodCharKeys)
 
   return {
     currentBuild(preset: Preset): BuildSelection {
@@ -588,7 +682,11 @@ export function createSession(good: unknown): EngineSession {
       const { teamId, targetTeamCharId } = hydratePresetTeam(
         baseDb,
         preset,
-        effectiveWeaponSpec?.key ?? overrideWeapon?.key
+        effectiveWeaponSpec?.key ?? overrideWeapon?.key,
+        {
+          ownedCharKeys: goodCharKeys,
+          memberBuildModes: selection?.memberBuildModes,
+        }
       )
       const targetKey = preset.target as CharacterKey
 
@@ -686,6 +784,7 @@ export function createSession(good: unknown): EngineSession {
       opts?: {
         weaponId?: string
         weaponOverride?: SimulatedWeaponSpec
+        memberBuildModes?: Record<string, MemberBuildMode>
         onProgress?: (p: OptimizeProgress) => void
         signal?: AbortSignal
         maxWorkers?: number
@@ -703,16 +802,24 @@ export function createSession(good: unknown): EngineSession {
         overrideWeapon = baseDb.weapons.get(opts.weaponId)
       }
 
+      const effectiveMemberBuildModes =
+        opts?.memberBuildModes ?? settings.memberBuildModes?.[preset.id]
+
       const { teamId, targetTeamCharId } = hydratePresetTeam(
         baseDb,
         preset,
-        effectiveWeaponSpec?.key ?? overrideWeapon?.key
+        effectiveWeaponSpec?.key ?? overrideWeapon?.key,
+        {
+          ownedCharKeys: goodCharKeys,
+          memberBuildModes: effectiveMemberBuildModes,
+        }
       )
 
       return runSolver(baseDb, teamId, targetTeamCharId, preset, settings, {
         overrideWeapon,
         overrideChar,
         weaponOverrideSpec: isFixedTarget ? effectiveWeaponSpec : opts?.weaponOverride,
+        memberBuildModes: effectiveMemberBuildModes,
         onProgress: opts?.onProgress,
         signal: opts?.signal,
         maxWorkers: opts?.maxWorkers,

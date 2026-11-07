@@ -1,7 +1,7 @@
 {
   "presetId": "official/arlecchino-vaporize",
   "target": "Arlecchino",
-  "total": 942880.1234255427,
+  "total": 721249.3356173767,
   "instances": [
     {
       "label": "All Is Ash Spike DMG",
@@ -10,8 +10,8 @@
         "spikeDmg"
       ],
       "count": 1,
-      "perHit": 2073.8997051268975,
-      "subtotal": 2073.8997051268975
+      "perHit": 1586.4145900387816,
+      "subtotal": 1586.4145900387816
     },
     {
       "label": "All Is Ash Cleave DMG (Vaporize)",
@@ -20,8 +20,8 @@
         "finalDmg"
       ],
       "count": 1,
-      "perHit": 39944.730122488574,
-      "subtotal": 39944.730122488574
+      "perHit": 30555.43260111514,
+      "subtotal": 30555.43260111514
     },
     {
       "label": "Masque 1-Hit (Vaporize ×3)",
@@ -30,8 +30,8 @@
         "0"
       ],
       "count": 3,
-      "perHit": 75385.37864046198,
-      "subtotal": 226156.13592138593
+      "perHit": 57665.5005327315,
+      "subtotal": 172996.5015981945
     },
     {
       "label": "Masque 2-Hit (×3)",
@@ -40,8 +40,8 @@
         "1"
       ],
       "count": 3,
-      "perHit": 36020.696126787836,
-      "subtotal": 108062.08838036351
+      "perHit": 27553.771157604344,
+      "subtotal": 82661.31347281302
     },
     {
       "label": "Masque 3-Hit (×3)",
@@ -50,8 +50,8 @@
         "2"
       ],
       "count": 3,
-      "perHit": 38313.60257553987,
-      "subtotal": 114940.80772661962
+      "perHit": 29307.71337327753,
+      "subtotal": 87923.14011983259
     },
     {
       "label": "Masque 4-Hit (Vaporize ×3, Normal ×3)",
@@ -60,8 +60,8 @@
         "3"
       ],
       "count": 6,
-      "perHit": 33437.64985153267,
-      "subtotal": 200625.899109196
+      "perHit": 25577.88857867346,
+      "subtotal": 153467.33147204077
     },
     {
       "label": "Masque 5-Hit (Vaporize ×3)",
@@ -70,8 +70,8 @@
         "4"
       ],
       "count": 3,
-      "perHit": 83692.18748678736,
-      "subtotal": 251076.56246036207
+      "perHit": 64019.73392111395,
+      "subtotal": 192059.20176334184
     }
   ],
   "stats": {

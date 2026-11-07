@@ -45,6 +45,7 @@ import {
 import { getTeamData } from './teamData'
 import type {
   ArtifactSlot,
+  MemberBuildMode,
   OptimizeProgress,
   OptimizeResult,
   OptimizerSettings,
@@ -335,6 +336,7 @@ export async function runSolver(
     overrideWeapon?: ICachedWeapon
     overrideChar?: TcCharacter
     weaponOverrideSpec?: SimulatedWeaponSpec
+    memberBuildModes?: Record<string, MemberBuildMode>
     onProgress?: (p: OptimizeProgress) => void
     signal?: AbortSignal
     maxWorkers?: number
@@ -553,6 +555,10 @@ export async function runSolver(
         ...(equippedWeaponId ? { weaponId: equippedWeaponId } : {}),
         ...(opts?.weaponOverrideSpec
           ? { weaponOverride: opts.weaponOverrideSpec }
+          : {}),
+        ...(opts?.memberBuildModes &&
+        Object.keys(opts.memberBuildModes).length > 0
+          ? { memberBuildModes: { ...opts.memberBuildModes } }
           : {}),
         artifactIds,
         total: b.value * repeat,

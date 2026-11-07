@@ -55,6 +55,11 @@ describe('Buff Coverage Fixes (buff-coverage-fixes)', () => {
 
   it('proves Bennett burst conditional on vs off changes an official preset total', () => {
     const mavuikaOfficial = getBundledPreset('official/mavuika-melt-hypercarry')!
+    const tcAllModes = {
+      Citlali: 'tc' as const,
+      Xilonen: 'tc' as const,
+      Bennett: 'tc' as const,
+    }
     const withBennettOnPreset: Preset = structuredClone(mavuikaOfficial)
     const bennettOn = withBennettOnPreset.team.find(
       (m) => m.key === 'Bennett'
@@ -63,7 +68,10 @@ describe('Buff Coverage Fixes (buff-coverage-fixes)', () => {
       ...bennettOn.conditional,
       Bennett: { activeInArea: 'activeInArea' },
     }
-    const withBennettOn = session.evaluate(withBennettOnPreset)
+    const withBennettOn = session.evaluate(withBennettOnPreset, {
+      artifactIds: session.currentBuild(withBennettOnPreset).artifactIds,
+      memberBuildModes: tcAllModes,
+    })
 
     const withoutBennettPreset: Preset = structuredClone(mavuikaOfficial)
     const bennettOff = withoutBennettPreset.team.find(
@@ -74,19 +82,30 @@ describe('Buff Coverage Fixes (buff-coverage-fixes)', () => {
       Bennett: {},
     }
 
-    const withBennettOff = session.evaluate(withoutBennettPreset)
+    const withBennettOff = session.evaluate(withoutBennettPreset, {
+      artifactIds: session.currentBuild(withoutBennettPreset).artifactIds,
+      memberBuildModes: tcAllModes,
+    })
     expect(withBennettOn.stats.atk!).toBeGreaterThan(withBennettOff.stats.atk!)
     expect(withBennettOn.total).toBeGreaterThan(withBennettOff.total)
   })
 
   it('activates Citlali R5 Thrilling Tales of Dragon Slayers (Heritage=on) in official/mavuika-melt-hypercarry and increases total vs before', () => {
     const mavuikaOfficial = getBundledPreset('official/mavuika-melt-hypercarry')!
+    const tcAllModes = {
+      Citlali: 'tc' as const,
+      Xilonen: 'tc' as const,
+      Bennett: 'tc' as const,
+    }
     const citlali = mavuikaOfficial.team.find((m) => m.key === 'Citlali')!
     expect(citlali.conditional.ThrillingTalesOfDragonSlayers).toEqual({
       Heritage: 'on',
     })
 
-    const withTtds = session.evaluate(mavuikaOfficial)
+    const withTtds = session.evaluate(mavuikaOfficial, {
+      artifactIds: session.currentBuild(mavuikaOfficial).artifactIds,
+      memberBuildModes: tcAllModes,
+    })
 
     const withoutTtdsPreset: Preset = structuredClone(mavuikaOfficial)
     const citlaliNoTtds = withoutTtdsPreset.team.find(
@@ -94,7 +113,10 @@ describe('Buff Coverage Fixes (buff-coverage-fixes)', () => {
     )!
     delete citlaliNoTtds.conditional.ThrillingTalesOfDragonSlayers
 
-    const withoutTtds = session.evaluate(withoutTtdsPreset)
+    const withoutTtds = session.evaluate(withoutTtdsPreset, {
+      artifactIds: session.currentBuild(withoutTtdsPreset).artifactIds,
+      memberBuildModes: tcAllModes,
+    })
     // R5 TTDS grants +48% ATK of Mavuika's Base ATK (399.83467 * 0.48 = 191.9206416)
     expect(withTtds.stats.atk! - withoutTtds.stats.atk!).toBeCloseTo(
       191.9206416,
@@ -106,17 +128,28 @@ describe('Buff Coverage Fixes (buff-coverage-fixes)', () => {
   it('activates Archaic Petra 4pc DMG buff in official/furina-salon-subdps (hydro) and official/mavuika-melt-hypercarry (pyro)', () => {
     // 1. official/furina-salon-subdps (Zhongli wears 4pc ArchaicPetra -> +35% Hydro DMG)
     const furinaOfficial = getBundledPreset('official/furina-salon-subdps')!
+    const furinaTcModes = {
+      Neuvillette: 'tc' as const,
+      KaedeharaKazuha: 'tc' as const,
+      Zhongli: 'tc' as const,
+    }
     const zhongli = furinaOfficial.team.find((m) => m.key === 'Zhongli')!
     expect(zhongli.conditional.ArchaicPetra?.ele).toBe('hydro')
 
-    const furinaWithPetra = session.evaluate(furinaOfficial)
+    const furinaWithPetra = session.evaluate(furinaOfficial, {
+      artifactIds: session.currentBuild(furinaOfficial).artifactIds,
+      memberBuildModes: furinaTcModes,
+    })
     const furinaWithoutPetraPreset: Preset = structuredClone(furinaOfficial)
     const zhongliNoPetra = furinaWithoutPetraPreset.team.find(
       (m) => m.key === 'Zhongli'
     )!
     delete zhongliNoPetra.conditional.ArchaicPetra
 
-    const furinaWithoutPetra = session.evaluate(furinaWithoutPetraPreset)
+    const furinaWithoutPetra = session.evaluate(furinaWithoutPetraPreset, {
+      artifactIds: session.currentBuild(furinaWithoutPetraPreset).artifactIds,
+      memberBuildModes: furinaTcModes,
+    })
     expect(
       furinaWithPetra.stats.hydro_dmg_! - furinaWithoutPetra.stats.hydro_dmg_!
     ).toBeCloseTo(0.35, 5)
@@ -126,17 +159,28 @@ describe('Buff Coverage Fixes (buff-coverage-fixes)', () => {
 
     // 2. official/mavuika-melt-hypercarry (Xilonen wears 4pc ArchaicPetra -> +35% Pyro DMG)
     const mavuikaOfficial = getBundledPreset('official/mavuika-melt-hypercarry')!
+    const mavuikaTcModes = {
+      Citlali: 'tc' as const,
+      Xilonen: 'tc' as const,
+      Bennett: 'tc' as const,
+    }
     const xilonen = mavuikaOfficial.team.find((m) => m.key === 'Xilonen')!
     expect(xilonen.conditional.ArchaicPetra?.ele).toBe('pyro')
 
-    const mavuikaWithPetra = session.evaluate(mavuikaOfficial)
+    const mavuikaWithPetra = session.evaluate(mavuikaOfficial, {
+      artifactIds: session.currentBuild(mavuikaOfficial).artifactIds,
+      memberBuildModes: mavuikaTcModes,
+    })
     const mavuikaWithoutPetraPreset: Preset = structuredClone(mavuikaOfficial)
     const xilonenNoPetra = mavuikaWithoutPetraPreset.team.find(
       (m) => m.key === 'Xilonen'
     )!
     delete xilonenNoPetra.conditional.ArchaicPetra
 
-    const mavuikaWithoutPetra = session.evaluate(mavuikaWithoutPetraPreset)
+    const mavuikaWithoutPetra = session.evaluate(mavuikaWithoutPetraPreset, {
+      artifactIds: session.currentBuild(mavuikaWithoutPetraPreset).artifactIds,
+      memberBuildModes: mavuikaTcModes,
+    })
     expect(
       mavuikaWithPetra.stats.pyro_dmg_! - mavuikaWithoutPetra.stats.pyro_dmg_!
     ).toBeCloseTo(0.35, 5)
