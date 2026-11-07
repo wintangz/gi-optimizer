@@ -18,9 +18,13 @@ import {
 import { shortStatLabel } from '@/lib/itemMeta'
 import type {
   ArtifactSlot,
+  BreakdownContributor,
+  BreakdownSourceCategory,
   BuildSelection,
+  DamageRowBreakdown,
   OptimizerSettings,
   RotationResult,
+  StatBreakdown,
   WeaponCompareCandidate,
   WeaponCompareResult,
   WeaponCompareRowResult,
@@ -49,7 +53,7 @@ import {
   type StatConstraintKey,
   type VariableMainStatSlotKey,
 } from '@gi/presets'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 
 export const OPTIMIZE_SLOTS: ArtifactSlot[] = [
   'flower',
@@ -547,6 +551,8 @@ export interface BuildComparisonListProps {
   artifactById: ReadonlyMap<string, IArtifact>
   onExportGO?: (selection: BuildSelection, label: string) => void
   initialExpandedRowId?: string | null
+  initialExpandedInstanceKey?: string | null
+  initialExpandedStatKey?: string | null
 }
 
 interface InternalComparisonRow {
@@ -590,20 +596,244 @@ export function formatRelativeDelta(
   }
 }
 
+const BREAKDOWN_CATEGORY_META: Record<
+  BreakdownSourceCategory,
+  { label: string; cls: string }
+> = {
+  character: { label: 'Character', cls: 'bd-cat-character' },
+  weapon: { label: 'Weapon', cls: 'bd-cat-weapon' },
+  artifactSet: { label: 'Artifacts', cls: 'bd-cat-artifact' },
+  teamBuff: { label: 'Team Buff', cls: 'bd-cat-teambuff' },
+  resonance: { label: 'Resonance', cls: 'bd-cat-resonance' },
+  enemy: { label: 'Enemy', cls: 'bd-cat-enemy' },
+}
+
+function formatBreakdownContributorValue(c: BreakdownContributor): string {
+  if (c.unit === '%') {
+    const pct = c.value * 100
+    const sign = pct > 0 ? '+' : ''
+    return `${sign}${pct.toFixed(1)}%`
+  }
+  if (Math.abs(c.value) > 0 && Math.abs(c.value) < 10 && !Number.isInteger(c.value)) {
+    return c.value.toFixed(2)
+  }
+  return Math.round(c.value).toLocaleString()
+}
+
+export function DamageRowBreakdownView({
+  breakdown,
+  rowKey,
+  idx,
+}: {
+  breakdown: DamageRowBreakdown
+  rowKey: string
+  idx: number
+}) {
+  return (
+    <div
+      className="formula-breakdown-panel"
+      data-testid={`damage-breakdown-${rowKey}-${idx}`}
+    >
+      <div
+        className="formula-breakdown-equation"
+        data-testid={`damage-breakdown-equation-${rowKey}-${idx}`}
+      >
+        <span className="formula-eq-term">
+          Base{' '}
+          <strong>
+            {formatNum(breakdown.basePlusFlat * breakdown.outerMulti)}
+          </strong>
+        </span>
+        <span className="formula-eq-op">×</span>
+        <span className="formula-eq-term">
+          DMG Bonus <strong>{breakdown.dmgBonusMulti.toFixed(3)}×</strong>
+        </span>
+        <span className="formula-eq-op">×</span>
+        <span className="formula-eq-term">
+          Crit <strong>{breakdown.critMulti.toFixed(3)}×</strong>
+        </span>
+        {breakdown.ampMulti > 1 && (
+          <>
+            <span className="formula-eq-op">×</span>
+            <span className="formula-eq-term">
+              Reaction <strong>{breakdown.ampMulti.toFixed(3)}×</strong>
+            </span>
+          </>
+        )}
+        <span className="formula-eq-op">×</span>
+        <span className="formula-eq-term">
+          DEF <strong>{breakdown.defMulti.toFixed(3)}×</strong>
+        </span>
+        <span className="formula-eq-op">×</span>
+        <span className="formula-eq-term">
+          RES <strong>{breakdown.resMulti.toFixed(3)}×</strong>
+        </span>
+        <span className="formula-eq-op">=</span>
+        <strong
+          className="formula-eq-result"
+          data-testid={`damage-breakdown-reconciled-${rowKey}-${idx}`}
+        >
+          {formatNum(breakdown.reconciledPerHit)} / hit
+        </strong>
+      </div>
+
+      <div className="formula-factors-grid">
+        {breakdown.factors.map((factor) => (
+          <div
+            key={factor.key}
+            className="formula-factor-card"
+            data-testid={`damage-factor-${rowKey}-${idx}-${factor.key}`}
+            data-factor-key={factor.key}
+          >
+            <div className="formula-factor-header">
+              <div>
+                <strong className="formula-factor-title">{factor.label}</strong>
+                {factor.formulaSummary && (
+                  <span className="formula-factor-summary muted">
+                    {factor.formulaSummary}
+                  </span>
+                )}
+              </div>
+              <strong
+                className="formula-factor-val"
+                data-testid={`damage-factor-value-${rowKey}-${idx}-${factor.key}`}
+              >
+                {factor.unit === '×'
+                  ? `${factor.value.toFixed(3)}×`
+                  : factor.unit === '%'
+                    ? `${(factor.value * 100).toFixed(1)}%`
+                    : formatNum(factor.value)}
+              </strong>
+            </div>
+
+            {factor.contributors.length > 0 && (
+              <ul className="formula-contributor-list">
+                {factor.contributors.map((c, cIdx) => {
+                  const catMeta = BREAKDOWN_CATEGORY_META[c.category]
+                  return (
+                    <li
+                      key={cIdx}
+                      className="formula-contributor-item"
+                      data-testid={`damage-contributor-${rowKey}-${idx}-${factor.key}-${cIdx}`}
+                      data-source-category={c.category}
+                    >
+                      <span className="formula-contributor-left">
+                        <span className={`formula-source-badge ${catMeta.cls}`}>
+                          {catMeta.label}
+                        </span>
+                        <span className="formula-contributor-label">
+                          {c.label}
+                          {c.note && (
+                            <span className="formula-contributor-note muted">
+                              {' '}
+                              ({c.note})
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                      <span className="formula-contributor-val">
+                        {formatBreakdownContributorValue(c)}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function StatBreakdownView({
+  breakdown,
+  rowKey,
+  statKey,
+}: {
+  breakdown: StatBreakdown
+  rowKey: string
+  statKey: string
+}) {
+  const isPctStat = breakdown.unit === '%'
+  const formatStatVal = (v: number) =>
+    isPctStat ? `${(v * 100).toFixed(1)}%` : Math.round(v).toLocaleString()
+
+  return (
+    <div
+      className="formula-breakdown-panel stat-breakdown-panel"
+      data-testid={`stat-breakdown-${rowKey}-${statKey}`}
+    >
+      <div className="formula-breakdown-equation">
+        <span className="formula-eq-term">
+          Base <strong>{formatStatVal(breakdown.base)}</strong>
+        </span>
+        <span className="formula-eq-op">→</span>
+        <span className="formula-eq-term">
+          Reconciled Total{' '}
+          <strong data-testid={`stat-breakdown-reconciled-${rowKey}-${statKey}`}>
+            {formatStatVal(breakdown.reconciledTotal)}
+          </strong>
+        </span>
+      </div>
+      <ul className="formula-contributor-list">
+        {breakdown.contributors.map((c, cIdx) => {
+          const catMeta = BREAKDOWN_CATEGORY_META[c.category]
+          const valText =
+            c.unit === '%'
+              ? `${c.value >= 0 ? '+' : ''}${(c.value * 100).toFixed(1)}%`
+              : `${c.value >= 0 ? '+' : ''}${Math.round(c.value).toLocaleString()}`
+          return (
+            <li
+              key={cIdx}
+              className="formula-contributor-item"
+              data-testid={`stat-contributor-${rowKey}-${statKey}-${cIdx}`}
+              data-source-category={c.category}
+            >
+              <span className="formula-contributor-left">
+                <span className={`formula-source-badge ${catMeta.cls}`}>
+                  {catMeta.label}
+                </span>
+                <span className="formula-contributor-label">
+                  {c.label}
+                  {c.note && (
+                    <span className="formula-contributor-note muted">
+                      {' '}
+                      ({c.note})
+                    </span>
+                  )}
+                </span>
+              </span>
+              <span className="formula-contributor-val">{valText}</span>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
 interface BuildStatComparisonSectionProps {
   rowKey: string
   stats: Record<string, number>
+  statBreakdowns?: Record<string, StatBreakdown>
   baselineStats?: Record<string, number>
   isCurrentBuild?: boolean
+  expandedStatKey?: string | null
+  onToggleStatKey?: (statKey: string) => void
 }
 
 function BuildStatComparisonSection({
   rowKey,
   stats,
+  statBreakdowns,
   baselineStats,
   isCurrentBuild = false,
+  expandedStatKey = null,
+  onToggleStatKey,
 }: BuildStatComparisonSectionProps) {
   const showDiff = Boolean(baselineStats && !isCurrentBuild)
+  const colSpan = showDiff ? 5 : 2
 
   return (
     <div
@@ -615,6 +845,11 @@ function BuildStatComparisonSection({
         <strong>
           {showDiff ? 'Core Stat Comparison vs. Current' : 'Core Build Stats'}
         </strong>
+        {statBreakdowns && (
+          <span className="muted" style={{ fontSize: '0.75rem' }}>
+            Click a stat row to inspect its source breakdown
+          </span>
+        )}
       </div>
 
       <div className="gi-table-wrap">
@@ -653,57 +888,94 @@ function BuildStatComparisonSection({
                 currentRaw
               )
               const label = CORE_STAT_DIFF_LABELS[statKey]
+              const sb = statBreakdowns?.[statKey]
+              const isStatExpanded = expandedStatKey === `${rowKey}:${statKey}`
 
               return (
-                <tr
-                  key={statKey}
-                  data-testid={`comp-stat-row-${rowKey}-${statKey}`}
-                  data-stat-key={statKey}
-                >
-                  <td>
-                    <span className="comp-stat-label-cell">
-                      <StatIcon statKey={statKey} iconProps={{ size: 13 }} />
-                      <strong>{label}</strong>
-                    </span>
-                  </td>
-                  {showDiff ? (
-                    <>
-                      <td
-                        className="comp-stat-num muted"
-                        data-testid={`comp-stat-current-${rowKey}-${statKey}`}
-                      >
-                        {formatted.currentText}
-                      </td>
-                      <td
-                        className="comp-stat-arrow muted"
-                        aria-hidden="true"
-                      >
-                        →
-                      </td>
+                <Fragment key={statKey}>
+                  <tr
+                    data-testid={`comp-stat-row-${rowKey}-${statKey}`}
+                    data-stat-key={statKey}
+                    className={sb ? 'comp-expandable-tr' : undefined}
+                    onClick={
+                      sb && onToggleStatKey
+                        ? () => onToggleStatKey(`${rowKey}:${statKey}`)
+                        : undefined
+                    }
+                  >
+                    <td>
+                      <span className="comp-stat-label-cell">
+                        <StatIcon statKey={statKey} iconProps={{ size: 13 }} />
+                        <strong>{label}</strong>
+                        {sb && (
+                          <button
+                            type="button"
+                            className="comp-inline-breakdown-btn"
+                            data-testid={`comp-stat-toggle-${rowKey}-${statKey}`}
+                            aria-expanded={isStatExpanded}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onToggleStatKey?.(`${rowKey}:${statKey}`)
+                            }}
+                          >
+                            {isStatExpanded ? '▲' : '▼'}
+                          </button>
+                        )}
+                      </span>
+                    </td>
+                    {showDiff ? (
+                      <>
+                        <td
+                          className="comp-stat-num muted"
+                          data-testid={`comp-stat-current-${rowKey}-${statKey}`}
+                        >
+                          {formatted.currentText}
+                        </td>
+                        <td
+                          className="comp-stat-arrow muted"
+                          aria-hidden="true"
+                        >
+                          →
+                        </td>
+                        <td
+                          className="comp-stat-num"
+                          data-testid={`comp-stat-value-${rowKey}-${statKey}`}
+                        >
+                          <strong>{formatted.buildText}</strong>
+                        </td>
+                        <td
+                          className={`comp-stat-num comp-stat-diff-delta ${formatted.cls}`}
+                          data-testid={`comp-stat-diff-${rowKey}-${statKey}`}
+                          data-diff-sign={formatted.sign ?? '0'}
+                          data-diff-ascii={formatted.asciiDiffText ?? ''}
+                        >
+                          {formatted.diffText}
+                        </td>
+                      </>
+                    ) : (
                       <td
                         className="comp-stat-num"
                         data-testid={`comp-stat-value-${rowKey}-${statKey}`}
                       >
                         <strong>{formatted.buildText}</strong>
                       </td>
-                      <td
-                        className={`comp-stat-num comp-stat-diff-delta ${formatted.cls}`}
-                        data-testid={`comp-stat-diff-${rowKey}-${statKey}`}
-                        data-diff-sign={formatted.sign ?? '0'}
-                        data-diff-ascii={formatted.asciiDiffText ?? ''}
-                      >
-                        {formatted.diffText}
-                      </td>
-                    </>
-                  ) : (
-                    <td
-                      className="comp-stat-num"
-                      data-testid={`comp-stat-value-${rowKey}-${statKey}`}
+                    )}
+                  </tr>
+                  {isStatExpanded && sb && (
+                    <tr
+                      className="comp-breakdown-tr"
+                      data-testid={`comp-stat-breakdown-row-${rowKey}-${statKey}`}
                     >
-                      <strong>{formatted.buildText}</strong>
-                    </td>
+                      <td colSpan={colSpan}>
+                        <StatBreakdownView
+                          breakdown={sb}
+                          rowKey={rowKey}
+                          statKey={statKey}
+                        />
+                      </td>
+                    </tr>
                   )}
-                </tr>
+                </Fragment>
               )
             })}
           </tbody>
@@ -720,6 +992,8 @@ export function BuildComparisonList({
   artifactById,
   onExportGO,
   initialExpandedRowId,
+  initialExpandedInstanceKey = null,
+  initialExpandedStatKey = null,
 }: BuildComparisonListProps) {
   const defaultExpanded =
     initialExpandedRowId !== undefined
@@ -732,6 +1006,12 @@ export function BuildComparisonList({
 
   const [expandedRowId, setExpandedRowId] = useState<string | null>(
     defaultExpanded
+  )
+  const [expandedInstanceKey, setExpandedInstanceKey] = useState<string | null>(
+    initialExpandedInstanceKey
+  )
+  const [expandedStatKey, setExpandedStatKey] = useState<string | null>(
+    initialExpandedStatKey
   )
 
   const rows: InternalComparisonRow[] = []
@@ -1015,37 +1295,92 @@ export function BuildComparisonList({
                                 currInst.subtotal
                               )
                             : null
+                        const instanceKey = `${row.id}:${idx}`
+                        const isInstExpanded =
+                          expandedInstanceKey === instanceKey
+                        const instColSpan =
+                          row.kind === 'optimized' && currentBuild ? 7 : 6
                         return (
-                          <tr
-                            key={idx}
-                            data-testid={`comp-instance-row-${row.id}-${idx}`}
-                          >
-                            <td>
-                              <strong>{inst.label}</strong>
-                            </td>
-                            <td>
-                              <RotationReactionBadge
-                                reaction={targetSpec?.reaction}
-                                compact
-                              />
-                            </td>
-                            <td>
-                              <RotationHitModeBadge
-                                hitMode={targetSpec?.hitMode}
-                                compact
-                              />
-                            </td>
-                            <td>×{inst.count}</td>
-                            <td>{formatNum(inst.perHit)}</td>
-                            <td>
-                              <strong>{formatNum(inst.subtotal)}</strong>
-                            </td>
-                            {row.kind === 'optimized' && currentBuild && (
-                              <td className={instDelta?.cls ?? 'muted'}>
-                                {instDelta ? instDelta.text : '—'}
+                          <Fragment key={idx}>
+                            <tr
+                              data-testid={`comp-instance-row-${row.id}-${idx}`}
+                              className={
+                                inst.breakdown
+                                  ? 'comp-expandable-tr'
+                                  : undefined
+                              }
+                              onClick={
+                                inst.breakdown
+                                  ? () =>
+                                      setExpandedInstanceKey((prev) =>
+                                        prev === instanceKey
+                                          ? null
+                                          : instanceKey
+                                      )
+                                  : undefined
+                              }
+                            >
+                              <td>
+                                <span className="comp-stat-label-cell">
+                                  <strong>{inst.label}</strong>
+                                  {inst.breakdown && (
+                                    <button
+                                      type="button"
+                                      className="comp-inline-breakdown-btn"
+                                      data-testid={`comp-instance-toggle-${row.id}-${idx}`}
+                                      aria-expanded={isInstExpanded}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setExpandedInstanceKey((prev) =>
+                                          prev === instanceKey
+                                            ? null
+                                            : instanceKey
+                                        )
+                                      }}
+                                    >
+                                      {isInstExpanded ? 'Formula ▲' : 'Formula ▼'}
+                                    </button>
+                                  )}
+                                </span>
                               </td>
+                              <td>
+                                <RotationReactionBadge
+                                  reaction={targetSpec?.reaction}
+                                  compact
+                                />
+                              </td>
+                              <td>
+                                <RotationHitModeBadge
+                                  hitMode={targetSpec?.hitMode}
+                                  compact
+                                />
+                              </td>
+                              <td>×{inst.count}</td>
+                              <td>{formatNum(inst.perHit)}</td>
+                              <td>
+                                <strong>{formatNum(inst.subtotal)}</strong>
+                              </td>
+                              {row.kind === 'optimized' && currentBuild && (
+                                <td className={instDelta?.cls ?? 'muted'}>
+                                  {instDelta ? instDelta.text : '—'}
+                                </td>
+                              )}
+                            </tr>
+                            {isInstExpanded && inst.breakdown && (
+                              <tr
+                                className="comp-breakdown-tr"
+                                data-testid={`comp-instance-breakdown-row-${row.id}-${idx}`}
+                              >
+                                <td colSpan={instColSpan}>
+                                  <DamageRowBreakdownView
+                                    breakdown={inst.breakdown}
+                                    rowKey={row.id}
+                                    idx={idx}
+                                  />
+                                </td>
+                              </tr>
                             )}
-                          </tr>
+                          </Fragment>
                         )
                       })}
                     </tbody>
@@ -1056,8 +1391,13 @@ export function BuildComparisonList({
                   <BuildStatComparisonSection
                     rowKey={row.id}
                     stats={row.evaluation.stats}
+                    statBreakdowns={row.evaluation.statBreakdowns}
                     baselineStats={currentBuild?.evaluation?.stats}
                     isCurrentBuild={row.kind === 'current'}
+                    expandedStatKey={expandedStatKey}
+                    onToggleStatKey={(key) =>
+                      setExpandedStatKey((prev) => (prev === key ? null : key))
+                    }
                   />
                 )}
 
@@ -1468,6 +1808,10 @@ export function WeaponComparisonList({
       : firstOkKey
 
   const [expandedKey, setExpandedKey] = useState<string | null>(defaultExpanded)
+  const [expandedInstanceKey, setExpandedInstanceKey] = useState<string | null>(
+    null
+  )
+  const [expandedStatKey, setExpandedStatKey] = useState<string | null>(null)
 
   if (result.rows.length === 0) {
     return null
@@ -1763,32 +2107,85 @@ export function WeaponComparisonList({
                     <tbody>
                       {row.evaluation.instances.map((inst, idx) => {
                         const targetSpec = preset.rotation.targets[idx]
+                        const instanceKey = `${wKey}:${idx}`
+                        const isInstExpanded =
+                          expandedInstanceKey === instanceKey
                         return (
-                          <tr
-                            key={idx}
-                            data-testid={`weapon-compare-instance-row-${wKey}-${idx}`}
-                          >
-                            <td>
-                              <strong>{inst.label}</strong>
-                            </td>
-                            <td>
-                              <RotationReactionBadge
-                                reaction={targetSpec?.reaction}
-                                compact
-                              />
-                            </td>
-                            <td>
-                              <RotationHitModeBadge
-                                hitMode={targetSpec?.hitMode}
-                                compact
-                              />
-                            </td>
-                            <td>×{inst.count}</td>
-                            <td>{formatNum(inst.perHit)}</td>
-                            <td>
-                              <strong>{formatNum(inst.subtotal)}</strong>
-                            </td>
-                          </tr>
+                          <Fragment key={idx}>
+                            <tr
+                              data-testid={`weapon-compare-instance-row-${wKey}-${idx}`}
+                              className={
+                                inst.breakdown
+                                  ? 'comp-expandable-tr'
+                                  : undefined
+                              }
+                              onClick={
+                                inst.breakdown
+                                  ? () =>
+                                      setExpandedInstanceKey((prev) =>
+                                        prev === instanceKey
+                                          ? null
+                                          : instanceKey
+                                      )
+                                  : undefined
+                              }
+                            >
+                              <td>
+                                <span className="comp-stat-label-cell">
+                                  <strong>{inst.label}</strong>
+                                  {inst.breakdown && (
+                                    <button
+                                      type="button"
+                                      className="comp-inline-breakdown-btn"
+                                      data-testid={`weapon-compare-instance-toggle-${wKey}-${idx}`}
+                                      aria-expanded={isInstExpanded}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setExpandedInstanceKey((prev) =>
+                                          prev === instanceKey
+                                            ? null
+                                            : instanceKey
+                                        )
+                                      }}
+                                    >
+                                      {isInstExpanded ? 'Formula ▲' : 'Formula ▼'}
+                                    </button>
+                                  )}
+                                </span>
+                              </td>
+                              <td>
+                                <RotationReactionBadge
+                                  reaction={targetSpec?.reaction}
+                                  compact
+                                />
+                              </td>
+                              <td>
+                                <RotationHitModeBadge
+                                  hitMode={targetSpec?.hitMode}
+                                  compact
+                                />
+                              </td>
+                              <td>×{inst.count}</td>
+                              <td>{formatNum(inst.perHit)}</td>
+                              <td>
+                                <strong>{formatNum(inst.subtotal)}</strong>
+                              </td>
+                            </tr>
+                            {isInstExpanded && inst.breakdown && (
+                              <tr
+                                className="comp-breakdown-tr"
+                                data-testid={`weapon-compare-instance-breakdown-row-${wKey}-${idx}`}
+                              >
+                                <td colSpan={6}>
+                                  <DamageRowBreakdownView
+                                    breakdown={inst.breakdown}
+                                    rowKey={wKey}
+                                    idx={idx}
+                                  />
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                         )
                       })}
                     </tbody>
@@ -1799,6 +2196,7 @@ export function WeaponComparisonList({
                   <BuildStatComparisonSection
                     rowKey={wKey}
                     stats={row.evaluation.stats}
+                    statBreakdowns={row.evaluation.statBreakdowns}
                     baselineStats={effectiveBaselineStats}
                     isCurrentBuild={
                       currentBuild !== undefined
@@ -1808,6 +2206,10 @@ export function WeaponComparisonList({
                                 row.bestBuild === currentBuild.selection)
                           )
                         : isBaseline
+                    }
+                    expandedStatKey={expandedStatKey}
+                    onToggleStatKey={(key) =>
+                      setExpandedStatKey((prev) => (prev === key ? null : key))
                     }
                   />
                 )}

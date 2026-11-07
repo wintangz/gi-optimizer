@@ -2045,5 +2045,181 @@ td {
   }
 }
 
+/* Formula & Stat Breakdown Panels (formula-breakdown) */
+.comp-expandable-tr {
+  cursor: pointer;
+}
+
+.comp-expandable-tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.comp-inline-breakdown-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.45rem;
+  padding: 0.1rem 0.42rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(88, 166, 255, 0.1);
+  border: 1px solid rgba(88, 166, 255, 0.28);
+  border-radius: 999px;
+}
+
+.comp-inline-breakdown-btn:hover {
+  background: rgba(88, 166, 255, 0.18);
+}
+
+.comp-breakdown-tr > td {
+  padding: 0.55rem 0.65rem !important;
+  background: rgba(13, 17, 23, 0.72);
+}
+
+.formula-breakdown-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(22, 27, 34, 0.85);
+}
+
+.formula-breakdown-equation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.8rem;
+}
+
+.formula-eq-op {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.formula-eq-result {
+  color: var(--ok);
+}
+
+.formula-factors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.55rem;
+}
+
+.formula-factor-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(13, 17, 23, 0.65);
+}
+
+.formula-factor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.formula-factor-title {
+  display: block;
+  font-size: 0.8rem;
+}
+
+.formula-factor-summary {
+  display: block;
+  font-size: 0.72rem;
+}
+
+.formula-factor-val {
+  font-size: 0.85rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.formula-contributor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.formula-contributor-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.76rem;
+  padding-top: 0.24rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.06);
+}
+
+.formula-contributor-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.formula-contributor-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.formula-source-badge {
+  display: inline-block;
+  padding: 0.06rem 0.38rem;
+  border-radius: 4px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.bd-cat-character {
+  background: rgba(88, 166, 255, 0.16);
+  color: #79c0ff;
+}
+
+.bd-cat-weapon {
+  background: rgba(210, 153, 34, 0.18);
+  color: #e3b341;
+}
+
+.bd-cat-artifact {
+  background: rgba(163, 113, 247, 0.18);
+  color: #d2a8ff;
+}
+
+.bd-cat-teambuff {
+  background: rgba(63, 185, 80, 0.18);
+  color: #7ee787;
+}
+
+.bd-cat-resonance {
+  background: rgba(247, 120, 186, 0.18);
+  color: #ff9bce;
+}
+
+.bd-cat-enemy {
+  background: rgba(248, 81, 73, 0.18);
+  color: #ffa198;
+}
+
+
 
 

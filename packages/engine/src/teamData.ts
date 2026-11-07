@@ -31,12 +31,14 @@ import {
   dataObjForArtifact,
   dataObjForCharacterNew,
   dataObjForWeapon,
+  inferInfoMut,
   mergeData,
   percent,
 } from '@genshin-optimizer/gi/wr'
 
 declare module '@genshin-optimizer/common/util' {
   export const objMap: any
+  export const objPathValue: any
   export const toDecimal: any
 }
 
@@ -59,14 +61,40 @@ declare module '@genshin-optimizer/gi/sheets' {
   export const resonanceData: any
 }
 
+declare module '@genshin-optimizer/gi/uidata' {
+  export type CalcResult<V = number> = {
+    value: V
+    meta: {
+      op: string
+      ops: CalcResult<number>[]
+      conds: (readonly string[])[]
+    }
+    info: {
+      path?: string
+      prefix?: string
+      source?: string
+      variant?: string
+      subVariant?: string
+      unit?: string
+      pivot?: boolean
+      asConst?: boolean
+      isTeamBuff?: boolean
+    }
+    isEmpty: boolean
+  }
+}
+
 declare module '@genshin-optimizer/gi/wr' {
   export type CharInfo = any
+  export type DataNode<T = any> = any
   export type OptNode = any
+  export type StrNode = any
   export const common: any
   export const constant: any
   export const dataObjForArtifact: any
   export const dataObjForCharacterNew: any
   export const dataObjForWeapon: any
+  export const inferInfoMut: any
   export const percent: any
 }
 
@@ -469,10 +497,13 @@ function getCharDataBundle(
   const artifactData = Array.isArray(artifacts)
     ? artifacts.map((a) => dataObjForArtifact(a, mainStatAssumptionLevel))
     : [artifacts]
-  const effectiveResonanceData = getEffectiveResonanceData(
-    charInfo.conditional?.resonance as Record<string, string> | undefined,
-    smallTeamEleCounts,
-    useCustom
+  const effectiveResonanceData = inferInfoMut(
+    getEffectiveResonanceData(
+      charInfo.conditional?.resonance as Record<string, string> | undefined,
+      smallTeamEleCounts,
+      useCustom
+    ),
+    'Resonance' as never
   )
   const data = [
     ...artifactData,

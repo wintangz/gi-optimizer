@@ -1193,4 +1193,302 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(latestSettings.minRarity).toBe(1)
     expect(latestSettings.minRv).toBe(0)
   })
+
+  it('expands per-instance damage formula breakdown and core stat breakdown on Current and optimized builds with source attribution badges (formula-breakdown)', () => {
+    const preset = getBundledPreset('official/mavuika-melt-hypercarry')!
+    const sampleDamageBreakdown = {
+      element: 'pyro',
+      move: 'burst',
+      hitMode: 'avgHit',
+      reaction: 'melt',
+      baseDmg: 25000,
+      dmgInc: 0,
+      basePlusFlat: 25000,
+      dmgBonus: 1.05,
+      dmgBonusMulti: 2.05,
+      critRate: 0.95,
+      critDMG: 2.2,
+      critMulti: 3.09,
+      ampMulti: 2.35,
+      defMulti: 0.5,
+      resMulti: 1.23,
+      outerMulti: 1,
+      reconciledPerHit: 25000 * 2.05 * 3.09 * 2.35 * 0.5 * 1.23,
+      reconciledSubtotal: 25000 * 2.05 * 3.09 * 2.35 * 0.5 * 1.23,
+      factors: [
+        {
+          key: 'baseDamage' as const,
+          label: 'Base Damage',
+          value: 25000,
+          unit: '' as const,
+          formulaSummary: '25,000',
+          contributors: [
+            {
+              category: 'character' as const,
+              sourceKey: 'Mavuika',
+              label: 'Mavuika Talent Base DMG',
+              value: 25000,
+              unit: '' as const,
+            },
+          ],
+        },
+        {
+          key: 'dmgBonus' as const,
+          label: 'DMG Bonus Multiplier',
+          value: 2.05,
+          unit: '×' as const,
+          formulaSummary: '1 + 105.0%',
+          contributors: [
+            {
+              category: 'artifactSet' as const,
+              sourceKey: 'Artifacts',
+              label: 'Equipped Artifacts',
+              value: 0.466,
+              unit: '%' as const,
+            },
+            {
+              category: 'teamBuff' as const,
+              sourceKey: 'Citlali',
+              label: 'Citlali · Scroll of the Hero of Cinder City',
+              value: 0.4,
+              unit: '%' as const,
+            },
+          ],
+        },
+        {
+          key: 'crit' as const,
+          label: 'Crit Multiplier (avgHit)',
+          value: 3.09,
+          unit: '×' as const,
+          contributors: [
+            {
+              category: 'character' as const,
+              sourceKey: 'Mavuika',
+              label: 'Effective CRIT Rate (avgHit)',
+              value: 0.95,
+              unit: '%' as const,
+            },
+          ],
+        },
+        {
+          key: 'reaction' as const,
+          label: 'Reaction Multiplier',
+          value: 2.35,
+          unit: '×' as const,
+          contributors: [
+            {
+              category: 'character' as const,
+              sourceKey: 'Mavuika',
+              label: 'Melt Base Multiplier',
+              value: 2.0,
+              unit: '' as const,
+            },
+          ],
+        },
+        {
+          key: 'enemyDef' as const,
+          label: 'Enemy DEF Multiplier',
+          value: 0.5,
+          unit: '×' as const,
+          contributors: [
+            {
+              category: 'enemy' as const,
+              sourceKey: 'Enemy',
+              label: 'Enemy Level (Lv. 100)',
+              value: 100,
+              unit: '' as const,
+            },
+          ],
+        },
+        {
+          key: 'enemyRes' as const,
+          label: 'Enemy Pyro RES Multiplier',
+          value: 1.23,
+          unit: '×' as const,
+          contributors: [
+            {
+              category: 'enemy' as const,
+              sourceKey: 'Enemy',
+              label: 'Enemy Base RES',
+              value: 0.1,
+              unit: '%' as const,
+            },
+            {
+              category: 'teamBuff' as const,
+              sourceKey: 'Citlali',
+              label: 'Citlali (Team Buff)',
+              value: -0.2,
+              unit: '%' as const,
+            },
+          ],
+        },
+      ],
+    }
+
+    const sampleAtkBreakdown = {
+      statKey: 'atk',
+      total: 3150,
+      unit: '' as const,
+      base: 1100,
+      baseContributors: [
+        {
+          category: 'character' as const,
+          sourceKey: 'Mavuika',
+          label: 'Mavuika (Character Base / Ascension)',
+          value: 359,
+          unit: '' as const,
+        },
+        {
+          category: 'weapon' as const,
+          sourceKey: 'AThousandBlazingSuns',
+          label: 'A Thousand Blazing Suns (Weapon Stat)',
+          value: 741,
+          unit: '' as const,
+        },
+      ],
+      percentContributors: [
+        {
+          category: 'resonance' as const,
+          sourceKey: 'Resonance',
+          label: 'Elemental Resonance',
+          value: 275,
+          percentValue: 0.25,
+          unit: '' as const,
+          note: '1,100 Base × 25.0%',
+        },
+      ],
+      flatContributors: [
+        {
+          category: 'teamBuff' as const,
+          sourceKey: 'Bennett',
+          label: 'Bennett (Team Buff)',
+          value: 1200,
+          unit: '' as const,
+        },
+      ],
+      contributors: [
+        {
+          category: 'character' as const,
+          sourceKey: 'Mavuika',
+          label: 'Mavuika (Character Base / Ascension)',
+          value: 359,
+          unit: '' as const,
+        },
+        {
+          category: 'weapon' as const,
+          sourceKey: 'AThousandBlazingSuns',
+          label: 'A Thousand Blazing Suns (Weapon Stat)',
+          value: 741,
+          unit: '' as const,
+        },
+        {
+          category: 'resonance' as const,
+          sourceKey: 'Resonance',
+          label: 'Elemental Resonance',
+          value: 275,
+          percentValue: 0.25,
+          unit: '' as const,
+          note: '1,100 Base × 25.0%',
+        },
+        {
+          category: 'teamBuff' as const,
+          sourceKey: 'Bennett',
+          label: 'Bennett (Team Buff)',
+          value: 1200,
+          unit: '' as const,
+        },
+      ],
+      reconciledTotal: 2575,
+    }
+
+    const evaluation = {
+      total: 500000,
+      stats: {
+        hp: 18000,
+        atk: 3150,
+        def: 850,
+        eleMas: 250,
+        enerRech_: 1.1,
+        critRate_: 0.95,
+        critDMG_: 2.2,
+      },
+      statBreakdowns: {
+        atk: sampleAtkBreakdown,
+      },
+      instances: [
+        {
+          label: 'Hour of Burning Skies: Sunfell Slice (Melt)',
+          path: ['burst', 'skillDmg'],
+          count: 1,
+          perHit: sampleDamageBreakdown.reconciledPerHit,
+          subtotal: sampleDamageBreakdown.reconciledSubtotal,
+          breakdown: sampleDamageBreakdown,
+        },
+      ],
+    }
+
+    hookStore.active = true
+    const renderList = () => {
+      hookStore.beginRender()
+      return evaluateTree(
+        <BuildComparisonList
+          preset={preset}
+          artifactById={new Map()}
+          initialExpandedRowId="opt-0"
+          currentBuild={{
+            selection: { weaponId: 'w1', artifactIds: {} },
+            evaluation,
+          }}
+          optimizedBuilds={[
+            {
+              selection: { weaponId: 'w1', artifactIds: {} },
+              total: 500000,
+              evaluation,
+            },
+          ]}
+        />
+      )
+    }
+
+    let tree = renderList()
+    // Initially damage row breakdown and stat breakdown are collapsed
+    expect(findByTestId(tree, 'damage-breakdown-opt-0-0')).toBeUndefined()
+    expect(findByTestId(tree, 'stat-breakdown-opt-0-atk')).toBeUndefined()
+
+    // Click damage row formula toggle
+    const instToggle = findByTestId(tree, 'comp-instance-toggle-opt-0-0')
+    expect(instToggle).toBeDefined()
+    ;(instToggle!.props.onClick as (e: { stopPropagation: () => void }) => void)(
+      { stopPropagation: () => {} }
+    )
+
+    tree = renderList()
+    expect(findByTestId(tree, 'damage-breakdown-opt-0-0')).toBeDefined()
+    expect(
+      findByTestId(tree, 'damage-factor-opt-0-0-baseDamage')
+    ).toBeDefined()
+    expect(findByTestId(tree, 'damage-factor-opt-0-0-dmgBonus')).toBeDefined()
+    expect(findByTestId(tree, 'damage-factor-opt-0-0-crit')).toBeDefined()
+    expect(findByTestId(tree, 'damage-factor-opt-0-0-reaction')).toBeDefined()
+    expect(findByTestId(tree, 'damage-factor-opt-0-0-enemyDef')).toBeDefined()
+    expect(findByTestId(tree, 'damage-factor-opt-0-0-enemyRes')).toBeDefined()
+
+    // Click ATK stat row toggle
+    const atkToggle = findByTestId(tree, 'comp-stat-toggle-opt-0-atk')
+    expect(atkToggle).toBeDefined()
+    ;(atkToggle!.props.onClick as (e: { stopPropagation: () => void }) => void)(
+      { stopPropagation: () => {} }
+    )
+
+    tree = renderList()
+    expect(findByTestId(tree, 'stat-breakdown-opt-0-atk')).toBeDefined()
+    const resonanceContrib = findByTestId(
+      tree,
+      'stat-contributor-opt-0-atk-2'
+    )!
+    expect(resonanceContrib.props['data-source-category']).toBe('resonance')
+    const teamBuffContrib = findByTestId(tree, 'stat-contributor-opt-0-atk-3')!
+    expect(teamBuffContrib.props['data-source-category']).toBe('teamBuff')
+    hookStore.active = false
+  })
 })

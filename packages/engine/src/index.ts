@@ -14,6 +14,10 @@ export {
   type SubstatRollBreakdown,
 } from '@gi/good'
 export {
+  extractDamageRowBreakdown,
+  extractStatBreakdowns,
+} from './breakdown'
+export {
   getDefaultTargetArtifactSetConditionals,
   listConditionalsForCharacter,
   listTargetsForCharacter,
@@ -72,10 +76,14 @@ export {
   setMemberConditionalOverride,
   setPresetMemberBuildMode,
   type ArtifactSlot,
+  type BreakdownContributor,
+  type BreakdownSourceCategory,
   type BuildSelection,
   type ConditionalDescriptor,
   type ConditionalSourceCategory,
   type ConditionalStateDescriptor,
+  type DamageFactorGroup,
+  type DamageRowBreakdown,
   type EngineSession,
   type InstanceResult,
   type MemberBuildMode,
@@ -88,6 +96,7 @@ export {
   type ResolvedMemberBuild,
   type RotationResult,
   type SimulatedWeaponSpec,
+  type StatBreakdown,
   type StatConstraint,
   type StatConstraintKey,
   type TargetDescriptor,

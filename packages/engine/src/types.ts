@@ -74,18 +74,87 @@ export interface BuildSelection {
   memberConditionals?: PresetMemberConditionalOverrides
 }
 
+export type BreakdownSourceCategory =
+  | 'character'
+  | 'weapon'
+  | 'artifactSet'
+  | 'teamBuff'
+  | 'resonance'
+  | 'enemy'
+
+export interface BreakdownContributor {
+  label: string
+  category: BreakdownSourceCategory
+  sourceKey?: string
+  value: number
+  unit: '' | '%'
+  percentValue?: number
+  note?: string
+}
+
+export interface DamageFactorGroup {
+  key:
+    | 'baseDamage'
+    | 'dmgBonus'
+    | 'crit'
+    | 'reaction'
+    | 'enemyDef'
+    | 'enemyRes'
+  label: string
+  value: number
+  unit: '' | '%' | '×'
+  formulaSummary?: string
+  contributors: BreakdownContributor[]
+}
+
+export interface DamageRowBreakdown {
+  element: string
+  move: string
+  hitMode: string
+  reaction?: string
+  baseDmg: number
+  dmgInc: number
+  basePlusFlat: number
+  dmgBonus: number
+  dmgBonusMulti: number
+  critRate: number
+  critDMG: number
+  critMulti: number
+  ampMulti: number
+  defMulti: number
+  resMulti: number
+  outerMulti: number
+  reconciledPerHit: number
+  reconciledSubtotal: number
+  factors: DamageFactorGroup[]
+}
+
+export interface StatBreakdown {
+  statKey: string
+  total: number
+  unit: '' | '%'
+  base: number
+  baseContributors: BreakdownContributor[]
+  percentContributors: BreakdownContributor[]
+  flatContributors: BreakdownContributor[]
+  contributors: BreakdownContributor[]
+  reconciledTotal: number
+}
+
 export interface InstanceResult {
   label: string
   path: string[]
   count: number
   perHit: number
   subtotal: number
+  breakdown?: DamageRowBreakdown
 }
 
 export interface RotationResult {
   total: number
   instances: InstanceResult[]
   stats: Record<string, number>
+  statBreakdowns?: Record<string, StatBreakdown>
 }
 
 export interface OptimizeProgress {

@@ -31,6 +31,10 @@ import {
   type TcCharacter,
 } from '@gi/presets'
 import {
+  extractDamageRowBreakdown,
+  extractStatBreakdowns,
+} from './breakdown'
+import {
   getDefaultTargetArtifactSetConditionals,
   listConditionalsForCharacter,
   listTargetsForCharacter,
@@ -1140,6 +1144,11 @@ export function createSession(good: unknown): EngineSession {
       const display = targetUiData.getDisplay()
       const customDisplay = display['custom'] ?? {}
       const repeat = preset.rotation.repeat ?? 1
+      const teamKeys = Object.keys(bundle.teamData) as CharacterKey[]
+      const resolvedTargetWeaponKey =
+        effectiveWeaponSpec?.key ??
+        overrideWeapon?.key ??
+        bundle.teamBundle[targetKey]?.weapon?.key
 
       const instances: InstanceResult[] = preset.rotation.targets.map(
         (rt, idx) => {
@@ -1155,12 +1164,25 @@ export function createSession(good: unknown): EngineSession {
             ? customPerHitNode.value
             : secNode.value
           const subtotal = perHit * rt.count * repeat
+          const breakdown = extractDamageRowBreakdown({
+            preset,
+            rt,
+            idx,
+            perHit,
+            subtotal,
+            targetUiData,
+            calc,
+            targetKey,
+            teamKeys,
+            targetWeaponKey: resolvedTargetWeaponKey,
+          })
           return {
             label: rt.label || normPath.join('.'),
             path: rt.path,
             count: rt.count,
             perHit,
             subtotal,
+            breakdown,
           }
         }
       )
@@ -1185,10 +1207,19 @@ export function createSession(good: unknown): EngineSession {
         stats[k] = targetUiData.get(input.total[k]).value
       }
 
+      const statBreakdowns = extractStatBreakdowns(
+        targetUiData,
+        calc,
+        targetKey,
+        teamKeys,
+        resolvedTargetWeaponKey
+      )
+
       return {
         total,
         instances,
         stats,
+        statBreakdowns,
       }
     },
 
