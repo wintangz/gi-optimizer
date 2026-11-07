@@ -1,0 +1,85 @@
+{
+  "presetId": "official/sandrone-stellar-conduct",
+  "target": "Sandrone",
+  "total": 85061.74095737819,
+  "instances": [
+    {
+      "label": "Decoding Sweeping Fire",
+      "path": [
+        "charged",
+        "sweepDmg"
+      ],
+      "count": 1,
+      "perHit": 441.4609171208722,
+      "subtotal": 441.4609171208722
+    },
+    {
+      "label": "Condensed Beam Stellar-Conduct (×6)",
+      "path": [
+        "charged",
+        "beamStellarDmg"
+      ],
+      "count": 6,
+      "perHit": 6291.485085455996,
+      "subtotal": 37748.91051273598
+    },
+    {
+      "label": "1st Prism Shot (×2)",
+      "path": [
+        "skill",
+        "prismDmg1"
+      ],
+      "count": 2,
+      "perHit": 307.793257152122,
+      "subtotal": 615.586514304244
+    },
+    {
+      "label": "2nd Prism Shot Stellar-Conduct (×2)",
+      "path": [
+        "skill",
+        "prismStellarDmg"
+      ],
+      "count": 2,
+      "perHit": 6156.517850444881,
+      "subtotal": 12313.035700889763
+    },
+    {
+      "label": "Q.E.D. Bombardment (×3)",
+      "path": [
+        "burst",
+        "bombardDmg"
+      ],
+      "count": 3,
+      "perHit": 838.033641139864,
+      "subtotal": 2514.100923419592
+    },
+    {
+      "label": "Convective Inhibition Ray Stellar-Conduct",
+      "path": [
+        "burst",
+        "rayStellarDmg"
+      ],
+      "count": 1,
+      "perHit": 31428.64638890774,
+      "subtotal": 31428.64638890774
+    }
+  ],
+  "stats": {
+    "hp": 13225.583558400001,
+    "atk": 1065.620304147168,
+    "def": 752.41472823,
+    "eleMas": 185.24962433177345,
+    "critRate_": 0.392,
+    "critDMG_": 0.5,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}

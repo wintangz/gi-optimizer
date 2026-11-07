@@ -1,0 +1,147 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "official/sandrone-stellar-conduct",
+  "name": "Sandrone — Stellar-Conduct (Odette · Alyosha · Xilonen)",
+  "description": "Official meta preset for Sandrone Stellar-Conduct with Odette (Stellar Radiance SC + A1 4× Team Splendor + Heart of the Furnace 4p + Whitelake Frostfeather), Alyosha (Skill Precision +2 + A4 CRIT DMG + C6 CRIT Rate + Symphonist of Scents + Noblesse 4p), and Xilonen (Source Sample RES shred + Tenacity 4p).",
+  "source": "official",
+  "author": "gi-optimizer",
+  "target": "Sandrone",
+  "team": [
+    {
+      "key": "Sandrone",
+      "build": { "type": "owned" },
+      "requirement": {},
+      "conditional": {
+        "Sandrone": {
+          "a0StellarRadianceSc": "on",
+          "a1Decoding": "on",
+          "a1Tactics": "10"
+        },
+        "DisenchantmentInDeepShadow": {
+          "state": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Odette",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "WhitelakeFrostfeather", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critDMG_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "critRate_": 23.3, "critDMG_": 46.6 } },
+            "sets": { "HeartOfTheFurnace": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Odette": {
+          "a0StellarRadiance": "sc",
+          "a1TeamSplendor": "4",
+          "burst": "on"
+        },
+        "WhitelakeFrostfeather": {
+          "passive": "3"
+        },
+        "HeartOfTheFurnace": {
+          "4Stellar": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Alyosha",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 10, "burst": 10 } },
+          "weapon": { "key": "SymphonistOfScents", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "enerRech_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "heal_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "enerRech_": 33.0 } },
+            "sets": { "NoblesseOblige": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Alyosha": {
+          "skillPrecision": "2",
+          "a0StellarRadianceSc": "on"
+        },
+        "SymphonistOfScents": {
+          "healing": "on"
+        },
+        "NoblesseOblige": {
+          "set4": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Xilonen",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "FavoniusSword", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "def_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "def_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "def_": 29.7, "critRate_": 31.1 } },
+            "sets": { "TenacityOfTheMillelith": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Xilonen": {
+          "sourceActive": "on"
+        },
+        "TenacityOfTheMillelith": {
+          "skill": "cast"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "CA Decoding -> 2× E Prism Shots + 6× Condensed Beams + Q Convective Ray",
+    "repeat": 1,
+    "targets": [
+      { "path": ["charged", "sweepDmg"], "count": 1, "label": "Decoding Sweeping Fire", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["charged", "beamStellarDmg"], "count": 6, "label": "Condensed Beam Stellar-Conduct (×6)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "prismDmg1"], "count": 2, "label": "1st Prism Shot (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "prismStellarDmg"], "count": 2, "label": "2nd Prism Shot Stellar-Conduct (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "bombardDmg"], "count": 3, "label": "Q.E.D. Bombardment (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "rayStellarDmg"], "count": 1, "label": "Convective Inhibition Ray Stellar-Conduct", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  }
+}

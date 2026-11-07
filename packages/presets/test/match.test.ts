@@ -138,7 +138,7 @@ describe('matchAccount & bundled presets', () => {
 
   it('passes all Official presets against the sample GOOD file regardless of equipped weapon', () => {
     const officials = listBundledPresets({ source: 'official' })
-    expect(officials).toHaveLength(11)
+    expect(officials).toHaveLength(12)
     for (const p of officials) {
       const hasTargetInSample = sampleGood.characters.some(
         (c: { key: string }) => c.key === p.target

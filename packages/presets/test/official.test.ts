@@ -7,7 +7,7 @@ describe('Official Presets (official-presets)', () => {
   const officialPresets = listBundledPresets({ source: 'official' })
 
   it('includes all bundled official presets', () => {
-    expect(officialPresets).toHaveLength(11)
+    expect(officialPresets).toHaveLength(12)
     const ids = officialPresets.map((p) => p.id)
     expect(ids).toEqual(
       expect.arrayContaining([
@@ -22,6 +22,7 @@ describe('Official Presets (official-presets)', () => {
         'official/nefer-lunar-bloom',
         'official/flins-lunar-charged',
         'official/zibai-lunar-crystallize',
+        'official/sandrone-stellar-conduct',
       ])
     )
   })
