@@ -13,6 +13,7 @@ import neferLunarBloom from '../data/official/nefer-lunar-bloom.json'
 import neuvHyper from '../data/official/neuvillette-hypercarry.json'
 import raidenHyper from '../data/official/raiden-hypercarry.json'
 import skirkFreeze from '../data/official/skirk-freeze.json'
+import zibaiLunarCrystallize from '../data/official/zibai-lunar-crystallize.json'
 import { presetSchema, type Preset } from './schema'
 
 const RAW_BUNDLED: unknown[] = [
@@ -31,6 +32,7 @@ const RAW_BUNDLED: unknown[] = [
   skirkFreeze,
   neferLunarBloom,
   flinsLunarCharged,
+  zibaiLunarCrystallize,
 ]
 
 let cachedPresets: Preset[] | null = null
@@ -63,6 +65,7 @@ export const VERIFIED_PRESET_IDS: ReadonlySet<string> = /*#__PURE__*/ new Set([
   'official/skirk-freeze',
   'official/nefer-lunar-bloom',
   'official/flins-lunar-charged',
+  'official/zibai-lunar-crystallize',
 ])
 
 export interface PresetBadge {

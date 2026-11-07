@@ -1,0 +1,115 @@
+{
+  "presetId": "official/zibai-lunar-crystallize",
+  "target": "Zibai",
+  "total": 246645.99736743091,
+  "instances": [
+    {
+      "label": "Tri-Sphere Eminence 1-Hit",
+      "path": [
+        "burst",
+        "skill1Dmg"
+      ],
+      "count": 1,
+      "perHit": 3689.312678806886,
+      "subtotal": 3689.312678806886
+    },
+    {
+      "label": "Tri-Sphere Eminence 2-Hit Lunar-Crystallize",
+      "path": [
+        "burst",
+        "skill2Dmg"
+      ],
+      "count": 1,
+      "perHit": 43803.14617870128,
+      "subtotal": 43803.14617870128
+    },
+    {
+      "label": "Lunar Phase Shift 1-Hit (×3)",
+      "path": [
+        "skill",
+        "shift1Dmg"
+      ],
+      "count": 3,
+      "perHit": 2083.688993881316,
+      "subtotal": 6251.066981643948
+    },
+    {
+      "label": "Lunar Phase Shift 2-Hit (×3)",
+      "path": [
+        "skill",
+        "shift2Dmg"
+      ],
+      "count": 3,
+      "perHit": 1981.5199926091423,
+      "subtotal": 5944.559977827426
+    },
+    {
+      "label": "Lunar Phase Shift 3-Hit (3×2)",
+      "path": [
+        "skill",
+        "shift3Dmg"
+      ],
+      "count": 6,
+      "perHit": 1581.5707720749538,
+      "subtotal": 9489.424632449722
+    },
+    {
+      "label": "Lunar Phase Shift 4-Hit (×3)",
+      "path": [
+        "skill",
+        "shift4Dmg"
+      ],
+      "count": 3,
+      "perHit": 2781.770027949897,
+      "subtotal": 8345.310083849692
+    },
+    {
+      "label": "Lunar Phase Shift 4-Hit Gleam Lunar-Crystallize (×3)",
+      "path": [
+        "skill",
+        "shift4GleamDmg"
+      ],
+      "count": 3,
+      "perHit": 14007.56028090368,
+      "subtotal": 42022.680842711045
+    },
+    {
+      "label": "Spirit Steed's Stride 1-Hit (×3)",
+      "path": [
+        "skill",
+        "stride1Dmg"
+      ],
+      "count": 3,
+      "perHit": 4728.872269127865,
+      "subtotal": 14186.616807383596
+    },
+    {
+      "label": "Spirit Steed's Stride 2-Hit Lunar-Crystallize (×3)",
+      "path": [
+        "skill",
+        "stride2Dmg"
+      ],
+      "count": 3,
+      "perHit": 37637.95972801911,
+      "subtotal": 112913.87918405732
+    }
+  ],
+  "stats": {
+    "hp": 12919.435971400002,
+    "atk": 410.25382920000004,
+    "def": 1443.905247845,
+    "eleMas": 429.86127553118,
+    "critRate_": 0.05,
+    "critDMG_": 0.884,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0.2,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}

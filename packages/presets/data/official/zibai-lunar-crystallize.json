@@ -1,0 +1,149 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "official/zibai-lunar-crystallize",
+  "name": "Zibai — Lunar-Crystallize (Illuga · Columbina · Linnea)",
+  "description": "Official meta preset for Zibai Lunar-Crystallize with Illuga (Nightingale's Song Geo/Lunar-Crystallize flat DMG + C6 CRIT Rate/DMG + Silken Moon's Serenade 4p), Columbina (Lunar Domain Lunar-Crystallize DMG% + Ascendant Gleam + Aubade 4p), and Linnea (Lumi Geo RES shred + A4 EM share + Golden Frostbound Oath).",
+  "source": "official",
+  "author": "gi-optimizer",
+  "target": "Zibai",
+  "team": [
+    {
+      "key": "Zibai",
+      "build": { "type": "owned" },
+      "requirement": {},
+      "conditional": {
+        "Zibai": {
+          "a1Moonfall": "on"
+        },
+        "NightOfTheSkysUnveiling": {
+          "4GleamingMoon": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Illuga",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "FavoniusLance", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 44.0, "critRate_": 23.3 } },
+            "sets": { "SilkenMoonsSerenade": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Illuga": {
+          "burstSong": "on",
+          "a1AfterSkillBurst": "on",
+          "c4BurstActive": "on"
+        },
+        "SilkenMoonsSerenade": {
+          "4GleamingMoon": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Columbina",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "NocturnesCurtainCall", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "AubadeOfMorningstarAndMoon": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Columbina": {
+          "burstDomain": "on",
+          "a1Stacks": "3"
+        },
+        "NocturnesCurtainCall": {
+          "passive": "on"
+        },
+        "AubadeOfMorningstarAndMoon": {
+          "set4": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Linnea",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "GoldenFrostboundOath", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "def_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "def_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "def_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "def_": 29.7, "enerRech_": 33.0, "critRate_": 23.3 } },
+            "sets": { "HuskOfOpulentDreams": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Linnea": {
+          "a1Lumi": "on"
+        },
+        "GoldenFrostboundOath": {
+          "skillOrLc": "on",
+          "moondrift": "on"
+        },
+        "HuskOfOpulentDreams": {
+          "stack": "4"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "E -> Q -> 3× (N4 + Spirit Steed's Stride)",
+    "repeat": 1,
+    "targets": [
+      { "path": ["burst", "skill1Dmg"], "count": 1, "label": "Tri-Sphere Eminence 1-Hit", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "skill2Dmg"], "count": 1, "label": "Tri-Sphere Eminence 2-Hit Lunar-Crystallize", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "shift1Dmg"], "count": 3, "label": "Lunar Phase Shift 1-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "shift2Dmg"], "count": 3, "label": "Lunar Phase Shift 2-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "shift3Dmg"], "count": 6, "label": "Lunar Phase Shift 3-Hit (3×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "shift4Dmg"], "count": 3, "label": "Lunar Phase Shift 4-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "shift4GleamDmg"], "count": 3, "label": "Lunar Phase Shift 4-Hit Gleam Lunar-Crystallize (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "stride1Dmg"], "count": 3, "label": "Spirit Steed's Stride 1-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "stride2Dmg"], "count": 3, "label": "Spirit Steed's Stride 2-Hit Lunar-Crystallize (×3)", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  }
+}

@@ -32,7 +32,7 @@ describe('Official Presets Owned-First Teammate Resolution (official-presets-own
 
   it('re-captures official golden fixtures without touching akasha golden fixtures', () => {
     const count = captureAllGoldenFixtures({ source: 'official' })
-    expect(count).toBe(10)
+    expect(count).toBe(11)
   })
 
   it('(1) owned member present in GOOD -> uses owned build and actual-build-derived conditionals by default', () => {
@@ -96,7 +96,7 @@ describe('Official Presets Owned-First Teammate Resolution (official-presets-own
 
   it('(2) toggle member to simulated (tc) -> reproduces the exact old TC totals and switches conditional source', async () => {
     const officialPresets = listBundledPresets({ source: 'official' })
-    expect(officialPresets).toHaveLength(10)
+    expect(officialPresets).toHaveLength(11)
 
     for (const preset of officialPresets) {
       const allTeammatesTc: Record<string, MemberBuildMode> = {}
