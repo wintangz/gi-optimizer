@@ -10,6 +10,7 @@ import mavuikaMelt from '../data/official/mavuika-melt-hypercarry.json'
 import mavuikaOverload from '../data/official/mavuika-overload.json'
 import neuvHyper from '../data/official/neuvillette-hypercarry.json'
 import raidenHyper from '../data/official/raiden-hypercarry.json'
+import skirkFreeze from '../data/official/skirk-freeze.json'
 import { presetSchema, type Preset } from './schema'
 
 const RAW_BUNDLED: unknown[] = [
@@ -25,6 +26,7 @@ const RAW_BUNDLED: unknown[] = [
   arlecchinoVape,
   mavuikaMelt,
   mavuikaOverload,
+  skirkFreeze,
 ]
 
 let cachedPresets: Preset[] | null = null
@@ -54,6 +56,7 @@ export const VERIFIED_PRESET_IDS: ReadonlySet<string> = /*#__PURE__*/ new Set([
   'official/arlecchino-vaporize',
   'official/mavuika-melt-hypercarry',
   'official/mavuika-overload',
+  'official/skirk-freeze',
 ])
 
 export interface PresetBadge {
