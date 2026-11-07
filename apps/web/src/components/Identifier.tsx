@@ -996,8 +996,12 @@ export function BuildComparisonBars({
             gap: '0.65rem',
           }}
         >
-          <span className="muted" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-            Current Build
+          <span
+            className="muted"
+            style={{ fontSize: '0.8rem', fontWeight: 600 }}
+            title="Your currently equipped build"
+          >
+            Current
           </span>
           <div
             style={{

@@ -1193,6 +1193,11 @@ export function BuildComparisonList({
                           : ''
                     }`}
                     data-testid={`comp-rank-${row.id}`}
+                    title={
+                      row.kind === 'current'
+                        ? 'Your currently equipped build'
+                        : undefined
+                    }
                   >
                     {row.rankLabel}
                   </span>
@@ -1240,11 +1245,11 @@ export function BuildComparisonList({
                     data-delta-ascii={delta.asciiText}
                     title={
                       row.kind === 'current'
-                        ? 'Pinned current equipped build baseline'
+                        ? 'Your currently equipped build'
                         : `${delta.asciiText} vs. Current build`
                     }
                   >
-                    {row.kind === 'current' ? 'Baseline' : delta.text}
+                    {delta.text}
                   </span>
                 </div>
 
@@ -1879,8 +1884,9 @@ export function WeaponComparisonPanel({
                     <span
                       className="comp-baseline-tag"
                       data-testid={`weapon-compare-config-baseline-${cand.weaponKey}`}
+                      title="Your currently equipped build"
                     >
-                      Current Baseline
+                      Current
                     </span>
                   ) : cand.isOwned ? (
                     <span
@@ -2078,8 +2084,9 @@ export function WeaponComparisonList({
                       <span
                         className="comp-baseline-tag"
                         data-testid={`weapon-compare-baseline-badge-${wKey}`}
+                        title="Your currently equipped build"
                       >
-                        Current Baseline
+                        Current
                       </span>
                     )}
                   </div>
@@ -2165,8 +2172,9 @@ export function WeaponComparisonList({
                     <span
                       className="comp-baseline-tag"
                       data-testid={`weapon-compare-baseline-badge-${wKey}`}
+                      title="Your currently equipped build"
                     >
-                      Current Baseline
+                      Current
                     </span>
                   )}
                 </div>

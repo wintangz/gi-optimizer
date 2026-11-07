@@ -652,11 +652,12 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(fleuveIdx).toBeGreaterThan(favIdx)
     expect(splendorIdx).toBeGreaterThan(fleuveIdx)
 
-    // Current Baseline badge on FavoniusSword, -10.0% behind leader on FleuveCendreFerryman, and "No build meets constraints" on SplendorOfTranquilWaters
+    // Current badge on FavoniusSword, -10.0% behind leader on FleuveCendreFerryman, and "No build meets constraints" on SplendorOfTranquilWaters
     expect(listHtml).toContain(
       'data-testid="weapon-compare-baseline-badge-FavoniusSword"'
     )
-    expect(listHtml).toContain('>Current Baseline<')
+    expect(listHtml).toContain('>Current<')
+    expect(listHtml).not.toContain('>Current Baseline<')
     expect(listHtml).toContain('data-delta-ascii="-10.0%"')
     expect(listHtml).toContain('>−10.0% vs. leader<')
     expect(listHtml).toContain(
@@ -1948,9 +1949,9 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       />
     )
 
-    // 1. Pill badge styling: Current Baseline uses class="comp-baseline-tag" (not comp-best-tag)
+    // 1. Pill badge styling: Current uses class="comp-baseline-tag" (not comp-best-tag)
     expect(html).toContain(
-      'class="comp-baseline-tag" data-testid="weapon-compare-baseline-badge-FavoniusSword">Current Baseline<'
+      'class="comp-baseline-tag" data-testid="weapon-compare-baseline-badge-FavoniusSword" title="Your currently equipped build">Current<'
     )
     expect(html).not.toContain('comp-best-tag comp-baseline-tag')
 
@@ -2259,17 +2260,17 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         rank: null,
         total: 400000,
         percentBehindLeader: null,
-        bestBuild: { artifactIds: {} },
+        bestBuild: { artifactIds: {}, total: 400000 },
         evaluation: { total: 400000, stats: {}, instances: [] },
         topBuilds: [
           {
             rank: 1,
-            selection: { artifactIds: {} },
+            selection: { artifactIds: {}, total: 400000 },
             evaluation: { total: 400000, stats: {}, instances: [] },
           },
           {
             rank: 2,
-            selection: { artifactIds: {} },
+            selection: { artifactIds: {}, total: 396000 },
             evaluation: { total: 396000, stats: {}, instances: [] },
           },
         ],
@@ -2290,7 +2291,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         rank: null,
         total: 380000,
         percentBehindLeader: null,
-        bestBuild: { artifactIds: {} },
+        bestBuild: { artifactIds: {}, total: 380000 },
         evaluation: { total: 380000, stats: {}, instances: [] },
         tested: 10,
         skipped: 0,
@@ -2353,12 +2354,16 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
             memberKey: 'Furina',
             path: ['skill', 'chevalmarineDmg'],
             count: 6,
+            hitMode: 'avgHit' as const,
+            bonusStats: {},
           },
           {
             label: 'Kazuha Slash',
             memberKey: 'KaedeharaKazuha',
             path: ['burst', 'dmg'],
             count: 1,
+            hitMode: 'avgHit' as const,
+            bonusStats: {},
           },
         ],
       },
@@ -2371,7 +2376,8 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         result={{
           teamTotal: 1320000,
           currentTeamTotal: 1300000,
-          testedCombinations: 100,
+          tested: 100,
+          skipped: 0,
           durationMs: 25,
           members: [
             // Slot 1: Improved (+10.0%) -> earns is-best / comp-rank-best and ok subtotal
@@ -2523,17 +2529,17 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         rank: null,
         total: 1000000,
         percentBehindLeader: null,
-        bestBuild: { artifactIds: {} },
+        bestBuild: { artifactIds: {}, total: 1000000 },
         evaluation: { total: 1000000, stats: {}, instances: [] },
         topBuilds: [
           {
             rank: 1,
-            selection: { artifactIds: {} },
+            selection: { artifactIds: {}, total: 1000000 },
             evaluation: { total: 1000000, stats: {}, instances: [] },
           },
           {
             rank: 2,
-            selection: { artifactIds: {} },
+            selection: { artifactIds: {}, total: 20000 },
             evaluation: { total: 20000, stats: {}, instances: [] },
           },
         ],
@@ -2554,7 +2560,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         rank: null,
         total: 5000,
         percentBehindLeader: null,
-        bestBuild: { artifactIds: {} },
+        bestBuild: { artifactIds: {}, total: 5000 },
         evaluation: { total: 5000, stats: {}, instances: [] },
         tested: 10,
         skipped: 0,
@@ -2600,17 +2606,17 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         rank: null,
         total: 400000,
         percentBehindLeader: null,
-        bestBuild: { artifactIds: {} },
+        bestBuild: { artifactIds: {}, total: 400000 },
         evaluation: { total: 400000, stats: {}, instances: [] },
         topBuilds: [
           {
             rank: 1,
-            selection: { artifactIds: {} },
+            selection: { artifactIds: {}, total: 400000 },
             evaluation: { total: 400000, stats: {}, instances: [] },
           },
           {
             rank: 2,
-            selection: { artifactIds: {} },
+            selection: { artifactIds: {}, total: 392000 },
             evaluation: { total: 392000, stats: {}, instances: [] },
           },
         ],
@@ -2631,7 +2637,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         rank: null,
         total: 360000,
         percentBehindLeader: null,
-        bestBuild: { artifactIds: {} },
+        bestBuild: { artifactIds: {}, total: 360000 },
         evaluation: { total: 360000, stats: {}, instances: [] },
         tested: 10,
         skipped: 0,
@@ -2662,5 +2668,85 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(html).toContain(
       'data-testid="weapon-compare-build-delta-FavoniusSword-1" data-delta-scope="weapon-best" data-delta-ascii="-2.0%" title="-2.0% vs. this weapon&#x27;s best build">−2.0% vs. weapon best<'
     )
+  })
+
+  it('unifies current build terminology on "Current" across rank pills, delta chips, and weapon comparison badges with "Your currently equipped build" tooltips (current-build-naming)', () => {
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+
+    // 1. BuildComparisonList: both rank pill and delta chip use "Current" (not "Baseline")
+    const buildHtml = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: { total: 300000, stats: {}, instances: [] },
+        }}
+        optimizedBuilds={[
+          {
+            selection: { weaponId: 'w1', artifactIds: {} },
+            total: 330000,
+            evaluation: { total: 330000, stats: {}, instances: [] },
+          },
+        ]}
+      />
+    )
+    expect(buildHtml).toContain(
+      'class="comp-rank-pill comp-rank-current" data-testid="comp-rank-current" title="Your currently equipped build">Current<'
+    )
+    expect(buildHtml).toContain(
+      'class="comp-row-delta muted" data-testid="comp-delta-current" data-delta-sign="baseline" data-delta-ascii="Current" title="Your currently equipped build">Current<'
+    )
+    expect(buildHtml).not.toContain('>Baseline<')
+    expect(buildHtml).not.toContain('>Current Baseline<')
+
+    // 2. WeaponComparisonPanel and WeaponComparisonList: badge uses "Current" (not "Current Baseline")
+    const favCand = {
+      weaponKey: 'FavoniusSword',
+      level: 90,
+      ascension: 6,
+      refinement: 5,
+      isOwned: true,
+      ownedWeaponId: 'w_fav',
+      isEquippedBaseline: true,
+    }
+    const panelHtml = renderToStaticMarkup(
+      <WeaponComparisonPanel
+        targetCharacterKey="Furina"
+        good={null}
+        selectedCandidates={[favCand]}
+        onChangeCandidates={() => {}}
+      />
+    )
+    expect(panelHtml).toContain(
+      'class="comp-baseline-tag" data-testid="weapon-compare-config-baseline-FavoniusSword" title="Your currently equipped build">Current<'
+    )
+    expect(panelHtml).not.toContain('>Current Baseline<')
+
+    const rankedWeapons = rankWeaponComparisonRows([
+      {
+        candidate: favCand,
+        status: 'ok',
+        rank: null,
+        total: 400000,
+        percentBehindLeader: null,
+        bestBuild: { artifactIds: {}, total: 400000 },
+        evaluation: { total: 400000, stats: {}, instances: [] },
+        tested: 10,
+        skipped: 0,
+        durationMs: 1,
+      },
+    ])
+    const listHtml = renderToStaticMarkup(
+      <WeaponComparisonList
+        preset={preset}
+        result={rankedWeapons}
+        artifactById={new Map()}
+      />
+    )
+    expect(listHtml).toContain(
+      'class="comp-baseline-tag" data-testid="weapon-compare-baseline-badge-FavoniusSword" title="Your currently equipped build">Current<'
+    )
+    expect(listHtml).not.toContain('>Current Baseline<')
   })
 })
