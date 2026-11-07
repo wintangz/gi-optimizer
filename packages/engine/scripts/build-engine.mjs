@@ -184,6 +184,21 @@ function createGoTrimPlugin({ mode }) {
         })
       )
 
+      build.onLoad(
+        { filter: /libs[\\/]gi[\\/]solver[\\/]src[\\/]common\.ts$/ },
+        (args) => {
+          const contents = readFileSync(args.path, 'utf8').replace(
+            'reaffine: { pruneOrder: true, pruneArtRange: true, pruneNodeRange: true }',
+            'reaffine: { ...(forced.pruneOrder ? { pruneOrder: true } : {}), pruneArtRange: true, pruneNodeRange: true }'
+          )
+          return {
+            contents,
+            resolveDir: dirname(args.path),
+            loader: 'ts',
+          }
+        }
+      )
+
       build.onLoad({ filter: /GOSolver\.ts$/ }, (args) => {
         let contents = readFileSync(args.path, 'utf8')
         contents = contents

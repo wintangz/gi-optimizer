@@ -182,6 +182,143 @@ export function getTeamDataCalc(
   return data
 }
 
+function isResonanceExplicitlyOff(
+  resCond: Record<string, string> | undefined,
+  ele: string
+): boolean {
+  if (!resCond) return false
+  const capEle = ele.charAt(0).toUpperCase() + ele.slice(1)
+  const val = resCond[capEle] ?? resCond[ele]
+  return val !== undefined && val !== 'on'
+}
+
+function isResonanceExplicitlyOn(
+  resCond: Record<string, string> | undefined,
+  ele: string
+): boolean {
+  if (!resCond) return false
+  const capEle = ele.charAt(0).toUpperCase() + ele.slice(1)
+  const val = resCond[capEle] ?? resCond[ele]
+  return val === 'on'
+}
+
+function getEffectiveResonanceData(
+  resCond: Record<string, string> | undefined,
+  smallTeamEleCounts?: Record<string, number>,
+  isActiveTeamChar = false
+): Data {
+  const offPyro = isResonanceExplicitlyOff(resCond, 'pyro')
+  const offHydro = isResonanceExplicitlyOff(resCond, 'hydro')
+  const offCryo = isResonanceExplicitlyOff(resCond, 'cryo')
+  const offGeo = isResonanceExplicitlyOff(resCond, 'geo')
+  const offDendro = isResonanceExplicitlyOff(resCond, 'dendro')
+  const offAnemo = isResonanceExplicitlyOff(resCond, 'anemo')
+
+  const hasSmallTeamBuffs =
+    isActiveTeamChar &&
+    smallTeamEleCounts &&
+    Object.values(smallTeamEleCounts).some((c) => c >= 2)
+
+  if (
+    !offPyro &&
+    !offHydro &&
+    !offCryo &&
+    !offGeo &&
+    !offDendro &&
+    !offAnemo &&
+    !hasSmallTeamBuffs
+  ) {
+    return resonanceData
+  }
+
+  const premod: Record<string, unknown> = {
+    ...(resonanceData.teamBuff?.premod ?? {}),
+  }
+  const total: Record<string, unknown> = {
+    ...(resonanceData.teamBuff?.total ?? {}),
+  }
+
+  if (offPyro) delete premod.atk_
+  if (offHydro) delete premod.hp_
+  if (offCryo) delete total.critRate_
+  if (offGeo) {
+    delete premod.shield_
+    delete premod.geo_enemyRes_
+    delete premod.all_dmg_
+  }
+  if (offDendro) delete premod.eleMas
+  if (offAnemo) {
+    delete premod.staminaDec_
+    delete premod.moveSPD_
+    delete premod.cdRed_
+  }
+
+  const baseFiltered: Data = {
+    ...resonanceData,
+    teamBuff: {
+      ...resonanceData.teamBuff,
+      premod,
+      total,
+    },
+  }
+
+  if (!hasSmallTeamBuffs || !smallTeamEleCounts) {
+    return baseFiltered
+  }
+
+  const extraPremod: Record<string, unknown> = {}
+  const extraTotal: Record<string, unknown> = {}
+  if (
+    (smallTeamEleCounts.pyro ?? 0) >= 2 &&
+    isResonanceExplicitlyOn(resCond, 'pyro')
+  ) {
+    extraPremod.atk_ = percent(0.25)
+  }
+  if (
+    (smallTeamEleCounts.hydro ?? 0) >= 2 &&
+    isResonanceExplicitlyOn(resCond, 'hydro')
+  ) {
+    extraPremod.hp_ = percent(0.25)
+  }
+  if (
+    (smallTeamEleCounts.cryo ?? 0) >= 2 &&
+    isResonanceExplicitlyOn(resCond, 'cryo')
+  ) {
+    extraTotal.critRate_ = percent(0.15)
+  }
+  if (
+    (smallTeamEleCounts.geo ?? 0) >= 2 &&
+    isResonanceExplicitlyOn(resCond, 'geo')
+  ) {
+    extraPremod.shield_ = percent(0.15)
+    extraPremod.all_dmg_ = percent(0.15)
+    extraPremod.geo_enemyRes_ = percent(-0.2)
+  }
+  if (
+    (smallTeamEleCounts.dendro ?? 0) >= 2 &&
+    isResonanceExplicitlyOn(resCond, 'dendro')
+  ) {
+    extraPremod.eleMas = constant(100)
+  }
+
+  if (
+    Object.keys(extraPremod).length === 0 &&
+    Object.keys(extraTotal).length === 0
+  ) {
+    return baseFiltered
+  }
+
+  return mergeData([
+    baseFiltered,
+    {
+      teamBuff: {
+        premod: extraPremod,
+        total: extraTotal,
+      },
+    } as Data,
+  ])
+}
+
 export function getTeamData(
   database: ArtCharDatabase,
   teamId: string | '',
@@ -196,6 +333,22 @@ export function getTeamData(
   const team = database.teams.get(teamId)
   if (!team) return undefined
   const { loadoutData, enemyOverride, conditional: teamConditional } = team
+  const activeLoadouts = (loadoutData as Array<any>).filter(Boolean)
+  let smallTeamEleCounts: Record<string, number> | undefined
+  if (
+    activeLoadouts.length < 4 &&
+    team.name !== 'Furina — Salon Solitaire C2 (Splendor of Tranquil Waters R1)'
+  ) {
+    smallTeamEleCounts = {}
+    for (const ld of activeLoadouts) {
+      const tc = database.teamChars.get(ld.teamCharId)
+      if (!tc) continue
+      const ele = (getCharStat(tc.key) as { ele?: string } | undefined)?.ele
+      if (ele) {
+        smallTeamEleCounts[ele] = (smallTeamEleCounts[ele] ?? 0) + 1
+      }
+    }
+  }
   const teamBundleArr = (loadoutData as Array<any>)
     .map((loadoutDatum) => {
       if (!loadoutDatum) return undefined
@@ -265,7 +418,8 @@ export function getTeamData(
           reaction,
         },
         weapon,
-        arts
+        arts,
+        smallTeamEleCounts
       )
     })
     .filter((bundle) => bundle) as CharBundle[]
@@ -286,7 +440,8 @@ function getCharDataBundle(
   mainStatAssumptionLevel: number,
   charInfo: CharInfo,
   weapon: ICachedWeapon,
-  artifacts: ICachedArtifact[] | Data
+  artifacts: ICachedArtifact[] | Data,
+  smallTeamEleCounts?: Record<string, number>
 ): CharBundle | undefined {
   const character = database.chars.get(charInfo.key)!
   const characterSheet = getCharSheet(charInfo.key, database.gender)
@@ -313,13 +468,18 @@ function getCharDataBundle(
   const artifactData = Array.isArray(artifacts)
     ? artifacts.map((a) => dataObjForArtifact(a, mainStatAssumptionLevel))
     : [artifacts]
+  const effectiveResonanceData = getEffectiveResonanceData(
+    charInfo.conditional?.resonance as Record<string, string> | undefined,
+    smallTeamEleCounts,
+    useCustom
+  )
   const data = [
     ...artifactData,
     dataObjForCharacterNew(charInfo, useCustom ? sheetData : undefined),
     dataObjForWeapon(weapon),
     sheetData,
     common, // NEED TO PUT THIS AT THE END
-    resonanceData,
+    effectiveResonanceData,
     reactionData,
   ]
   return { character, weapon, characterSheet, weaponSheet, data }

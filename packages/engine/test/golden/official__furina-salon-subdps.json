@@ -1,7 +1,7 @@
 {
   "presetId": "official/furina-salon-subdps",
   "target": "Furina",
-  "total": 593801.9048674193,
+  "total": 674788.7013106729,
   "instances": [
     {
       "label": "Ousia Bubble DMG",
@@ -10,8 +10,8 @@
         "bubbleDmg"
       ],
       "count": 1,
-      "perHit": 22740.08817347538,
-      "subtotal": 22740.08817347538
+      "perHit": 26137.898479450603,
+      "subtotal": 26137.898479450603
     },
     {
       "label": "Gentilhomme Usher DMG (×7)",
@@ -20,8 +20,8 @@
         "usherDmg"
       ],
       "count": 7,
-      "perHit": 27012.253188444098,
-      "subtotal": 189085.77231910868
+      "perHit": 30617.45781624895,
+      "subtotal": 214322.20471374266
     },
     {
       "label": "Surintendante Chevalmarin DMG (×14)",
@@ -30,8 +30,8 @@
         "chevalDmg"
       ],
       "count": 14,
-      "perHit": 14648.255420310625,
-      "subtotal": 205075.57588434874
+      "perHit": 16603.292560757818,
+      "subtotal": 232446.09585060945
     },
     {
       "label": "Mademoiselle Crabaletta DMG (×4)",
@@ -40,8 +40,8 @@
         "crabDmg"
       ],
       "count": 4,
-      "perHit": 37563.34805802427,
-      "subtotal": 150253.39223209707
+      "perHit": 42576.760131052215,
+      "subtotal": 170307.04052420886
     },
     {
       "label": "Let the People Rejoice Burst DMG",
@@ -50,8 +50,8 @@
         "skillDmg"
       ],
       "count": 1,
-      "perHit": 26647.076258389356,
-      "subtotal": 26647.076258389356
+      "perHit": 31575.461742661326,
+      "subtotal": 31575.461742661326
     }
   ],
   "stats": {
@@ -67,7 +67,7 @@
     "anemo_dmg_": 0,
     "geo_dmg_": 0,
     "electro_dmg_": 0,
-    "hydro_dmg_": 0.3174,
+    "hydro_dmg_": 0.6674,
     "pyro_dmg_": 0,
     "cryo_dmg_": 0,
     "dendro_dmg_": 0

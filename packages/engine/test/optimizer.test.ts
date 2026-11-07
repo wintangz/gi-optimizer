@@ -455,4 +455,207 @@ describe('Single-Character Optimizer Solver (single-character-optimizer)', () =>
     },
     600_000
   )
+
+  describe('Final Stat Constraints Solver (stat-constraints)', () => {
+    it('enforces a min stat constraint (flat and percentage display units) with tested + skipped === total', async () => {
+      // Unconstrained top-5 to observe the range of HP and CRIT Rate in smallGood
+      const baseOpt = await session.optimize(furinaPreset, {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        topN: 5,
+      })
+      expect(baseOpt.builds.length).toBeGreaterThan(0)
+      const allStats = baseOpt.builds.map((b) =>
+        session.evaluate(furinaPreset, b).stats
+      )
+      const maxHpInTop = Math.max(...allStats.map((s) => s.hp!))
+      const hpThreshold = Math.floor(maxHpInTop - 100)
+
+      let finalProgress: OptimizeProgress | undefined
+      const minHpRes = await session.optimize(
+        furinaPreset,
+        {
+          ...DEFAULT_OPTIMIZER_SETTINGS,
+          constraints: [{ stat: 'hp', min: hpThreshold }],
+          topN: 5,
+        },
+        {
+          onProgress: (p) => {
+            finalProgress = { ...p }
+          },
+        }
+      )
+
+      expect(minHpRes.builds.length).toBeGreaterThan(0)
+      expect(finalProgress).toBeDefined()
+      expect(minHpRes.tested + minHpRes.skipped).toBe(finalProgress!.total)
+      for (const b of minHpRes.builds) {
+        const ev = session.evaluate(furinaPreset, b)
+        expect(ev.stats.hp!).toBeGreaterThanOrEqual(hpThreshold - 1e-3)
+      }
+
+      // Percentage stat constraint in display units (e.g. critRate_ >= 65 means 65%)
+      const maxCrInTop = Math.max(...allStats.map((s) => s.critRate_!))
+      const crDisplayMin = Math.floor(maxCrInTop * 100 - 2)
+      const minCrRes = await session.optimize(furinaPreset, {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        constraints: [{ stat: 'critRate_', min: crDisplayMin }],
+        topN: 5,
+      })
+      expect(minCrRes.builds.length).toBeGreaterThan(0)
+      for (const b of minCrRes.builds) {
+        const ev = session.evaluate(furinaPreset, b)
+        expect(ev.stats.critRate_!).toBeGreaterThanOrEqual(
+          crDisplayMin / 100 - 1e-4
+        )
+      }
+    })
+
+    it('enforces a max stat constraint and finds builds strictly below the unconstrained best stat with tested + skipped === total', async () => {
+      const baseOpt = await session.optimize(furinaPreset, {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        topN: 5,
+      })
+      const bestStats = session.evaluate(furinaPreset, baseOpt.builds[0]!).stats
+      // Cap HP below the top build's HP so the top build is excluded
+      const hpCap = Math.floor(bestStats.hp! - 500)
+
+      let finalProgress: OptimizeProgress | undefined
+      const maxHpRes = await session.optimize(
+        furinaPreset,
+        {
+          ...DEFAULT_OPTIMIZER_SETTINGS,
+          constraints: [{ stat: 'hp', max: hpCap }],
+          topN: 5,
+        },
+        {
+          onProgress: (p) => {
+            finalProgress = { ...p }
+          },
+        }
+      )
+
+      expect(maxHpRes.builds.length).toBeGreaterThan(0)
+      expect(finalProgress).toBeDefined()
+      expect(maxHpRes.tested + maxHpRes.skipped).toBe(finalProgress!.total)
+      for (const b of maxHpRes.builds) {
+        const ev = session.evaluate(furinaPreset, b)
+        expect(ev.stats.hp!).toBeLessThanOrEqual(hpCap + 1e-3)
+      }
+    })
+
+    it('enforces a min + max band constraint on a stat and preserves tested + skipped === total', async () => {
+      const baseOpt = await session.optimize(furinaPreset, {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        topN: 10,
+      })
+      const midBuild = baseOpt.builds[Math.min(2, baseOpt.builds.length - 1)]!
+      const midHp = session.evaluate(furinaPreset, midBuild).stats.hp!
+      const bandMin = Math.floor(midHp - 400)
+      const bandMax = Math.ceil(midHp + 400)
+
+      let finalProgress: OptimizeProgress | undefined
+      const bandRes = await session.optimize(
+        furinaPreset,
+        {
+          ...DEFAULT_OPTIMIZER_SETTINGS,
+          constraints: [{ stat: 'hp', min: bandMin, max: bandMax }],
+          topN: 5,
+        },
+        {
+          onProgress: (p) => {
+            finalProgress = { ...p }
+          },
+        }
+      )
+
+      expect(bandRes.builds.length).toBeGreaterThan(0)
+      expect(finalProgress).toBeDefined()
+      expect(bandRes.tested + bandRes.skipped).toBe(finalProgress!.total)
+      for (const b of bandRes.builds) {
+        const ev = session.evaluate(furinaPreset, b)
+        expect(ev.stats.hp!).toBeGreaterThanOrEqual(bandMin - 1e-3)
+        expect(ev.stats.hp!).toBeLessThanOrEqual(bandMax + 1e-3)
+      }
+    })
+
+    it('returns an empty result for an impossible constraint band (min > max or unreachable min/max)', async () => {
+      let invertedProgress: OptimizeProgress | undefined
+      const invertedBand = await session.optimize(
+        furinaPreset,
+        {
+          ...DEFAULT_OPTIMIZER_SETTINGS,
+          constraints: [{ stat: 'hp', min: 50000, max: 30000 }],
+          topN: 3,
+        },
+        {
+          onProgress: (p) => {
+            invertedProgress = { ...p }
+          },
+        }
+      )
+      expect(invertedBand.builds).toEqual([])
+      expect(invertedProgress).toBeDefined()
+      expect(invertedBand.tested + invertedBand.skipped).toBe(
+        invertedProgress!.total
+      )
+
+      const unreachableMin = await session.optimize(furinaPreset, {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        constraints: [{ stat: 'critRate_', min: 250 }],
+        topN: 3,
+      })
+      expect(unreachableMin.builds).toEqual([])
+
+      const unreachableMax = await session.optimize(furinaPreset, {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        constraints: [{ stat: 'hp', max: 100 }],
+        topN: 3,
+      })
+      expect(unreachableMax.builds).toEqual([])
+    })
+
+    it('enforces erFloor alongside additional stat constraints simultaneously', async () => {
+      const baseOpt = await session.optimize(furinaPreset, {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        erFloor: 120,
+        topN: 5,
+      })
+      expect(baseOpt.builds.length).toBeGreaterThan(0)
+      const targetBuild = baseOpt.builds[0]!
+      const targetStats = session.evaluate(furinaPreset, targetBuild).stats
+      const hpMin = Math.floor(targetStats.hp! - 500)
+      const crMax = Math.ceil(targetStats.critRate_! * 100 + 5)
+
+      let finalProgress: OptimizeProgress | undefined
+      const combinedRes = await session.optimize(
+        furinaPreset,
+        {
+          ...DEFAULT_OPTIMIZER_SETTINGS,
+          erFloor: 120,
+          constraints: [
+            { stat: 'hp', min: hpMin },
+            { stat: 'critRate_', max: crMax },
+          ],
+          topN: 5,
+        },
+        {
+          onProgress: (p) => {
+            finalProgress = { ...p }
+          },
+        }
+      )
+
+      expect(combinedRes.builds.length).toBeGreaterThan(0)
+      expect(finalProgress).toBeDefined()
+      expect(combinedRes.tested + combinedRes.skipped).toBe(
+        finalProgress!.total
+      )
+      for (const b of combinedRes.builds) {
+        const ev = session.evaluate(furinaPreset, b)
+        expect(ev.stats.enerRech_!).toBeGreaterThanOrEqual(1.2 - 1e-4)
+        expect(ev.stats.hp!).toBeGreaterThanOrEqual(hpMin - 1e-3)
+        expect(ev.stats.critRate_!).toBeLessThanOrEqual(crMax / 100 + 1e-4)
+      }
+    })
+  })
 })

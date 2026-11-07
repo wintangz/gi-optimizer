@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest'
 import {
   ALL_ARTIFACT_SET_KEYS,
   clearSets,
+  createDefaultTcTeammate,
   DEFAULT_OPTIMIZER_SETTINGS,
+  DEFAULT_TC_TEAMMATE_CONDITIONAL,
   invertSets,
+  isActiveStatConstraint,
+  isPercentStatConstraintKey,
+  normalizeStatConstraintValue,
   resolveArtSetExclusion,
   resolveEffectiveSetFilter,
   selectAllSets,
+  STAT_CONSTRAINT_KEYS,
   summarizeArtSetFilter,
   type OptimizerSettings,
 } from '../src/index'
@@ -152,5 +158,73 @@ describe('Artifact Set Filter Translation & Helpers (artifact-set-filter)', () =
     })
 
     expect(clearSets(allSelected, subset)).toEqual({})
+  })
+})
+
+describe('Stat Constraints Settings & Normalization (stat-constraints)', () => {
+  it('exposes all 16 final stat constraint keys', () => {
+    expect(STAT_CONSTRAINT_KEYS).toEqual([
+      'hp',
+      'atk',
+      'def',
+      'eleMas',
+      'enerRech_',
+      'critRate_',
+      'critDMG_',
+      'heal_',
+      'pyro_dmg_',
+      'hydro_dmg_',
+      'electro_dmg_',
+      'cryo_dmg_',
+      'anemo_dmg_',
+      'geo_dmg_',
+      'dendro_dmg_',
+      'physical_dmg_',
+    ])
+    expect(DEFAULT_OPTIMIZER_SETTINGS.constraints).toEqual([])
+  })
+
+  it('normalizes display percentage values and preserves flat stats', () => {
+    expect(isPercentStatConstraintKey('hp')).toBe(false)
+    expect(isPercentStatConstraintKey('eleMas')).toBe(false)
+    expect(isPercentStatConstraintKey('enerRech_')).toBe(true)
+    expect(isPercentStatConstraintKey('critRate_')).toBe(true)
+    expect(isPercentStatConstraintKey('pyro_dmg_')).toBe(true)
+
+    expect(normalizeStatConstraintValue('hp', 30000)).toBe(30000)
+    expect(normalizeStatConstraintValue('atk', 2000)).toBe(2000)
+    expect(normalizeStatConstraintValue('eleMas', 200)).toBe(200)
+    expect(normalizeStatConstraintValue('enerRech_', 160)).toBeCloseTo(1.6)
+    expect(normalizeStatConstraintValue('enerRech_', 1.6)).toBeCloseTo(1.6)
+    expect(normalizeStatConstraintValue('critRate_', 60)).toBeCloseTo(0.6)
+    expect(normalizeStatConstraintValue('critRate_', 0.6)).toBeCloseTo(0.6)
+    expect(normalizeStatConstraintValue('critDMG_', 180)).toBeCloseTo(1.8)
+    expect(normalizeStatConstraintValue('hydro_dmg_', 46.6)).toBeCloseTo(0.466)
+    expect(normalizeStatConstraintValue('hp', undefined)).toBeUndefined()
+  })
+
+  it('validates active stat constraints require at least one finite bound', () => {
+    expect(isActiveStatConstraint(undefined)).toBe(false)
+    expect(isActiveStatConstraint({ stat: 'hp' })).toBe(false)
+    expect(isActiveStatConstraint({ stat: 'hp', min: 30000 })).toBe(true)
+    expect(isActiveStatConstraint({ stat: 'critRate_', max: 75 })).toBe(true)
+    expect(
+      isActiveStatConstraint({ stat: 'atk', min: 1500, max: 2500 })
+    ).toBe(true)
+  })
+})
+
+describe('Default TC Teammate Template (buff-coverage-fixes)', () => {
+  it('populates NoblesseOblige set4=on in member.conditional for default TC teammates', () => {
+    const member = createDefaultTcTeammate('Bennett')
+    expect(member.key).toBe('Bennett')
+    expect(member.build.type).toBe('tc')
+    if (member.build.type === 'tc') {
+      expect(member.build.tc.artifact.sets).toEqual({ NoblesseOblige: 4 })
+    }
+    expect(member.conditional).toEqual(DEFAULT_TC_TEAMMATE_CONDITIONAL)
+    expect(member.conditional).toEqual({
+      NoblesseOblige: { set4: 'on' },
+    })
   })
 })

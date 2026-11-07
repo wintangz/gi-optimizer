@@ -48,7 +48,8 @@
       "requirement": {},
       "conditional": {
         "Citlali": { "a1NsFreezeMelt": "on" },
-        "ScrollOfTheHeroOfCinderCity": { "nsReact": "on", "afterReact": "on" }
+        "ScrollOfTheHeroOfCinderCity": { "nsReact": "on", "afterReact": "on" },
+        "ThrillingTalesOfDragonSlayers": { "Heritage": "on" }
       },
       "bonusStats": {},
       "hitMode": "avgHit"
@@ -75,7 +76,8 @@
       },
       "requirement": {},
       "conditional": {
-        "Xilonen": { "sourceActive": "on" }
+        "Xilonen": { "sourceActive": "on" },
+        "ArchaicPetra": { "ele": "pyro", "element": "pyro" }
       },
       "bonusStats": {},
       "hitMode": "avgHit"

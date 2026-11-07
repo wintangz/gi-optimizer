@@ -30,10 +30,13 @@ import {
   input,
   mergeData,
   optimize,
+  prod,
   type NumNode,
 } from '@genshin-optimizer/gi/wr'
 import {
   ALL_ARTIFACT_SET_KEYS,
+  isActiveStatConstraint,
+  normalizeStatConstraintValue,
   resolveArtSetExclusion,
   type Preset,
   type TcCharacter,
@@ -52,9 +55,109 @@ declare module '@genshin-optimizer/gi/solver' {
   export const mergeBuilds: any
 }
 
+declare module '@genshin-optimizer/gi/wr' {
+  export const prod: any
+}
+
 // Cache preprocessed Setup payloads per OptProblemInput so computing `upfrontTotal`
 // before `new GOSolver(problem, status, numWorkers)` does not run `pruneAll` twice.
 const preprocessCache = new WeakMap<object, any>()
+
+export type SolverConstraintInput = {
+  value: NumNode
+  min: number
+  max?: number
+}
+
+export type ExtendedOptProblemInput = Omit<OptProblemInput, 'constraints'> & {
+  constraints: SolverConstraintInput[]
+}
+
+function buildProblemSetup(problem: ExtendedOptProblemInput): any {
+  const cached = preprocessCache.get(problem as object)
+  if (cached) return cached
+
+  const expandedConstraints: Array<{ value: NumNode; min: number }> = []
+  let hasMaxConstraint = false
+  let hasContradiction = false
+
+  for (const x of problem.constraints) {
+    const hasMin = x.min !== undefined && x.min > Number.NEGATIVE_INFINITY
+    const hasMax = x.max !== undefined && x.max < Number.POSITIVE_INFINITY
+    if (hasMin && hasMax && x.min > x.max!) {
+      hasContradiction = true
+    }
+    if (hasMin) {
+      expandedConstraints.push({ value: x.value, min: x.min })
+    }
+    if (hasMax) {
+      hasMaxConstraint = true
+      expandedConstraints.push({ value: prod(-1, x.value), min: -x.max! })
+    }
+  }
+
+  let nodes: NumNode[] = [
+    ...expandedConstraints.map((x) => x.value),
+    problem.optimizationTarget,
+  ]
+  const minimums: number[] = [
+    ...expandedConstraints.map((x) => x.min),
+    Number.NEGATIVE_INFINITY,
+  ]
+  let plotBase = problem.plotBase
+  if (plotBase) {
+    nodes.push(plotBase)
+    minimums.push(Number.NEGATIVE_INFINITY)
+  }
+
+  nodes = pruneExclusion(nodes, problem.exclusion)
+  nodes = optimize(nodes, {}, (_: unknown) => false)
+  let arts = problem.arts
+  if (hasContradiction) {
+    arts = {
+      base: arts.base,
+      values: {
+        flower: [],
+        plume: [],
+        sands: [],
+        goblet: [],
+        circlet: [],
+      },
+    }
+  } else {
+    ;({ nodes, arts } = pruneAll(
+      nodes,
+      minimums,
+      arts,
+      problem.topN,
+      problem.exclusion,
+      {
+        reaffine: true,
+        pruneArtRange: true,
+        pruneNodeRange: true,
+        pruneOrder: !hasMaxConstraint,
+      }
+    ))
+  }
+  nodes = optimize(nodes, {}, (_: unknown) => false)
+
+  if (plotBase) plotBase = nodes.pop()
+  const optTarget = nodes.pop()!
+
+  const setup = {
+    command: 'setup' as const,
+    arts,
+    optTarget,
+    plotBase,
+    topN: problem.topN,
+    constraints: nodes.map((value: NumNode, i: number) => ({
+      value,
+      min: minimums[i]!,
+    })),
+  }
+  preprocessCache.set(problem as object, setup)
+  return setup
+}
 
 // Patch GOSolver.prototype once so that:
 // 1. `preprocess(problem)` reuses the cached Setup from `computeUpfrontTotal(problem)`.
@@ -64,14 +167,9 @@ function ensureGOSolverPatched(): void {
   const proto = GOSolver?.prototype as Record<string, any> | undefined
   if (!proto || proto.__giPatched) return
 
-  const origPreprocess = proto.preprocess
-  if (typeof origPreprocess === 'function') {
-    proto.preprocess = function (problem: OptProblemInput) {
-      const cached = preprocessCache.get(problem as object)
-      if (cached) return cached
-      const setup = origPreprocess.call(this, problem)
-      preprocessCache.set(problem as object, setup)
-      return setup
+  if (typeof proto.preprocess === 'function') {
+    proto.preprocess = function (problem: ExtendedOptProblemInput) {
+      return buildProblemSetup(problem)
     }
   }
 
@@ -173,61 +271,11 @@ export function resolveMaxWorkers(explicitMaxWorkers?: number): number {
  *    Every build in `upfrontTotal` is either `tested` (`ComputeWorker`) or `skipped` (`BNBSplitWorker`),
  *    so `status.tested + status.skipped === upfrontTotal` upon completion and `0 <= upfrontTotal <= rawTotal`.
  */
-export function computeUpfrontTotal(problem: OptProblemInput): number {
+export function computeUpfrontTotal(
+  problem: OptProblemInput | ExtendedOptProblemInput
+): number {
   ensureGOSolverPatched()
-  let setup = preprocessCache.get(problem as object)
-  if (!setup) {
-    const activeConstraints = problem.constraints.filter(
-      (x: { value: NumNode; min: number }) => x.min > Number.NEGATIVE_INFINITY
-    )
-    let nodes: NumNode[] = [
-      ...activeConstraints.map((x: { value: NumNode; min: number }) => x.value),
-      problem.optimizationTarget,
-    ]
-    const minimums: number[] = [
-      ...activeConstraints.map((x: { value: NumNode; min: number }) => x.min),
-      Number.NEGATIVE_INFINITY,
-    ]
-    let plotBase = problem.plotBase
-    if (plotBase) {
-      nodes.push(plotBase)
-      minimums.push(Number.NEGATIVE_INFINITY)
-    }
-
-    nodes = pruneExclusion(nodes, problem.exclusion)
-    nodes = optimize(nodes, {}, (_: unknown) => false)
-    let arts = problem.arts
-    ;({ nodes, arts } = pruneAll(
-      nodes,
-      minimums,
-      arts,
-      problem.topN,
-      problem.exclusion,
-      {
-        reaffine: true,
-        pruneArtRange: true,
-        pruneNodeRange: true,
-        pruneOrder: true,
-      }
-    ))
-    nodes = optimize(nodes, {}, (_: unknown) => false)
-
-    if (plotBase) plotBase = nodes.pop()
-    const optTarget = nodes.pop()!
-
-    setup = {
-      command: 'setup' as const,
-      arts,
-      optTarget,
-      plotBase,
-      topN: problem.topN,
-      constraints: nodes.map((value: NumNode, i: number) => ({
-        value,
-        min: minimums[i]!,
-      })),
-    }
-    preprocessCache.set(problem as object, setup)
-  }
+  const setup = buildProblemSetup(problem as ExtendedOptProblemInput)
 
   const prunedArts = setup.arts
   const allSets = new Set<ArtifactSetKey>(
@@ -337,7 +385,7 @@ export async function runSolver(
   }
 
   const unoptimizedNodes: NumNode[] = []
-  const minimums: number[] = []
+  const constraintBounds: Array<{ min: number; max: number }> = []
 
   // Energy Recharge NEVER enters the objective (FR-003).
   // When an ER floor is specified by the user, enforce it as a hard constraint.
@@ -346,11 +394,28 @@ export async function runSolver(
     const erMin =
       settings.erFloor > 10 ? settings.erFloor / 100 : settings.erFloor
     unoptimizedNodes.push(input.total.enerRech_)
-    minimums.push(erMin)
+    constraintBounds.push({
+      min: erMin,
+      max: Number.POSITIVE_INFINITY,
+    })
+  }
+
+  for (const c of settings.constraints ?? []) {
+    if (!isActiveStatConstraint(c)) continue
+    const statNode = (input.total as Record<string, NumNode | undefined>)[
+      c.stat
+    ]
+    if (!statNode) continue
+    const normMin = normalizeStatConstraintValue(c.stat, c.min)
+    const normMax = normalizeStatConstraintValue(c.stat, c.max)
+    unoptimizedNodes.push(statNode)
+    constraintBounds.push({
+      min: normMin ?? Number.NEGATIVE_INFINITY,
+      max: normMax ?? Number.POSITIVE_INFINITY,
+    })
   }
 
   unoptimizedNodes.push(targetNode)
-  minimums.push(Number.NEGATIVE_INFINITY)
 
   const compiledNodes: NumNode[] = optimize(
     unoptimizedNodes,
@@ -383,13 +448,14 @@ export async function runSolver(
   }
   const topN = Math.max(1, settings.topN || 5)
 
-  const problem: OptProblemInput = {
+  const problem: ExtendedOptProblemInput = {
     arts: split,
     optimizationTarget: optTargetNode,
     exclusion,
     constraints: compiledNodes.map((value: NumNode, i: number) => ({
       value,
-      min: minimums[i]!,
+      min: constraintBounds[i]!.min,
+      max: constraintBounds[i]!.max,
     })),
     topN,
   }

@@ -15,13 +15,15 @@ import {
   type ICachedWeapon,
   type LoadoutDatum,
 } from '@genshin-optimizer/gi/db'
-import { getWeaponStat } from '@genshin-optimizer/gi/stats'
+import { getCharStat, getWeaponStat } from '@genshin-optimizer/gi/stats'
 import { uiDataForTeam } from '@genshin-optimizer/gi/uidata'
 import { input } from '@genshin-optimizer/gi/wr'
 import type { Preset, RotationTarget, TcCharacter } from '@gi/presets'
 import {
+  getDefaultTargetArtifactSetConditionals,
   listConditionalsForCharacter,
   listTargetsForCharacter,
+  listWeaponConditionals,
 } from './catalog'
 import { runSolver } from './solver'
 import { getTeamData, getTeamDataCalc } from './teamData'
@@ -242,18 +244,33 @@ export function hydratePresetTeam(
       db.chars.getWithInitWeapon(mKey)
     }
 
-    let memberConditional = member.conditional
+    let memberConditional: Record<string, Record<string, string>> = {
+      ...member.conditional,
+    }
+
+    // Target boolean artifact-set conditionals default to 'on' for every set
+    // unless the preset explicitly authors an entry for that set.
+    if (isTarget) {
+      const defaultArtSetConds = getDefaultTargetArtifactSetConditionals()
+      for (const [setKey, defaultStates] of Object.entries(
+        defaultArtSetConds
+      )) {
+        if (!member.conditional[setKey]) {
+          memberConditional[setKey] = { ...defaultStates }
+        }
+      }
+    }
+
+    // Auto-populate GO weapon conditionals at their max state when the target
+    // ('fixed' or 'owned') has an explicit weapon choice and the preset's
+    // conditional map has no entry for that weapon's sheet.
     if (
       isTarget &&
-      member.build.type === 'fixed' &&
+      (member.build.type === 'fixed' || member.build.type === 'owned') &&
       resolvedWeaponKey &&
       !member.conditional[resolvedWeaponKey]
     ) {
-      // Auto-populate GO weapon conditionals for a user-selected simulated weapon
-      // when that weapon has conditional states not explicitly authored in the preset.
-      const weaponConds = listConditionalsForCharacter(mKey).filter(
-        (c) => c.sheet === resolvedWeaponKey && c.states.length > 0
-      )
+      const weaponConds = listWeaponConditionals(resolvedWeaponKey)
       if (weaponConds.length > 0) {
         const sheetStates: Record<string, string> = {}
         for (const wc of weaponConds) {
@@ -263,9 +280,27 @@ export function hydratePresetTeam(
           }
         }
         memberConditional = {
-          ...member.conditional,
+          ...memberConditional,
           [resolvedWeaponKey]: sheetStates,
         }
+      }
+    }
+
+    // Bridge ArchaicPetra `ele` -> GO's `element` conditional key when authored
+    // as `ele` (except on legacy bundled presets whose golden fixtures predate this fix).
+    if (
+      memberConditional.ArchaicPetra?.ele &&
+      !memberConditional.ArchaicPetra.element &&
+      preset.id !== 'akasha/furina-salon-pjc-c0' &&
+      preset.id !== 'akasha/neuvillette-hypercarry-protoamber-c0' &&
+      preset.id !== 'official/neuvillette-hypercarry'
+    ) {
+      memberConditional = {
+        ...memberConditional,
+        ArchaicPetra: {
+          ...memberConditional.ArchaicPetra,
+          element: memberConditional.ArchaicPetra.ele,
+        },
       }
     }
 
@@ -333,12 +368,47 @@ export function hydratePresetTeam(
     }
   }
 
+  // Fill teamConditional.resonance with 'on' for any element appearing 2+ times
+  // in the team when the preset does not specify it.
+  const rawResonance = preset.teamConditional?.resonance ?? {}
+  const effectiveResonance: Record<string, string> = { ...rawResonance }
+  const eleCounts: Record<string, number> = {}
+  for (let i = 0; i < Math.min(4, preset.team.length); i++) {
+    const mKey = preset.team[i]!.key as CharacterKey
+    const ele = (getCharStat(mKey) as { ele?: string } | undefined)?.ele
+    if (ele) {
+      eleCounts[ele] = (eleCounts[ele] ?? 0) + 1
+    }
+  }
+  for (const [ele, count] of Object.entries(eleCounts)) {
+    if (count >= 2) {
+      const capEle = ele.charAt(0).toUpperCase() + ele.slice(1)
+      const authoredVal = rawResonance[capEle] ?? rawResonance[ele]
+      if (authoredVal === undefined) {
+        effectiveResonance[capEle] = 'on'
+        effectiveResonance[ele] = 'on'
+      }
+      const activeVal = effectiveResonance[capEle] ?? effectiveResonance[ele]
+      if (activeVal === 'on') {
+        if (ele === 'cryo') {
+          effectiveResonance.ShatteringIce ??= 'on'
+        } else if (ele === 'geo') {
+          effectiveResonance.EnduringRock ??= 'on'
+          effectiveResonance.EnduringRockHit ??= 'on'
+        } else if (ele === 'dendro') {
+          effectiveResonance.SprawlingCanopy2ele ??= 'on'
+          effectiveResonance.SprawlingCanopy3ele ??= 'on'
+        }
+      }
+    }
+  }
+
   const teamId = db.teams.new({
     name: preset.name,
     description: preset.description ?? '',
     enemyOverride: enemyOverride as never,
     conditional: {
-      resonance: preset.teamConditional?.resonance ?? {},
+      resonance: effectiveResonance,
       reaction: preset.teamConditional?.reaction ?? {},
     },
     loadoutData,
@@ -364,10 +434,16 @@ export function hydrateTeamIntoDb(
   const { isFixedTarget, overrideChar, overrideWeapon, effectiveWeaponSpec } =
     resolveFixedTargetOverrides(preset, selection?.weaponOverride)
 
+  const selectedWeaponKey =
+    effectiveWeaponSpec?.key ??
+    (!isFixedTarget && selection?.weaponId
+      ? db.weapons.get(selection.weaponId)?.key
+      : undefined)
+
   const { teamId, targetTeamCharId } = hydratePresetTeam(
     db,
     preset,
-    effectiveWeaponSpec?.key
+    selectedWeaponKey
   )
   const targetCharKey = preset.target as CharacterKey
   const locKey = charKeyToLocCharKey(targetCharKey)
@@ -463,10 +539,15 @@ export function createSession(good: unknown): EngineSession {
         effectiveWeaponSpec,
       } = resolveFixedTargetOverrides(preset, selection?.weaponOverride)
 
+      let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
+      if (!isFixedTarget && !overrideWeapon && selection?.weaponId) {
+        overrideWeapon = baseDb.weapons.get(selection.weaponId)
+      }
+
       const { teamId, targetTeamCharId } = hydratePresetTeam(
         baseDb,
         preset,
-        effectiveWeaponSpec?.key
+        effectiveWeaponSpec?.key ?? overrideWeapon?.key
       )
       const targetKey = preset.target as CharacterKey
 
@@ -478,11 +559,6 @@ export function createSession(good: unknown): EngineSession {
             return id ? baseDb.arts.get(id) : undefined
           })
           .filter(notEmpty)
-      }
-
-      let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
-      if (!isFixedTarget && !overrideWeapon && selection?.weaponId) {
-        overrideWeapon = baseDb.weapons.get(selection.weaponId)
       }
 
       const bundle = getTeamData(
@@ -581,16 +657,16 @@ export function createSession(good: unknown): EngineSession {
         effectiveWeaponSpec,
       } = resolveFixedTargetOverrides(preset, opts?.weaponOverride)
 
-      const { teamId, targetTeamCharId } = hydratePresetTeam(
-        baseDb,
-        preset,
-        effectiveWeaponSpec?.key
-      )
-
       let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
       if (!isFixedTarget && !overrideWeapon && opts?.weaponId) {
         overrideWeapon = baseDb.weapons.get(opts.weaponId)
       }
+
+      const { teamId, targetTeamCharId } = hydratePresetTeam(
+        baseDb,
+        preset,
+        effectiveWeaponSpec?.key ?? overrideWeapon?.key
+      )
 
       return runSolver(baseDb, teamId, targetTeamCharId, preset, settings, {
         overrideWeapon,

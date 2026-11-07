@@ -1,20 +1,32 @@
 import {
   DEFAULT_OPTIMIZER_SETTINGS,
+  STAT_CONSTRAINT_KEYS,
+  isActiveStatConstraint,
+  isPercentStatConstraintKey,
+  normalizeStatConstraintValue,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
   type OptimizerSettings,
   type Preset,
   type SetFilterMode,
   type SetPieceCount,
+  type StatConstraint,
+  type StatConstraintKey,
 } from '@gi/presets'
 
 export {
   DEFAULT_OPTIMIZER_SETTINGS,
+  STAT_CONSTRAINT_KEYS,
+  isActiveStatConstraint,
+  isPercentStatConstraintKey,
+  normalizeStatConstraintValue,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
   type OptimizerSettings,
   type SetFilterMode,
   type SetPieceCount,
+  type StatConstraint,
+  type StatConstraintKey,
 }
 
 export type ArtifactSlot = 'flower' | 'plume' | 'sands' | 'goblet' | 'circlet'

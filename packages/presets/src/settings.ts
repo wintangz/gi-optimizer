@@ -4,8 +4,72 @@ export type SetPieceCount = 2 | 4
 export type SetFilterMode = 'all' | 'exclude' | 'include'
 export type ArtSetExclusionMap = Record<string, SetPieceCount[]>
 
+export const STAT_CONSTRAINT_KEYS = [
+  'hp',
+  'atk',
+  'def',
+  'eleMas',
+  'enerRech_',
+  'critRate_',
+  'critDMG_',
+  'heal_',
+  'pyro_dmg_',
+  'hydro_dmg_',
+  'electro_dmg_',
+  'cryo_dmg_',
+  'anemo_dmg_',
+  'geo_dmg_',
+  'dendro_dmg_',
+  'physical_dmg_',
+] as const
+
+export type StatConstraintKey = (typeof STAT_CONSTRAINT_KEYS)[number]
+
+export interface StatConstraint {
+  stat: StatConstraintKey
+  min?: number
+  max?: number
+}
+
+export function isPercentStatConstraintKey(stat: string): boolean {
+  return stat.endsWith('_')
+}
+
+/**
+ * Normalizes a user-entered stat constraint value into Genshin Optimizer's internal
+ * total node scale (decimals for percentage stats `_*`, raw numbers for flat stats).
+ * Percentage stats entered in display units (e.g. `160` for 160% ER, `60` for 60% CR)
+ * are divided by 100, while already-normalized decimal values (e.g. `1.6` ER, `0.6` CR)
+ * are preserved.
+ */
+export function normalizeStatConstraintValue(
+  stat: string,
+  value: number | undefined
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined
+  }
+  if (!isPercentStatConstraintKey(stat)) {
+    return value
+  }
+  if (stat === 'enerRech_') {
+    return value > 10 ? value / 100 : value
+  }
+  return value > 2 ? value / 100 : value
+}
+
+export function isActiveStatConstraint(c: StatConstraint | undefined): boolean {
+  if (!c || !(STAT_CONSTRAINT_KEYS as readonly string[]).includes(c.stat)) {
+    return false
+  }
+  const hasMin = typeof c.min === 'number' && Number.isFinite(c.min)
+  const hasMax = typeof c.max === 'number' && Number.isFinite(c.max)
+  return hasMin || hasMax
+}
+
 export interface OptimizerSettings {
   erFloor?: number
+  constraints?: StatConstraint[]
   includeEquippedOnOthers: boolean
   excludedCharacters: string[]
   lockedOnly?: boolean
@@ -26,6 +90,7 @@ export interface OptimizerSettings {
 }
 
 export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
+  constraints: [],
   includeEquippedOnOthers: true,
   excludedCharacters: [],
   lockedOnly: false,

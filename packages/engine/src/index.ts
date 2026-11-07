@@ -1,4 +1,5 @@
 export {
+  getDefaultTargetArtifactSetConditionals,
   listConditionalsForCharacter,
   listTargetsForCharacter,
 } from './catalog'
@@ -32,6 +33,10 @@ export {
 } from './teamData'
 export {
   DEFAULT_OPTIMIZER_SETTINGS,
+  STAT_CONSTRAINT_KEYS,
+  isActiveStatConstraint,
+  isPercentStatConstraintKey,
+  normalizeStatConstraintValue,
   type ArtifactSlot,
   type BuildSelection,
   type ConditionalDescriptor,
@@ -43,6 +48,8 @@ export {
   type OptimizerSettings,
   type RotationResult,
   type SimulatedWeaponSpec,
+  type StatConstraint,
+  type StatConstraintKey,
   type TargetDescriptor,
 } from './types'
 

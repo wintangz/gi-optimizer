@@ -16,6 +16,7 @@ import {
   GearIcon,
   PlayIcon,
   StopIcon,
+  TrashIcon,
   UploadIcon,
 } from '@/components/SvgIcons'
 import {
@@ -45,11 +46,15 @@ import {
   getCharacterMeta,
   getPresetBadge,
   getWeaponMeta,
+  isPercentStatConstraintKey,
   listBundledPresets,
   listWeaponsForType,
   matchAccount,
+  STAT_CONSTRAINT_KEYS,
   type IdentifierSlotKey,
   type Preset,
+  type StatConstraint,
+  type StatConstraintKey,
 } from '@gi/presets'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -57,24 +62,28 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 
 const SLOTS: ArtifactSlot[] = ['flower', 'plume', 'sands', 'goblet', 'circlet']
 
-const DISPLAY_STATS: Array<{ key: string; label: string; isPercent: boolean }> =
-  [
-    { key: 'hp', label: 'Max HP', isPercent: false },
-    { key: 'atk', label: 'ATK', isPercent: false },
-    { key: 'def', label: 'DEF', isPercent: false },
-    { key: 'eleMas', label: 'Elemental Mastery', isPercent: false },
-    { key: 'critRate_', label: 'CRIT Rate', isPercent: true },
-    { key: 'critDMG_', label: 'CRIT DMG', isPercent: true },
-    { key: 'enerRech_', label: 'Energy Recharge', isPercent: true },
-    { key: 'pyro_dmg_', label: 'Pyro DMG Bonus', isPercent: true },
-    { key: 'hydro_dmg_', label: 'Hydro DMG Bonus', isPercent: true },
-    { key: 'electro_dmg_', label: 'Electro DMG Bonus', isPercent: true },
-    { key: 'cryo_dmg_', label: 'Cryo DMG Bonus', isPercent: true },
-    { key: 'anemo_dmg_', label: 'Anemo DMG Bonus', isPercent: true },
-    { key: 'geo_dmg_', label: 'Geo DMG Bonus', isPercent: true },
-    { key: 'dendro_dmg_', label: 'Dendro DMG Bonus', isPercent: true },
-    { key: 'physical_dmg_', label: 'Physical DMG Bonus', isPercent: true },
-  ]
+const DISPLAY_STATS: Array<{
+  key: StatConstraintKey
+  label: string
+  isPercent: boolean
+}> = [
+  { key: 'hp', label: 'Max HP', isPercent: false },
+  { key: 'atk', label: 'ATK', isPercent: false },
+  { key: 'def', label: 'DEF', isPercent: false },
+  { key: 'eleMas', label: 'Elemental Mastery', isPercent: false },
+  { key: 'critRate_', label: 'CRIT Rate', isPercent: true },
+  { key: 'critDMG_', label: 'CRIT DMG', isPercent: true },
+  { key: 'enerRech_', label: 'Energy Recharge', isPercent: true },
+  { key: 'heal_', label: 'Healing Bonus', isPercent: true },
+  { key: 'pyro_dmg_', label: 'Pyro DMG Bonus', isPercent: true },
+  { key: 'hydro_dmg_', label: 'Hydro DMG Bonus', isPercent: true },
+  { key: 'electro_dmg_', label: 'Electro DMG Bonus', isPercent: true },
+  { key: 'cryo_dmg_', label: 'Cryo DMG Bonus', isPercent: true },
+  { key: 'anemo_dmg_', label: 'Anemo DMG Bonus', isPercent: true },
+  { key: 'geo_dmg_', label: 'Geo DMG Bonus', isPercent: true },
+  { key: 'dendro_dmg_', label: 'Dendro DMG Bonus', isPercent: true },
+  { key: 'physical_dmg_', label: 'Physical DMG Bonus', isPercent: true },
+]
 
 function formatNum(n: number): string {
   return Math.round(n).toLocaleString()
@@ -971,6 +980,185 @@ function OptimizeInner() {
           </label>
         </div>
 
+        {/* Stat Constraints Editor */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            padding: '0.65rem 0.75rem',
+            background: '#151821',
+            borderRadius: '6px',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
+            <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>
+              Final Stat Constraints (Min / Max)
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const existing = settings.constraints ?? []
+                const used = new Set(existing.map((c) => c.stat))
+                const nextStat: StatConstraintKey =
+                  STAT_CONSTRAINT_KEYS.find((k) => !used.has(k)) ?? 'critRate_'
+                const nextEntry: StatConstraint = { stat: nextStat }
+                void updateSettings({
+                  ...settings,
+                  constraints: [...existing, nextEntry],
+                })
+              }}
+              style={{ fontSize: '0.82rem', padding: '0.25rem 0.65rem' }}
+            >
+              + Add Constraint
+            </button>
+          </div>
+
+          {(settings.constraints ?? []).length === 0 ? (
+            <span className="muted" style={{ fontSize: '0.82rem' }}>
+              No final-stat constraints added. Click &ldquo;+ Add Constraint&rdquo; to bound HP, ATK, DEF, EM, CRIT, ER, Healing Bonus, or Elemental DMG%.
+            </span>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.45rem',
+              }}
+            >
+              {(settings.constraints ?? []).map((constraint, idx) => {
+                const isPct = isPercentStatConstraintKey(constraint.stat)
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <select
+                      aria-label={`Constraint ${idx + 1} Stat`}
+                      value={constraint.stat}
+                      onChange={(e) => {
+                        const nextList = [...(settings.constraints ?? [])]
+                        nextList[idx] = {
+                          ...constraint,
+                          stat: e.target.value as StatConstraintKey,
+                        }
+                        void updateSettings({
+                          ...settings,
+                          constraints: nextList,
+                        })
+                      }}
+                      style={{ minWidth: '180px' }}
+                    >
+                      {DISPLAY_STATS.map((st) => (
+                        <option key={st.key} value={st.key}>
+                          {st.label} {st.isPercent ? '(%)' : ''}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      type="number"
+                      aria-label={`Constraint ${idx + 1} Min`}
+                      step={isPct ? 1 : 10}
+                      placeholder={isPct ? 'Min (%)' : 'Min'}
+                      value={
+                        typeof constraint.min === 'number' &&
+                        Number.isFinite(constraint.min)
+                          ? constraint.min
+                          : ''
+                      }
+                      onChange={(e) => {
+                        const raw = e.target.value.trim()
+                        const num = raw !== '' ? Number(raw) : undefined
+                        const nextList = [...(settings.constraints ?? [])]
+                        const updated: StatConstraint = {
+                          ...constraint,
+                          min:
+                            num !== undefined && Number.isFinite(num)
+                              ? num
+                              : undefined,
+                        }
+                        if (updated.min === undefined) delete updated.min
+                        nextList[idx] = updated
+                        void updateSettings({
+                          ...settings,
+                          constraints: nextList,
+                        })
+                      }}
+                      style={{ width: '120px' }}
+                    />
+
+                    <input
+                      type="number"
+                      aria-label={`Constraint ${idx + 1} Max`}
+                      step={isPct ? 1 : 10}
+                      placeholder={isPct ? 'Max (%)' : 'Max'}
+                      value={
+                        typeof constraint.max === 'number' &&
+                        Number.isFinite(constraint.max)
+                          ? constraint.max
+                          : ''
+                      }
+                      onChange={(e) => {
+                        const raw = e.target.value.trim()
+                        const num = raw !== '' ? Number(raw) : undefined
+                        const nextList = [...(settings.constraints ?? [])]
+                        const updated: StatConstraint = {
+                          ...constraint,
+                          max:
+                            num !== undefined && Number.isFinite(num)
+                              ? num
+                              : undefined,
+                        }
+                        if (updated.max === undefined) delete updated.max
+                        nextList[idx] = updated
+                        void updateSettings({
+                          ...settings,
+                          constraints: nextList,
+                        })
+                      }}
+                      style={{ width: '120px' }}
+                    />
+
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      aria-label={`Remove Constraint ${idx + 1}`}
+                      onClick={() => {
+                        const nextList = (settings.constraints ?? []).filter(
+                          (_, i) => i !== idx
+                        )
+                        void updateSettings({
+                          ...settings,
+                          constraints: nextList,
+                        })
+                      }}
+                      style={{ padding: '0.25rem 0.5rem' }}
+                    >
+                      <TrashIcon size={14} />
+                      <span>Remove</span>
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
         <div
           style={{
             display: 'flex',
@@ -1227,7 +1415,7 @@ function OptimizeInner() {
       {optResult && optResult.builds.length === 0 && !running && (
         <div className="panel" style={{ borderColor: 'var(--err)' }}>
           <span className="error">
-            No build met constraints — lower ER floor, include equipped artifacts, or widen set filter.
+            No build met constraints — constraints could not be met with the current artifact pool (relax stat constraints or ER floor, include equipped artifacts, or widen set filter).
           </span>
         </div>
       )}
@@ -1462,7 +1650,11 @@ function OptimizeInner() {
                 {DISPLAY_STATS.filter((st) => {
                   const cVal = currentEval?.stats[st.key] ?? 0
                   const oVal = optimisedEval?.stats[st.key] ?? 0
-                  if (st.key.endsWith('_dmg_') && cVal === 0 && oVal === 0)
+                  if (
+                    (st.key.endsWith('_dmg_') || st.key === 'heal_') &&
+                    cVal === 0 &&
+                    oVal === 0
+                  )
                     return false
                   return true
                 }).map((st) => {

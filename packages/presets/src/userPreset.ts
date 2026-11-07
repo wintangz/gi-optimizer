@@ -107,6 +107,29 @@ export function defaultTcBuildForCharacter(characterKey: string): TcBuild {
   }
 }
 
+export const DEFAULT_TC_TEAMMATE_CONDITIONAL: Record<
+  string,
+  Record<string, string>
+> = {
+  NoblesseOblige: { set4: 'on' },
+}
+
+export function createDefaultTcTeammate(characterKey: string) {
+  return {
+    key: characterKey,
+    build: {
+      type: 'tc' as const,
+      tc: defaultTcBuildForCharacter(characterKey),
+    },
+    requirement: {},
+    conditional: {
+      NoblesseOblige: { set4: 'on' },
+    },
+    bonusStats: {},
+    hitMode: 'avgHit' as const,
+  }
+}
+
 export function createBlankUserPreset(
   target: string,
   name = `${target} Custom Setup`,

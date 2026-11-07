@@ -33,6 +33,8 @@ import {
   ALL_CHARACTER_KEYS,
   ALL_WEAPON_KEYS,
   createBlankUserPreset,
+  createDefaultTcTeammate,
+  DEFAULT_TC_TEAMMATE_CONDITIONAL,
   defaultTcBuildForCharacter,
   displayName,
   forkPresetToUser,
@@ -314,17 +316,7 @@ function TeamsInner() {
     }
     startEngine()
     setValidationErrors([])
-    const newMember: TeamMember = {
-      key: newMemberKey as never,
-      build: {
-        type: 'tc',
-        tc: defaultTcBuildForCharacter(newMemberKey),
-      },
-      requirement: {},
-      conditional: {},
-      bonusStats: {},
-      hitMode: 'avgHit',
-    }
+    const newMember: TeamMember = createDefaultTcTeammate(newMemberKey)
     setDraft((prev) => ({
       ...prev,
       team: [...prev.team, newMember],
@@ -352,6 +344,10 @@ function TeamsInner() {
         nextTeam[idx] = {
           ...m,
           build: { type: 'tc', tc: defaultTcBuildForCharacter(m.key) },
+          conditional: {
+            ...structuredClone(DEFAULT_TC_TEAMMATE_CONDITIONAL),
+            ...m.conditional,
+          },
         }
       }
       return { ...prev, team: nextTeam }

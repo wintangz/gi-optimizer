@@ -98,7 +98,8 @@
       },
       "requirement": {},
       "conditional": {
-        "Zhongli": { "skill": "on" }
+        "Zhongli": { "skill": "on" },
+        "ArchaicPetra": { "ele": "hydro", "element": "hydro" }
       },
       "bonusStats": {},
       "hitMode": "avgHit"

@@ -332,6 +332,55 @@ function getGlobalConditionalBuckets(uiData: UIData): GlobalConditionalBuckets {
   return globalBuckets
 }
 
+let defaultTargetArtSetCondsCache: Record<
+  string,
+  Record<string, string>
+> | null = null
+
+/**
+ * Returns a map of `{ [setKey]: { [condKey]: 'on' } }` for all artifact sets
+ * that have boolean on/off conditionals (`states.length === 1 && states[0].key === 'on'`),
+ * excluding multi-path reaction selectors (`ScrollOfTheHeroOfCinderCity.react_*`).
+ * Stack/ranged/numeric/element conditionals are omitted.
+ */
+export function getDefaultTargetArtifactSetConditionals(): Record<
+  string,
+  Record<string, string>
+> {
+  if (defaultTargetArtSetCondsCache) return defaultTargetArtSetCondsCache
+  const uiData = getScratchUiData('Furina' as CharacterKey)
+  if (!uiData) return {}
+  const buckets = getGlobalConditionalBuckets(uiData)
+  const out: Record<string, Record<string, string>> = {}
+  for (const cond of buckets.artifactConditionals) {
+    if (
+      cond.sheet === 'ScrollOfTheHeroOfCinderCity' &&
+      cond.key.startsWith('react_')
+    ) {
+      continue
+    }
+    if (cond.states.length === 1 && cond.states[0]?.key === 'on') {
+      if (!out[cond.sheet]) {
+        out[cond.sheet] = {}
+      }
+      out[cond.sheet]![cond.key] = 'on'
+    }
+  }
+  defaultTargetArtSetCondsCache = out
+  return out
+}
+
+export function listWeaponConditionals(
+  weaponKey: string
+): ConditionalDescriptor[] {
+  const uiData = getScratchUiData('Furina' as CharacterKey)
+  if (!uiData) return []
+  const buckets = getGlobalConditionalBuckets(uiData)
+  return buckets.allWeapons.filter(
+    (c) => c.sheet === weaponKey && c.states.length > 0
+  )
+}
+
 export function listConditionalsForCharacter(
   characterKey: string,
   _baseDb?: ArtCharDatabase
