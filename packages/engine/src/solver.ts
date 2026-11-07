@@ -540,9 +540,10 @@ export async function runSolver(
 
   const repeat = preset.rotation.repeat ?? 1
   const isFixedTarget = preset.team[0]?.build.type === 'fixed'
-  const equippedWeaponId = isFixedTarget
-    ? undefined
-    : opts?.overrideWeapon?.id ?? db.chars.get(targetKey)?.equippedWeapon
+  const equippedWeaponId =
+    isFixedTarget || opts?.weaponOverrideSpec
+      ? undefined
+      : opts?.overrideWeapon?.id ?? db.chars.get(targetKey)?.equippedWeapon
 
   const builds = mergedBuilds.map(
     (b: { value: number; artifactIds: string[] }) => {

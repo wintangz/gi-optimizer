@@ -101,6 +101,68 @@ export interface OptimizeResult {
   durationMs: number
 }
 
+export interface WeaponCompareCandidate {
+  /** Weapon key from GO consts (e.g. 'SplendorOfTranquilWaters', 'FavoniusSword') */
+  weaponKey: string
+  /** Weapon level (1..90, or 1..70 for 1★–2★) */
+  level: number
+  /** Weapon ascension (0..6, or 0..4 for 1★–2★) */
+  ascension: number
+  /** Weapon refinement (1..5, or 1 for 1★–2★) */
+  refinement: number
+  /** Whether this weapon is owned in the user's GOOD inventory */
+  isOwned?: boolean
+  /** Owned weapon ID in GOOD if owned */
+  ownedWeaponId?: string
+  /** Whether this weapon is currently equipped on the target character in GOOD */
+  isEquippedBaseline?: boolean
+}
+
+export interface WeaponCompareRowResult {
+  /** Candidate weapon specification used for this run */
+  candidate: WeaponCompareCandidate
+  /** Status of this weapon's optimization run */
+  status: 'ok' | 'unmet'
+  /** 1-based rank among feasible ('ok') weapons, or null if 'unmet' */
+  rank: number | null
+  /** Best total rotation damage, or null if 'unmet' */
+  total: number | null
+  /** Percentage behind the #1 leader (0 for leader, positive number e.g. 5.4 for 5.4% behind), or null if 'unmet' */
+  percentBehindLeader: number | null
+  /** Best build selection (including weaponOverride and artifactIds), or null if 'unmet' */
+  bestBuild: (BuildSelection & { total: number }) | null
+  /** Full rotation evaluation (instances + final stats) for the best build, or null if 'unmet' */
+  evaluation: RotationResult | null
+  /** Number of builds tested for this weapon */
+  tested: number
+  /** Number of builds pruned/skipped for this weapon */
+  skipped: number
+  /** Solver duration in ms for this weapon */
+  durationMs: number
+}
+
+export interface WeaponCompareProgress {
+  /** 0-based index of the weapon currently being optimized */
+  weaponIndex: number
+  /** Total number of weapons in the comparison */
+  totalWeapons: number
+  /** Weapon key currently being optimized */
+  weaponKey: string
+  /** Current weapon's solver progress */
+  solverProgress: OptimizeProgress
+  /** Completed weapon rows so far (in completion order) */
+  completedRows: WeaponCompareRowResult[]
+}
+
+export interface WeaponCompareResult {
+  /** Ranked rows: all 'ok' rows sorted by total descending (#1 first), followed by 'unmet' rows in selection order */
+  rows: WeaponCompareRowResult[]
+  /** Total damage of the #1 ranked weapon, or null if no weapon had a feasible build */
+  leaderTotal: number | null
+  /** Whether the comparison was cancelled mid-run (rows contain all weapons that finished before cancellation) */
+  cancelled: boolean
+}
+
 export interface TargetDescriptor {
   path: string[]
   name: string
@@ -145,6 +207,18 @@ export interface EngineSession {
       maxWorkers?: number
     }
   ): Promise<OptimizeResult>
+  compareWeapons(
+    preset: Preset,
+    settings: OptimizerSettings,
+    candidates: readonly WeaponCompareCandidate[],
+    opts?: {
+      memberBuildModes?: Record<string, MemberBuildMode>
+      memberConditionals?: PresetMemberConditionalOverrides
+      onProgress?: (p: WeaponCompareProgress) => void
+      signal?: AbortSignal
+      maxWorkers?: number
+    }
+  ): Promise<WeaponCompareResult>
   listTargets(characterKey: string): TargetDescriptor[]
   listConditionals(characterKey: string): ConditionalDescriptor[]
   exportGODatabase(preset: Preset, selection?: BuildSelection): object

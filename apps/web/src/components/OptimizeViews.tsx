@@ -4,7 +4,9 @@ import {
   ArtifactBadge,
   ArtifactPieceRow,
   StatChip,
+  WeaponBadge,
 } from '@/components/Identifier'
+import { WeaponTilePicker } from '@/components/TilePickers'
 import { DownloadIcon, TrashIcon } from '@/components/SvgIcons'
 import { shortStatLabel } from '@/lib/itemMeta'
 import type {
@@ -12,10 +14,17 @@ import type {
   BuildSelection,
   OptimizerSettings,
   RotationResult,
+  WeaponCompareCandidate,
+  WeaponCompareResult,
+  WeaponCompareRowResult,
 } from '@gi/engine'
-import type { IArtifact } from '@gi/good'
+import type { IArtifact, IGOOD } from '@gi/good'
 import {
+  displayName,
+  getCharacterMeta,
+  getWeaponMeta,
   isPercentStatConstraintKey,
+  listWeaponsForType,
   STAT_CONSTRAINT_KEYS,
   type IdentifierSlotKey,
   type Preset,
@@ -757,6 +766,705 @@ export function BuildComparisonList({
                 <div className="comp-details-pieces">
                   {OPTIMIZE_SLOTS.map((slot) => {
                     const artId = row.selection.artifactIds[slot]
+                    const art = artId ? artifactById.get(artId) : undefined
+                    if (!art) return null
+                    return (
+                      <ArtifactPieceRow
+                        key={slot}
+                        setKey={art.setKey}
+                        slotKey={art.slotKey as IdentifierSlotKey}
+                        rarity={art.rarity}
+                        level={art.level}
+                        mainStatKey={art.mainStatKey}
+                        substats={art.substats}
+                        location={art.location}
+                        lock={art.lock}
+                        compact
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function resolveWeaponCompareCandidate(
+  weaponKey: string,
+  targetCharKey: string,
+  good?: IGOOD | null
+): WeaponCompareCandidate {
+  const wMeta = getWeaponMeta(weaponKey)
+  const isLowRarity = wMeta.rarity <= 2
+  const maxLvl = isLowRarity ? 70 : 90
+  const maxAsc = isLowRarity ? 4 : 6
+
+  const weapons = good?.weapons ?? []
+  const equippedOnTarget = weapons.find(
+    (w) => w.key === weaponKey && w.location === targetCharKey
+  )
+  const ownedCopies = weapons
+    .filter((w) => w.key === weaponKey)
+    .sort((a, b) => {
+      if (b.level !== a.level) return b.level - a.level
+      if (b.refinement !== a.refinement) return b.refinement - a.refinement
+      return b.ascension - a.ascension
+    })
+
+  const match = equippedOnTarget ?? ownedCopies[0]
+  if (match) {
+    return {
+      weaponKey,
+      level: Math.max(1, Math.min(maxLvl, Math.round(match.level))),
+      ascension: Math.max(0, Math.min(maxAsc, Math.round(match.ascension))),
+      refinement: isLowRarity
+        ? 1
+        : Math.max(1, Math.min(5, Math.round(match.refinement))),
+      isOwned: true,
+      ownedWeaponId: match.id,
+      isEquippedBaseline: match.location === targetCharKey,
+    }
+  }
+
+  return {
+    weaponKey,
+    level: maxLvl,
+    ascension: maxAsc,
+    refinement: 1,
+    isOwned: false,
+    isEquippedBaseline: false,
+  }
+}
+
+export function rankWeaponComparisonRows(
+  completedRows: readonly WeaponCompareRowResult[],
+  cancelled = false
+): WeaponCompareResult {
+  const okRows = completedRows
+    .filter((r) => r.status === 'ok' && r.total !== null)
+    .sort((a, b) => (b.total ?? 0) - (a.total ?? 0))
+
+  const unmetRows = completedRows.filter((r) => r.status !== 'ok')
+
+  const leaderTotal =
+    okRows.length > 0 && okRows[0]!.total !== null ? okRows[0]!.total : null
+
+  const rankedOk: WeaponCompareRowResult[] = okRows.map((row, idx) => {
+    const rowTotal = row.total ?? 0
+    const pctBehind =
+      leaderTotal !== null && leaderTotal > 0
+        ? idx === 0
+          ? 0
+          : Math.max(0, ((leaderTotal - rowTotal) / leaderTotal) * 100)
+        : 0
+    return {
+      ...row,
+      rank: idx + 1,
+      percentBehindLeader: pctBehind,
+    }
+  })
+
+  const rankedUnmet: WeaponCompareRowResult[] = unmetRows.map((row) => ({
+    ...row,
+    rank: null,
+    total: null,
+    percentBehindLeader: null,
+    bestBuild: null,
+    evaluation: null,
+  }))
+
+  return {
+    rows: [...rankedOk, ...rankedUnmet],
+    leaderTotal,
+    cancelled,
+  }
+}
+
+export interface WeaponComparisonPanelProps {
+  targetCharacterKey: string
+  good?: IGOOD | null
+  selectedCandidates: WeaponCompareCandidate[]
+  onChangeCandidates: (next: WeaponCompareCandidate[]) => void
+}
+
+export function WeaponComparisonPanel({
+  targetCharacterKey,
+  good,
+  selectedCandidates,
+  onChangeCandidates,
+}: WeaponComparisonPanelProps) {
+  const charMeta = getCharacterMeta(targetCharacterKey)
+  const allWeaponsForType = listWeaponsForType(charMeta.weaponType)
+  const selectedKeys = selectedCandidates.map((c) => c.weaponKey)
+
+  function handleToggleWeapon(weaponKey: string) {
+    const exists = selectedCandidates.some((c) => c.weaponKey === weaponKey)
+    if (exists) {
+      onChangeCandidates(
+        selectedCandidates.filter((c) => c.weaponKey !== weaponKey)
+      )
+    } else {
+      const nextCand = resolveWeaponCompareCandidate(
+        weaponKey,
+        targetCharKey,
+        good
+      )
+      onChangeCandidates([...selectedCandidates, nextCand])
+    }
+  }
+
+  const targetCharKey = targetCharacterKey
+
+  function handleUpdateCandidate(
+    weaponKey: string,
+    patch: Partial<Pick<WeaponCompareCandidate, 'level' | 'ascension' | 'refinement'>>
+  ) {
+    const wMeta = getWeaponMeta(weaponKey)
+    const isLowRarity = wMeta.rarity <= 2
+    const maxLvl = isLowRarity ? 70 : 90
+    const maxAsc = isLowRarity ? 4 : 6
+
+    onChangeCandidates(
+      selectedCandidates.map((c) => {
+        if (c.weaponKey !== weaponKey) return c
+        const nextLevel =
+          patch.level !== undefined
+            ? Math.max(1, Math.min(maxLvl, Math.round(patch.level || 1)))
+            : c.level
+        const nextAsc =
+          patch.ascension !== undefined
+            ? Math.max(0, Math.min(maxAsc, Math.round(patch.ascension || 0)))
+            : c.ascension
+        const nextRef = isLowRarity
+          ? 1
+          : patch.refinement !== undefined
+            ? Math.max(1, Math.min(5, Math.round(patch.refinement || 1)))
+            : c.refinement
+        return {
+          ...c,
+          level: nextLevel,
+          ascension: nextAsc,
+          refinement: nextRef,
+        }
+      })
+    )
+  }
+
+  return (
+    <div
+      className="weapon-compare-panel"
+      data-testid="weapon-compare-panel"
+      aria-label="Weapon Comparison Selection"
+    >
+      <div className="weapon-compare-panel-header">
+        <div>
+          <strong>
+            Multi-Weapon Selector ({displayName(targetCharacterKey)} ·{' '}
+            {charMeta.weaponType.toUpperCase()})
+          </strong>
+          <p className="muted" style={{ fontSize: '0.82rem', margin: 0 }}>
+            Select owned and unowned weapons to compare under identical setup
+            and stat constraints. Owned weapons default to your GOOD copy;
+            unowned weapons default to Lv.90 / A6 / R1.
+          </p>
+        </div>
+        <span
+          className="opt-filter-panel-summary"
+          data-testid="weapon-compare-selected-count"
+        >
+          {selectedCandidates.length} selected
+        </span>
+      </div>
+
+      <WeaponTilePicker
+        ariaLabel="Compare Weapons"
+        selectedIds={selectedKeys}
+        options={allWeaponsForType.map((w) => {
+          const defCand = resolveWeaponCompareCandidate(
+            w.key,
+            targetCharacterKey,
+            good
+          )
+          const subcaption = defCand.isEquippedBaseline
+            ? `Equipped · Lv.${defCand.level} R${defCand.refinement}`
+            : defCand.isOwned
+              ? `Owned · Lv.${defCand.level} R${defCand.refinement}`
+              : `Unowned · Lv.${defCand.level} R${defCand.refinement}`
+          return {
+            id: w.key,
+            weaponKey: w.key,
+            label: w.displayName,
+            subcaption,
+          }
+        })}
+        onChange={handleToggleWeapon}
+      />
+
+      {selectedCandidates.length === 0 ? (
+        <div
+          className="constraint-empty-line"
+          data-testid="weapon-compare-empty-selection"
+        >
+          Click two or more weapons above to compare their best builds under
+          your current constraints.
+        </div>
+      ) : (
+        <div
+          className="weapon-compare-config-list"
+          data-testid="weapon-compare-selected-list"
+        >
+          {selectedCandidates.map((cand) => {
+            const wMeta = getWeaponMeta(cand.weaponKey)
+            const isLowRarity = wMeta.rarity <= 2
+            const maxLvl = isLowRarity ? 70 : 90
+            const maxAsc = isLowRarity ? 4 : 6
+            const ascValues = Array.from({ length: maxAsc + 1 }, (_, i) => i)
+
+            return (
+              <div
+                key={cand.weaponKey}
+                className="weapon-compare-config-row"
+                data-testid={`weapon-compare-config-${cand.weaponKey}`}
+                data-weapon-key={cand.weaponKey}
+                data-is-owned={cand.isOwned ? 'true' : 'false'}
+                data-is-baseline={cand.isEquippedBaseline ? 'true' : 'false'}
+              >
+                <div className="weapon-compare-config-identity">
+                  <WeaponBadge
+                    weaponKey={cand.weaponKey}
+                    subtitle={`Lv.${cand.level} A${cand.ascension} · R${cand.refinement}`}
+                  />
+                  {cand.isEquippedBaseline ? (
+                    <span
+                      className="comp-best-tag comp-baseline-tag"
+                      data-testid={`weapon-compare-config-baseline-${cand.weaponKey}`}
+                    >
+                      Current Baseline
+                    </span>
+                  ) : cand.isOwned ? (
+                    <span
+                      className="comp-owned-tag"
+                      data-testid={`weapon-compare-config-owned-${cand.weaponKey}`}
+                    >
+                      Owned
+                    </span>
+                  ) : (
+                    <span
+                      className="comp-sim-tag"
+                      data-testid={`weapon-compare-config-unowned-${cand.weaponKey}`}
+                    >
+                      Unowned (Simulated)
+                    </span>
+                  )}
+                </div>
+
+                <div className="weapon-compare-config-controls">
+                  <label className="presets-filter-label-sm">
+                    <span className="muted">Lv.</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={maxLvl}
+                      aria-label={`${wMeta.displayName} Level`}
+                      data-testid={`weapon-compare-level-${cand.weaponKey}`}
+                      value={cand.level}
+                      onChange={(e) =>
+                        handleUpdateCandidate(cand.weaponKey, {
+                          level: Number(e.target.value),
+                        })
+                      }
+                      style={{ width: '64px' }}
+                    />
+                  </label>
+
+                  <label className="presets-filter-label-sm">
+                    <span className="muted">Asc.</span>
+                    <select
+                      aria-label={`${wMeta.displayName} Ascension`}
+                      data-testid={`weapon-compare-ascension-${cand.weaponKey}`}
+                      value={cand.ascension}
+                      onChange={(e) =>
+                        handleUpdateCandidate(cand.weaponKey, {
+                          ascension: Number(e.target.value),
+                        })
+                      }
+                    >
+                      {ascValues.map((a) => (
+                        <option key={a} value={a}>
+                          A{a}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="presets-filter-label-sm">
+                    <span className="muted">Ref.</span>
+                    <select
+                      aria-label={`${wMeta.displayName} Refinement`}
+                      data-testid={`weapon-compare-refinement-${cand.weaponKey}`}
+                      value={cand.refinement}
+                      disabled={isLowRarity}
+                      onChange={(e) =>
+                        handleUpdateCandidate(cand.weaponKey, {
+                          refinement: Number(e.target.value),
+                        })
+                      }
+                    >
+                      {[1, 2, 3, 4, 5].map((r) => (
+                        <option key={r} value={r}>
+                          R{r}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <button
+                    type="button"
+                    className="btn-icon-only btn-danger-ghost"
+                    aria-label={`Remove ${wMeta.displayName}`}
+                    title={`Remove ${wMeta.displayName}`}
+                    data-testid={`weapon-compare-remove-${cand.weaponKey}`}
+                    onClick={() => handleToggleWeapon(cand.weaponKey)}
+                  >
+                    <TrashIcon size={14} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export interface WeaponComparisonListProps {
+  preset: Preset
+  result: WeaponCompareResult
+  artifactById: ReadonlyMap<string, IArtifact>
+  onExportGO?: (selection: BuildSelection, label: string) => void
+  initialExpandedWeaponKey?: string | null
+}
+
+export function WeaponComparisonList({
+  preset,
+  result,
+  artifactById,
+  onExportGO,
+  initialExpandedWeaponKey,
+}: WeaponComparisonListProps) {
+  const firstOkKey =
+    result.rows.find((r) => r.status === 'ok')?.candidate.weaponKey ?? null
+  const defaultExpanded =
+    initialExpandedWeaponKey !== undefined
+      ? initialExpandedWeaponKey
+      : firstOkKey
+
+  const [expandedKey, setExpandedKey] = useState<string | null>(defaultExpanded)
+
+  if (result.rows.length === 0) {
+    return null
+  }
+
+  const maxTotal = Math.max(result.leaderTotal ?? 1, 1)
+
+  return (
+    <div
+      className="comp-list"
+      data-testid="weapon-comparison-list"
+      role="list"
+      aria-label="Weapon comparison results"
+    >
+      {result.rows.map((row) => {
+        const wKey = row.candidate.weaponKey
+        const specSubtitle = `Lv.${row.candidate.level} A${row.candidate.ascension} · R${row.candidate.refinement}`
+        const isBaseline = Boolean(row.candidate.isEquippedBaseline)
+
+        if (row.status === 'unmet') {
+          return (
+            <div
+              key={wKey}
+              role="listitem"
+              data-testid={`weapon-compare-row-${wKey}`}
+              data-weapon-key={wKey}
+              data-status="unmet"
+              data-baseline={isBaseline ? 'true' : 'false'}
+              className="comp-row comp-row-unmet"
+            >
+              <div className="comp-row-summary">
+                <div className="comp-row-main">
+                  <div className="comp-row-rank-group">
+                    <span
+                      className="comp-rank-pill"
+                      data-testid={`weapon-compare-rank-${wKey}`}
+                    >
+                      —
+                    </span>
+                    <WeaponBadge weaponKey={wKey} subtitle={specSubtitle} />
+                    {isBaseline && (
+                      <span
+                        className="comp-best-tag comp-baseline-tag"
+                        data-testid={`weapon-compare-baseline-badge-${wKey}`}
+                      >
+                        Current Baseline
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="comp-row-metrics">
+                    <span
+                      className="error"
+                      data-testid={`weapon-compare-unmet-${wKey}`}
+                      style={{ fontWeight: 600 }}
+                    >
+                      No build meets constraints
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        const isBest = row.rank === 1
+        const total = row.total ?? 0
+        const barPct = Math.max(4, Math.min(100, (total / maxTotal) * 100))
+        const isExpanded = expandedKey === wKey
+        const pctBehind = row.percentBehindLeader ?? 0
+        const isLeader = isBest || pctBehind < 0.05
+        const behindText = isLeader ? '0.0%' : `−${pctBehind.toFixed(1)}%`
+        const behindAscii = isLeader ? '0.0%' : `-${pctBehind.toFixed(1)}%`
+        const stats = row.evaluation?.stats
+        const selection = row.bestBuild
+
+        return (
+          <div
+            key={wKey}
+            role="listitem"
+            data-testid={`weapon-compare-row-${wKey}`}
+            data-weapon-key={wKey}
+            data-status="ok"
+            data-rank={String(row.rank)}
+            data-best-weapon={isBest ? 'true' : 'false'}
+            data-baseline={isBaseline ? 'true' : 'false'}
+            className={`comp-row${isBest ? ' comp-row-best' : ''}${
+              isBaseline ? ' comp-row-current' : ''
+            }${isExpanded ? ' comp-row-expanded' : ''}`}
+          >
+            <div
+              className="comp-row-summary"
+              onClick={() =>
+                setExpandedKey((prev) => (prev === wKey ? null : wKey))
+              }
+            >
+              <div className="comp-row-main">
+                <div className="comp-row-rank-group">
+                  <span
+                    className={`comp-rank-pill${
+                      isBest ? ' comp-rank-best' : ''
+                    }`}
+                    data-testid={`weapon-compare-rank-${wKey}`}
+                  >
+                    #{row.rank}
+                  </span>
+                  {isBest && (
+                    <span
+                      className="comp-best-tag"
+                      data-testid="best-weapon-badge"
+                    >
+                      Best
+                    </span>
+                  )}
+                  <WeaponBadge weaponKey={wKey} subtitle={specSubtitle} />
+                  {isBaseline && (
+                    <span
+                      className="comp-best-tag comp-baseline-tag"
+                      data-testid={`weapon-compare-baseline-badge-${wKey}`}
+                    >
+                      Current Baseline
+                    </span>
+                  )}
+                </div>
+
+                <div className="comp-row-bar-wrap">
+                  <div
+                    className="comp-row-bar-track"
+                    title={`${formatNum(total)} Total Rotation DMG (${barPct.toFixed(1)}% of leader)`}
+                  >
+                    <div
+                      className={`comp-row-bar-fill${isBest ? ' is-best' : ''}`}
+                      data-testid={`weapon-compare-bar-${wKey}`}
+                      style={{ width: `${barPct.toFixed(1)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="comp-row-metrics">
+                  <strong
+                    className={`comp-row-total${isBest ? ' ok' : ''}`}
+                    data-testid={`weapon-compare-total-${wKey}`}
+                  >
+                    {formatNum(total)}
+                  </strong>
+
+                  <span
+                    className={`comp-row-delta ${isLeader ? 'ok' : 'error'}`}
+                    data-testid={`weapon-compare-delta-${wKey}`}
+                    data-pct-behind={pctBehind.toFixed(1)}
+                    data-delta-ascii={behindAscii}
+                    title={
+                      isLeader
+                        ? 'Leading weapon total'
+                        : `${behindAscii} behind #1 weapon`
+                    }
+                  >
+                    {behindText}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  className="comp-expand-btn"
+                  data-testid={`weapon-compare-expand-${wKey}`}
+                  aria-expanded={isExpanded}
+                  aria-label={
+                    isExpanded
+                      ? `Collapse ${displayName(wKey)} build breakdown`
+                      : `Expand ${displayName(wKey)} build breakdown`
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setExpandedKey((prev) => (prev === wKey ? null : wKey))
+                  }}
+                >
+                  {isExpanded ? 'Hide details ▲' : 'Details ▼'}
+                </button>
+              </div>
+
+              {selection && (
+                <div className="comp-row-meta">
+                  <div
+                    className="comp-row-artifacts"
+                    data-testid={`weapon-compare-artifacts-${wKey}`}
+                    aria-label="Equipped artifacts"
+                  >
+                    {OPTIMIZE_SLOTS.map((slot) => {
+                      const artId = selection.artifactIds[slot]
+                      const art = artId ? artifactById.get(artId) : undefined
+                      if (!art) {
+                        return (
+                          <span
+                            key={slot}
+                            className="comp-empty-slot"
+                            title={`No ${slot} equipped`}
+                          >
+                            <ArtifactBadge
+                              setKey=""
+                              slotKey={slot as IdentifierSlotKey}
+                              rarity={1}
+                              slotOnly
+                              compact
+                            />
+                          </span>
+                        )
+                      }
+                      return (
+                        <ArtifactBadge
+                          key={slot}
+                          setKey={art.setKey}
+                          slotKey={slot as IdentifierSlotKey}
+                          rarity={art.rarity}
+                          compact
+                        />
+                      )
+                    })}
+                  </div>
+
+                  {stats && (
+                    <div
+                      className="comp-row-stats"
+                      data-testid={`weapon-compare-stats-${wKey}`}
+                      aria-label="Final character stats"
+                    >
+                      {CORE_RESULT_STAT_KEYS.map((statKey) => {
+                        const rawVal = stats[statKey] ?? 0
+                        const isPct = statKey.endsWith('_')
+                        const chipVal = isPct
+                          ? rawVal * 100
+                          : Math.round(rawVal).toLocaleString()
+                        return (
+                          <StatChip
+                            key={statKey}
+                            statKey={statKey}
+                            value={chipVal}
+                            compact
+                          />
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {isExpanded && row.evaluation && selection && (
+              <div
+                className="comp-row-details"
+                data-testid={`weapon-compare-details-${wKey}`}
+              >
+                <div className="comp-details-header">
+                  <strong>
+                    Per-Instance Rotation Breakdown (Repeat ×
+                    {preset.rotation.repeat ?? 1})
+                  </strong>
+                  {onExportGO && (
+                    <button
+                      type="button"
+                      className="btn-secondary btn-icon"
+                      onClick={() =>
+                        onExportGO(selection, `weapon-${wKey.toLowerCase()}`)
+                      }
+                    >
+                      <DownloadIcon size={14} />
+                      <span>Verify GO (.json)</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="gi-table-wrap">
+                  <table className="gi-table">
+                    <thead>
+                      <tr>
+                        <th>Damage Instance</th>
+                        <th>Hits</th>
+                        <th>Per-Hit DMG</th>
+                        <th>Subtotal DMG</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {row.evaluation.instances.map((inst, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <strong>{inst.label}</strong>
+                          </td>
+                          <td>×{inst.count}</td>
+                          <td>{formatNum(inst.perHit)}</td>
+                          <td>
+                            <strong>{formatNum(inst.subtotal)}</strong>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="comp-details-pieces">
+                  {OPTIMIZE_SLOTS.map((slot) => {
+                    const artId = selection.artifactIds[slot]
                     const art = artId ? artifactById.get(artId) : undefined
                     if (!art) return null
                     return (

@@ -9,12 +9,15 @@ export {
 export {
   applyMemberConditionalOverrides,
   buildCustomMultiTargetsForPreset,
+  compareWeapons,
   computeDefaultMemberConditionals,
   createSession,
   hydratePresetTeam,
   hydrateTeamIntoDb,
   normalizeTargetPath,
+  rankWeaponCompareRows,
   readEffectiveConditionalValue,
+  resolveDefaultWeaponCompareCandidate,
   resolveEffectiveTeamConditionals,
   type HydratedPresetTeam,
   type HydratedTeam,
@@ -72,5 +75,9 @@ export {
   type StatConstraint,
   type StatConstraintKey,
   type TargetDescriptor,
+  type WeaponCompareCandidate,
+  type WeaponCompareProgress,
+  type WeaponCompareResult,
+  type WeaponCompareRowResult,
 } from './types'
 

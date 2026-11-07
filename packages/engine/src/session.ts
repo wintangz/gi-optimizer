@@ -48,6 +48,10 @@ import type {
   OptimizerSettings,
   RotationResult,
   SimulatedWeaponSpec,
+  WeaponCompareCandidate,
+  WeaponCompareProgress,
+  WeaponCompareResult,
+  WeaponCompareRowResult,
 } from './types'
 
 export function normalizeTargetPath(
@@ -735,7 +739,20 @@ export function hydrateTeamIntoDb(
   }
 
   if (selection) {
-    if (!isFixedTarget && selection.weaponId) {
+    if (!isFixedTarget && overrideWeapon) {
+      const existingEquippedId = db.chars.get(targetCharKey)?.equippedWeapon
+      if (existingEquippedId && db.weapons.get(existingEquippedId)) {
+        db.weapons.set(existingEquippedId, { location: '' })
+      }
+      db.weapons.new({
+        key: overrideWeapon.key,
+        level: overrideWeapon.level,
+        ascension: overrideWeapon.ascension,
+        refinement: overrideWeapon.refinement,
+        location: locKey,
+        lock: false,
+      })
+    } else if (!isFixedTarget && selection.weaponId) {
       const w = db.weapons.get(selection.weaponId)
       if (w) {
         db.weapons.set(selection.weaponId, { location: locKey })
@@ -752,6 +769,239 @@ export function hydrateTeamIntoDb(
   }
 
   return { db, teamId, targetTeamCharId }
+}
+
+export function resolveDefaultWeaponCompareCandidate(
+  weaponKey: string,
+  targetCharKey: string,
+  goodData?: unknown
+): WeaponCompareCandidate {
+  const rarity = getWeaponStat(weaponKey as WeaponKey)?.rarity ?? 5
+  const isLowRarity = rarity <= 2
+  const maxLvl = isLowRarity ? 70 : 90
+  const maxAsc = isLowRarity ? 4 : 6
+
+  const goodObj =
+    typeof goodData === 'object' && goodData !== null
+      ? (goodData as {
+          weapons?: Array<{
+            id?: string
+            key?: string
+            level?: number
+            ascension?: number
+            refinement?: number
+            location?: string
+          }>
+        })
+      : {}
+  const weapons = Array.isArray(goodObj.weapons) ? goodObj.weapons : []
+
+  const equippedOnTarget = weapons.find(
+    (w) => w?.key === weaponKey && w?.location === targetCharKey
+  )
+  const ownedCopies = weapons
+    .filter((w) => w?.key === weaponKey)
+    .sort((a, b) => {
+      const lvlDiff = (b.level ?? 1) - (a.level ?? 1)
+      if (lvlDiff !== 0) return lvlDiff
+      const refDiff = (b.refinement ?? 1) - (a.refinement ?? 1)
+      if (refDiff !== 0) return refDiff
+      return (b.ascension ?? 0) - (a.ascension ?? 0)
+    })
+
+  const match = equippedOnTarget ?? ownedCopies[0]
+  if (match) {
+    const level = Math.max(1, Math.min(maxLvl, Math.round(match.level ?? maxLvl)))
+    const ascension = Math.max(
+      0,
+      Math.min(maxAsc, Math.round(match.ascension ?? maxAsc))
+    )
+    const refinement = isLowRarity
+      ? 1
+      : Math.max(1, Math.min(5, Math.round(match.refinement ?? 1)))
+    return {
+      weaponKey,
+      level,
+      ascension,
+      refinement,
+      isOwned: true,
+      ownedWeaponId: match.id,
+      isEquippedBaseline: match.location === targetCharKey,
+    }
+  }
+
+  return {
+    weaponKey,
+    level: maxLvl,
+    ascension: maxAsc,
+    refinement: 1,
+    isOwned: false,
+    isEquippedBaseline: false,
+  }
+}
+
+export function rankWeaponCompareRows(
+  completedRows: readonly WeaponCompareRowResult[],
+  cancelled = false
+): WeaponCompareResult {
+  const okRows = completedRows
+    .filter((r) => r.status === 'ok' && r.total !== null)
+    .sort((a, b) => (b.total ?? 0) - (a.total ?? 0))
+
+  const unmetRows = completedRows.filter((r) => r.status !== 'ok')
+
+  const leaderTotal =
+    okRows.length > 0 && okRows[0]!.total !== null ? okRows[0]!.total : null
+
+  const rankedOk: WeaponCompareRowResult[] = okRows.map((row, idx) => {
+    const rowTotal = row.total ?? 0
+    const pctBehind =
+      leaderTotal !== null && leaderTotal > 0
+        ? idx === 0
+          ? 0
+          : Math.max(0, ((leaderTotal - rowTotal) / leaderTotal) * 100)
+        : 0
+    return {
+      ...row,
+      rank: idx + 1,
+      percentBehindLeader: pctBehind,
+    }
+  })
+
+  const rankedUnmet: WeaponCompareRowResult[] = unmetRows.map((row) => ({
+    ...row,
+    rank: null,
+    total: null,
+    percentBehindLeader: null,
+    bestBuild: null,
+    evaluation: null,
+  }))
+
+  return {
+    rows: [...rankedOk, ...rankedUnmet],
+    leaderTotal,
+    cancelled,
+  }
+}
+
+export async function compareWeapons(
+  session: Pick<EngineSession, 'optimize' | 'evaluate'>,
+  preset: Preset,
+  settings: OptimizerSettings,
+  candidates: readonly WeaponCompareCandidate[],
+  opts?: {
+    memberBuildModes?: Record<string, MemberBuildMode>
+    memberConditionals?: PresetMemberConditionalOverrides
+    onProgress?: (p: WeaponCompareProgress) => void
+    signal?: AbortSignal
+    maxWorkers?: number
+  }
+): Promise<WeaponCompareResult> {
+  const completedRows: WeaponCompareRowResult[] = []
+  let cancelled = false
+
+  const effectiveMemberBuildModes =
+    opts?.memberBuildModes ?? settings.memberBuildModes?.[preset.id]
+  const effectiveMemberConditionals =
+    opts?.memberConditionals ?? settings.memberConditionalOverrides?.[preset.id]
+
+  for (let i = 0; i < candidates.length; i++) {
+    if (opts?.signal?.aborted) {
+      cancelled = true
+      break
+    }
+
+    const candidate = candidates[i]!
+    const weaponOverride: SimulatedWeaponSpec = {
+      key: candidate.weaponKey,
+      level: candidate.level,
+      ascension: candidate.ascension,
+      refinement: candidate.refinement,
+    }
+
+    let optRes: OptimizeResult
+    try {
+      optRes = await session.optimize(preset, settings, {
+        weaponOverride,
+        memberBuildModes: effectiveMemberBuildModes,
+        memberConditionals: effectiveMemberConditionals,
+        signal: opts?.signal,
+        maxWorkers: opts?.maxWorkers,
+        onProgress: (solverProgress) => {
+          opts?.onProgress?.({
+            weaponIndex: i,
+            totalWeapons: candidates.length,
+            weaponKey: candidate.weaponKey,
+            solverProgress,
+            completedRows: [...completedRows],
+          })
+        },
+      })
+    } catch (err) {
+      if (
+        opts?.signal?.aborted ||
+        (err instanceof Error && err.name === 'AbortError')
+      ) {
+        cancelled = true
+        break
+      }
+      throw err
+    }
+
+    if (opts?.signal?.aborted) {
+      cancelled = true
+      break
+    }
+
+    const best = optRes.builds[0]
+    if (!best) {
+      completedRows.push({
+        candidate: { ...candidate },
+        status: 'unmet',
+        rank: null,
+        total: null,
+        percentBehindLeader: null,
+        bestBuild: null,
+        evaluation: null,
+        tested: optRes.tested,
+        skipped: optRes.skipped,
+        durationMs: optRes.durationMs,
+      })
+      continue
+    }
+
+    const selectionForEval: BuildSelection = {
+      ...best,
+      weaponOverride,
+      ...(effectiveMemberBuildModes &&
+      Object.keys(effectiveMemberBuildModes).length > 0
+        ? { memberBuildModes: effectiveMemberBuildModes }
+        : {}),
+      ...(effectiveMemberConditionals &&
+      Object.keys(effectiveMemberConditionals).length > 0
+        ? { memberConditionals: effectiveMemberConditionals }
+        : {}),
+    }
+    const evaluation = session.evaluate(preset, selectionForEval)
+
+    completedRows.push({
+      candidate: { ...candidate },
+      status: 'ok',
+      rank: null,
+      total: evaluation.total,
+      percentBehindLeader: null,
+      bestBuild: {
+        ...selectionForEval,
+        total: evaluation.total,
+      },
+      evaluation,
+      tested: optRes.tested,
+      skipped: optRes.skipped,
+      durationMs: optRes.durationMs,
+    })
+  }
+
+  return rankWeaponCompareRows(completedRows, cancelled)
 }
 
 export function createSession(good: unknown): EngineSession {
@@ -994,6 +1244,30 @@ export function createSession(good: unknown): EngineSession {
         signal: opts?.signal,
         maxWorkers: opts?.maxWorkers,
       })
+    },
+
+    async compareWeapons(
+      preset: Preset,
+      settings: OptimizerSettings,
+      candidates: readonly WeaponCompareCandidate[],
+      opts?: {
+        memberBuildModes?: Record<string, MemberBuildMode>
+        memberConditionals?: PresetMemberConditionalOverrides
+        onProgress?: (p: WeaponCompareProgress) => void
+        signal?: AbortSignal
+        maxWorkers?: number
+      }
+    ): Promise<WeaponCompareResult> {
+      return compareWeapons(
+        {
+          optimize: (p, s, o) => this.optimize(p, s, o),
+          evaluate: (p, sel) => this.evaluate(p, sel),
+        },
+        preset,
+        settings,
+        candidates,
+        opts
+      )
     },
 
     listTargets(characterKey: string) {

@@ -28,7 +28,8 @@ export interface WeaponTileOption {
 
 export interface WeaponTilePickerProps {
   options: readonly WeaponTileOption[]
-  value: string
+  value?: string
+  selectedIds?: readonly string[]
   onChange: (nextId: string) => void
   ariaLabel: string
   searchable?: boolean
@@ -39,6 +40,7 @@ export interface WeaponTilePickerProps {
 export function WeaponTilePicker({
   options,
   value,
+  selectedIds,
   onChange,
   ariaLabel,
   searchable = options.length > 6,
@@ -96,7 +98,9 @@ export function WeaponTilePicker({
         {filtered.map((opt) => {
           const meta = getWeaponMeta(opt.weaponKey)
           const label = opt.label ?? meta.displayName
-          const isSelected = value === opt.id
+          const isSelected = selectedIds
+            ? selectedIds.includes(opt.id)
+            : value === opt.id
           const imageFailed = Boolean(failedKeys[opt.weaponKey])
           const iconUrl = getCdnIconUrl(opt.weaponKey)
           const borderWidth = isSelected ? 3 : 2

@@ -8,6 +8,10 @@ import { ProgressBar, ResultsSkeleton, Spinner } from '@/components/Loading'
 import {
   BuildComparisonList,
   ConstraintsCard,
+  rankWeaponComparisonRows,
+  resolveWeaponCompareCandidate,
+  WeaponComparisonList,
+  WeaponComparisonPanel,
   type ComparisonBuildEntry,
 } from '@/components/OptimizeViews'
 import {
@@ -40,6 +44,9 @@ import type {
   OptimizeResult,
   RotationResult,
   SimulatedWeaponSpec,
+  WeaponCompareCandidate,
+  WeaponCompareResult,
+  WeaponCompareRowResult,
 } from '@gi/engine'
 import { type IArtifact } from '@gi/good'
 import {
@@ -59,7 +66,7 @@ import {
 } from '@gi/presets'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 
 function OptimizeInner() {
   const searchParams = useSearchParams()
@@ -118,6 +125,25 @@ function OptimizeInner() {
   >([])
   const [evaluating, setEvaluating] = useState(false)
   const [hydratingEngine, setHydratingEngine] = useState(false)
+
+  // Weapon Comparison mode (run-local state; never mutates preset, saved settings, or single-weapon results)
+  const [optimizeMode, setOptimizeMode] = useState<'single' | 'compare'>(
+    'single'
+  )
+  const [compareCandidatesByPreset, setCompareCandidatesByPreset] = useState<
+    Record<string, WeaponCompareCandidate[]>
+  >({})
+  const [compareRunning, setCompareRunning] = useState(false)
+  const [compareProgress, setCompareProgress] = useState<{
+    weaponIndex: number
+    totalWeapons: number
+    weaponKey: string
+    solverProgress: OptimizeProgress
+  } | null>(null)
+  const [compareResult, setCompareResult] =
+    useState<WeaponCompareResult | null>(null)
+  const [compareError, setCompareError] = useState<string | null>(null)
+  const compareCancelRef = useRef(false)
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -230,6 +256,32 @@ function OptimizeInner() {
     const charMeta = getCharacterMeta(activePreset.target)
     return listWeaponsForType(charMeta.weaponType)
   }, [activePreset, isAkashaPreset])
+
+  const activeCompareCandidates: WeaponCompareCandidate[] = useMemo(() => {
+    if (!activePreset) return []
+    const explicit = compareCandidatesByPreset[activePreset.id]
+    if (explicit) return explicit
+
+    const seededKeys: string[] = []
+    const targetWeaponType = getCharacterMeta(activePreset.target).weaponType
+    const equippedInGood = record?.good.weapons.find(
+      (w) =>
+        w.location === activePreset.target &&
+        getWeaponMeta(w.key).weaponType === targetWeaponType
+    )
+    if (equippedInGood) {
+      seededKeys.push(equippedInGood.key)
+    }
+    if (
+      activePreset.team[0]?.build.type === 'fixed' &&
+      !seededKeys.includes(activePreset.team[0].build.weapon.key)
+    ) {
+      seededKeys.push(activePreset.team[0].build.weapon.key)
+    }
+    return seededKeys.map((wk) =>
+      resolveWeaponCompareCandidate(wk, activePreset.target, record?.good)
+    )
+  }, [activePreset, compareCandidatesByPreset, record])
 
   const matchReport = useMemo(() => {
     if (!activePreset || !record?.good || isAkashaPreset) return null
@@ -474,15 +526,163 @@ function OptimizeInner() {
     setRunning(false)
   }
 
+  async function startWeaponComparison() {
+    if (
+      !record?.good ||
+      !activePreset ||
+      activeCompareCandidates.length === 0
+    ) {
+      return
+    }
+    compareCancelRef.current = false
+    setCompareRunning(true)
+    setCompareError(null)
+    setCompareResult(null)
+
+    const completedRows: WeaponCompareRowResult[] = []
+    let wasCancelled = false
+
+    try {
+      for (let i = 0; i < activeCompareCandidates.length; i++) {
+        if (compareCancelRef.current) {
+          wasCancelled = true
+          break
+        }
+        const cand = activeCompareCandidates[i]!
+        const weaponOverride: SimulatedWeaponSpec = {
+          key: cand.weaponKey,
+          level: cand.level,
+          ascension: cand.ascension,
+          refinement: cand.refinement,
+        }
+
+        setCompareProgress({
+          weaponIndex: i,
+          totalWeapons: activeCompareCandidates.length,
+          weaponKey: cand.weaponKey,
+          solverProgress: { tested: 0, skipped: 0, total: 0 },
+        })
+
+        let optRes: OptimizeResult
+        try {
+          optRes = await optimizePresetInWorker({
+            datasetKey: record.importedAt,
+            good: record.good,
+            preset: activePreset,
+            settings,
+            weaponOverride,
+            onProgress: (p) => {
+              setCompareProgress({
+                weaponIndex: i,
+                totalWeapons: activeCompareCandidates.length,
+                weaponKey: cand.weaponKey,
+                solverProgress: { ...p },
+              })
+            },
+          })
+        } catch (err) {
+          if (
+            compareCancelRef.current ||
+            (err instanceof DOMException && err.name === 'AbortError') ||
+            (err instanceof Error && err.name === 'AbortError')
+          ) {
+            wasCancelled = true
+            break
+          }
+          throw err
+        }
+
+        if (compareCancelRef.current) {
+          wasCancelled = true
+          break
+        }
+
+        const best = optRes.builds[0]
+        if (!best) {
+          completedRows.push({
+            candidate: { ...cand },
+            status: 'unmet',
+            rank: null,
+            total: null,
+            percentBehindLeader: null,
+            bestBuild: null,
+            evaluation: null,
+            tested: optRes.tested,
+            skipped: optRes.skipped,
+            durationMs: optRes.durationMs,
+          })
+        } else {
+          const selectionForEval: BuildSelection = {
+            ...best,
+            weaponOverride,
+            ...(activePreset.source === 'official' &&
+            Object.keys(activeMemberBuildModes).length > 0
+              ? { memberBuildModes: activeMemberBuildModes }
+              : {}),
+            ...(hasActiveConditionalOverrides
+              ? { memberConditionals: activeMemberConditionals }
+              : {}),
+          }
+          const evalRes = await evaluatePresetInWorker({
+            datasetKey: record.importedAt,
+            good: record.good,
+            preset: activePreset,
+            selection: selectionForEval,
+          })
+          completedRows.push({
+            candidate: { ...cand },
+            status: 'ok',
+            rank: null,
+            total: evalRes.result.total,
+            percentBehindLeader: null,
+            bestBuild: {
+              ...selectionForEval,
+              total: evalRes.result.total,
+            },
+            evaluation: evalRes.result,
+            tested: optRes.tested,
+            skipped: optRes.skipped,
+            durationMs: optRes.durationMs,
+          })
+        }
+
+        setCompareResult(rankWeaponComparisonRows(completedRows, false))
+      }
+
+      setCompareResult(rankWeaponComparisonRows(completedRows, wasCancelled))
+    } catch (err) {
+      if (
+        compareCancelRef.current ||
+        (err instanceof DOMException && err.name === 'AbortError') ||
+        (err instanceof Error && err.name === 'AbortError')
+      ) {
+        setCompareResult(rankWeaponComparisonRows(completedRows, true))
+      } else {
+        setCompareError(err instanceof Error ? err.message : String(err))
+      }
+    } finally {
+      setCompareRunning(false)
+      setCompareProgress(null)
+    }
+  }
+
+  function cancelWeaponComparison() {
+    compareCancelRef.current = true
+    cancelOptimizationInWorker()
+    setCompareRunning(false)
+  }
+
   async function handleExportGO(
     selection: BuildSelection | null,
     label: string
   ) {
     if (!record?.good || !activePreset) return
     const effectiveSel: BuildSelection | undefined = selection
-      ? isAkashaPreset
-        ? { ...selection, weaponOverride: akashaWeaponSpec }
-        : selection
+      ? selection.weaponOverride
+        ? selection
+        : isAkashaPreset
+          ? { ...selection, weaponOverride: akashaWeaponSpec }
+          : selection
       : isAkashaPreset && akashaWeaponSpec
         ? { weaponOverride: akashaWeaponSpec, artifactIds: {} }
         : undefined
@@ -712,8 +912,57 @@ function OptimizeInner() {
           </div>
         )}
 
+        {/* Weapon Mode Switcher: Single Weapon vs Compare Weapons */}
+        {activePreset && (
+          <div
+            className="weapon-compare-mode-bar"
+            data-testid="optimize-weapon-mode-bar"
+            role="group"
+            aria-label="Weapon optimization mode"
+          >
+            <button
+              type="button"
+              className={`art-filter-mode-btn${
+                optimizeMode === 'single' ? ' is-active' : ''
+              }`}
+              data-testid="optimize-mode-single"
+              aria-pressed={optimizeMode === 'single'}
+              onClick={() => setOptimizeMode('single')}
+            >
+              Single Weapon
+            </button>
+            <button
+              type="button"
+              className={`art-filter-mode-btn${
+                optimizeMode === 'compare' ? ' is-active' : ''
+              }`}
+              data-testid="optimize-mode-compare"
+              aria-pressed={optimizeMode === 'compare'}
+              onClick={() => setOptimizeMode('compare')}
+            >
+              Compare Weapons ({activeCompareCandidates.length})
+            </button>
+          </div>
+        )}
+
+        {activePreset && optimizeMode === 'compare' && (
+          <WeaponComparisonPanel
+            targetCharacterKey={activePreset.target}
+            good={record?.good}
+            selectedCandidates={activeCompareCandidates}
+            onChangeCandidates={(next) => {
+              setCompareCandidatesByPreset((prev) => ({
+                ...prev,
+                [activePreset.id]: next,
+              }))
+              setCompareResult(null)
+            }}
+          />
+        )}
+
         {/* Akasha Artifact-Only Mode Setup vs Owned Target Character & Weapon Check */}
-        {activePreset &&
+        {optimizeMode === 'single' &&
+          activePreset &&
           isAkashaPreset &&
           activePreset.team[0]?.build.type === 'fixed' &&
           akashaWeaponSpec && (
@@ -801,7 +1050,10 @@ function OptimizeInner() {
             </div>
           )}
 
-        {activePreset && !isAkashaPreset && matchReport && (
+        {optimizeMode === 'single' &&
+          activePreset &&
+          !isAkashaPreset &&
+          matchReport && (
           <div className="preset-match-box">
             <div className="preset-akasha-top">
               <strong>
@@ -1131,7 +1383,7 @@ function OptimizeInner() {
           </div>
 
           <div className="preset-gear-row-md">
-            {evaluating && !running && (
+            {evaluating && !running && !compareRunning && (
               <Spinner
                 label={
                   hydratingEngine
@@ -1143,7 +1395,36 @@ function OptimizeInner() {
               />
             )}
 
-            {!running ? (
+            {optimizeMode === 'compare' ? (
+              !compareRunning ? (
+                <button
+                  type="button"
+                  className="btn-run-primary btn-icon"
+                  data-testid="run-weapon-compare-btn"
+                  disabled={
+                    !record?.good ||
+                    !activePreset ||
+                    activeCompareCandidates.length === 0
+                  }
+                  onClick={() => void startWeaponComparison()}
+                >
+                  <PlayIcon size={16} />
+                  <span>
+                    Compare Weapons ({activeCompareCandidates.length})
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-run-cancel btn-icon"
+                  data-testid="cancel-weapon-compare-btn"
+                  onClick={cancelWeaponComparison}
+                >
+                  <StopIcon size={16} />
+                  <span>Cancel</span>
+                </button>
+              )
+            ) : !running ? (
               <button
                 type="button"
                 className="btn-run-primary btn-icon"
@@ -1168,82 +1449,143 @@ function OptimizeInner() {
           </div>
         </div>
 
-        {running && progress && (
-          <div className="preset-provenance-box" data-testid="progress-card">
-            <ProgressBar
-              tested={progress.tested}
-              skipped={progress.skipped}
-              total={progress.total}
-              label="Optimizing builds…"
-            />
-          </div>
-        )}
+        {optimizeMode === 'compare' ? (
+          <>
+            {compareRunning && compareProgress && (
+              <div
+                className="preset-provenance-box"
+                data-testid="weapon-compare-progress-card"
+              >
+                <ProgressBar
+                  tested={compareProgress.solverProgress.tested}
+                  skipped={compareProgress.solverProgress.skipped}
+                  total={compareProgress.solverProgress.total}
+                  label={`Comparing weapon ${compareProgress.weaponIndex + 1} of ${compareProgress.totalWeapons}: ${displayName(compareProgress.weaponKey)}…`}
+                />
+              </div>
+            )}
 
-        {optResult && !running && (
-          <div
-            className="preset-provenance-box ok"
-            style={{ fontSize: '0.88rem' }}
-            data-testid="optimize-summary-banner"
-          >
-            ✓ Finished in {(optResult.durationMs / 1000).toFixed(2)}s — found{' '}
-            {optResult.builds.length} qualifying build(s) (
-            {optResult.tested.toLocaleString()} tested,{' '}
-            {optResult.skipped.toLocaleString()} pruned).
-          </div>
-        )}
+            {compareResult && !compareRunning && (
+              <div
+                className="preset-provenance-box ok"
+                style={{ fontSize: '0.88rem' }}
+                data-testid="weapon-compare-summary-banner"
+              >
+                {compareResult.cancelled
+                  ? `Cancelled — showing ${compareResult.rows.length} completed weapon(s).`
+                  : `✓ Compared ${compareResult.rows.length} weapon(s) under shared settings and stat constraints.`}
+              </div>
+            )}
 
-        {optError && (
-          <div className="gi-empty-card gi-empty-card-err" role="alert">
-            Error: {optError}
-          </div>
-        )}
+            {compareError && (
+              <div className="gi-empty-card gi-empty-card-err" role="alert">
+                Error: {compareError}
+              </div>
+            )}
 
-        {evaluating && !hasAnyResults && (
-          <ResultsSkeleton
-            label={
-              hydratingEngine ? 'Loading optimizer engine…' : 'Evaluating…'
-            }
-          />
-        )}
+            {!compareRunning && !compareResult && (
+              <div
+                className="gi-empty-card"
+                data-testid="weapon-compare-idle-card"
+              >
+                Select weapons above and click{' '}
+                <strong>Compare Weapons</strong> to rank their best builds under
+                the current setup and stat constraints.
+              </div>
+            )}
 
-        {optResult && optResult.builds.length === 0 && !running && (
-          <div
-            className="gi-empty-card gi-empty-card-err"
-            data-testid="constraints-unmet-card"
-          >
-            No build met constraints — constraints could not be met with the
-            current artifact pool (relax stat constraints, include equipped
-            artifacts, or widen the artifact set filter).
-          </div>
-        )}
+            {compareResult && activePreset && (
+              <WeaponComparisonList
+                preset={activePreset}
+                result={compareResult}
+                artifactById={artifactById}
+                onExportGO={(sel, label) => void handleExportGO(sel, label)}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            {running && progress && (
+              <div className="preset-provenance-box" data-testid="progress-card">
+                <ProgressBar
+                  tested={progress.tested}
+                  skipped={progress.skipped}
+                  total={progress.total}
+                  label="Optimizing builds…"
+                />
+              </div>
+            )}
 
-        {isAkashaPreset &&
-          !evaluating &&
-          !hasCurrentEquippedArtifacts &&
-          comparisonOptimizedBuilds.length === 0 &&
-          record && (
-            <div className="gi-empty-card" data-testid="akasha-no-current-card">
-              No artifacts equipped on{' '}
-              <strong>{displayName(activePreset!.target)}</strong> — click{' '}
-              <strong>Optimize</strong> to search your artifact pool.
-            </div>
-          )}
+            {optResult && !running && (
+              <div
+                className="preset-provenance-box ok"
+                style={{ fontSize: '0.88rem' }}
+                data-testid="optimize-summary-banner"
+              >
+                ✓ Finished in {(optResult.durationMs / 1000).toFixed(2)}s — found{' '}
+                {optResult.builds.length} qualifying build(s) (
+                {optResult.tested.toLocaleString()} tested,{' '}
+                {optResult.skipped.toLocaleString()} pruned).
+              </div>
+            )}
 
-        {hasAnyResults && activePreset && (
-          <BuildComparisonList
-            preset={activePreset}
-            currentBuild={
-              showCurrentComparison && currentSelection && currentEval
-                ? {
-                    selection: currentSelection,
-                    evaluation: currentEval,
-                  }
-                : null
-            }
-            optimizedBuilds={comparisonOptimizedBuilds}
-            artifactById={artifactById}
-            onExportGO={(sel, label) => void handleExportGO(sel, label)}
-          />
+            {optError && (
+              <div className="gi-empty-card gi-empty-card-err" role="alert">
+                Error: {optError}
+              </div>
+            )}
+
+            {evaluating && !hasAnyResults && (
+              <ResultsSkeleton
+                label={
+                  hydratingEngine ? 'Loading optimizer engine…' : 'Evaluating…'
+                }
+              />
+            )}
+
+            {optResult && optResult.builds.length === 0 && !running && (
+              <div
+                className="gi-empty-card gi-empty-card-err"
+                data-testid="constraints-unmet-card"
+              >
+                No build met constraints — constraints could not be met with the
+                current artifact pool (relax stat constraints, include equipped
+                artifacts, or widen the artifact set filter).
+              </div>
+            )}
+
+            {isAkashaPreset &&
+              !evaluating &&
+              !hasCurrentEquippedArtifacts &&
+              comparisonOptimizedBuilds.length === 0 &&
+              record && (
+                <div
+                  className="gi-empty-card"
+                  data-testid="akasha-no-current-card"
+                >
+                  No artifacts equipped on{' '}
+                  <strong>{displayName(activePreset!.target)}</strong> — click{' '}
+                  <strong>Optimize</strong> to search your artifact pool.
+                </div>
+              )}
+
+            {hasAnyResults && activePreset && (
+              <BuildComparisonList
+                preset={activePreset}
+                currentBuild={
+                  showCurrentComparison && currentSelection && currentEval
+                    ? {
+                        selection: currentSelection,
+                        evaluation: currentEval,
+                      }
+                    : null
+                }
+                optimizedBuilds={comparisonOptimizedBuilds}
+                artifactById={artifactById}
+                onExportGO={(sel, label) => void handleExportGO(sel, label)}
+              />
+            )}
+          </>
         )}
       </section>
     </div>

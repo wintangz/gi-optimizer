@@ -1767,6 +1767,95 @@ td {
   line-height: 1;
 }
 
+/* Weapon Comparison Mode */
+.weapon-compare-mode-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+}
+
+.weapon-compare-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.85rem;
+  border-radius: 10px;
+  background: var(--bg-soft, #161923);
+  border: 1px solid var(--border);
+  margin-bottom: 0.75rem;
+}
+
+.weapon-compare-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.weapon-compare-config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.weapon-compare-config-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: #1b1f2c;
+  border: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.weapon-compare-config-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.weapon-compare-config-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.comp-baseline-tag {
+  background: rgba(122, 162, 255, 0.16);
+  color: var(--accent);
+  border-color: rgba(122, 162, 255, 0.45);
+}
+
+.comp-owned-tag,
+.comp-sim-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.12rem 0.42rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.comp-owned-tag {
+  background: rgba(76, 195, 138, 0.14);
+  color: var(--ok);
+  border-color: rgba(76, 195, 138, 0.4);
+}
+
+.comp-sim-tag {
+  background: #232734;
+  color: var(--muted);
+}
+
+.comp-row-unmet {
+  opacity: 0.85;
+}
+
 /* Responsive layout down to ~390px phone viewport */
 @media (max-width: 860px) {
   .opt-filter-pair {

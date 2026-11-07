@@ -50,6 +50,10 @@ import {
   BuildComparisonList,
   ConstraintsCard,
   formatRelativeDelta,
+  rankWeaponComparisonRows,
+  resolveWeaponCompareCandidate,
+  WeaponComparisonList,
+  WeaponComparisonPanel,
 } from '../src/components/OptimizeViews'
 
 interface VNode {
@@ -440,5 +444,213 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     // Expandable breakdown rendered for #1 by default
     expect(html).toContain('data-testid="comp-details-opt-0"')
     expect(html).toContain('Gentilhomme Usher DMG')
+  })
+
+  it('weapon-compare: renders WeaponComparisonPanel with multi-select weapon tiles, owned GOOD copy vs Lv.90/A6/R1 unowned defaults, per-weapon Level/Ascension/Refinement controls, and WeaponComparisonList with ranked rows, % behind leader, Current Baseline marker, and "No build meets constraints"', () => {
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+    const sampleGood = {
+      format: 'GOOD' as const,
+      version: 2,
+      source: 'test',
+      characters: [],
+      weapons: [
+        {
+          id: 'w_fav_furina',
+          key: 'FavoniusSword',
+          level: 80,
+          ascension: 5 as const,
+          refinement: 4 as const,
+          location: 'Furina',
+          lock: true,
+        },
+      ],
+      artifacts: [],
+    }
+
+    const favCand = resolveWeaponCompareCandidate(
+      'FavoniusSword',
+      'Furina',
+      sampleGood
+    )
+    const splendorCand = resolveWeaponCompareCandidate(
+      'SplendorOfTranquilWaters',
+      'Furina',
+      sampleGood
+    )
+
+    // Owned weapon defaults to GOOD copy (Lv.80 / A5 / R4, equipped baseline)
+    expect(favCand).toEqual({
+      weaponKey: 'FavoniusSword',
+      level: 80,
+      ascension: 5,
+      refinement: 4,
+      isOwned: true,
+      ownedWeaponId: 'w_fav_furina',
+      isEquippedBaseline: true,
+    })
+
+    // Unowned weapon defaults to Lv.90 / A6 / R1
+    expect(splendorCand).toEqual({
+      weaponKey: 'SplendorOfTranquilWaters',
+      level: 90,
+      ascension: 6,
+      refinement: 1,
+      isOwned: false,
+      isEquippedBaseline: false,
+    })
+
+    const panelHtml = renderToStaticMarkup(
+      <WeaponComparisonPanel
+        targetCharacterKey="Furina"
+        good={sampleGood}
+        selectedCandidates={[favCand, splendorCand]}
+        onChangeCandidates={() => {}}
+      />
+    )
+
+    expect(panelHtml).toContain('data-testid="weapon-compare-panel"')
+    expect(panelHtml).toContain('data-testid="weapon-compare-config-FavoniusSword"')
+    expect(panelHtml).toContain(
+      'data-testid="weapon-compare-config-SplendorOfTranquilWaters"'
+    )
+    expect(panelHtml).toContain(
+      'data-testid="weapon-compare-config-baseline-FavoniusSword"'
+    )
+    expect(panelHtml).toContain(
+      'data-testid="weapon-compare-config-unowned-SplendorOfTranquilWaters"'
+    )
+    expect(panelHtml).toContain('data-testid="weapon-compare-level-FavoniusSword"')
+    expect(panelHtml).toContain(
+      'data-testid="weapon-compare-ascension-FavoniusSword"'
+    )
+    expect(panelHtml).toContain(
+      'data-testid="weapon-compare-refinement-FavoniusSword"'
+    )
+
+    // Ranked comparison results: #1 FavoniusSword (400,000, Current Baseline), #2 FleuveCendreFerryman (360,000 -> -10.0% behind leader), and SplendorOfTranquilWaters ('unmet' -> "No build meets constraints")
+    const fleuveCand = {
+      weaponKey: 'FleuveCendreFerryman',
+      level: 90,
+      ascension: 6,
+      refinement: 5,
+      isOwned: false,
+      isEquippedBaseline: false,
+    }
+    const baseStats = {
+      hp: 39000,
+      atk: 1200,
+      def: 850,
+      eleMas: 40,
+      enerRech_: 2.05,
+      critRate_: 0.8,
+      critDMG_: 1.75,
+    }
+    const ranked = rankWeaponComparisonRows([
+      {
+        candidate: splendorCand,
+        status: 'unmet',
+        rank: null,
+        total: null,
+        percentBehindLeader: null,
+        bestBuild: null,
+        evaluation: null,
+        tested: 12,
+        skipped: 4,
+        durationMs: 5,
+      },
+      {
+        candidate: fleuveCand,
+        status: 'ok',
+        rank: null,
+        total: 360000,
+        percentBehindLeader: null,
+        bestBuild: {
+          weaponOverride: {
+            key: 'FleuveCendreFerryman',
+            level: 90,
+            ascension: 6,
+            refinement: 5,
+          },
+          artifactIds: {},
+          total: 360000,
+        },
+        evaluation: {
+          total: 360000,
+          stats: baseStats,
+          instances: [],
+        },
+        tested: 20,
+        skipped: 5,
+        durationMs: 8,
+      },
+      {
+        candidate: favCand,
+        status: 'ok',
+        rank: null,
+        total: 400000,
+        percentBehindLeader: null,
+        bestBuild: {
+          weaponOverride: {
+            key: 'FavoniusSword',
+            level: 80,
+            ascension: 5,
+            refinement: 4,
+          },
+          artifactIds: {},
+          total: 400000,
+        },
+        evaluation: {
+          total: 400000,
+          stats: baseStats,
+          instances: [
+            {
+              label: 'Gentilhomme Usher DMG',
+              path: ['skill', 'usherDmg'],
+              count: 7,
+              perHit: 25000,
+              subtotal: 175000,
+            },
+          ],
+        },
+        tested: 20,
+        skipped: 5,
+        durationMs: 8,
+      },
+    ])
+
+    const listHtml = renderToStaticMarkup(
+      <WeaponComparisonList
+        preset={preset}
+        result={ranked}
+        artifactById={new Map()}
+      />
+    )
+
+    // Order: #1 FavoniusSword, #2 FleuveCendreFerryman, then unmet SplendorOfTranquilWaters
+    const favIdx = listHtml.indexOf(
+      'data-testid="weapon-compare-row-FavoniusSword"'
+    )
+    const fleuveIdx = listHtml.indexOf(
+      'data-testid="weapon-compare-row-FleuveCendreFerryman"'
+    )
+    const splendorIdx = listHtml.indexOf(
+      'data-testid="weapon-compare-row-SplendorOfTranquilWaters"'
+    )
+    expect(favIdx).toBeGreaterThan(-1)
+    expect(fleuveIdx).toBeGreaterThan(favIdx)
+    expect(splendorIdx).toBeGreaterThan(fleuveIdx)
+
+    // Current Baseline badge on FavoniusSword, -10.0% behind leader on FleuveCendreFerryman, and "No build meets constraints" on SplendorOfTranquilWaters
+    expect(listHtml).toContain(
+      'data-testid="weapon-compare-baseline-badge-FavoniusSword"'
+    )
+    expect(listHtml).toContain('>Current Baseline<')
+    expect(listHtml).toContain('data-delta-ascii="-10.0%"')
+    expect(listHtml).toContain('>−10.0%<')
+    expect(listHtml).toContain(
+      'data-testid="weapon-compare-unmet-SplendorOfTranquilWaters"'
+    )
+    expect(listHtml).toContain('>No build meets constraints<')
+    expect(listHtml).toContain('data-testid="weapon-compare-details-FavoniusSword"')
   })
 })
