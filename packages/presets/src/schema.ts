@@ -153,6 +153,7 @@ export interface TeamMemberInput {
 }
 
 export interface RotationTarget {
+  member?: string
   path: string[]
   count: number
   label: string
@@ -163,6 +164,7 @@ export interface RotationTarget {
 }
 
 export interface RotationTargetInput {
+  member?: string
   path: string[]
   count: number
   label?: string
@@ -1050,6 +1052,19 @@ function parseRotationTarget(
     }
   }
 
+  let member: string | undefined
+  if (input.member !== undefined) {
+    if (typeof input.member !== 'string' || !CHAR_SET.has(input.member)) {
+      issues.push({
+        code: 'invalid_enum_value',
+        path: [...path, 'member'],
+        message: `Invalid rotation target member key '${String(input.member)}'`,
+      })
+    } else {
+      member = input.member
+    }
+  }
+
   const bonusStats =
     input.bonusStats === undefined
       ? {}
@@ -1066,6 +1081,7 @@ function parseRotationTarget(
     hitMode,
     bonusStats,
   }
+  if (member !== undefined) out.member = member
   if (reaction !== undefined) out.reaction = reaction
   if (infusionAura !== undefined) out.infusionAura = infusionAura
   return out
@@ -1600,3 +1616,5 @@ export const presetSourceSchema: SchemaValidator<PresetSource> =
   makeValidator(parsePresetSource)
 export const presetSchema: SchemaValidator<Preset, PresetInput> =
   makeValidator(parsePreset)
+
+export { resolveRotationTargetOwner } from './settings'

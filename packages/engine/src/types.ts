@@ -142,6 +142,7 @@ export interface StatBreakdown {
 }
 
 export interface InstanceResult {
+  member?: string
   label: string
   path: string[]
   count: number
@@ -232,6 +233,71 @@ export interface WeaponCompareResult {
   cancelled: boolean
 }
 
+export interface TeamMemberOptimizeResult {
+  /** Team member's character key */
+  memberKey: string
+  /** 0-based index in `preset.team` */
+  memberIndex: number
+  /** True when the member has 0 rotation rows and keeps their current/simulated gear without running the solver */
+  skippedSolver: boolean
+  /** Number of rotation target rows attributed to this member */
+  rotationRowCount: number
+  /** Chosen build selection (or current/simulated build if skippedSolver is true) */
+  selection: BuildSelection
+  /** Current baseline build selection for this member */
+  currentSelection: BuildSelection
+  /** Member's rotation subtotal under the optimized team builds (0 if skippedSolver is true) */
+  subtotal: number
+  /** Member's rotation subtotal under the current baseline team builds (0 if skippedSolver is true) */
+  currentSubtotal: number
+  /** Full rotation evaluation for this member's rows under the optimized team builds, or null if 0 rows */
+  evaluation: RotationResult | null
+  /** Full rotation evaluation for this member's rows under the current baseline team builds, or null if 0 rows */
+  currentEvaluation: RotationResult | null
+  /** Solver builds tested for this member (0 if skippedSolver is true) */
+  tested: number
+  /** Solver builds pruned/skipped for this member (0 if skippedSolver is true) */
+  skipped: number
+  /** Solver duration in ms for this member */
+  durationMs: number
+}
+
+export interface TeamOptimizeProgress {
+  /** 0-based index of the team member currently being solved */
+  memberIndex: number
+  /** Total number of members in the team */
+  totalMembers: number
+  /** Character key of the member currently being solved */
+  memberKey: string
+  /** Current member's solver progress */
+  solverProgress: OptimizeProgress
+}
+
+export interface TeamOptimizeOptions {
+  weaponId?: string
+  weaponOverride?: SimulatedWeaponSpec
+  memberBuildModes?: Record<string, MemberBuildMode>
+  memberConditionals?: PresetMemberConditionalOverrides
+  onProgress?: (p: TeamOptimizeProgress) => void
+  signal?: AbortSignal
+  maxWorkers?: number
+}
+
+export interface TeamOptimizeResult {
+  /** Per-member optimization results in team order (`0..preset.team.length - 1`) */
+  members: TeamMemberOptimizeResult[]
+  /** Combined team rotation damage across all members with rotation rows */
+  teamTotal: number
+  /** Combined current baseline team rotation damage across all members with rotation rows */
+  currentTeamTotal: number
+  /** Total builds tested across all solved team members */
+  tested: number
+  /** Total builds pruned/skipped across all solved team members */
+  skipped: number
+  /** Total wall-clock duration in ms */
+  durationMs: number
+}
+
 export interface TargetDescriptor {
   path: string[]
   name: string
@@ -288,6 +354,11 @@ export interface EngineSession {
       maxWorkers?: number
     }
   ): Promise<WeaponCompareResult>
+  optimizeTeam(
+    preset: Preset,
+    settings: OptimizerSettings,
+    opts?: TeamOptimizeOptions
+  ): Promise<TeamOptimizeResult>
   listTargets(characterKey: string): TargetDescriptor[]
   listConditionals(characterKey: string): ConditionalDescriptor[]
   exportGODatabase(preset: Preset, selection?: BuildSelection): object

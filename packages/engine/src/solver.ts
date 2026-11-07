@@ -33,9 +33,9 @@ import {
   prod,
   type NumNode,
 } from '@genshin-optimizer/gi/wr'
+import { computeArtifactRollValue } from '@gi/good'
 import {
   ALL_ARTIFACT_SET_KEYS,
-  computeArtifactRollValue,
   isActiveStatConstraint,
   migrateOptimizerSettings,
   normalizeStatConstraintValue,
@@ -306,7 +306,8 @@ export function computeUpfrontTotal(
 export function filterArtifactsForOptimizer(
   db: ArtCharDatabase,
   targetCharKey: string,
-  settings: OptimizerSettings
+  settings: OptimizerSettings,
+  excludedArtifactIds?: ReadonlySet<string>
 ): ICachedArtifact[] {
   const allArts = db.arts.values
   const targetLoc = charKeyToLocCharKey(targetCharKey as CharacterKey)
@@ -344,6 +345,7 @@ export function filterArtifactsForOptimizer(
       : 0
 
   return allArts.filter((art: ICachedArtifact) => {
+    if (excludedArtifactIds?.has(art.id)) return false
     if (art.level < settings.levelLow) return false
     if (art.level > settings.levelHigh) return false
     if (minRarity > 1 && art.rarity < minRarity) return false
@@ -398,6 +400,7 @@ export async function runSolver(
     weaponOverrideSpec?: SimulatedWeaponSpec
     memberBuildModes?: Record<string, MemberBuildMode>
     memberConditionals?: PresetMemberConditionalOverrides
+    excludedArtifactIds?: ReadonlySet<string>
     onProgress?: (p: OptimizeProgress) => void
     signal?: AbortSignal
     maxWorkers?: number
@@ -411,7 +414,12 @@ export async function runSolver(
   ensureGOSolverPatched()
 
   const targetKey = preset.target as CharacterKey
-  const filteredArts = filterArtifactsForOptimizer(db, targetKey, settings)
+  const filteredArts = filterArtifactsForOptimizer(
+    db,
+    targetKey,
+    settings,
+    opts?.excludedArtifactIds
+  )
   const split = compactArtifacts(
     filteredArts,
     settings.mainStatAssumptionLevel,

@@ -14,6 +14,9 @@ export {
   type SubstatRollBreakdown,
 } from '@gi/good'
 export {
+  resolveRotationTargetOwner,
+} from '@gi/presets'
+export {
   extractDamageRowBreakdown,
   extractStatBreakdowns,
 } from './breakdown'
@@ -100,6 +103,10 @@ export {
   type StatConstraint,
   type StatConstraintKey,
   type TargetDescriptor,
+  type TeamMemberOptimizeResult,
+  type TeamOptimizeOptions,
+  type TeamOptimizeProgress,
+  type TeamOptimizeResult,
   type WeaponCompareCandidate,
   type WeaponCompareProgress,
   type WeaponCompareResult,

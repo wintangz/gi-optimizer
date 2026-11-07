@@ -22,6 +22,7 @@ import {
   applyMemberConditionalOverrides,
   readEffectiveConditionalValue,
   resolvePresetMemberBuildMode,
+  resolveRotationTargetOwner,
   type MemberBuildMode,
   type MemberConditionalsMap,
   type Preset,
@@ -29,6 +30,7 @@ import {
   type ResolvedMemberBuild,
   type RotationTarget,
   type TcCharacter,
+  type TeamMember,
 } from '@gi/presets'
 import {
   extractDamageRowBreakdown,
@@ -52,6 +54,9 @@ import type {
   OptimizerSettings,
   RotationResult,
   SimulatedWeaponSpec,
+  TeamMemberOptimizeResult,
+  TeamOptimizeOptions,
+  TeamOptimizeResult,
   WeaponCompareCandidate,
   WeaponCompareProgress,
   WeaponCompareResult,
@@ -85,27 +90,43 @@ function toCustomTarget(
 }
 
 export function buildCustomMultiTargetsForPreset(
-  preset: Preset
+  preset: Preset,
+  memberKey: string = preset.target
 ): CustomMultiTarget[] {
-  const targetKey = preset.target
+  const targetRows = preset.rotation.targets.filter(
+    (rt) => resolveRotationTargetOwner(rt, preset).memberKey === memberKey
+  )
   const combined: CustomMultiTarget = {
     name: preset.rotation.name || preset.name || 'Preset Rotation',
     description: preset.description || undefined,
-    targets: preset.rotation.targets.map((rt) =>
-      toCustomTarget(rt, targetKey)
+    targets: targetRows.map((rt) =>
+      toCustomTarget(
+        {
+          ...rt,
+          path: resolveRotationTargetOwner(rt, preset).normPath,
+        },
+        memberKey
+      )
     ),
   }
 
   // Create one single-target CustomMultiTarget per rotation row (with weight = 1)
   // at indices 1..K so GO evaluates each row's exact perHit (including per-row
   // reaction, hitMode, infusionAura, bonusStats).
-  const perInstance: CustomMultiTarget[] = preset.rotation.targets.map(
-    (rt, idx) => ({
-      name: rt.label || `Target ${idx + 1}`,
-      description: undefined,
-      targets: [toCustomTarget(rt, targetKey, 1)],
-    })
-  )
+  const perInstance: CustomMultiTarget[] = targetRows.map((rt, idx) => ({
+    name: rt.label || `Target ${idx + 1}`,
+    description: undefined,
+    targets: [
+      toCustomTarget(
+        {
+          ...rt,
+          path: resolveRotationTargetOwner(rt, preset).normPath,
+        },
+        memberKey,
+        1
+      ),
+    ],
+  }))
 
   return [combined, ...perInstance]
 }
@@ -232,7 +253,10 @@ export function computeDefaultMemberConditionals(opts: {
   if (!member) return {}
   const isTarget = memberIndex === 0
   const isOfficialOwnedMember =
-    !isTarget && preset.source === 'official' && resolvedMemberMode === 'owned'
+    !isTarget &&
+    preset.source === 'official' &&
+    member.build.type === 'tc' &&
+    resolvedMemberMode === 'owned'
 
   let memberConditional: MemberConditionalsMap
 
@@ -1028,62 +1052,288 @@ export function createSession(good: unknown): EngineSession {
   baseDb.importGOOD(goodObj as never, false, false, false)
   dbImportedCharKeys.set(baseDb as object, goodCharKeys)
 
-  return {
-    currentBuild(preset: Preset): BuildSelection {
-      const targetKey = preset.target as CharacterKey
-      const char = baseDb.chars.get(targetKey)
-      const artifactIds: Partial<Record<ArtifactSlot, string>> = {}
-      if (char) {
-        for (const slot of allArtifactSlotKeys) {
-          const id = char.equippedArtifacts[slot]
-          if (id && baseDb.arts.get(id)) {
-            artifactIds[slot as ArtifactSlot] = id
-          }
+  const currentMemberBuild = (
+    preset: Preset,
+    memberKey: string,
+    effectiveMemberBuildModes?: Record<string, MemberBuildMode>
+  ): BuildSelection => {
+    const mKey = memberKey as CharacterKey
+    const char = baseDb.chars.get(mKey)
+    const artifactIds: Partial<Record<ArtifactSlot, string>> = {}
+    if (char) {
+      for (const slot of allArtifactSlotKeys) {
+        const id = char.equippedArtifacts[slot]
+        if (id && baseDb.arts.get(id)) {
+          artifactIds[slot as ArtifactSlot] = id
         }
       }
+    }
 
-      const targetMember = preset.team[0]
-      if (targetMember?.build.type === 'fixed') {
-        const hasExplicitGoodWeapon =
-          goodCharKeys.has(targetKey) && goodEquippedWeaponByChar.has(targetKey)
-        const equippedId = hasExplicitGoodWeapon
-          ? char?.equippedWeapon
-          : undefined
-        const equippedWeapon = equippedId
-          ? baseDb.weapons.get(equippedId)
-          : undefined
-        if (equippedWeapon) {
-          const rarity =
-            getWeaponStat(equippedWeapon.key as WeaponKey)?.rarity ?? 5
-          const isLowRarity = rarity <= 2
-          return {
-            weaponOverride: {
-              key: equippedWeapon.key,
-              level: isLowRarity ? 70 : 90,
-              ascension: isLowRarity ? 4 : 6,
-              refinement: isLowRarity ? 1 : equippedWeapon.refinement,
-            },
-            artifactIds,
-          }
-        }
+    const memberIdx = preset.team.findIndex((m) => m.key === memberKey)
+    const member = memberIdx >= 0 ? preset.team[memberIdx] : preset.team[0]
+    const isTarget = memberIdx <= 0
+
+    if (member?.build.type === 'fixed') {
+      const hasExplicitGoodWeapon =
+        goodCharKeys.has(mKey) && goodEquippedWeaponByChar.has(mKey)
+      const equippedId = hasExplicitGoodWeapon
+        ? char?.equippedWeapon
+        : undefined
+      const equippedWeapon = equippedId
+        ? baseDb.weapons.get(equippedId)
+        : undefined
+      if (equippedWeapon) {
+        const rarity =
+          getWeaponStat(equippedWeapon.key as WeaponKey)?.rarity ?? 5
+        const isLowRarity = rarity <= 2
         return {
           weaponOverride: {
-            key: targetMember.build.weapon.key,
-            level: targetMember.build.weapon.level,
-            ascension: targetMember.build.weapon.ascension,
-            refinement: targetMember.build.weapon.refinement,
+            key: equippedWeapon.key,
+            level: isLowRarity ? 70 : 90,
+            ascension: isLowRarity ? 4 : 6,
+            refinement: isLowRarity ? 1 : equippedWeapon.refinement,
           },
           artifactIds,
         }
       }
-
       return {
-        weaponId: char?.equippedWeapon || undefined,
+        weaponOverride: {
+          key: member.build.weapon.key,
+          level: member.build.weapon.level,
+          ascension: member.build.weapon.ascension,
+          refinement: member.build.weapon.refinement,
+        },
         artifactIds,
       }
+    }
+
+    if (member?.build.type === 'tc') {
+      const resolvedMode = resolvePresetMemberBuildMode({
+        presetSource: preset.source,
+        isTarget,
+        memberBuildType: member.build.type,
+        characterKey: memberKey,
+        ownedCharKeys: goodCharKeys,
+        overrideMode: effectiveMemberBuildModes?.[memberKey],
+      }).mode
+      const hasOwnedWep =
+        goodCharKeys.has(mKey) && goodEquippedWeaponByChar.has(mKey)
+      if (resolvedMode === 'owned' && hasOwnedWep) {
+        return {
+          weaponId: char?.equippedWeapon || undefined,
+          artifactIds,
+        }
+      }
+      return {
+        weaponOverride: {
+          key: member.build.tc.weapon.key,
+          level: member.build.tc.weapon.level,
+          ascension: member.build.tc.weapon.ascension,
+          refinement: member.build.tc.weapon.refinement,
+        },
+        artifactIds,
+      }
+    }
+
+    return {
+      weaponId: char?.equippedWeapon || undefined,
+      artifactIds,
+    }
+  }
+
+  const buildMemberSubPreset = (
+    preset: Preset,
+    memberKey: string,
+    memberRows: RotationTarget[],
+    effectiveMemberBuildModes?: Record<string, MemberBuildMode>
+  ): Preset => {
+    const memberIdx = preset.team.findIndex((m) => m.key === memberKey)
+    const normalizedTargets: RotationTarget[] = memberRows.map((rt) => ({
+      ...rt,
+      member: memberKey,
+      path: resolveRotationTargetOwner(rt, preset).normPath,
+    }))
+
+    if (memberIdx <= 0) {
+      return {
+        ...preset,
+        rotation: {
+          ...preset.rotation,
+          targets: normalizedTargets,
+        },
+      }
+    }
+
+    const member = preset.team[memberIdx]!
+    const resolvedMode = resolvePresetMemberBuildMode({
+      presetSource: preset.source,
+      isTarget: false,
+      memberBuildType: member.build.type,
+      characterKey: memberKey,
+      ownedCharKeys: goodCharKeys,
+      overrideMode: effectiveMemberBuildModes?.[memberKey],
+    }).mode
+
+    let promotedBuild: TeamMember['build'] = member.build
+    if (member.build.type === 'tc') {
+      const hasOwnedWep =
+        goodCharKeys.has(memberKey) && goodEquippedWeaponByChar.has(memberKey)
+      if (resolvedMode === 'owned' && hasOwnedWep) {
+        promotedBuild = { type: 'owned' }
+      } else {
+        promotedBuild = {
+          type: 'fixed',
+          character: member.build.tc.character,
+          weapon: member.build.tc.weapon,
+        }
+      }
+    }
+
+    const promotedMember: TeamMember = {
+      ...member,
+      build: promotedBuild,
+    }
+
+    const otherMembers: TeamMember[] = preset.team
+      .filter((_, idx) => idx !== memberIdx)
+      .map((m, idx) => {
+        if (idx === 0 && m.build.type === 'fixed' && !goodCharKeys.has(m.key)) {
+          return {
+            ...m,
+            build: {
+              type: 'tc',
+              tc: {
+                character: m.build.character,
+                weapon: m.build.weapon,
+                artifact: {
+                  slots: {
+                    flower: { statKey: 'hp', level: 20, rarity: 5 },
+                    plume: { statKey: 'atk', level: 20, rarity: 5 },
+                    sands: { statKey: 'atk_', level: 20, rarity: 5 },
+                    goblet: { statKey: 'atk_', level: 20, rarity: 5 },
+                    circlet: { statKey: 'critRate_', level: 20, rarity: 5 },
+                  },
+                  substats: { type: 'max', rarity: 5, stats: {} },
+                  sets: {},
+                },
+              },
+            },
+          }
+        }
+        return m
+      })
+
+    return {
+      ...preset,
+      id: `${preset.id}__member_${memberKey}`,
+      target: memberKey,
+      team: [promotedMember, ...otherMembers],
+      rotation: {
+        ...preset.rotation,
+        targets: normalizedTargets,
+      },
+    }
+  }
+
+  return {
+    currentBuild(preset: Preset): BuildSelection {
+      return currentMemberBuild(preset, preset.target)
     },
 
     evaluate(preset: Preset, selection?: BuildSelection): RotationResult {
+      const hasNonTargetRows = preset.rotation.targets.some(
+        (rt) => resolveRotationTargetOwner(rt, preset).memberKey !== preset.target
+      )
+
+      if (hasNonTargetRows) {
+        const rowsByMember = new Map<
+          string,
+          Array<{ origIdx: number; rt: RotationTarget }>
+        >()
+        preset.rotation.targets.forEach((rt, origIdx) => {
+          const { memberKey } = resolveRotationTargetOwner(rt, preset)
+          const bucket = rowsByMember.get(memberKey) ?? []
+          bucket.push({ origIdx, rt })
+          rowsByMember.set(memberKey, bucket)
+        })
+
+        const instancesByOrigIdx: InstanceResult[] = new Array(
+          preset.rotation.targets.length
+        )
+        let primaryStats: Record<string, number> = {}
+        let primaryStatBreakdowns: RotationResult['statBreakdowns']
+
+        // Ensure primary target is evaluated even if it has 0 rows so stats are populated
+        if (!rowsByMember.has(preset.target)) {
+          const firstRow = preset.rotation.targets[0]
+          if (firstRow) {
+            const targetSub = buildMemberSubPreset(
+              preset,
+              preset.target,
+              [],
+              selection?.memberBuildModes
+            )
+            try {
+              const targetEval = this.evaluate(targetSub, selection)
+              primaryStats = targetEval.stats
+              primaryStatBreakdowns = targetEval.statBreakdowns
+            } catch {
+              primaryStats = {}
+            }
+          }
+        }
+
+        for (const [memberKey, indexedRows] of rowsByMember.entries()) {
+          const subPreset = buildMemberSubPreset(
+            preset,
+            memberKey,
+            indexedRows.map((x) => x.rt),
+            selection?.memberBuildModes
+          )
+          const memberSel: BuildSelection | undefined =
+            memberKey === preset.target
+              ? selection
+              : {
+                  ...currentMemberBuild(
+                    preset,
+                    memberKey,
+                    selection?.memberBuildModes
+                  ),
+                  ...(selection?.memberBuildModes
+                    ? { memberBuildModes: selection.memberBuildModes }
+                    : {}),
+                  ...(selection?.memberConditionals
+                    ? { memberConditionals: selection.memberConditionals }
+                    : {}),
+                }
+          const subEval = this.evaluate(subPreset, memberSel)
+          if (memberKey === preset.target) {
+            primaryStats = subEval.stats
+            primaryStatBreakdowns = subEval.statBreakdowns
+          }
+          indexedRows.forEach(({ origIdx, rt }, localIdx) => {
+            const inst = subEval.instances[localIdx]
+            if (inst) {
+              instancesByOrigIdx[origIdx] = {
+                ...inst,
+                path: rt.path,
+                member: memberKey,
+              }
+            }
+          })
+        }
+
+        const instances = instancesByOrigIdx.filter(Boolean)
+        const total = instances.reduce((acc, inst) => acc + inst.subtotal, 0)
+        return {
+          total,
+          instances,
+          stats: primaryStats,
+          ...(primaryStatBreakdowns
+            ? { statBreakdowns: primaryStatBreakdowns }
+            : {}),
+        }
+      }
       const {
         isFixedTarget,
         overrideChar,
@@ -1177,6 +1427,7 @@ export function createSession(good: unknown): EngineSession {
             targetWeaponKey: resolvedTargetWeaponKey,
           })
           return {
+            ...(rt.member ? { member: rt.member } : {}),
             label: rt.label || normPath.join('.'),
             path: rt.path,
             count: rt.count,
@@ -1275,6 +1526,225 @@ export function createSession(good: unknown): EngineSession {
         signal: opts?.signal,
         maxWorkers: opts?.maxWorkers,
       })
+    },
+
+    async optimizeTeam(
+      preset: Preset,
+      settings: OptimizerSettings,
+      opts?: TeamOptimizeOptions
+    ): Promise<TeamOptimizeResult> {
+      const startTime = performance.now()
+      const assignedArtifactIds = new Set<string>()
+      const members: TeamMemberOptimizeResult[] = []
+      let totalTested = 0
+      let totalSkipped = 0
+
+      const effectiveMemberBuildModes =
+        opts?.memberBuildModes ?? settings.memberBuildModes?.[preset.id]
+      const effectiveMemberConditionals =
+        opts?.memberConditionals ??
+        settings.memberConditionalOverrides?.[preset.id]
+
+      const totalMembers = Math.min(4, preset.team.length)
+
+      for (let memberIndex = 0; memberIndex < totalMembers; memberIndex++) {
+        if (opts?.signal?.aborted) {
+          throw new DOMException('Aborted', 'AbortError')
+        }
+
+        const member = preset.team[memberIndex]!
+        const memberKey = member.key
+        const memberRows = preset.rotation.targets.filter(
+          (rt) => resolveRotationTargetOwner(rt, preset).memberKey === memberKey
+        )
+
+        const currentSelection = currentMemberBuild(
+          preset,
+          memberKey,
+          effectiveMemberBuildModes
+        )
+
+        if (memberRows.length === 0) {
+          members.push({
+            memberKey,
+            memberIndex,
+            skippedSolver: true,
+            rotationRowCount: 0,
+            selection: currentSelection,
+            currentSelection,
+            subtotal: 0,
+            currentSubtotal: 0,
+            evaluation: null,
+            currentEvaluation: null,
+            tested: 0,
+            skipped: 0,
+            durationMs: 0,
+          })
+          continue
+        }
+
+        const memberPreset = buildMemberSubPreset(
+          preset,
+          memberKey,
+          memberRows,
+          effectiveMemberBuildModes
+        )
+
+        const {
+          isFixedTarget,
+          overrideChar,
+          overrideWeapon: fixedOrSimWeapon,
+          effectiveWeaponSpec,
+        } = resolveFixedTargetOverrides(
+          memberPreset,
+          memberIndex === 0 ? opts?.weaponOverride : undefined
+        )
+
+        let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
+        if (
+          memberIndex === 0 &&
+          !isFixedTarget &&
+          !overrideWeapon &&
+          opts?.weaponId
+        ) {
+          overrideWeapon = baseDb.weapons.get(opts.weaponId)
+        }
+
+        const { teamId, targetTeamCharId } = hydratePresetTeam(
+          baseDb,
+          memberPreset,
+          effectiveWeaponSpec?.key ?? overrideWeapon?.key,
+          {
+            ownedCharKeys: goodCharKeys,
+            memberBuildModes: effectiveMemberBuildModes,
+            memberConditionals: effectiveMemberConditionals,
+          }
+        )
+
+        const memberSettings: OptimizerSettings =
+          memberIndex === 0
+            ? {
+                ...settings,
+                topN: Math.max(1, settings.topN ?? 1),
+              }
+            : {
+                ...settings,
+                topN: 1,
+                constraints: [],
+                setExclusion: {},
+                mainStatKeys: undefined,
+                requiredSubstats: [],
+              }
+
+        const optRes = await runSolver(
+          baseDb,
+          teamId,
+          targetTeamCharId,
+          memberPreset,
+          memberSettings,
+          {
+            overrideWeapon,
+            overrideChar,
+            weaponOverrideSpec: isFixedTarget
+              ? effectiveWeaponSpec
+              : memberIndex === 0
+                ? opts?.weaponOverride
+                : undefined,
+            memberBuildModes: effectiveMemberBuildModes,
+            memberConditionals: effectiveMemberConditionals,
+            excludedArtifactIds: assignedArtifactIds,
+            onProgress: (solverProgress) => {
+              opts?.onProgress?.({
+                memberIndex,
+                totalMembers,
+                memberKey,
+                solverProgress,
+              })
+            },
+            signal: opts?.signal,
+            maxWorkers: opts?.maxWorkers,
+          }
+        )
+
+        totalTested += optRes.tested
+        totalSkipped += optRes.skipped
+
+        const bestBuild = optRes.builds[0]
+        const chosenSelection: BuildSelection = bestBuild
+          ? {
+              ...bestBuild,
+              ...(effectiveMemberBuildModes &&
+              Object.keys(effectiveMemberBuildModes).length > 0
+                ? { memberBuildModes: effectiveMemberBuildModes }
+                : {}),
+              ...(effectiveMemberConditionals &&
+              Object.keys(effectiveMemberConditionals).length > 0
+                ? { memberConditionals: effectiveMemberConditionals }
+                : {}),
+            }
+          : {
+              ...currentSelection,
+              ...(effectiveMemberBuildModes &&
+              Object.keys(effectiveMemberBuildModes).length > 0
+                ? { memberBuildModes: effectiveMemberBuildModes }
+                : {}),
+              ...(effectiveMemberConditionals &&
+              Object.keys(effectiveMemberConditionals).length > 0
+                ? { memberConditionals: effectiveMemberConditionals }
+                : {}),
+            }
+
+        for (const artId of Object.values(chosenSelection.artifactIds)) {
+          if (artId) {
+            assignedArtifactIds.add(artId)
+          }
+        }
+
+        const evaluation = this.evaluate(memberPreset, chosenSelection)
+        const currentEvaluation = this.evaluate(memberPreset, {
+          ...currentSelection,
+          ...(effectiveMemberBuildModes &&
+          Object.keys(effectiveMemberBuildModes).length > 0
+            ? { memberBuildModes: effectiveMemberBuildModes }
+            : {}),
+          ...(effectiveMemberConditionals &&
+          Object.keys(effectiveMemberConditionals).length > 0
+            ? { memberConditionals: effectiveMemberConditionals }
+            : {}),
+        })
+
+        members.push({
+          memberKey,
+          memberIndex,
+          skippedSolver: false,
+          rotationRowCount: memberRows.length,
+          selection: chosenSelection,
+          currentSelection,
+          subtotal: evaluation.total,
+          currentSubtotal: currentEvaluation.total,
+          evaluation,
+          currentEvaluation,
+          tested: optRes.tested,
+          skipped: optRes.skipped,
+          durationMs: optRes.durationMs,
+        })
+      }
+
+      const teamTotal = members.reduce((acc, m) => acc + m.subtotal, 0)
+      const currentTeamTotal = members.reduce(
+        (acc, m) => acc + m.currentSubtotal,
+        0
+      )
+      const durationMs = Math.max(0, performance.now() - startTime)
+
+      return {
+        members,
+        teamTotal,
+        currentTeamTotal,
+        tested: totalTested,
+        skipped: totalSkipped,
+        durationMs,
+      }
     },
 
     async compareWeapons(

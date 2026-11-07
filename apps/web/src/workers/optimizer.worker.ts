@@ -11,6 +11,8 @@ import {
   type RotationResult,
   type SimulatedWeaponSpec,
   type TargetDescriptor,
+  type TeamOptimizeProgress,
+  type TeamOptimizeResult,
 } from '@gi/engine'
 import type { IGOOD } from '@gi/good'
 import type { Preset } from '@gi/presets'
@@ -33,6 +35,17 @@ export interface WorkerEvaluateRequest {
 
 export interface WorkerOptimizeRequest {
   type: 'optimize'
+  requestId: string
+  datasetKey: string
+  good?: IGOOD
+  preset: Preset
+  settings: OptimizerSettings
+  weaponId?: string
+  weaponOverride?: SimulatedWeaponSpec
+}
+
+export interface WorkerOptimizeTeamRequest {
+  type: 'optimizeTeam'
   requestId: string
   datasetKey: string
   good?: IGOOD
@@ -66,6 +79,7 @@ export type WorkerRequest =
   | WorkerInitRequest
   | WorkerEvaluateRequest
   | WorkerOptimizeRequest
+  | WorkerOptimizeTeamRequest
   | WorkerCatalogRequest
   | WorkerExportGORequest
   | WorkerCancelRequest
@@ -91,6 +105,16 @@ export type WorkerResponse =
       type: 'result'
       requestId: string
       result: OptimizeResult
+    }
+  | {
+      type: 'teamProgress'
+      requestId: string
+      progress: TeamOptimizeProgress
+    }
+  | {
+      type: 'teamResult'
+      requestId: string
+      result: TeamOptimizeResult
     }
   | {
       type: 'catalogResult'
@@ -221,8 +245,42 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       }
       return
     }
+
+    if (msg.type === 'optimizeTeam') {
+      activeController?.abort()
+      const controller = new AbortController()
+      activeController = controller
+
+      const session = ensureSession(msg.datasetKey, msg.good)
+      const result = await session.optimizeTeam(msg.preset, msg.settings, {
+        weaponId: msg.weaponId,
+        weaponOverride: msg.weaponOverride,
+        signal: controller.signal,
+        onProgress: (progress) => {
+          const out: WorkerResponse = {
+            type: 'teamProgress',
+            requestId: msg.requestId,
+            progress,
+          }
+          self.postMessage(out)
+        },
+      })
+      if (!controller.signal.aborted) {
+        const out: WorkerResponse = {
+          type: 'teamResult',
+          requestId: msg.requestId,
+          result,
+        }
+        self.postMessage(out)
+      }
+      return
+    }
   } catch (err) {
-    if ('type' in msg && msg.type === 'optimize' && activeController?.signal.aborted) {
+    if (
+      'type' in msg &&
+      (msg.type === 'optimize' || msg.type === 'optimizeTeam') &&
+      activeController?.signal.aborted
+    ) {
       return
     }
     const out: WorkerResponse = {

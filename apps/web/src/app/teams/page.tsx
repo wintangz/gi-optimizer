@@ -52,6 +52,7 @@ import {
   listBundledPresets,
   normalizeEnemyOverrides,
   parsePresetJson,
+  resolveRotationTargetOwner,
   serializePresetJson,
   shortStatLabel,
   validatePreset,
@@ -1291,6 +1292,7 @@ function TeamsInner() {
           <table className="gi-table">
             <thead>
               <tr>
+                <th>Member</th>
                 <th>Label</th>
                 <th>GO Formula Target</th>
                 <th>Hit Count</th>
@@ -1301,15 +1303,48 @@ function TeamsInner() {
             </thead>
             <tbody>
               {draft.rotation.targets.map((rt, idx) => {
-                const normPathKey =
-                  rt.path[0] === draft.target
-                    ? rt.path.slice(1).join('.')
-                    : rt.path.join('.')
-                const hasTargetOption = targetCatalog.some(
+                const { memberKey: rowMemberKey, normPath } =
+                  resolveRotationTargetOwner(rt, draft)
+                const rowTargetCatalog =
+                  targetsByChar[rowMemberKey] ?? targetCatalog
+                const normPathKey = normPath.join('.')
+                const hasTargetOption = rowTargetCatalog.some(
                   (t) => t.path.join('.') === normPathKey
                 )
                 return (
                   <tr key={idx}>
+                    <td>
+                      <select
+                        aria-label={`Rotation Row ${idx + 1} Member`}
+                        data-testid={`rotation-row-member-${idx}`}
+                        value={rowMemberKey}
+                        onFocus={startEngine}
+                        onMouseDown={startEngine}
+                        onChange={(e) => {
+                          startEngine()
+                          const nextMemberKey = e.target.value
+                          const nextCat = targetsByChar[nextMemberKey] ?? []
+                          const firstPath = nextCat[0]?.path ?? ['normal', '0']
+                          const firstLabel =
+                            nextCat[0]?.name ?? 'Normal 1-Hit'
+                          updateRotationRow(idx, {
+                            member:
+                              nextMemberKey === draft.target
+                                ? undefined
+                                : nextMemberKey,
+                            path: firstPath,
+                            label: firstLabel,
+                          })
+                        }}
+                      >
+                        {draft.team.map((m, mIdx) => (
+                          <option key={m.key} value={m.key}>
+                            {displayName(m.key)}
+                            {mIdx === 0 ? ' (Target)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td>
                       <input
                         type="text"
@@ -1327,10 +1362,14 @@ function TeamsInner() {
                         onMouseDown={startEngine}
                         onChange={(e) => {
                           const parts = e.target.value.split('.')
-                          const desc = targetCatalog.find(
+                          const desc = rowTargetCatalog.find(
                             (t) => t.path.join('.') === e.target.value
                           )
                           updateRotationRow(idx, {
+                            member:
+                              rowMemberKey === draft.target
+                                ? undefined
+                                : rowMemberKey,
                             path: parts,
                             label: desc?.name ?? e.target.value,
                           })
@@ -1343,7 +1382,7 @@ function TeamsInner() {
                               : normPathKey}
                           </option>
                         )}
-                        {targetCatalog.map((t) => (
+                        {rowTargetCatalog.map((t) => (
                           <option
                             key={t.path.join('.')}
                             value={t.path.join('.')}

@@ -766,3 +766,36 @@ export function invertSets(
   }
   return next
 }
+
+/**
+ * Resolves which team member owns a rotation target row (via `rt.member` or a 3-segment
+ * `rt.path` starting with a member's character key) and returns the normalized 2-segment
+ * `[section, targetKey]` path for that member's GO sheet.
+ */
+export function resolveRotationTargetOwner(
+  rt: { member?: string; path: readonly string[] },
+  preset: { target: string; team: ReadonlyArray<{ key: string }> }
+): {
+  memberKey: string
+  normPath: [string, string]
+} {
+  const teamKeys = new Set(preset.team.map((m) => m.key))
+  if (rt.member && teamKeys.has(rt.member)) {
+    const normPath: [string, string] =
+      rt.path.length >= 3 && rt.path[0] === rt.member
+        ? [rt.path[1] ?? '', rt.path[2] ?? '']
+        : [rt.path[0] ?? '', rt.path[1] ?? '']
+    return { memberKey: rt.member, normPath }
+  }
+  if (rt.path.length >= 3 && teamKeys.has(rt.path[0]!)) {
+    return {
+      memberKey: rt.path[0]!,
+      normPath: [rt.path[1] ?? '', rt.path[2] ?? ''],
+    }
+  }
+  const normPath: [string, string] =
+    rt.path[0] === preset.target
+      ? [rt.path[1] ?? '', rt.path[2] ?? '']
+      : [rt.path[0] ?? '', rt.path[1] ?? '']
+  return { memberKey: preset.target, normPath }
+}

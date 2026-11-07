@@ -12,6 +12,7 @@ import {
   rankWeaponComparisonRows,
   resolveWeaponCompareCandidate,
   SolverPoolFiltersPanel,
+  TeamOptimizationList,
   WeaponComparisonList,
   WeaponComparisonPanel,
   type ComparisonBuildEntry,
@@ -34,6 +35,7 @@ import {
   exportGODatabaseInWorker,
   isEngineSessionHydrated,
   optimizePresetInWorker,
+  optimizeTeamInWorker,
 } from '@/lib/engine/workerClient'
 import {
   useGoodStorage,
@@ -46,6 +48,8 @@ import type {
   OptimizeResult,
   RotationResult,
   SimulatedWeaponSpec,
+  TeamOptimizeProgress,
+  TeamOptimizeResult,
   WeaponCompareCandidate,
   WeaponCompareResult,
   WeaponCompareRowResult,
@@ -128,10 +132,10 @@ function OptimizeInner() {
   const [evaluating, setEvaluating] = useState(false)
   const [hydratingEngine, setHydratingEngine] = useState(false)
 
-  // Weapon Comparison mode (run-local state; never mutates preset, saved settings, or single-weapon results)
-  const [optimizeMode, setOptimizeMode] = useState<'single' | 'compare'>(
-    'single'
-  )
+  // Weapon Comparison & Team Optimization modes (run-local state; never mutates preset, saved settings, or single-weapon results)
+  const [optimizeMode, setOptimizeMode] = useState<
+    'single' | 'compare' | 'team'
+  >('single')
   const [compareCandidatesByPreset, setCompareCandidatesByPreset] = useState<
     Record<string, WeaponCompareCandidate[]>
   >({})
@@ -146,6 +150,12 @@ function OptimizeInner() {
     useState<WeaponCompareResult | null>(null)
   const [compareError, setCompareError] = useState<string | null>(null)
   const compareCancelRef = useRef(false)
+
+  const [teamRunning, setTeamRunning] = useState(false)
+  const [teamProgress, setTeamProgress] =
+    useState<TeamOptimizeProgress | null>(null)
+  const [teamResult, setTeamResult] = useState<TeamOptimizeResult | null>(null)
+  const [teamError, setTeamError] = useState<string | null>(null)
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -674,6 +684,44 @@ function OptimizeInner() {
     setCompareRunning(false)
   }
 
+  async function startTeamOptimization() {
+    if (!record?.good || !activePreset || !canRunPreset) return
+    setTeamRunning(true)
+    setTeamError(null)
+    setTeamResult(null)
+    setTeamProgress({
+      memberIndex: 0,
+      totalMembers: activePreset.team.length,
+      memberKey: activePreset.target,
+      solverProgress: { tested: 0, skipped: 0, total: 0 },
+    })
+
+    try {
+      const res = await optimizeTeamInWorker({
+        datasetKey: record.importedAt,
+        good: record.good,
+        preset: activePreset,
+        settings,
+        weaponId: effectiveWeaponId,
+        weaponOverride: isAkashaPreset ? akashaWeaponSpec : undefined,
+        onProgress: (p) => setTeamProgress({ ...p }),
+      })
+      setTeamResult(res)
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return
+      }
+      setTeamError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setTeamRunning(false)
+    }
+  }
+
+  function cancelTeamOptimization() {
+    cancelOptimizationInWorker()
+    setTeamRunning(false)
+  }
+
   async function handleExportGO(
     selection: BuildSelection | null,
     label: string
@@ -949,6 +997,17 @@ function OptimizeInner() {
               onClick={() => setOptimizeMode('compare')}
             >
               Compare Weapons ({activeCompareCandidates.length})
+            </button>
+            <button
+              type="button"
+              className={`art-filter-mode-btn${
+                optimizeMode === 'team' ? ' is-active' : ''
+              }`}
+              data-testid="optimize-mode-team"
+              aria-pressed={optimizeMode === 'team'}
+              onClick={() => setOptimizeMode('team')}
+            >
+              Optimize Team
             </button>
           </div>
         )}
@@ -1397,7 +1456,7 @@ function OptimizeInner() {
           </div>
 
           <div className="preset-gear-row-md">
-            {evaluating && !running && !compareRunning && (
+            {evaluating && !running && !compareRunning && !teamRunning && (
               <Spinner
                 label={
                   hydratingEngine
@@ -1433,6 +1492,29 @@ function OptimizeInner() {
                   className="btn-run-cancel btn-icon"
                   data-testid="cancel-weapon-compare-btn"
                   onClick={cancelWeaponComparison}
+                >
+                  <StopIcon size={16} />
+                  <span>Cancel</span>
+                </button>
+              )
+            ) : optimizeMode === 'team' ? (
+              !teamRunning ? (
+                <button
+                  type="button"
+                  className="btn-run-primary btn-icon"
+                  data-testid="run-team-optimize-btn"
+                  disabled={!canRunPreset}
+                  onClick={() => void startTeamOptimization()}
+                >
+                  <PlayIcon size={16} />
+                  <span>Optimize Team</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-run-cancel btn-icon"
+                  data-testid="cancel-team-optimize-btn"
+                  onClick={cancelTeamOptimization}
                 >
                   <StopIcon size={16} />
                   <span>Cancel</span>
@@ -1522,6 +1604,62 @@ function OptimizeInner() {
                     : null
                 }
                 onExportGO={(sel, label) => void handleExportGO(sel, label)}
+              />
+            )}
+          </>
+        ) : optimizeMode === 'team' ? (
+          <>
+            {teamRunning && teamProgress && (
+              <div
+                className="preset-provenance-box"
+                data-testid="team-optimize-progress-card"
+              >
+                <ProgressBar
+                  tested={teamProgress.solverProgress.tested}
+                  skipped={teamProgress.solverProgress.skipped}
+                  total={teamProgress.solverProgress.total}
+                  label={`Optimizing member ${teamProgress.memberIndex + 1} of ${teamProgress.totalMembers}: ${displayName(teamProgress.memberKey)}…`}
+                />
+              </div>
+            )}
+
+            {teamResult && !teamRunning && (
+              <div
+                className="preset-provenance-box ok"
+                style={{ fontSize: '0.88rem' }}
+                data-testid="team-optimize-summary-banner"
+              >
+                ✓ Team optimized in {(teamResult.durationMs / 1000).toFixed(2)}s
+                — solved{' '}
+                {teamResult.members.filter((m) => !m.skippedSolver).length}{' '}
+                active member(s) without artifact reuse (
+                {teamResult.tested.toLocaleString()} tested,{' '}
+                {teamResult.skipped.toLocaleString()} pruned).
+              </div>
+            )}
+
+            {teamError && (
+              <div className="gi-empty-card gi-empty-card-err" role="alert">
+                Error: {teamError}
+              </div>
+            )}
+
+            {!teamRunning && !teamResult && (
+              <div
+                className="gi-empty-card"
+                data-testid="team-optimize-idle-card"
+              >
+                Click <strong>Optimize Team</strong> to solve artifacts across
+                all team members with rotation rows in team order without
+                reusing any artifact piece.
+              </div>
+            )}
+
+            {teamResult && activePreset && (
+              <TeamOptimizationList
+                preset={activePreset}
+                result={teamResult}
+                artifactById={artifactById}
               />
             )}
           </>

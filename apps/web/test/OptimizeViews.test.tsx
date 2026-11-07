@@ -55,6 +55,7 @@ import {
   rankWeaponComparisonRows,
   resolveWeaponCompareCandidate,
   SolverPoolFiltersPanel,
+  TeamOptimizationList,
   WeaponComparisonList,
   WeaponComparisonPanel,
 } from '../src/components/OptimizeViews'
@@ -1490,5 +1491,163 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     const teamBuffContrib = findByTestId(tree, 'stat-contributor-opt-0-atk-3')!
     expect(teamBuffContrib.props['data-source-category']).toBe('teamBuff')
     hookStore.active = false
+  })
+
+  it('renders TeamOptimizationList with combined team total, optimized member builds, and skipped 0-row members', () => {
+    const basePreset = getBundledPreset('official/neuvillette-hypercarry')!
+    const multiPreset = {
+      ...basePreset,
+      rotation: {
+        ...basePreset.rotation,
+        targets: [
+          ...basePreset.rotation.targets,
+          {
+            member: 'Furina',
+            path: ['skill', 'chevalmarineDmg'],
+            count: 6,
+            label: 'Surintendante Chevalmarine',
+            hitMode: 'avgHit' as const,
+            bonusStats: {},
+          },
+        ],
+      },
+    }
+
+    const summaryHtml = renderToStaticMarkup(
+      <PresetRotationSummary preset={multiPreset} />
+    )
+    expect(
+      summaryHtml.includes(
+        `data-testid="preset-rotation-member-${basePreset.rotation.targets.length}"`
+      )
+    ).toBe(true)
+
+    const teamResult = {
+      teamTotal: 1450000,
+      currentTeamTotal: 1200000,
+      tested: 1240,
+      skipped: 800,
+      durationMs: 120,
+      members: [
+        {
+          memberKey: 'Neuvillette',
+          memberIndex: 0,
+          skippedSolver: false,
+          rotationRowCount: basePreset.rotation.targets.length,
+          selection: {
+            weaponId: 'w_neuv',
+            artifactIds: { flower: 'art_1' },
+          },
+          currentSelection: {
+            weaponId: 'w_neuv',
+            artifactIds: {},
+          },
+          subtotal: 1050000,
+          currentSubtotal: 900000,
+          evaluation: {
+            total: 1050000,
+            stats: {
+              hp: 42000,
+              atk: 1200,
+              def: 800,
+              eleMas: 40,
+              enerRech_: 1.3,
+              critRate_: 0.64,
+              critDMG_: 2.6,
+            },
+            instances: [
+              {
+                label: 'Equitable Judgment Tick',
+                path: ['charged', 'judgmentDmg'],
+                count: 8,
+                perHit: 60000,
+                subtotal: 480000,
+              },
+            ],
+          },
+          currentEvaluation: null,
+          tested: 800,
+          skipped: 500,
+          durationMs: 70,
+        },
+        {
+          memberKey: 'Furina',
+          memberIndex: 1,
+          skippedSolver: false,
+          rotationRowCount: 1,
+          selection: {
+            weaponId: 'w_furina',
+            artifactIds: { flower: 'art_2' },
+          },
+          currentSelection: {
+            weaponId: 'w_furina',
+            artifactIds: {},
+          },
+          subtotal: 400000,
+          currentSubtotal: 300000,
+          evaluation: {
+            total: 400000,
+            stats: {
+              hp: 38000,
+              atk: 1100,
+              def: 750,
+              eleMas: 20,
+              enerRech_: 1.75,
+              critRate_: 0.85,
+              critDMG_: 1.9,
+            },
+            instances: [
+              {
+                label: 'Surintendante Chevalmarine',
+                path: ['skill', 'chevalmarineDmg'],
+                count: 6,
+                perHit: 25000,
+                subtotal: 150000,
+              },
+            ],
+          },
+          currentEvaluation: null,
+          tested: 440,
+          skipped: 300,
+          durationMs: 50,
+        },
+        {
+          memberKey: 'KaedeharaKazuha',
+          memberIndex: 2,
+          skippedSolver: true,
+          rotationRowCount: 0,
+          selection: { artifactIds: {} },
+          currentSelection: { artifactIds: {} },
+          subtotal: 0,
+          currentSubtotal: 0,
+          evaluation: null,
+          currentEvaluation: null,
+          tested: 0,
+          skipped: 0,
+          durationMs: 0,
+        },
+      ],
+    }
+
+    const html = renderToStaticMarkup(
+      <TeamOptimizationList
+        preset={multiPreset}
+        result={teamResult}
+        artifactById={new Map()}
+      />
+    )
+    expect(html).toContain('data-testid="team-optimization-list"')
+    expect(html).toContain('data-testid="team-opt-total"')
+    expect(html).toContain('1,450,000')
+    expect(html).toContain('data-testid="team-opt-member-Neuvillette"')
+    expect(html).toContain('data-testid="team-opt-subtotal-Neuvillette"')
+    expect(html).toContain('1,050,000')
+    expect(html).toContain('data-testid="team-opt-member-Furina"')
+    expect(html).toContain('data-testid="team-opt-subtotal-Furina"')
+    expect(html).toContain('400,000')
+    expect(html).toContain('data-testid="team-opt-skipped-KaedeharaKazuha"')
+    expect(html).toContain(
+      'No rotation rows — kept current/simulated gear (solver skipped)'
+    )
   })
 })

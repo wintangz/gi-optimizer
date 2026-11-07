@@ -8,6 +8,8 @@ import type {
   RotationResult,
   SimulatedWeaponSpec,
   TargetDescriptor,
+  TeamOptimizeProgress,
+  TeamOptimizeResult,
 } from '@gi/engine'
 import type { IGOOD } from '@gi/good'
 import type { Preset } from '@gi/presets'
@@ -24,6 +26,7 @@ interface PendingEntry {
   resolve: (val: never) => void
   reject: (err: Error) => void
   onProgress?: (p: OptimizeProgress) => void
+  onTeamProgress?: (p: TeamOptimizeProgress) => void
 }
 
 const pendingRequests = new Map<string, PendingEntry>()
@@ -47,6 +50,11 @@ function getOrCreateWorker(): Worker | null {
       if (data.type === 'progress') {
         const entry = pendingRequests.get(data.requestId)
         entry?.onProgress?.(data.progress)
+        return
+      }
+      if (data.type === 'teamProgress') {
+        const entry = pendingRequests.get(data.requestId)
+        entry?.onTeamProgress?.(data.progress)
         return
       }
       const reqId = data.requestId
@@ -208,6 +216,64 @@ export async function optimizePresetInWorker(opts: {
   fallbackAbortController = controller
   const session = await getFallbackSession(datasetKey, good)
   return session.optimize(preset, settings, {
+    weaponId,
+    weaponOverride,
+    onProgress,
+    signal: controller.signal,
+  })
+}
+
+export async function optimizeTeamInWorker(opts: {
+  datasetKey: string
+  good: IGOOD
+  preset: Preset
+  settings: OptimizerSettings
+  weaponId?: string
+  weaponOverride?: SimulatedWeaponSpec
+  onProgress?: (p: TeamOptimizeProgress) => void
+}): Promise<TeamOptimizeResult> {
+  const {
+    datasetKey,
+    good,
+    preset,
+    settings,
+    weaponId,
+    weaponOverride,
+    onProgress,
+  } = opts
+  const worker = getOrCreateWorker()
+  if (worker) {
+    const requestId = makeRequestId('opt_team')
+    const needsGood = workerHydratedKey !== datasetKey
+    const resp = await new Promise<
+      Extract<WorkerResponse, { type: 'teamResult' }>
+    >((resolve, reject) => {
+      pendingRequests.set(requestId, {
+        resolve,
+        reject,
+        onTeamProgress: onProgress,
+      })
+      const req: WorkerRequest = {
+        type: 'optimizeTeam',
+        requestId,
+        datasetKey,
+        good: needsGood ? good : undefined,
+        preset,
+        settings,
+        weaponId,
+        weaponOverride,
+      }
+      worker.postMessage(req)
+    })
+    workerHydratedKey = datasetKey
+    return resp.result
+  }
+
+  fallbackAbortController?.abort()
+  const controller = new AbortController()
+  fallbackAbortController = controller
+  const session = await getFallbackSession(datasetKey, good)
+  return session.optimizeTeam(preset, settings, {
     weaponId,
     weaponOverride,
     onProgress,

@@ -3,6 +3,7 @@
 import {
   ArtifactBadge,
   ArtifactPieceRow,
+  CharacterBadge,
   RotationHitModeBadge,
   RotationReactionBadge,
   StatChip,
@@ -25,6 +26,7 @@ import type {
   OptimizerSettings,
   RotationResult,
   StatBreakdown,
+  TeamOptimizeResult,
   WeaponCompareCandidate,
   WeaponCompareResult,
   WeaponCompareRowResult,
@@ -42,6 +44,7 @@ import {
   isPercentStatConstraintKey,
   listWeaponsForType,
   resetSolverPoolFilters,
+  resolveRotationTargetOwner,
   STAT_CONSTRAINT_KEYS,
   summarizeSolverPoolFilters,
   VARIABLE_MAIN_STAT_SLOTS,
@@ -2253,6 +2256,12 @@ export function PresetRotationSummary({
   preset,
   showFormulaPath = false,
 }: PresetRotationSummaryProps) {
+  const hasMultiMemberRows = preset.rotation.targets.some(
+    (rt) =>
+      resolveRotationTargetOwner(rt, preset).memberKey !== preset.target ||
+      Boolean(rt.member)
+  )
+
   return (
     <div
       className="preset-rotation-summary"
@@ -2276,28 +2285,42 @@ export function PresetRotationSummary({
             </tr>
           </thead>
           <tbody>
-            {preset.rotation.targets.map((rt, idx) => (
-              <tr
-                key={idx}
-                data-testid={`preset-rotation-row-${idx}`}
-              >
-                <td>
-                  <strong>{rt.label || rt.path.join('.')}</strong>
-                </td>
-                {showFormulaPath && (
+            {preset.rotation.targets.map((rt, idx) => {
+              const { memberKey } = resolveRotationTargetOwner(rt, preset)
+              return (
+                <tr
+                  key={idx}
+                  data-testid={`preset-rotation-row-${idx}`}
+                  data-member-key={memberKey}
+                >
                   <td>
-                    <code>{rt.path.join('.')}</code>
+                    <span className="comp-stat-label-cell">
+                      {hasMultiMemberRows && (
+                        <span
+                          data-testid={`preset-rotation-member-${idx}`}
+                          style={{ display: 'inline-flex' }}
+                        >
+                          <CharacterBadge characterKey={memberKey} compact />
+                        </span>
+                      )}
+                      <strong>{rt.label || rt.path.join('.')}</strong>
+                    </span>
                   </td>
-                )}
-                <td>
-                  <RotationReactionBadge reaction={rt.reaction} compact />
-                </td>
-                <td>
-                  <RotationHitModeBadge hitMode={rt.hitMode} compact />
-                </td>
-                <td>×{rt.count}</td>
-              </tr>
-            ))}
+                  {showFormulaPath && (
+                    <td>
+                      <code>{rt.path.join('.')}</code>
+                    </td>
+                  )}
+                  <td>
+                    <RotationReactionBadge reaction={rt.reaction} compact />
+                  </td>
+                  <td>
+                    <RotationHitModeBadge hitMode={rt.hitMode} compact />
+                  </td>
+                  <td>×{rt.count}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -2661,6 +2684,390 @@ export function SolverPoolFiltersPanel({
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+export interface TeamOptimizationListProps {
+  preset: Preset
+  result: TeamOptimizeResult
+  artifactById: ReadonlyMap<string, IArtifact>
+}
+
+export function TeamOptimizationList({
+  preset,
+  result,
+  artifactById,
+}: TeamOptimizationListProps) {
+  const firstActiveMember =
+    result.members.find((m) => !m.skippedSolver)?.memberKey ?? null
+  const [expandedMemberKey, setExpandedMemberKey] = useState<string | null>(
+    firstActiveMember
+  )
+  const [expandedInstanceKey, setExpandedInstanceKey] = useState<string | null>(
+    null
+  )
+  const [expandedStatKey, setExpandedStatKey] = useState<string | null>(null)
+
+  const teamDelta = formatRelativeDelta(
+    result.teamTotal,
+    result.currentTeamTotal
+  )
+
+  return (
+    <div
+      className="comp-list team-opt-list"
+      data-testid="team-optimization-list"
+      aria-label="Team Optimization Results"
+    >
+      <div
+        className="comp-row is-best team-opt-summary-banner"
+        data-testid="team-opt-summary-banner"
+      >
+        <div className="comp-row-summary">
+          <div className="comp-row-main">
+            <div className="comp-row-rank">
+              <span className="comp-rank-pill is-best">TEAM TOTAL</span>
+              <span className="comp-best-tag">Disjoint 5pc Assignment</span>
+            </div>
+            <div className="comp-row-metrics">
+              <strong
+                className="comp-row-total ok"
+                data-testid="team-opt-total"
+              >
+                {formatNum(result.teamTotal)}
+              </strong>
+              <span
+                className={`comp-row-delta ${teamDelta.cls}`}
+                data-testid="team-opt-delta"
+                data-delta-sign={teamDelta.sign}
+                data-delta-ascii={teamDelta.asciiText}
+              >
+                {teamDelta.text} vs. Current ({formatNum(result.currentTeamTotal)})
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {result.members.map((memberRes) => {
+        const mKey = memberRes.memberKey
+        const rowId = `team-${mKey}`
+        const isExpanded = expandedMemberKey === mKey
+        const memberDelta = formatRelativeDelta(
+          memberRes.subtotal,
+          memberRes.currentSubtotal
+        )
+        const stats = memberRes.evaluation?.stats
+        const memberRows = preset.rotation.targets.filter(
+          (rt) => resolveRotationTargetOwner(rt, preset).memberKey === mKey
+        )
+
+        if (memberRes.skippedSolver) {
+          return (
+            <div
+              key={mKey}
+              className="comp-row team-opt-member-row is-skipped"
+              data-testid={`team-opt-member-${mKey}`}
+              data-member-key={mKey}
+              data-skipped-solver="true"
+            >
+              <div className="comp-row-summary">
+                <div className="comp-row-main">
+                  <div className="comp-row-rank">
+                    <span className="comp-rank-pill">
+                      SLOT {memberRes.memberIndex + 1}
+                    </span>
+                    <CharacterBadge characterKey={mKey} compact />
+                  </div>
+                  <span
+                    className="comp-sim-tag"
+                    data-testid={`team-opt-skipped-${mKey}`}
+                  >
+                    No rotation rows — kept current/simulated gear (solver skipped)
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        return (
+          <div
+            key={mKey}
+            className="comp-row team-opt-member-row"
+            data-testid={`team-opt-member-${mKey}`}
+            data-member-key={mKey}
+            data-skipped-solver="false"
+          >
+            <div
+              className="comp-row-summary"
+              onClick={() =>
+                setExpandedMemberKey((prev) => (prev === mKey ? null : mKey))
+              }
+            >
+              <div className="comp-row-main">
+                <div className="comp-row-rank">
+                  <span className="comp-rank-pill is-best">
+                    SLOT {memberRes.memberIndex + 1}
+                  </span>
+                  <CharacterBadge characterKey={mKey} compact />
+                  <span className="muted" style={{ fontSize: '0.78rem' }}>
+                    {memberRes.rotationRowCount} rotation{' '}
+                    {memberRes.rotationRowCount === 1 ? 'row' : 'rows'}
+                  </span>
+                </div>
+
+                <div className="comp-row-metrics">
+                  <strong
+                    className="comp-row-total ok"
+                    data-testid={`team-opt-subtotal-${mKey}`}
+                  >
+                    {formatNum(memberRes.subtotal)}
+                  </strong>
+                  <span
+                    className={`comp-row-delta ${memberDelta.cls}`}
+                    data-testid={`team-opt-member-delta-${mKey}`}
+                    data-delta-sign={memberDelta.sign}
+                  >
+                    {memberDelta.text}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  className="comp-expand-btn"
+                  data-testid={`team-opt-expand-${mKey}`}
+                  aria-expanded={isExpanded}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setExpandedMemberKey((prev) =>
+                      prev === mKey ? null : mKey
+                    )
+                  }}
+                >
+                  {isExpanded ? 'Hide details ▲' : 'Details ▼'}
+                </button>
+              </div>
+
+              <div className="comp-row-meta">
+                <div
+                  className="comp-row-artifacts"
+                  data-testid={`team-opt-artifacts-${mKey}`}
+                  aria-label={`${displayName(mKey)} equipped artifacts`}
+                >
+                  {OPTIMIZE_SLOTS.map((slot) => {
+                    const artId = memberRes.selection.artifactIds[slot]
+                    const art = artId ? artifactById.get(artId) : undefined
+                    if (!art) {
+                      return (
+                        <span
+                          key={slot}
+                          className="comp-empty-slot"
+                          title={`No ${slot} equipped`}
+                        >
+                          <ArtifactBadge
+                            setKey=""
+                            slotKey={slot as IdentifierSlotKey}
+                            rarity={1}
+                            slotOnly
+                            compact
+                          />
+                        </span>
+                      )
+                    }
+                    return (
+                      <ArtifactBadge
+                        key={slot}
+                        setKey={art.setKey}
+                        slotKey={slot as IdentifierSlotKey}
+                        rarity={art.rarity}
+                        compact
+                      />
+                    )
+                  })}
+                </div>
+
+                {stats && (
+                  <div
+                    className="comp-row-stats"
+                    data-testid={`team-opt-stats-${mKey}`}
+                    aria-label={`${displayName(mKey)} final stats`}
+                  >
+                    {CORE_RESULT_STAT_KEYS.map((statKey) => {
+                      const rawVal = stats[statKey] ?? 0
+                      const isPct = statKey.endsWith('_')
+                      const chipVal = isPct
+                        ? rawVal * 100
+                        : Math.round(rawVal).toLocaleString()
+                      return (
+                        <StatChip
+                          key={statKey}
+                          statKey={statKey}
+                          value={chipVal}
+                          compact
+                        />
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {isExpanded && memberRes.evaluation && (
+              <div
+                className="comp-row-details"
+                data-testid={`team-opt-details-${mKey}`}
+              >
+                <div className="comp-details-header">
+                  <strong>
+                    {displayName(mKey)} — Rotation Breakdown (Repeat ×
+                    {preset.rotation.repeat ?? 1})
+                  </strong>
+                </div>
+
+                <div className="gi-table-wrap">
+                  <table className="gi-table">
+                    <thead>
+                      <tr>
+                        <th>Damage Instance</th>
+                        <th>Reaction</th>
+                        <th>Hit Mode</th>
+                        <th>Hits</th>
+                        <th>Per-Hit DMG</th>
+                        <th>Subtotal DMG</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {memberRes.evaluation.instances.map((inst, idx) => {
+                        const targetSpec = memberRows[idx]
+                        const instanceKey = `${rowId}:${idx}`
+                        const isInstExpanded =
+                          expandedInstanceKey === instanceKey
+                        return (
+                          <Fragment key={idx}>
+                            <tr
+                              data-testid={`team-opt-instance-row-${mKey}-${idx}`}
+                              className={
+                                inst.breakdown
+                                  ? 'comp-expandable-tr'
+                                  : undefined
+                              }
+                              onClick={
+                                inst.breakdown
+                                  ? () =>
+                                      setExpandedInstanceKey((prev) =>
+                                        prev === instanceKey
+                                          ? null
+                                          : instanceKey
+                                      )
+                                  : undefined
+                              }
+                            >
+                              <td>
+                                <span className="comp-stat-label-cell">
+                                  <strong>{inst.label}</strong>
+                                  {inst.breakdown && (
+                                    <button
+                                      type="button"
+                                      className="comp-inline-breakdown-btn"
+                                      data-testid={`team-opt-instance-toggle-${mKey}-${idx}`}
+                                      aria-expanded={isInstExpanded}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setExpandedInstanceKey((prev) =>
+                                          prev === instanceKey
+                                            ? null
+                                            : instanceKey
+                                        )
+                                      }}
+                                    >
+                                      {isInstExpanded
+                                        ? 'Formula ▲'
+                                        : 'Formula ▼'}
+                                    </button>
+                                  )}
+                                </span>
+                              </td>
+                              <td>
+                                <RotationReactionBadge
+                                  reaction={targetSpec?.reaction}
+                                  compact
+                                />
+                              </td>
+                              <td>
+                                <RotationHitModeBadge
+                                  hitMode={targetSpec?.hitMode}
+                                  compact
+                                />
+                              </td>
+                              <td>×{inst.count}</td>
+                              <td>{formatNum(inst.perHit)}</td>
+                              <td>
+                                <strong>{formatNum(inst.subtotal)}</strong>
+                              </td>
+                            </tr>
+                            {isInstExpanded && inst.breakdown && (
+                              <tr
+                                className="comp-breakdown-tr"
+                                data-testid={`team-opt-instance-breakdown-row-${mKey}-${idx}`}
+                              >
+                                <td colSpan={6}>
+                                  <DamageRowBreakdownView
+                                    breakdown={inst.breakdown}
+                                    rowKey={rowId}
+                                    idx={idx}
+                                  />
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {memberRes.evaluation.stats && (
+                  <BuildStatComparisonSection
+                    rowKey={rowId}
+                    stats={memberRes.evaluation.stats}
+                    statBreakdowns={memberRes.evaluation.statBreakdowns}
+                    baselineStats={memberRes.currentEvaluation?.stats}
+                    isCurrentBuild={false}
+                    expandedStatKey={expandedStatKey}
+                    onToggleStatKey={(key) =>
+                      setExpandedStatKey((prev) => (prev === key ? null : key))
+                    }
+                  />
+                )}
+
+                <div className="comp-details-pieces">
+                  {OPTIMIZE_SLOTS.map((slot) => {
+                    const artId = memberRes.selection.artifactIds[slot]
+                    const art = artId ? artifactById.get(artId) : undefined
+                    if (!art) return null
+                    return (
+                      <ArtifactPieceRow
+                        key={slot}
+                        setKey={art.setKey}
+                        slotKey={art.slotKey as IdentifierSlotKey}
+                        rarity={art.rarity}
+                        level={art.level}
+                        mainStatKey={art.mainStatKey}
+                        substats={art.substats}
+                        location={art.location}
+                        lock={art.lock}
+                        compact
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
