@@ -1,14 +1,111 @@
-import { DEFAULT_OPTIMIZER_SETTINGS, getBundledPreset } from '@gi/presets'
+import {
+  DEFAULT_OPTIMIZER_SETTINGS,
+  getBundledPreset,
+  type OptimizerSettings,
+} from '@gi/presets'
 import type { IArtifact } from '@gi/good'
+import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const hookStore = {
+  active: false,
+  states: [] as unknown[],
+  stateIdx: 0,
+  reset() {
+    this.states = []
+    this.stateIdx = 0
+  },
+  beginRender() {
+    this.stateIdx = 0
+  },
+}
+
+vi.mock('react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react')>()
+  return {
+    ...actual,
+    useState<T>(initial: T | (() => T)) {
+      if (!hookStore.active) {
+        return actual.useState(initial)
+      }
+      const idx = hookStore.stateIdx++
+      if (idx >= hookStore.states.length) {
+        hookStore.states.push(
+          typeof initial === 'function' ? (initial as () => T)() : initial
+        )
+      }
+      const setState = (next: T | ((prev: T) => T)) => {
+        const prevVal = hookStore.states[idx] as T
+        const nextVal =
+          typeof next === 'function' ? (next as (prev: T) => T)(prevVal) : next
+        hookStore.states[idx] = nextVal
+      }
+      return [hookStore.states[idx] as T, setState] as const
+    },
+  }
+})
+
 import {
   BuildComparisonList,
   ConstraintsCard,
   formatRelativeDelta,
 } from '../src/components/OptimizeViews'
 
+interface VNode {
+  type: string
+  props: Record<string, unknown>
+  children: Array<VNode | string>
+}
+
+function evaluateTree(node: unknown): Array<VNode | string> {
+  if (node === null || node === undefined || typeof node === 'boolean') {
+    return []
+  }
+  if (typeof node === 'string' || typeof node === 'number') {
+    return [String(node)]
+  }
+  if (Array.isArray(node)) {
+    return node.flatMap((child) => evaluateTree(child))
+  }
+  if (typeof node === 'object' && 'type' in (node as Record<string, unknown>)) {
+    const el = node as {
+      type: unknown
+      props?: Record<string, unknown>
+    }
+    const props = el.props ?? {}
+    if (typeof el.type === 'function') {
+      const rendered = (el.type as (p: Record<string, unknown>) => unknown)(
+        props
+      )
+      return evaluateTree(rendered)
+    }
+    if (typeof el.type === 'string') {
+      const children = evaluateTree(props.children)
+      return [{ type: el.type, props, children }]
+    }
+    return evaluateTree(props.children)
+  }
+  return []
+}
+
+function findByTestId(
+  nodes: Array<VNode | string>,
+  testId: string
+): VNode | undefined {
+  for (const n of nodes) {
+    if (typeof n === 'string') continue
+    if (n.props['data-testid'] === testId) return n
+    const found = findByTestId(n.children, testId)
+    if (found) return found
+  }
+  return undefined
+}
+
 describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
+  afterEach(() => {
+    hookStore.reset()
+  })
   it('renders ConstraintsCard empty state and stat picker with already-added stats disabled', () => {
     const emptyHtml = renderToStaticMarkup(
       <ConstraintsCard
@@ -49,6 +146,120 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(pickerHtml).not.toMatch(
       /data-testid="picker-stat-critRate_"[^>]*disabled=""/
     )
+  })
+
+  it('stat-constraint-input-fix: typing "1" in a percent-stat field leaves "1" (commits as 1, not 100), holds raw text while focused, and clearing a bound removes it', () => {
+    let currentSettings: OptimizerSettings = {
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      constraints: [
+        { stat: 'critRate_', min: 60, max: 90 },
+        { stat: 'enerRech_', min: 160 },
+      ],
+    }
+
+    function renderCard(): VNode[] {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        return evaluateTree(
+          React.createElement(ConstraintsCard, {
+            settings: currentSettings,
+            onChange: (next) => {
+              currentSettings = next
+            },
+          })
+        ).filter((n): n is VNode => typeof n !== 'string')
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    // 1. Type "1" into critRate_ Min -> stays "1" while focused and commits as 1 (never "100")
+    let tree = renderCard()
+    const crMinInput = findByTestId(tree, 'constraint-min-critRate_')!
+    expect(crMinInput.props.value).toBe('60')
+
+    ;(crMinInput.props.onFocus as () => void)()
+    tree = renderCard()
+    ;(
+      findByTestId(tree, 'constraint-min-critRate_')!.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '1' } })
+
+    tree = renderCard()
+    expect(findByTestId(tree, 'constraint-min-critRate_')!.props.value).toBe(
+      '1'
+    )
+    expect(currentSettings.constraints?.[0]?.min).toBe(1)
+
+    // Blur commits "1" and keeps displayed value as "1" (not "100")
+    ;(
+      findByTestId(tree, 'constraint-min-critRate_')!.props.onBlur as () => void
+    )()
+    tree = renderCard()
+    expect(findByTestId(tree, 'constraint-min-critRate_')!.props.value).toBe(
+      '1'
+    )
+    expect(currentSettings.constraints?.[0]?.min).toBe(1)
+
+    // Same for enerRech_ Min: typing "1" (e.g. first keystroke of "175") stays "1", never "100"
+    const erMinInput = findByTestId(tree, 'constraint-min-enerRech_')!
+    ;(erMinInput.props.onFocus as () => void)()
+    tree = renderCard()
+    ;(
+      findByTestId(tree, 'constraint-min-enerRech_')!.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '1' } })
+    tree = renderCard()
+    expect(findByTestId(tree, 'constraint-min-enerRech_')!.props.value).toBe(
+      '1'
+    )
+    expect(currentSettings.constraints?.[1]?.min).toBe(1)
+
+    // Raw text with trailing decimal ("175.") is preserved while focused until blur
+    ;(
+      findByTestId(tree, 'constraint-min-enerRech_')!.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '175.' } })
+    tree = renderCard()
+    expect(findByTestId(tree, 'constraint-min-enerRech_')!.props.value).toBe(
+      '175.'
+    )
+    ;(
+      findByTestId(tree, 'constraint-min-enerRech_')!.props.onBlur as () => void
+    )()
+    tree = renderCard()
+    expect(findByTestId(tree, 'constraint-min-enerRech_')!.props.value).toBe(
+      '175'
+    )
+    expect(currentSettings.constraints?.[1]?.min).toBe(175)
+
+    // 2. Clearing a bound (deleting every character to "") removes that bound and never snaps back
+    const crMaxInput = findByTestId(tree, 'constraint-max-critRate_')!
+    expect(crMaxInput.props.value).toBe('90')
+    ;(crMaxInput.props.onFocus as () => void)()
+    tree = renderCard()
+    ;(
+      findByTestId(tree, 'constraint-max-critRate_')!.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '' } })
+    tree = renderCard()
+    expect(findByTestId(tree, 'constraint-max-critRate_')!.props.value).toBe('')
+    ;(
+      findByTestId(tree, 'constraint-max-critRate_')!.props.onBlur as () => void
+    )()
+    tree = renderCard()
+    expect(findByTestId(tree, 'constraint-max-critRate_')!.props.value).toBe('')
+    expect(currentSettings.constraints?.[0]?.max).toBeUndefined()
+    expect('max' in (currentSettings.constraints?.[0] ?? {})).toBe(false)
+    expect(currentSettings.constraints?.[0]).toEqual({
+      stat: 'critRate_',
+      min: 1,
+    })
   })
 
   it('renders BuildComparisonList with Current pinned first + N builds, correct + and − delta signs, best highlight, 5 artifact badges, and 7 stat chips', () => {

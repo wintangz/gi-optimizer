@@ -69,18 +69,9 @@ function formatNum(n: number): string {
   return Math.round(n).toLocaleString()
 }
 
-function formatDisplayBoundValue(
-  stat: StatConstraintKey,
-  val: number | undefined
-): string | number {
+function formatDisplayBoundValue(val: number | undefined): string {
   if (typeof val !== 'number' || !Number.isFinite(val)) return ''
-  if (stat === 'enerRech_' && val > 0 && val <= 10) {
-    return Number((val * 100).toFixed(2))
-  }
-  if (isPercentStatConstraintKey(stat) && val > 0 && val <= 2) {
-    return Number((val * 100).toFixed(2))
-  }
-  return val
+  return String(val)
 }
 
 export interface ConstraintsCardProps {
@@ -95,8 +86,13 @@ export function ConstraintsCard({
   initialPickerOpen = false,
 }: ConstraintsCardProps) {
   const [pickerOpen, setPickerOpen] = useState(initialPickerOpen)
+  const [draftBounds, setDraftBounds] = useState<Record<string, string>>({})
   const constraints = settings.constraints ?? []
   const usedStats = new Set<string>(constraints.map((c) => c.stat))
+
+  function getBoundDraftKey(stat: StatConstraintKey, field: 'min' | 'max') {
+    return `${stat}:${field}`
+  }
 
   function handleAddStat(stat: StatConstraintKey) {
     if (usedStats.has(stat)) return
@@ -108,7 +104,7 @@ export function ConstraintsCard({
     setPickerOpen(false)
   }
 
-  function handleUpdateBound(
+  function commitBound(
     idx: number,
     field: 'min' | 'max',
     rawValue: string
@@ -132,7 +128,66 @@ export function ConstraintsCard({
     })
   }
 
+  function handleFocusBound(
+    stat: StatConstraintKey,
+    field: 'min' | 'max',
+    currentVal: number | undefined
+  ) {
+    const key = getBoundDraftKey(stat, field)
+    setDraftBounds((prev) => {
+      if (key in prev) return prev
+      return {
+        ...prev,
+        [key]: formatDisplayBoundValue(currentVal),
+      }
+    })
+  }
+
+  function handleChangeBound(
+    idx: number,
+    stat: StatConstraintKey,
+    field: 'min' | 'max',
+    rawValue: string
+  ) {
+    const key = getBoundDraftKey(stat, field)
+    setDraftBounds((prev) => ({
+      ...prev,
+      [key]: rawValue,
+    }))
+    const trimmed = rawValue.trim()
+    if (trimmed === '' || Number.isFinite(Number(trimmed))) {
+      commitBound(idx, field, rawValue)
+    }
+  }
+
+  function handleBlurBound(
+    idx: number,
+    stat: StatConstraintKey,
+    field: 'min' | 'max'
+  ) {
+    const key = getBoundDraftKey(stat, field)
+    const raw = draftBounds[key]
+    setDraftBounds((prev) => {
+      if (!(key in prev)) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+    if (raw !== undefined) {
+      commitBound(idx, field, raw)
+    }
+  }
+
   function handleRemove(idx: number) {
+    const removed = constraints[idx]
+    if (removed) {
+      setDraftBounds((prev) => {
+        const next = { ...prev }
+        delete next[getBoundDraftKey(removed.stat, 'min')]
+        delete next[getBoundDraftKey(removed.stat, 'max')]
+        return next
+      })
+    }
     onChange({
       ...settings,
       constraints: constraints.filter((_, i) => i !== idx),
@@ -220,8 +275,16 @@ export function ConstraintsCard({
           {constraints.map((c, idx) => {
             const isPct = isPercentStatConstraintKey(c.stat)
             const label = shortStatLabel(c.stat)
-            const minDisplay = formatDisplayBoundValue(c.stat, c.min)
-            const maxDisplay = formatDisplayBoundValue(c.stat, c.max)
+            const minKey = getBoundDraftKey(c.stat, 'min')
+            const maxKey = getBoundDraftKey(c.stat, 'max')
+            const minDisplay =
+              minKey in draftBounds
+                ? draftBounds[minKey]!
+                : formatDisplayBoundValue(c.min)
+            const maxDisplay =
+              maxKey in draftBounds
+                ? draftBounds[maxKey]!
+                : formatDisplayBoundValue(c.max)
 
             return (
               <div
@@ -238,14 +301,22 @@ export function ConstraintsCard({
                     <span className="constraint-bound-tag">Min</span>
                     <div className="constraint-input-wrap">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
+                        data-testid={`constraint-min-${c.stat}`}
                         aria-label={`${label} Min`}
-                        step={isPct ? 1 : 10}
                         placeholder="—"
                         value={minDisplay}
+                        onFocus={() => handleFocusBound(c.stat, 'min', c.min)}
                         onChange={(e) =>
-                          handleUpdateBound(idx, 'min', e.target.value)
+                          handleChangeBound(idx, c.stat, 'min', e.target.value)
                         }
+                        onBlur={() => handleBlurBound(idx, c.stat, 'min')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur()
+                          }
+                        }}
                       />
                       {isPct && (
                         <span className="constraint-unit" aria-hidden="true">
@@ -259,14 +330,22 @@ export function ConstraintsCard({
                     <span className="constraint-bound-tag">Max</span>
                     <div className="constraint-input-wrap">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
+                        data-testid={`constraint-max-${c.stat}`}
                         aria-label={`${label} Max`}
-                        step={isPct ? 1 : 10}
                         placeholder="—"
                         value={maxDisplay}
+                        onFocus={() => handleFocusBound(c.stat, 'max', c.max)}
                         onChange={(e) =>
-                          handleUpdateBound(idx, 'max', e.target.value)
+                          handleChangeBound(idx, c.stat, 'max', e.target.value)
                         }
+                        onBlur={() => handleBlurBound(idx, c.stat, 'max')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur()
+                          }
+                        }}
                       />
                       {isPct && (
                         <span className="constraint-unit" aria-hidden="true">
