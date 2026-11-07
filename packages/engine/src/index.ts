@@ -3,6 +3,7 @@ export {
   listConditionalsForCharacter,
   listTargetsForCharacter,
   listWeaponConditionals,
+  prettifyConditionalKey,
   validatePresetConditionalsAgainstGO,
   type PresetConditionalIssue,
 } from './catalog'

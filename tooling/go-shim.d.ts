@@ -121,5 +121,15 @@ declare module '@genshin-optimizer/gi/solver/DefaultSplitWorker' {
   export const DefaultSplitWorker: any
 }
 
+declare module '@genshin-optimizer/gi/i18n' {
+  export function translateGOKey(
+    ns: string,
+    key18: string,
+    values?: Record<string, unknown>
+  ): string | undefined
+  export const i18nInstance: any
+  export const Translate: any
+}
+
 declare module '@genshin-optimizer/*'
 

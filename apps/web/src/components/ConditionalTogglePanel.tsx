@@ -12,9 +12,12 @@ import {
 } from '@/components/SvgIcons'
 import { getCatalogInWorker } from '@/lib/engine/workerClient'
 import { getCharacterMeta } from '@/lib/itemMeta'
-import type { ConditionalDescriptor, ConditionalStateDescriptor } from '@gi/engine'
+import {
+  prettifyConditionalKey,
+  type ConditionalDescriptor,
+  type ConditionalStateDescriptor,
+} from '@gi/engine'
 import type { IGOOD } from '@gi/good'
-import { humanizeKey } from '@gi/good'
 import {
   applyMemberConditionalOverrides,
   displayName,
@@ -68,15 +71,14 @@ function cleanConditionalLabel(
   sheetDisplayName: string
 ): string {
   const prefix = `${sheetDisplayName} — `
-  let raw = cond.name.startsWith(prefix)
-    ? cond.name.slice(prefix.length)
-    : cond.name
-  // Clean up raw i18n keys like "char_Furina:c2Overstack" or "artifact_GoldenTroupe:condName"
-  if (raw.includes(':')) {
-    const afterColon = raw.split(':').pop() ?? raw
-    raw = humanizeKey(afterColon)
-  } else if (/^[a-z0-9_]+$/i.test(raw) && raw === cond.key) {
-    raw = humanizeKey(raw)
+  const raw = cond.name.startsWith(prefix)
+    ? cond.name.slice(prefix.length).trim()
+    : cond.name.trim()
+  if (!raw) {
+    return prettifyConditionalKey(cond.key)
+  }
+  if (raw === cond.key || /^[a-z0-9_.:]+$/i.test(raw)) {
+    return prettifyConditionalKey(raw)
   }
   return raw
 }
@@ -85,11 +87,10 @@ function formatStateOptionLabel(st: ConditionalStateDescriptor): string {
   if (!st.name || st.name === st.key) {
     if (st.key === 'on') return 'Active (On)'
     if (/^\d+$/.test(st.key)) return `${st.key} Stack${st.key === '1' ? '' : 's'}`
-    return humanizeKey(st.key)
+    return prettifyConditionalKey(st.key)
   }
-  if (st.name.includes(':')) {
-    const afterColon = st.name.split(':').pop() ?? st.name
-    return humanizeKey(afterColon)
+  if (/^[a-z0-9_.:]+$/i.test(st.name) && !/^\d+(\.\d+)?%?$/.test(st.name)) {
+    return prettifyConditionalKey(st.name)
   }
   return st.name
 }
@@ -828,7 +829,10 @@ function renderConditionalRow(opts: {
         {sectionBadge && (
           <span className="gi-buff-sec-tag">{sectionBadge}</span>
         )}
-        <span className="gi-buff-row-label" title={`${sheetName} — ${label}`}>
+        <span
+          className="gi-buff-row-label"
+          title={`${sheetName} — ${label} (${cond.key})`}
+        >
           {showSetBadge ? (
             <>
               <strong>{sheetName}</strong> · {label}

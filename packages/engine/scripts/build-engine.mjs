@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, statSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -7,6 +7,114 @@ import { GO_ROOT, STUBS_ROOT, goAliases } from '../../../tooling/go-paths.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '../../..')
+
+function getByDotPath(obj, dotPath) {
+  const parts = dotPath.split('.')
+  let cur = obj
+  for (const p of parts) {
+    if (!cur || typeof cur !== 'object') return undefined
+    cur = cur[p]
+  }
+  return cur
+}
+
+function setByDotPath(obj, dotPath, val) {
+  const parts = dotPath.split('.')
+  let cur = obj
+  for (let i = 0; i < parts.length - 1; i++) {
+    const p = parts[i]
+    if (!cur[p] || typeof cur[p] !== 'object') cur[p] = {}
+    cur = cur[p]
+  }
+  cur[parts[parts.length - 1]] = val
+}
+
+function buildSlimGOLocaleBase64() {
+  const locDir = resolve(
+    GO_ROOT,
+    'libs/gi/localization/assets/locales/en'
+  )
+  const dmLocDir = resolve(
+    GO_ROOT,
+    'libs/gi/dm-localization/assets/locales/en'
+  )
+  const namespaces = {}
+  for (const dir of [locDir, dmLocDir]) {
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith('.json')) continue
+      const ns = file.slice(0, -5)
+      namespaces[ns] = JSON.parse(readFileSync(resolve(dir, file), 'utf8'))
+    }
+  }
+
+  const perNsGenKeys = new Map()
+  function addNsKey(ns, k) {
+    if (!perNsGenKeys.has(ns)) perNsGenKeys.set(ns, new Set())
+    perNsGenKeys.get(ns).add(k)
+  }
+
+  function walkSheets(dir) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = resolve(dir, entry.name)
+      if (entry.isDirectory()) {
+        walkSheets(full)
+      } else if (entry.name.endsWith('.tsx') || entry.name.endsWith('.ts')) {
+        const src = readFileSync(full, 'utf8')
+        const rel = full.replace(/\\/g, '/')
+        let prefixNs = null
+        const charMatch = rel.match(/\/Characters\/([^/]+)\//)
+        const weapMatch = rel.match(/\/Weapons\/[^/]+\/([^/]+)\//)
+        const artMatch = rel.match(/\/Artifacts\/([^/]+)\//)
+        if (charMatch) prefixNs = `char_${charMatch[1]}_gen`
+        else if (weapMatch) prefixNs = `weapon_${weapMatch[1]}_gen`
+        else if (artMatch) prefixNs = `artifact_${artMatch[1]}_gen`
+        if (prefixNs) {
+          for (const m of src.matchAll(
+            /\b(?:chg|trg|tr)\(\s*['"]([^'"]+)['"]/g
+          )) {
+            const k = m[1]
+            if (!k.includes('skillParams')) addNsKey(prefixNs, k)
+          }
+        }
+      }
+    }
+  }
+  walkSheets(resolve(GO_ROOT, 'libs/gi/sheets/src'))
+
+  const slim = {}
+  for (const file of readdirSync(locDir)) {
+    if (!file.endsWith('.json')) continue
+    const ns = file.slice(0, -5)
+    if (
+      ns === 'sheet' ||
+      ns === 'elementalResonance' ||
+      ns.startsWith('char_') ||
+      ns.startsWith('weapon_') ||
+      ns.startsWith('artifact_')
+    ) {
+      slim[ns] = namespaces[ns]
+    }
+  }
+  for (const ns of ['sheet_gen', 'elementalResonance_gen', 'reaction_gen']) {
+    if (namespaces[ns]) slim[ns] = namespaces[ns]
+  }
+  for (const [ns, keys] of perNsGenKeys.entries()) {
+    const srcObj = namespaces[ns]
+    if (!srcObj) continue
+    const dstObj = {}
+    for (const k of keys) {
+      const v = getByDotPath(srcObj, k)
+      if (typeof v === 'string') setByDotPath(dstObj, k, v)
+    }
+    if (Object.keys(dstObj).length > 0) slim[ns] = dstObj
+  }
+
+  return gzipSync(Buffer.from(JSON.stringify(slim), 'utf8'), {
+    level: 9,
+  }).toString('base64')
+}
+
+const b64I18n = buildSlimGOLocaleBase64()
 
 function loadEsbuild() {
   const req = createRequire(import.meta.url)
@@ -174,6 +282,28 @@ function createGoTrimPlugin({ mode }) {
         resolveDir: dirname(allStatPath),
         loader: 'js',
       }))
+
+      build.onLoad({ filter: /go-stubs[\\/]i18n\.ts$/ }, (args) => {
+        const raw = readFileSync(args.path, 'utf8')
+        if (mode === 'browser-bg-worker' || mode === 'node-bg-worker') {
+          return {
+            contents: raw,
+            resolveDir: dirname(args.path),
+            loader: 'ts',
+          }
+        }
+        const injected =
+          `import { unzipFromB64Gzip } from '@genshin-optimizer/common/util'\n` +
+          raw.replace(
+            'let injectedNamespaces: Record<string, LocaleDict> | null = null',
+            `let injectedNamespaces: Record<string, LocaleDict> | null = JSON.parse(unzipFromB64Gzip(${JSON.stringify(b64I18n)}))`
+          )
+        return {
+          contents: injected,
+          resolveDir: dirname(args.path),
+          loader: 'ts',
+        }
+      })
 
       build.onLoad(
         { filter: /libs[\\/]gi[\\/]solver-tc[\\/]src[\\/]index\.ts$/ },

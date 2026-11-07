@@ -16,6 +16,8 @@ import { GO_ROOT } from '../../../tooling/go-paths.mjs'
 import {
   createSession,
   listConditionalsForCharacter,
+  listWeaponConditionals,
+  prettifyConditionalKey,
   resolveEffectiveTeamConditionals,
 } from '../src'
 
@@ -47,6 +49,51 @@ describe('Conditional Toggle Panel Engine & Settings (conditional-toggle-panel)'
     expect(burstFanfare?.category).toBe('character')
     expect(c2Overstack?.category).toBe('constellation')
     expect(c6?.category).toBe('constellation')
+  })
+
+  it('surfaces human-readable GO conditional labels from vendored metadata instead of raw keys (buff-panel-labels)', () => {
+    const furinaConds = listConditionalsForCharacter('Furina')
+    const findCond = (sheet: string, key: string) =>
+      furinaConds.find((c) => c.sheet === sheet && c.key === key)
+
+    // Verify all 7 raw keys from the prompt resolve to GO's human-readable strings
+    expect(findCond('SplendorOfTranquilWaters', 'selfHpChange')?.name).toBe(
+      'Splendor of Tranquil Waters — After HP changes'
+    )
+    expect(findCond('SplendorOfTranquilWaters', 'teamHpChange')?.name).toBe(
+      "Splendor of Tranquil Waters — After a teammate's HP changes"
+    )
+    expect(findCond('Furina', 'skillHpConsumeStacks')?.name).toBe(
+      'Furina — Number of characters who offered HP'
+    )
+    expect(findCond('Furina', 'burstFanfare')?.name).toBe('Furina — Fanfare')
+    expect(findCond('GoldenTroupe', 'set4')?.name).toBe(
+      'Golden Troupe — Character is off-field'
+    )
+    expect(findCond('Furina', 'c2Overstack')?.name).toBe(
+      'Furina — Fanfare above the limit'
+    )
+    expect(findCond('Furina', 'c6')?.name).toBe(
+      'Furina — After using Elemental Skill'
+    )
+
+    // Verify listWeaponConditionals also resolves human-readable GO labels and state labels
+    const splendorConds = listWeaponConditionals('SplendorOfTranquilWaters')
+    expect(splendorConds.map((c) => c.name)).toEqual([
+      'Splendor of Tranquil Waters — After HP changes',
+      "Splendor of Tranquil Waters — After a teammate's HP changes",
+    ])
+    expect(splendorConds[0]?.states.map((s) => s.name)).toEqual([
+      '1 Time',
+      '2 Times',
+      '3 Times',
+    ])
+
+    // Verify prettifyConditionalKey fallback formatting for camelCase, dot-path, and colon-prefixed keys
+    expect(prettifyConditionalKey('hpChange')).toBe('Hp Change')
+    expect(prettifyConditionalKey('otherHpChange')).toBe('Other Hp Change')
+    expect(prettifyConditionalKey('afterUse.skill')).toBe('After Use Skill')
+    expect(prettifyConditionalKey('char_Furina:c2Points')).toBe('C2 Points')
   })
 
   it('(a) default panel state reproduces current totals for bundled official and bundled Akasha presets', async () => {

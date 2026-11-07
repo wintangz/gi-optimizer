@@ -6,6 +6,7 @@ import type {
 } from '@genshin-optimizer/gi/consts'
 import { allArtifactSetKeys, allWeaponKeys } from '@genshin-optimizer/gi/consts'
 import { ArtCharDatabase } from '@genshin-optimizer/gi/db'
+import { translateGOKey } from '@genshin-optimizer/gi/i18n'
 import {
   getArtSheet,
   getCharSheet,
@@ -77,6 +78,21 @@ function humanizeTargetKey(section: string, key: string): string {
   return `${secLabel} — ${spaced}`
 }
 
+export function prettifyConditionalKey(rawKey: string): string {
+  const trimmed = rawKey.trim()
+  if (!trimmed) return rawKey
+  const tail = trimmed.includes(':')
+    ? (trimmed.split(':').pop() ?? trimmed)
+    : trimmed
+  return tail
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b([a-z])/g, (m) => m.toUpperCase())
+}
+
 function extractReactNodeText(node: unknown, fallback: string): string {
   if (typeof node === 'string' || typeof node === 'number') {
     return String(node)
@@ -85,14 +101,24 @@ function extractReactNodeText(node: unknown, fallback: string): string {
     const props = (node as { props?: Record<string, unknown> }).props
     if (props) {
       if (typeof props.key18 === 'string') {
+        const ns = typeof props.ns === 'string' ? props.ns : 'sheet'
         const k = props.key18
         const vals = props.values as Record<string, unknown> | undefined
-        if (vals && Object.keys(vals).length > 0) {
-          return `${k} (${Object.entries(vals)
-            .map(([vk, vv]) => `${vk}: ${vv}`)
-            .join(', ')})`
+        let tmpl = translateGOKey(ns, k, vals)
+        if (tmpl !== undefined) {
+          if (vals && typeof vals === 'object') {
+            for (const [vk, vv] of Object.entries(vals)) {
+              const renderedVal = extractReactNodeText(vv, String(vv))
+              tmpl = tmpl.replaceAll(`{{${vk}}}`, renderedVal)
+            }
+          }
+          const cleaned = tmpl
+            .replace(/<[^>]+>/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+          if (cleaned) return cleaned
         }
-        return k
+        return fallback
       }
       if (props.children !== undefined) {
         if (Array.isArray(props.children)) {
@@ -106,6 +132,27 @@ function extractReactNodeText(node: unknown, fallback: string): string {
     }
   }
   return fallback
+}
+
+function resolveConditionalLabel(
+  sec: DocumentSection,
+  rawStates: Record<string, unknown>,
+  key: string
+): string {
+  const fromSec = extractReactNodeText(sec.name, '')
+  if (fromSec) return fromSec
+  const stateValues = Object.values(rawStates)
+  if (stateValues.length === 1) {
+    const onlyState = stateValues[0] as { name?: unknown } | undefined
+    const fromState = extractReactNodeText(onlyState?.name, '')
+    if (fromState) return fromState
+  }
+  const fromHeader = extractReactNodeText(
+    (sec as { header?: { title?: unknown } }).header?.title,
+    ''
+  )
+  if (fromHeader) return fromHeader
+  return prettifyConditionalKey(key)
 }
 
 // Module-level caches for catalog queries
@@ -217,9 +264,14 @@ function resolveSectionCategory(
     ''
   )
   const secName = extractReactNodeText(sec.name, '')
-  const constMatch =
-    headerAction.match(/constellation[1-6]/i)?.[0]?.toLowerCase() ??
-    (baseSection?.startsWith('constellation') ? baseSection : undefined)
+  const constNum =
+    headerAction.match(/constellation([1-6])/i)?.[1] ??
+    headerAction.trim().match(/^c([1-6])$/i)?.[1]
+  const constMatch = constNum
+    ? `constellation${constNum}`
+    : baseSection?.startsWith('constellation')
+      ? baseSection
+      : undefined
 
   if (
     constMatch ||
@@ -273,13 +325,18 @@ function collectConditionalsFromSections(
         key: stKey,
         name: extractReactNodeText(
           (stVal as { name?: unknown })?.name,
-          stKey === 'on' ? 'Active (On)' : stKey
+          stKey === 'on' ? 'Active (On)' : prettifyConditionalKey(stKey)
         ),
       }))
+      const label = resolveConditionalLabel(
+        sec,
+        rawStates as Record<string, unknown>,
+        key
+      )
       out.push({
         sheet,
         key,
-        name: `${displayName(sheet)} — ${extractReactNodeText(sec.name, key)}`,
+        name: `${displayName(sheet)} — ${label}`,
         states,
         canShow: true,
         isTeamBuff,
@@ -303,14 +360,19 @@ function collectConditionalsFromSections(
         const stateValue = key.startsWith('swirl')
           ? key.slice('swirl'.length)
           : stKey || 'on'
+        const multiLabel =
+          extractReactNodeText(multi.name, '') || prettifyConditionalKey(key)
+        const stateLabel =
+          extractReactNodeText(multi.name, '') ||
+          prettifyConditionalKey(stateValue)
         out.push({
           sheet,
           key,
-          name: `${displayName(sheet)} — ${extractReactNodeText(multi.name, key)}`,
+          name: `${displayName(sheet)} — ${multiLabel}`,
           states: [
             {
               key: stateValue,
-              name: extractReactNodeText(multi.name, stateValue),
+              name: stateLabel,
             },
           ],
           canShow: true,
@@ -472,13 +534,14 @@ function collectStaticOrLazyConditionals(
         key: stKey,
         name: extractReactNodeText(
           (stVal as { name?: unknown })?.name,
-          stKey === 'on' ? 'Active (On)' : stKey
+          stKey === 'on' ? 'Active (On)' : prettifyConditionalKey(stKey)
         ),
       }))
+      const label = resolveConditionalLabel(sec, rawStates, key)
       out.push({
         sheet,
         key,
-        name: `${displayName(sheet)} — ${extractReactNodeText(sec.name, key)}`,
+        name: `${displayName(sheet)} — ${label}`,
         states,
         canShow: true,
         isTeamBuff,

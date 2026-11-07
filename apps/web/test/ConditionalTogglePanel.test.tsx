@@ -1,4 +1,7 @@
-import type { ConditionalDescriptor } from '@gi/engine'
+import {
+  listConditionalsForCharacter,
+  type ConditionalDescriptor,
+} from '@gi/engine'
 import type { IGOOD } from '@gi/good'
 import {
   DEFAULT_OPTIMIZER_SETTINGS,
@@ -653,5 +656,126 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
     )!
     expect(splendorToggleRestored.props['aria-checked']).toBe(true)
     expect(splendorToggleRestored.props['data-state-value']).toBe('2')
+  })
+
+  it('renders human-readable GO conditional labels, falls back to prettified keys when a conditional has no user-facing name, and exposes the raw key in the label title tooltip (buff-panel-labels)', () => {
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+    const realFurinaCatalog = listConditionalsForCharacter('Furina')
+    const catalogWithFallback: Record<string, ConditionalDescriptor[]> = {
+      ...SAMPLE_CATALOG,
+      Furina: [
+        ...realFurinaCatalog,
+        {
+          sheet: 'Furina',
+          key: 'customUnmappedBuff',
+          name: 'Furina — customUnmappedBuff',
+          states: [{ key: 'on', name: 'Active (On)' }],
+          canShow: true,
+          category: 'character',
+          section: 'skill',
+        },
+        {
+          sheet: 'Furina',
+          key: 'afterUse.skill',
+          name: 'Furina — afterUse.skill',
+          states: [{ key: 'on', name: 'Active (On)' }],
+          canShow: true,
+          category: 'character',
+          section: 'skill',
+        },
+      ],
+    }
+
+    hookStore.active = true
+    hookStore.beginRender()
+    let tree: VNode[] = []
+    try {
+      const nodes = evaluateTree(
+        React.createElement(ConditionalTogglePanel, {
+          preset,
+          settings: DEFAULT_OPTIMIZER_SETTINGS,
+          onChangeSettings: () => {},
+          good: SAMPLE_GOOD,
+          activeTargetWeaponKey: 'SplendorOfTranquilWaters',
+          conditionalsByChar: catalogWithFallback,
+        })
+      )
+      hookStore.flushEffects()
+      tree = nodes.filter((n): n is VNode => typeof n !== 'string')
+    } finally {
+      hookStore.active = false
+    }
+
+    function getLabelNodeForRow(rowTestId: string): VNode {
+      const row = findByTestId(tree, rowTestId)
+      expect(row).toBeDefined()
+      const labelNodes = findAll(
+        [row!],
+        (n) => n.props.className === 'gi-buff-row-label'
+      )
+      expect(labelNodes).toHaveLength(1)
+      return labelNodes[0]!
+    }
+
+    function getTextContent(node: VNode | string): string {
+      if (typeof node === 'string') return node
+      return node.children.map((c) => getTextContent(c)).join('')
+    }
+
+    // 1. Real GO labels from vendored metadata
+    const selfHpLabel = getLabelNodeForRow(
+      'cond-row-Furina-SplendorOfTranquilWaters-selfHpChange'
+    )
+    expect(getTextContent(selfHpLabel)).toBe('After HP changes')
+    expect(String(selfHpLabel.props.title)).toContain('(selfHpChange)')
+
+    const teamHpLabel = getLabelNodeForRow(
+      'cond-row-Furina-SplendorOfTranquilWaters-teamHpChange'
+    )
+    expect(getTextContent(teamHpLabel)).toBe("After a teammate's HP changes")
+    expect(String(teamHpLabel.props.title)).toContain('(teamHpChange)')
+
+    const numOfferLabel = getLabelNodeForRow(
+      'cond-row-Furina-Furina-skillHpConsumeStacks'
+    )
+    expect(getTextContent(numOfferLabel)).toBe(
+      'Number of characters who offered HP'
+    )
+    expect(String(numOfferLabel.props.title)).toContain('(skillHpConsumeStacks)')
+
+    const fanfareLabel = getLabelNodeForRow(
+      'cond-row-Furina-Furina-burstFanfare'
+    )
+    expect(getTextContent(fanfareLabel)).toBe('Fanfare')
+    expect(String(fanfareLabel.props.title)).toContain('(burstFanfare)')
+
+    const goldenTroupeLabel = getLabelNodeForRow(
+      'cond-row-Furina-GoldenTroupe-set4'
+    )
+    expect(getTextContent(goldenTroupeLabel)).toContain('Character is off-field')
+    expect(String(goldenTroupeLabel.props.title)).toContain('(set4)')
+
+    const c2Label = getLabelNodeForRow('cond-row-Furina-Furina-c2Overstack')
+    expect(getTextContent(c2Label)).toBe('Fanfare above the limit')
+    expect(String(c2Label.props.title)).toContain('(c2Overstack)')
+
+    const c6Label = getLabelNodeForRow('cond-row-Furina-Furina-c6')
+    expect(getTextContent(c6Label)).toBe('After using Elemental Skill')
+    expect(String(c6Label.props.title)).toContain('(c6)')
+
+    // 2. Fallback prettification when a conditional has no user-facing name in GO's data
+    const fallbackCamelLabel = getLabelNodeForRow(
+      'cond-row-Furina-Furina-customUnmappedBuff'
+    )
+    expect(getTextContent(fallbackCamelLabel)).toBe('Custom Unmapped Buff')
+    expect(String(fallbackCamelLabel.props.title)).toContain(
+      '(customUnmappedBuff)'
+    )
+
+    const fallbackDotLabel = getLabelNodeForRow(
+      'cond-row-Furina-Furina-afterUse.skill'
+    )
+    expect(getTextContent(fallbackDotLabel)).toBe('After Use Skill')
+    expect(String(fallbackDotLabel.props.title)).toContain('(afterUse.skill)')
   })
 })
