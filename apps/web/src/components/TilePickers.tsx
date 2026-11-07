@@ -8,6 +8,7 @@ import {
   getCharacterMeta,
   getRarityColor,
   getWeaponMeta,
+  ITEM_DARK_SURFACE_BG,
 } from '@/lib/itemMeta'
 import { displayName, getPresetBadge, type Preset } from '@gi/presets'
 import { useMemo, useState } from 'react'
@@ -98,6 +99,7 @@ export function WeaponTilePicker({
           const isSelected = value === opt.id
           const imageFailed = Boolean(failedKeys[opt.weaponKey])
           const iconUrl = getCdnIconUrl(opt.weaponKey)
+          const borderWidth = isSelected ? 3 : 2
 
           return (
             <button
@@ -119,14 +121,23 @@ export function WeaponTilePicker({
                 if (!opt.disabled) onChange(opt.id)
               }}
             >
+              {isSelected && (
+                <span
+                  data-testid="tile-selected-check"
+                  aria-hidden="true"
+                  className="tile-picker-check"
+                >
+                  ✓
+                </span>
+              )}
               <span
                 className="tile-picker-frame"
                 style={{
                   width: `${imageSize}px`,
                   height: `${imageSize}px`,
-                  background: meta.rarityColor.bg,
-                  color: meta.rarityColor.fg,
-                  border: `1px solid ${meta.rarityColor.border}`,
+                  background: ITEM_DARK_SURFACE_BG,
+                  color: 'var(--fg)',
+                  border: `${borderWidth}px solid ${meta.rarityColor.border}`,
                 }}
               >
                 {imageFailed ? (
@@ -246,6 +257,7 @@ export function CharacterTilePicker({
           const isSelected = selectedKeys
             ? selectedKeys.includes(opt.key)
             : value === opt.key
+          const borderWidth = isSelected ? 3 : 2
 
           if (!opt.key) {
             const allLabel = opt.label ?? 'All Characters'
@@ -267,14 +279,23 @@ export function CharacterTilePicker({
                   if (!opt.disabled) onChange('')
                 }}
               >
+                {isSelected && (
+                  <span
+                    data-testid="tile-selected-check"
+                    aria-hidden="true"
+                    className="tile-picker-check"
+                  >
+                    ✓
+                  </span>
+                )}
                 <span
                   className="tile-picker-frame"
                   style={{
                     width: `${imageSize}px`,
                     height: `${imageSize}px`,
-                    background: rc.bg,
-                    color: rc.fg,
-                    border: `1px solid ${rc.border}`,
+                    background: ITEM_DARK_SURFACE_BG,
+                    color: 'var(--fg)',
+                    border: `${borderWidth}px solid ${rc.border}`,
                   }}
                 >
                   ALL
@@ -285,7 +306,8 @@ export function CharacterTilePicker({
           }
 
           const meta = getCharacterMeta(opt.key)
-          const rc = getRarityColor(opt.rarity ?? 5)
+          const effectiveRarity = opt.rarity ?? meta.rarity
+          const rc = getRarityColor(effectiveRarity)
           const label = opt.label ?? meta.displayName
           const imageFailed = Boolean(failedKeys[opt.key])
           const iconUrl = getCdnIconUrl(opt.key)
@@ -297,6 +319,7 @@ export function CharacterTilePicker({
               data-testid={`character-picker-tile-${opt.key}`}
               data-character-key={opt.key}
               data-element={meta.element}
+              data-rarity={String(effectiveRarity)}
               data-selected={isSelected ? 'true' : 'false'}
               aria-pressed={isSelected}
               aria-label={label}
@@ -308,16 +331,25 @@ export function CharacterTilePicker({
                 if (!opt.disabled) onChange(opt.key)
               }}
             >
+              {isSelected && (
+                <span
+                  data-testid="tile-selected-check"
+                  aria-hidden="true"
+                  className="tile-picker-check"
+                >
+                  ✓
+                </span>
+              )}
               <span
                 className="tile-picker-frame"
                 style={{
                   width: `${imageSize}px`,
                   height: `${imageSize}px`,
-                  background: rc.bg,
+                  background: meta.elementColor.bg,
                   color: meta.elementColor.fg,
                   border: imageFailed
-                    ? `2px dashed ${meta.elementColor.border}`
-                    : `2px solid ${meta.elementColor.border}`,
+                    ? `${borderWidth}px dashed ${rc.border}`
+                    : `${borderWidth}px solid ${rc.border}`,
                 }}
               >
                 {imageFailed ? (
@@ -383,7 +415,6 @@ export function ArtifactSetTilePicker({
   }>({ search: '', failedKeys: {} })
   const search = typeof pickerState?.search === 'string' ? pickerState.search : ''
   const failedKeys = pickerState?.failedKeys ?? {}
-  const rc5 = getRarityColor(5)
   const rc1 = getRarityColor(1)
 
   const filtered = useMemo(() => {
@@ -432,14 +463,23 @@ export function ArtifactSetTilePicker({
             className={`tile-picker-item${value === '' ? ' is-selected' : ''}`}
             onClick={() => onChange('')}
           >
+            {value === '' && (
+              <span
+                data-testid="tile-selected-check"
+                aria-hidden="true"
+                className="tile-picker-check"
+              >
+                ✓
+              </span>
+            )}
             <span
               className="tile-picker-frame"
               style={{
                 width: `${imageSize}px`,
                 height: `${imageSize}px`,
-                background: rc1.bg,
-                color: rc1.fg,
-                border: `1px solid ${rc1.border}`,
+                background: ITEM_DARK_SURFACE_BG,
+                color: 'var(--muted)',
+                border: `${value === '' ? 3 : 2}px solid ${rc1.border}`,
               }}
             >
               —
@@ -449,10 +489,11 @@ export function ArtifactSetTilePicker({
         )}
 
         {filtered.map((sk) => {
-          const meta = getArtifactMeta({ setKey: sk, slotKey: 'flower', rarity: 5 })
+          const meta = getArtifactMeta({ setKey: sk, slotKey: 'flower' })
           const isSelected = value === sk
           const imageFailed = Boolean(failedKeys[sk])
           const iconUrl = getCdnArtifactIconUrl(sk, 'flower')
+          const borderWidth = isSelected ? 3 : 2
 
           return (
             <button
@@ -460,6 +501,7 @@ export function ArtifactSetTilePicker({
               type="button"
               data-testid={`artifact-set-picker-tile-${sk}`}
               data-artifact-set={sk}
+              data-rarity={String(meta.rarity)}
               data-selected={isSelected ? 'true' : 'false'}
               aria-pressed={isSelected}
               aria-label={meta.setDisplayName}
@@ -467,14 +509,23 @@ export function ArtifactSetTilePicker({
               className={`tile-picker-item${isSelected ? ' is-selected' : ''}`}
               onClick={() => onChange(sk)}
             >
+              {isSelected && (
+                <span
+                  data-testid="tile-selected-check"
+                  aria-hidden="true"
+                  className="tile-picker-check"
+                >
+                  ✓
+                </span>
+              )}
               <span
                 className="tile-picker-frame"
                 style={{
                   width: `${imageSize}px`,
                   height: `${imageSize}px`,
-                  background: rc5.bg,
-                  color: rc5.fg,
-                  border: `1px solid ${rc5.border}`,
+                  background: ITEM_DARK_SURFACE_BG,
+                  color: 'var(--fg)',
+                  border: `${borderWidth}px solid ${meta.rarityColor.border}`,
                 }}
               >
                 {imageFailed ? (
@@ -530,7 +581,6 @@ export function PresetTilePicker({
     failedKeys: Record<string, boolean>
   }>({ search: '', failedKeys: {} })
   const failedKeys = pickerState?.failedKeys ?? {}
-  const rc5 = getRarityColor(5)
 
   return (
     <div className="tile-picker-wrap" data-testid="preset-tile-picker">
@@ -541,10 +591,12 @@ export function PresetTilePicker({
       >
         {presets.map((p) => {
           const meta = getCharacterMeta(p.target)
+          const rc = getRarityColor(meta.rarity)
           const badge = getPresetBadge(p)
           const isSelected = value === p.id
           const imageFailed = Boolean(failedKeys[p.target])
           const iconUrl = getCdnIconUrl(p.target)
+          const borderWidth = isSelected ? 3 : 2
 
           return (
             <button
@@ -553,22 +605,33 @@ export function PresetTilePicker({
               data-testid={`preset-picker-tile-${p.id}`}
               data-preset-id={p.id}
               data-character-key={p.target}
+              data-element={meta.element}
+              data-rarity={String(meta.rarity)}
               data-selected={isSelected ? 'true' : 'false'}
               aria-pressed={isSelected}
               aria-label={`[${badge.label}] ${p.name} (Target: ${meta.displayName})`}
               className={`tile-picker-item${isSelected ? ' is-selected' : ''}`}
               onClick={() => onChange(p.id)}
             >
+              {isSelected && (
+                <span
+                  data-testid="tile-selected-check"
+                  aria-hidden="true"
+                  className="tile-picker-check"
+                >
+                  ✓
+                </span>
+              )}
               <span
                 className="tile-picker-frame"
                 style={{
                   width: `${imageSize}px`,
                   height: `${imageSize}px`,
-                  background: rc5.bg,
+                  background: meta.elementColor.bg,
                   color: meta.elementColor.fg,
                   border: imageFailed
-                    ? `2px dashed ${meta.elementColor.border}`
-                    : `2px solid ${meta.elementColor.border}`,
+                    ? `${borderWidth}px dashed ${rc.border}`
+                    : `${borderWidth}px solid ${rc.border}`,
                 }}
               >
                 {imageFailed ? (

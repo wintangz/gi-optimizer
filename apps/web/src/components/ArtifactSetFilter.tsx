@@ -4,7 +4,7 @@ import { FunnelIcon, SetEmblemIcon } from '@/components/SvgIcons'
 import {
   getArtifactMeta,
   getCdnArtifactIconUrl,
-  getRarityColor,
+  ITEM_DARK_SURFACE_BG,
 } from '@/lib/itemMeta'
 import {
   ALL_ARTIFACT_SET_KEYS,
@@ -64,7 +64,6 @@ export function ArtifactSetFilter({
 }: ArtifactSetFilterProps) {
   const [search, setSearch] = useState('')
   const [failedKeys, setFailedKeys] = useState<Record<string, boolean>>({})
-  const rc5 = getRarityColor(5)
   const imageSize = 56
 
   const { mode, selection } = useMemo(
@@ -290,10 +289,10 @@ export function ArtifactSetFilter({
             const meta = getArtifactMeta({
               setKey: sk,
               slotKey: 'flower',
-              rarity: 5,
             })
             const imageFailed = Boolean(failedKeys[sk])
             const iconUrl = getCdnArtifactIconUrl(sk, 'flower')
+            const borderWidth = checked ? 3 : 2
 
             return (
               <div key={sk} className="tile-picker-cell">
@@ -301,6 +300,7 @@ export function ArtifactSetFilter({
                   type="button"
                   data-testid={`artifact-set-tile-${sk}`}
                   data-artifact-set={sk}
+                  data-rarity={String(meta.rarity)}
                   data-selected={checked ? 'true' : 'false'}
                   aria-pressed={checked}
                   aria-label={displayName(sk)}
@@ -308,14 +308,23 @@ export function ArtifactSetFilter({
                   className={`tile-picker-item${checked ? ' is-selected' : ''}`}
                   onClick={() => handleToggleSet(sk)}
                 >
+                  {checked && (
+                    <span
+                      data-testid="tile-selected-check"
+                      aria-hidden="true"
+                      className="tile-picker-check"
+                    >
+                      ✓
+                    </span>
+                  )}
                   <span
                     className="tile-picker-frame"
                     style={{
                       width: `${imageSize}px`,
                       height: `${imageSize}px`,
-                      background: rc5.bg,
-                      color: rc5.fg,
-                      border: `1px solid ${rc5.border}`,
+                      background: ITEM_DARK_SURFACE_BG,
+                      color: 'var(--fg)',
+                      border: `${borderWidth}px solid ${meta.rarityColor.border}`,
                     }}
                   >
                     {imageFailed ? (

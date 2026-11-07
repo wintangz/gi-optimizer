@@ -168,24 +168,37 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     )
   })
 
-  it('renders CharacterBadge with Cloudinary CDN image, solid border, +10% larger size (34px default / 27px compact), and never renders a dashed border in the image state (badge-image-state-style)', () => {
+  it('renders CharacterBadge with element-colour dark background (elementColor.bg), rarity-coloured solid border, +10% larger size (34px default / 27px compact), and never renders a dashed border in the image state (badge-image-state-style & rarity-border-tiles)', () => {
     const targetHtml = renderToStaticMarkup(
       <CharacterBadge characterKey="Furina" role="target" />
     )
     expect(targetHtml).toContain('data-identifier-kind="character"')
     expect(targetHtml).toContain('data-element="hydro"')
+    expect(targetHtml).toContain('data-rarity="5"')
     expect(targetHtml).toContain('data-simulated="false"')
     expect(targetHtml).toContain('data-role="target"')
     expect(targetHtml).toContain(
       'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Furina.png"'
     )
     expect(targetHtml).toContain('width:34px;height:34px;min-width:34px')
-    expect(targetHtml).toContain('border:2px solid ')
+    // Hydro element dark background (#142a42) + 5★ rarity gold solid border (#f0be5b)
+    expect(targetHtml).toContain('background:#142a42')
+    expect(targetHtml).toContain('border:2px solid #f0be5b')
     expect(targetHtml).not.toContain('dashed')
     expect(targetHtml).toContain('border-radius:999px')
     expect(targetHtml).toContain('object-fit:cover')
     expect(targetHtml).toContain('Furina')
     expect(targetHtml).toContain('YOUR CHARACTER · TARGET')
+
+    // 4★ character (Fischl, Electro): Electro dark background (#2b1d42) + 4★ purple solid border (#a375db)
+    const fischlHtml = renderToStaticMarkup(
+      <CharacterBadge characterKey="Fischl" role="owned" />
+    )
+    expect(fischlHtml).toContain('data-element="electro"')
+    expect(fischlHtml).toContain('data-rarity="4"')
+    expect(fischlHtml).toContain('background:#2b1d42')
+    expect(fischlHtml).toContain('border:2px solid #a375db')
+    expect(fischlHtml).not.toContain('dashed')
 
     const ownedHtml = renderToStaticMarkup(
       <CharacterBadge characterKey="Neuvillette" role="owned" />
@@ -195,7 +208,7 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
       'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Neuvillette.png"'
     )
     expect(ownedHtml).toContain('width:34px;height:34px;min-width:34px')
-    expect(ownedHtml).toContain('border:2px solid ')
+    expect(ownedHtml).toContain('border:2px solid #f0be5b')
     expect(ownedHtml).not.toContain('dashed')
     expect(ownedHtml).toContain('YOUR BUILD')
 
@@ -205,7 +218,8 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(simHtml).toContain('data-simulated="true"')
     expect(simHtml).toContain('data-role="simulated"')
     expect(simHtml).toContain('width:34px;height:34px;min-width:34px')
-    expect(simHtml).toContain('border:2px solid ')
+    expect(simHtml).toContain('background:#15352d')
+    expect(simHtml).toContain('border:2px solid #f0be5b')
     expect(simHtml).not.toContain('dashed')
     expect(simHtml).toContain(
       'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/KaedeharaKazuha.png"'
@@ -217,12 +231,12 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     )
     expect(simCompactHtml).toContain('data-simulated="true"')
     expect(simCompactHtml).toContain('width:27px;height:27px;min-width:27px')
-    expect(simCompactHtml).toContain('border:2px solid ')
+    expect(simCompactHtml).toContain('border:2px solid #f0be5b')
     expect(simCompactHtml).not.toContain('dashed')
     expect(simCompactHtml).toContain('>SIM<')
   })
 
-  it('renders WeaponBadge with Cloudinary CDN image, rarity color, and star rating', () => {
+  it('renders WeaponBadge with Cloudinary CDN image, dark surface background (#151821), rarity border colour, and star rating (rarity-border-tiles)', () => {
     const wepHtml = renderToStaticMarkup(
       <WeaponBadge
         weaponKey="SplendorOfTranquilWaters"
@@ -232,6 +246,9 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(wepHtml).toContain('data-identifier-kind="weapon"')
     expect(wepHtml).toContain('data-weapon-type="sword"')
     expect(wepHtml).toContain('data-rarity="5"')
+    expect(wepHtml).toContain('data-testid="weapon-chip"')
+    expect(wepHtml).toContain('background:#151821')
+    expect(wepHtml).toContain('border:1px solid #f0be5b')
     expect(wepHtml).toContain(
       'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/SplendorOfTranquilWaters.png"'
     )
@@ -239,7 +256,7 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(wepHtml).toContain('Lv. 90 R1')
   })
 
-  it('falls back to circle + initials with dashed border and exact base size (30px / 24px compact) on CharacterBadge, and WeaponTypeIcon on WeaponBadge when the CDN image errors (cdn-icon-images & badge-image-state-style)', () => {
+  it('falls back to circle + initials with dashed rarity border and exact base size (30px / 24px compact) on CharacterBadge, and WeaponTypeIcon on WeaponBadge when the CDN image errors (cdn-icon-images, badge-image-state-style & rarity-border-tiles)', () => {
     // 1. CharacterBadge image state vs fallback state on image load failure
     hookStore.reset()
     let charTree = renderWithHooks(
@@ -254,8 +271,8 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     let avatarStyle = avatars[0]!.props.style as Record<string, string>
     expect(avatarStyle.width).toBe('34px')
     expect(avatarStyle.height).toBe('34px')
-    expect(avatarStyle.border).toContain('2px solid ')
-    expect(avatarStyle.border).not.toContain('dashed')
+    expect(avatarStyle.background).toBe('#142a42')
+    expect(avatarStyle.border).toBe('2px solid #f0be5b')
 
     let imgs = findAllElements(charTree, (el) => el.type === 'img')
     expect(imgs).toHaveLength(1)
@@ -263,7 +280,7 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
       'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Furina.png'
     )
 
-    // Trigger onError -> transitions to fallback state (30px + 2px dashed border + initials)
+    // Trigger onError -> transitions to fallback state (30px + 2px dashed rarity border + initials)
     ;(imgs[0]!.props.onError as () => void)()
     charTree = renderWithHooks(
       <CharacterBadge characterKey="Furina" role="target" />
@@ -279,9 +296,10 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     avatarStyle = avatars[0]!.props.style as Record<string, string>
     expect(avatarStyle.width).toBe('30px')
     expect(avatarStyle.height).toBe('30px')
-    expect(avatarStyle.border).toContain('2px dashed ')
+    expect(avatarStyle.background).toBe('#142a42')
+    expect(avatarStyle.border).toBe('2px dashed #f0be5b')
 
-    // Switching characterKey (and compact=true) resets to image state (27px + solid border), then falls back to 24px + dashed border on error
+    // Switching characterKey (and compact=true) resets to image state (27px + solid rarity border), then falls back to 24px + dashed rarity border on error
     charTree = renderWithHooks(
       <CharacterBadge characterKey="Somnia" role="target" compact />
     )
@@ -292,8 +310,7 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     )
     avatarStyle = avatars[0]!.props.style as Record<string, string>
     expect(avatarStyle.width).toBe('27px')
-    expect(avatarStyle.border).toContain('2px solid ')
-    expect(avatarStyle.border).not.toContain('dashed')
+    expect(avatarStyle.border).toBe('2px solid #f0be5b')
 
     imgs = findAllElements(charTree, (el) => el.type === 'img')
     expect(imgs).toHaveLength(1)
@@ -314,7 +331,7 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     avatarStyle = avatars[0]!.props.style as Record<string, string>
     expect(avatarStyle.width).toBe('24px')
     expect(avatarStyle.height).toBe('24px')
-    expect(avatarStyle.border).toContain('2px dashed ')
+    expect(avatarStyle.border).toBe('2px dashed #f0be5b')
 
     // 2. WeaponBadge fallback on image load failure
     hookStore.reset()
@@ -355,7 +372,7 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     )
   })
 
-  it('renders ArtifactBadge with Cloudinary piece image when slotKey is present and falls back to SlotIcon on error (cdn-artifact-icons)', () => {
+  it('renders ArtifactBadge with Cloudinary piece image on dark surface background (#151821) with rarity border when slotKey is present and falls back to SlotIcon on error (cdn-artifact-icons & rarity-border-tiles)', () => {
     const artHtml = renderToStaticMarkup(
       <ArtifactBadge
         setKey="GoldenTroupe"
@@ -368,6 +385,8 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(artHtml).toContain('data-artifact-set="GoldenTroupe"')
     expect(artHtml).toContain('data-slot="goblet"')
     expect(artHtml).toContain('data-rarity="5"')
+    expect(artHtml).toContain('background:#151821')
+    expect(artHtml).toContain('border:1px solid #f0be5b')
     expect(artHtml).toContain(
       'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/GoldenTroupe-goblet.png"'
     )

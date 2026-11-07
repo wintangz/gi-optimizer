@@ -20,13 +20,19 @@ import {
   getElementColor,
   getRarityColor,
   getWeaponMeta,
+  ITEM_DARK_SURFACE_BG,
   shortStatLabel,
   type IdentifierElement,
   type IdentifierSlotKey,
 } from '@/lib/itemMeta'
 import { useState, type ReactNode } from 'react'
 
-export { CLOUDINARY_GENSHIN_BASE_URL, getCdnArtifactIconUrl, getCdnIconUrl }
+export {
+  CLOUDINARY_GENSHIN_BASE_URL,
+  getCdnArtifactIconUrl,
+  getCdnIconUrl,
+  ITEM_DARK_SURFACE_BG,
+}
 
 export type CharacterRoleTag = 'target' | 'owned' | 'none'
 
@@ -85,6 +91,7 @@ export function CharacterBadge({
   const imageFailed = failedKey === characterKey
   const iconUrl = getCdnIconUrl(characterKey)
   const meta = getCharacterMeta(characterKey)
+  const rarityColor = getRarityColor(meta.rarity)
   const fallbackSize = compact ? 24 : 30
   const imageSize = compact ? 27 : 34
   const size = imageFailed ? fallbackSize : imageSize
@@ -95,6 +102,7 @@ export function CharacterBadge({
       data-identifier-kind="character"
       data-character-key={characterKey}
       data-element={meta.element}
+      data-rarity={String(meta.rarity)}
       data-simulated={simulated ? 'true' : 'false'}
       data-role={effectiveRole}
       style={{
@@ -104,7 +112,7 @@ export function CharacterBadge({
         verticalAlign: 'middle',
       }}
     >
-      {/* Element-coloured circular avatar: solid + slightly larger in image state, dashed + base size in fallback state */}
+      {/* Element-coloured circular avatar with rarity border: solid + slightly larger in image state, dashed + base size in fallback state */}
       <span
         data-testid="character-avatar"
         title={`${meta.displayName} (${meta.element.toUpperCase()})${
@@ -119,8 +127,8 @@ export function CharacterBadge({
           background: meta.elementColor.bg,
           color: meta.elementColor.fg,
           border: imageFailed
-            ? `2px dashed ${meta.elementColor.border}`
-            : `2px solid ${meta.elementColor.border}`,
+            ? `2px dashed ${rarityColor.border}`
+            : `2px solid ${rarityColor.border}`,
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -306,8 +314,9 @@ export function WeaponBadge({
         verticalAlign: 'middle',
       }}
     >
-      {/* Flat Genshin rarity-coloured weapon badge with readable foreground text */}
+      {/* Dark surface weapon badge chip with Genshin rarity-coloured border */}
       <span
+        data-testid="weapon-chip"
         title={`${meta.displayName} (${starsText} ${meta.weaponTypeLabel})`}
         style={{
           display: 'inline-flex',
@@ -315,8 +324,8 @@ export function WeaponBadge({
           gap: '0.32rem',
           padding: compact ? '0.14rem 0.48rem' : '0.2rem 0.58rem',
           borderRadius: '6px',
-          background: meta.rarityColor.bg,
-          color: meta.rarityColor.fg,
+          background: ITEM_DARK_SURFACE_BG,
+          color: 'var(--fg)',
           border: `1px solid ${meta.rarityColor.border}`,
           fontWeight: 700,
           fontSize: compact ? '0.8rem' : '0.86rem',
@@ -397,7 +406,7 @@ export function ArtifactBadge({
         verticalAlign: 'middle',
       }}
     >
-      {/* Rarity-coloured strip/background behind the artifact piece image or slot SVG glyph */}
+      {/* Dark surface strip with rarity-coloured border behind the artifact piece image or slot SVG glyph */}
       <span
         data-testid="artifact-slot-strip"
         title={`${meta.setDisplayName}${
@@ -409,8 +418,8 @@ export function ArtifactBadge({
           minWidth: `${stripSize}px`,
           borderRadius: '5px',
           overflow: 'hidden',
-          background: meta.rarityColor.bg,
-          color: meta.rarityColor.fg,
+          background: ITEM_DARK_SURFACE_BG,
+          color: 'var(--fg)',
           border: `1px solid ${meta.rarityColor.border}`,
           display: 'inline-flex',
           alignItems: 'center',
@@ -444,7 +453,7 @@ export function ArtifactBadge({
         )}
       </span>
 
-      {/* Compact set-coloured chip with the set's short name (omitted when slotOnly) */}
+      {/* Compact dark surface chip with rarity-coloured border and set short name (omitted when slotOnly) */}
       {!slotOnly && (
         <span
           data-testid="artifact-set-chip"
@@ -455,9 +464,9 @@ export function ArtifactBadge({
             gap: '0.28rem',
             padding: compact ? '0.1rem 0.42rem' : '0.15rem 0.5rem',
             borderRadius: '999px',
-            background: meta.setColor.bg,
-            color: meta.setColor.fg,
-            border: `1px solid ${meta.setColor.border}`,
+            background: ITEM_DARK_SURFACE_BG,
+            color: 'var(--fg)',
+            border: `1px solid ${meta.rarityColor.border}`,
             fontSize: compact ? '0.76rem' : '0.82rem',
             fontWeight: 600,
             lineHeight: 1.2,

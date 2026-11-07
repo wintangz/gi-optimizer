@@ -123,12 +123,12 @@ function collectText(nodes: Array<VNode | string>): string {
     .join('')
 }
 
-describe('Image-Led Tile Grid Pickers (image-led-pickers)', () => {
+describe('Image-Led Tile Grid Pickers & Rarity Borders (image-led-pickers & rarity-border-tiles)', () => {
   afterEach(() => {
     hookStore.reset()
   })
 
-  it('WeaponTilePicker renders 60px weapon CDN image tiles on rarity backgrounds (not text rows), fires onChange on selection, and falls back to WeaponTypeIcon per tile on error', () => {
+  it('WeaponTilePicker renders 60px weapon CDN image tiles on dark surface background (#151821) with rarity borders, non-colour selection (3px border + check marker), fires onChange, and falls back to WeaponTypeIcon per tile on error', () => {
     const onChange = vi.fn()
     const options = [
       {
@@ -168,9 +168,14 @@ describe('Image-Led Tile Grid Pickers (image-led-pickers)', () => {
     )
     expect(html).toContain('width="60" height="60"')
     expect(html).toContain('class="tile-picker-item is-selected"')
+    expect(html).toContain('data-testid="tile-selected-check"')
+    // Dark surface background (#151821) + 5★ gold border (3px on selected) and 4★ purple border (2px on unselected)
+    expect(html).toContain('background:#151821')
+    expect(html).toContain('border:3px solid #f0be5b')
+    expect(html).toContain('border:2px solid #a375db')
     expect(html).toContain('R5 · Lv.90')
 
-    // Interactive VNode test: selection callback + per-tile onError fallback
+    // Interactive VNode test: selection callback + non-colour check marker + per-tile onError fallback
     hookStore.reset()
     let tree = renderWithHooks(
       <WeaponTilePicker
@@ -181,12 +186,34 @@ describe('Image-Led Tile Grid Pickers (image-led-pickers)', () => {
       />
     )
 
+    const splendorTile = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'button' &&
+        el.props['data-testid'] ===
+          'weapon-picker-tile-SplendorOfTranquilWaters'
+    )[0]!
     const favTile = findAllElements(
       tree,
       (el) =>
         el.type === 'button' &&
         el.props['data-testid'] === 'weapon-picker-tile-FavoniusSword'
     )[0]!
+
+    // Selected tile has check marker + 3px rarity border; unselected tile has no check marker + 2px rarity border
+    expect(
+      findAllElements(
+        [splendorTile],
+        (el) => el.props['data-testid'] === 'tile-selected-check'
+      )
+    ).toHaveLength(1)
+    expect(
+      findAllElements(
+        [favTile],
+        (el) => el.props['data-testid'] === 'tile-selected-check'
+      )
+    ).toHaveLength(0)
+
     ;(favTile.props.onClick as () => void)()
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange).toHaveBeenCalledWith('FavoniusSword')
@@ -216,10 +243,11 @@ describe('Image-Led Tile Grid Pickers (image-led-pickers)', () => {
     expect(swordFallbacks).toHaveLength(1)
   })
 
-  it('CharacterTilePicker renders 60px character CDN portrait tiles, dims/disables ineligible options, fires onChange, and falls back to initials on error', () => {
+  it('CharacterTilePicker renders 60px character CDN portrait tiles on dark element background (elementColor.bg) with rarity borders, distinct non-colour selection, dims/disables ineligible options, fires onChange, and falls back to dashed rarity border + initials on error', () => {
     const onChange = vi.fn()
     const options = [
       { key: 'Furina', label: 'Furina' },
+      { key: 'Fischl', label: 'Fischl' },
       { key: 'KaedeharaKazuha', label: 'Kaedehara Kazuha', disabled: true },
     ]
 
@@ -234,20 +262,10 @@ describe('Image-Led Tile Grid Pickers (image-led-pickers)', () => {
     )
 
     const imgs = findAllElements(tree, (el) => el.type === 'img')
-    expect(imgs).toHaveLength(2)
+    expect(imgs).toHaveLength(3)
     expect(imgs[0]!.props.src).toBe(
       'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Furina.png'
     )
-
-    const kazuhaTile = findAllElements(
-      tree,
-      (el) =>
-        el.type === 'button' &&
-        el.props['data-testid'] === 'character-picker-tile-KaedeharaKazuha'
-    )[0]!
-    expect(kazuhaTile.props.disabled).toBe(true)
-    ;(kazuhaTile.props.onClick as () => void)()
-    expect(onChange).not.toHaveBeenCalled()
 
     const furinaTile = findAllElements(
       tree,
@@ -255,10 +273,57 @@ describe('Image-Led Tile Grid Pickers (image-led-pickers)', () => {
         el.type === 'button' &&
         el.props['data-testid'] === 'character-picker-tile-Furina'
     )[0]!
+    const fischlTile = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'button' &&
+        el.props['data-testid'] === 'character-picker-tile-Fischl'
+    )[0]!
+    const kazuhaTile = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'button' &&
+        el.props['data-testid'] === 'character-picker-tile-KaedeharaKazuha'
+    )[0]!
+
+    // Furina (5★ Hydro, selected): background #142a42, border 3px solid #f0be5b, check marker present
+    const furinaFrame = findAllElements(
+      [furinaTile],
+      (el) => el.type === 'span' && el.props.className === 'tile-picker-frame'
+    )[0]!
+    const furinaStyle = furinaFrame.props.style as Record<string, string>
+    expect(furinaStyle.background).toBe('#142a42')
+    expect(furinaStyle.border).toBe('3px solid #f0be5b')
+    expect(
+      findAllElements(
+        [furinaTile],
+        (el) => el.props['data-testid'] === 'tile-selected-check'
+      )
+    ).toHaveLength(1)
+
+    // Fischl (4★ Electro, unselected): background #2b1d42, border 2px solid #a375db, no check marker
+    const fischlFrame = findAllElements(
+      [fischlTile],
+      (el) => el.type === 'span' && el.props.className === 'tile-picker-frame'
+    )[0]!
+    const fischlStyle = fischlFrame.props.style as Record<string, string>
+    expect(fischlStyle.background).toBe('#2b1d42')
+    expect(fischlStyle.border).toBe('2px solid #a375db')
+    expect(
+      findAllElements(
+        [fischlTile],
+        (el) => el.props['data-testid'] === 'tile-selected-check'
+      )
+    ).toHaveLength(0)
+
+    expect(kazuhaTile.props.disabled).toBe(true)
+    ;(kazuhaTile.props.onClick as () => void)()
+    expect(onChange).not.toHaveBeenCalled()
+
     ;(furinaTile.props.onClick as () => void)()
     expect(onChange).toHaveBeenCalledWith('Furina')
 
-    // Trigger onError on Furina tile -> falls back to FU initials
+    // Trigger onError on Furina tile -> falls back to FU initials with dashed 5★ rarity border
     ;(imgs[0]!.props.onError as () => void)()
     tree = renderWithHooks(
       <CharacterTilePicker
@@ -268,11 +333,24 @@ describe('Image-Led Tile Grid Pickers (image-led-pickers)', () => {
         onChange={onChange}
       />
     )
-    expect(findAllElements(tree, (el) => el.type === 'img')).toHaveLength(1)
+    expect(findAllElements(tree, (el) => el.type === 'img')).toHaveLength(2)
     expect(collectText(tree)).toContain('FU')
+    const furinaFallbackFrame = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'span' &&
+        el.props.className === 'tile-picker-frame' &&
+        collectText([el]) === 'FU'
+    )[0]!
+    const fallbackStyle = furinaFallbackFrame.props.style as Record<
+      string,
+      string
+    >
+    expect(fallbackStyle.background).toBe('#142a42')
+    expect(fallbackStyle.border).toBe('3px dashed #f0be5b')
   })
 
-  it('ArtifactSetTilePicker renders 56px flower piece CDN icons on 5-star rarity background, fires onChange, and falls back to SetEmblemIcon on error', () => {
+  it('ArtifactSetTilePicker renders 56px flower piece CDN icons on dark surface background (#151821) with 5-star rarity border, distinct selection check marker, fires onChange, and falls back to SetEmblemIcon on error', () => {
     const onChange = vi.fn()
     hookStore.reset()
     let tree = renderWithHooks(
@@ -297,6 +375,50 @@ describe('Image-Led Tile Grid Pickers (image-led-pickers)', () => {
         el.type === 'button' &&
         el.props['data-testid'] === 'artifact-set-picker-tile-GoldenTroupe'
     )[0]!
+    const vvTile = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'button' &&
+        el.props['data-testid'] ===
+          'artifact-set-picker-tile-ViridescentVenerer'
+    )[0]!
+
+    // Unselected GoldenTroupe: dark background (#151821) + 2px solid #f0be5b, no check marker
+    const gtFrame = findAllElements(
+      [gtTile],
+      (el) => el.type === 'span' && el.props.className === 'tile-picker-frame'
+    )[0]!
+    expect((gtFrame.props.style as Record<string, string>).background).toBe(
+      '#151821'
+    )
+    expect((gtFrame.props.style as Record<string, string>).border).toBe(
+      '2px solid #f0be5b'
+    )
+    expect(
+      findAllElements(
+        [gtTile],
+        (el) => el.props['data-testid'] === 'tile-selected-check'
+      )
+    ).toHaveLength(0)
+
+    // Selected ViridescentVenerer: dark background (#151821) + 3px solid #f0be5b + check marker
+    const vvFrame = findAllElements(
+      [vvTile],
+      (el) => el.type === 'span' && el.props.className === 'tile-picker-frame'
+    )[0]!
+    expect((vvFrame.props.style as Record<string, string>).background).toBe(
+      '#151821'
+    )
+    expect((vvFrame.props.style as Record<string, string>).border).toBe(
+      '3px solid #f0be5b'
+    )
+    expect(
+      findAllElements(
+        [vvTile],
+        (el) => el.props['data-testid'] === 'tile-selected-check'
+      )
+    ).toHaveLength(1)
+
     ;(gtTile.props.onClick as () => void)()
     expect(onChange).toHaveBeenCalledWith('GoldenTroupe')
 

@@ -27,6 +27,9 @@ export {
 export const CLOUDINARY_GENSHIN_BASE_URL =
   'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin'
 
+/** Standard app dark surface colour (--surface in globals.css) used for weapon & artifact tiles/chips. */
+export const ITEM_DARK_SURFACE_BG = '#151821'
+
 export function getCdnIconUrl(key: string): string {
   return `${CLOUDINARY_GENSHIN_BASE_URL}/${key}.png`
 }

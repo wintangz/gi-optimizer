@@ -3,8 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { ArtifactSetFilter } from '../src/components/ArtifactSetFilter'
 
-describe('ArtifactSetFilter Component (artifact-set-filter & image-led-pickers)', () => {
-  it('renders mode switcher, search, bulk actions, image-led flower-icon tile grid, and summary line in "all" mode', () => {
+describe('ArtifactSetFilter Component (artifact-set-filter, image-led-pickers & rarity-border-tiles)', () => {
+  it('renders mode switcher, search, bulk actions, image-led flower-icon tile grid on dark surface (#151821) with rarity borders, and summary line in "all" mode', () => {
     const html = renderToStaticMarkup(
       <ArtifactSetFilter
         settings={DEFAULT_OPTIMIZER_SETTINGS}
@@ -24,13 +24,16 @@ describe('ArtifactSetFilter Component (artifact-set-filter & image-led-pickers)'
     expect(html).toContain('>Invert<')
     expect(html).toContain('aria-label="Artifact sets"')
     expect(html).toContain('class="tile-picker-grid"')
+    expect(html).toContain('background:#151821')
+    expect(html).toContain('border:2px solid #f0be5b')
+    expect(html).not.toContain('data-testid="tile-selected-check"')
     expect(html).toContain(
       'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/GoldenTroupe-flower.png"'
     )
     expect(html).not.toContain('type="checkbox"')
   })
 
-  it('renders checked sets with selected tile ring and 2pc/4pc/Both piece-count controls in "exclude" mode', () => {
+  it('renders checked sets with non-colour selection (3px rarity border + check marker) and 2pc/4pc/Both piece-count controls in "exclude" mode', () => {
     const html = renderToStaticMarkup(
       <ArtifactSetFilter
         settings={{
@@ -47,6 +50,8 @@ describe('ArtifactSetFilter Component (artifact-set-filter & image-led-pickers)'
     expect(html).toContain(
       `${ALL_ARTIFACT_SET_KEYS.length - 1} of ${ALL_ARTIFACT_SET_KEYS.length} sets allowed (2 excluded)`
     )
+    expect(html).toContain('border:3px solid #f0be5b')
+    expect(html).toContain('data-testid="tile-selected-check"')
     expect(html).toContain('aria-label="Golden Troupe piece count"')
     expect(html).toContain('aria-label="Marechaussee Hunter piece count"')
     expect(html).toContain('>Both<')
