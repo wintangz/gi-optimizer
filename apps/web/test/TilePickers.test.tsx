@@ -484,4 +484,122 @@ describe('Image-Led Tile Grid Pickers & Rarity Borders (image-led-pickers & rari
     expect(html).toContain('>AKASHA<')
     expect(html).not.toContain('class="tile-picker-subcaption"')
   })
+
+  it('WeaponTilePicker, CharacterTilePicker, and ArtifactSetTilePicker show a zero-match empty message when search matches nothing (responsive-and-small-fixes)', () => {
+    // 1. WeaponTilePicker zero-match search
+    hookStore.reset()
+    let wepTree = renderWithHooks(
+      <WeaponTilePicker
+        ariaLabel="Simulated Weapon"
+        value="FavoniusSword"
+        searchable
+        options={[
+          {
+            id: 'FavoniusSword',
+            weaponKey: 'FavoniusSword',
+            label: 'Favonius Sword',
+          },
+        ]}
+        onChange={() => {}}
+      />
+    )
+    const wepSearchInput = findAllElements(
+      wepTree,
+      (el) => el.type === 'input' && el.props.className === 'tile-picker-search'
+    )[0]!
+    ;(wepSearchInput.props.onChange as (e: { target: { value: string } }) => void)({
+      target: { value: 'zzzz-no-match' },
+    })
+    wepTree = renderWithHooks(
+      <WeaponTilePicker
+        ariaLabel="Simulated Weapon"
+        value="FavoniusSword"
+        searchable
+        options={[
+          {
+            id: 'FavoniusSword',
+            weaponKey: 'FavoniusSword',
+            label: 'Favonius Sword',
+          },
+        ]}
+        onChange={() => {}}
+      />
+    )
+    const wepEmpty = findAllElements(
+      wepTree,
+      (el) => el.props['data-testid'] === 'weapon-picker-empty'
+    )
+    expect(wepEmpty).toHaveLength(1)
+    expect(collectText(wepEmpty)).toContain('No weapons match “zzzz-no-match”.')
+
+    // 2. CharacterTilePicker zero-match search
+    hookStore.reset()
+    let charTree = renderWithHooks(
+      <CharacterTilePicker
+        ariaLabel="Teammate character"
+        value="Furina"
+        searchable
+        options={[{ key: 'Furina', label: 'Furina' }]}
+        onChange={() => {}}
+      />
+    )
+    const charSearchInput = findAllElements(
+      charTree,
+      (el) => el.type === 'input' && el.props.className === 'tile-picker-search'
+    )[0]!
+    ;(charSearchInput.props.onChange as (e: { target: { value: string } }) => void)({
+      target: { value: 'zzzz-no-match' },
+    })
+    charTree = renderWithHooks(
+      <CharacterTilePicker
+        ariaLabel="Teammate character"
+        value="Furina"
+        searchable
+        options={[{ key: 'Furina', label: 'Furina' }]}
+        onChange={() => {}}
+      />
+    )
+    const charEmpty = findAllElements(
+      charTree,
+      (el) => el.props['data-testid'] === 'character-picker-empty'
+    )
+    expect(charEmpty).toHaveLength(1)
+    expect(collectText(charEmpty)).toContain('No characters match “zzzz-no-match”.')
+
+    // 3. ArtifactSetTilePicker zero-match search
+    hookStore.reset()
+    let setTree = renderWithHooks(
+      <ArtifactSetTilePicker
+        ariaLabel="Artifact Set"
+        setKeys={['GoldenTroupe']}
+        value="GoldenTroupe"
+        allowNone
+        searchable
+        onChange={() => {}}
+      />
+    )
+    const setSearchInput = findAllElements(
+      setTree,
+      (el) => el.type === 'input' && el.props.className === 'tile-picker-search'
+    )[0]!
+    ;(setSearchInput.props.onChange as (e: { target: { value: string } }) => void)({
+      target: { value: 'zzzz-no-match' },
+    })
+    setTree = renderWithHooks(
+      <ArtifactSetTilePicker
+        ariaLabel="Artifact Set"
+        setKeys={['GoldenTroupe']}
+        value="GoldenTroupe"
+        allowNone
+        searchable
+        onChange={() => {}}
+      />
+    )
+    const setEmpty = findAllElements(
+      setTree,
+      (el) => el.props['data-testid'] === 'artifact-set-picker-empty'
+    )
+    expect(setEmpty).toHaveLength(1)
+    expect(collectText(setEmpty)).toContain('No artifact sets match “zzzz-no-match”.')
+  })
 })

@@ -70,6 +70,7 @@ export default function ImportPage() {
   const [artEquippedFilter, setArtEquippedFilter] = useState('')
   const [confirmClear, setConfirmClear] = useState(false)
   const [parsing, setParsing] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -315,9 +316,34 @@ export default function ImportPage() {
       {/* File Drop + Paste Grid */}
       <div className="gi-import-grid">
         <div
-          className="gi-dropzone"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={handleDrop}
+          className={`gi-dropzone${isDragOver ? ' is-drag-over' : ''}`}
+          data-testid="import-dropzone"
+          data-drag-over={isDragOver ? 'true' : 'false'}
+          role="button"
+          tabIndex={0}
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              fileInputRef.current?.click()
+            }
+          }}
+          onDragEnter={(e) => {
+            e.preventDefault()
+            setIsDragOver(true)
+          }}
+          onDragOver={(e) => {
+            e.preventDefault()
+            if (!isDragOver) setIsDragOver(true)
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault()
+            setIsDragOver(false)
+          }}
+          onDrop={(e) => {
+            setIsDragOver(false)
+            handleDrop(e)
+          }}
         >
           <strong>Upload or Drag &amp; Drop a GOOD .json file</strong>
           <span className="muted" style={{ fontSize: '0.88rem' }}>
@@ -329,12 +355,16 @@ export default function ImportPage() {
             type="file"
             accept=".json,application/json"
             onChange={handleFileChange}
+            onClick={(e) => e.stopPropagation()}
             style={{ display: 'none' }}
           />
           <button
             type="button"
             className="btn-primary btn-icon"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={(e) => {
+              e.stopPropagation()
+              fileInputRef.current?.click()
+            }}
           >
             <UploadIcon size={15} />
             <span>Import JSON…</span>
@@ -606,54 +636,69 @@ export default function ImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedChars.map((c: ICharacter) => {
-                      const wep = weaponByChar.get(c.key)
-                      const sets = artSetsByChar.get(c.key) ?? {}
-                      const activeSets = Object.entries(sets).filter(
-                        ([, n]) => n >= 2
-                      )
-                      return (
-                        <tr key={c.key}>
-                          <td>
-                            <CharacterBadge characterKey={c.key} />
-                          </td>
-                          <td>
-                            Lv. {c.level} (A{c.ascension})
-                          </td>
-                          <td>C{c.constellation}</td>
-                          <td>
-                            {c.talent.auto} / {c.talent.skill} / {c.talent.burst}
-                          </td>
-                          <td>
-                            {wep ? (
-                              <WeaponBadge
-                                weaponKey={wep.key}
-                                compact
-                                subtitle={`(Lv. ${wep.level} R${wep.refinement})`}
-                              />
-                            ) : (
-                              <span className="muted">—</span>
-                            )}
-                          </td>
-                          <td>
-                            {activeSets.length ? (
-                              <div className="preset-gear-row">
-                                {activeSets.map(([s, n]) => (
-                                  <ArtifactBadge
-                                    key={s}
-                                    setKey={s}
-                                    compact
-                                    subtitle={`(${n >= 4 ? 4 : 2}p)`}
-                                  />
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="muted">Rainbow / None</span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
+                    {displayedChars.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="muted"
+                          data-testid="import-characters-empty"
+                          style={{ textAlign: 'center', padding: '0.75rem' }}
+                        >
+                          {charSearch.trim()
+                            ? `No characters match “${charSearch}”.`
+                            : 'No characters found.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      displayedChars.map((c: ICharacter) => {
+                        const wep = weaponByChar.get(c.key)
+                        const sets = artSetsByChar.get(c.key) ?? {}
+                        const activeSets = Object.entries(sets).filter(
+                          ([, n]) => n >= 2
+                        )
+                        return (
+                          <tr key={c.key}>
+                            <td>
+                              <CharacterBadge characterKey={c.key} />
+                            </td>
+                            <td>
+                              Lv. {c.level} (A{c.ascension})
+                            </td>
+                            <td>C{c.constellation}</td>
+                            <td>
+                              {c.talent.auto} / {c.talent.skill} / {c.talent.burst}
+                            </td>
+                            <td>
+                              {wep ? (
+                                <WeaponBadge
+                                  weaponKey={wep.key}
+                                  compact
+                                  subtitle={`(Lv. ${wep.level} R${wep.refinement})`}
+                                />
+                              ) : (
+                                <span className="muted">—</span>
+                              )}
+                            </td>
+                            <td>
+                              {activeSets.length ? (
+                                <div className="preset-gear-row">
+                                  {activeSets.map(([s, n]) => (
+                                    <ArtifactBadge
+                                      key={s}
+                                      setKey={s}
+                                      compact
+                                      subtitle={`(${n >= 4 ? 4 : 2}p)`}
+                                    />
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="muted">Rainbow / None</span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -705,25 +750,43 @@ export default function ImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedWeapons.map((w: IWeapon) => (
-                      <tr key={w.id}>
-                        <td>
-                          <WeaponBadge weaponKey={w.key} />
+                    {displayedWeapons.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="muted"
+                          data-testid="import-weapons-empty"
+                          style={{ textAlign: 'center', padding: '0.75rem' }}
+                        >
+                          {weaponSearch.trim()
+                            ? `No weapons match “${weaponSearch}”.`
+                            : 'No weapons found.'}
                         </td>
-                        <td>
-                          Lv. {w.level} (A{w.ascension})
-                        </td>
-                        <td>R{w.refinement}</td>
-                        <td>
-                          {w.location ? (
-                            <CharacterBadge characterKey={w.location} compact />
-                          ) : (
-                            <span className="muted">Inventory</span>
-                          )}
-                        </td>
-                        <td>{w.lock ? '🔒' : ''}</td>
                       </tr>
-                    ))}
+                    ) : (
+                      displayedWeapons.map((w: IWeapon) => (
+                        <tr key={w.id}>
+                          <td>
+                            <WeaponBadge weaponKey={w.key} />
+                          </td>
+                          <td>
+                            Lv. {w.level} (A{w.ascension})
+                          </td>
+                          <td>R{w.refinement}</td>
+                          <td>
+                            {w.location ? (
+                              <CharacterBadge
+                                characterKey={w.location}
+                                compact
+                              />
+                            ) : (
+                              <span className="muted">Inventory</span>
+                            )}
+                          </td>
+                          <td>{w.lock ? '🔒' : ''}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -823,58 +886,71 @@ export default function ImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedArtifacts.map((a: IArtifact) => {
-                      const rvInfo = computeArtifactRollValue(a)
-                      return (
-                        <tr key={a.id}>
-                          <td>
-                            <ArtifactBadge
-                              setKey={a.setKey}
-                              slotKey={a.slotKey as IdentifierSlotKey}
-                              rarity={a.rarity}
-                              compact
-                            />
-                          </td>
-                          <td>
-                            <span className="gi-level-pill">+{a.level}</span>
-                          </td>
-                          <td>
-                            <ArtifactRvBadge rv={rvInfo} compact />
-                          </td>
-                          <td>
-                            <StatChip
-                              statKey={a.mainStatKey}
-                              isMain
-                              compact
-                            />
-                          </td>
-                          <td>
-                            <div className="preset-gear-row">
-                              {rvInfo.substats.map((s, sIdx) => (
-                                <StatChip
-                                  key={`${s.key}-${sIdx}`}
-                                  statKey={s.key}
-                                  value={s.value}
-                                  substatBreakdown={s}
-                                  compact
-                                />
-                              ))}
-                            </div>
-                          </td>
-                          <td>
-                            {a.location ? (
-                              <CharacterBadge
-                                characterKey={a.location}
+                    {displayedArtifacts.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="muted"
+                          data-testid="import-artifacts-empty"
+                          style={{ textAlign: 'center', padding: '0.75rem' }}
+                        >
+                          No artifacts match the active filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      displayedArtifacts.map((a: IArtifact) => {
+                        const rvInfo = computeArtifactRollValue(a)
+                        return (
+                          <tr key={a.id}>
+                            <td>
+                              <ArtifactBadge
+                                setKey={a.setKey}
+                                slotKey={a.slotKey as IdentifierSlotKey}
+                                rarity={a.rarity}
                                 compact
                               />
-                            ) : (
-                              <span className="muted">—</span>
-                            )}
-                          </td>
-                          <td>{a.lock ? '🔒' : ''}</td>
-                        </tr>
-                      )
-                    })}
+                            </td>
+                            <td>
+                              <span className="gi-level-pill">+{a.level}</span>
+                            </td>
+                            <td>
+                              <ArtifactRvBadge rv={rvInfo} compact />
+                            </td>
+                            <td>
+                              <StatChip
+                                statKey={a.mainStatKey}
+                                isMain
+                                compact
+                              />
+                            </td>
+                            <td>
+                              <div className="preset-gear-row">
+                                {rvInfo.substats.map((s, sIdx) => (
+                                  <StatChip
+                                    key={`${s.key}-${sIdx}`}
+                                    statKey={s.key}
+                                    value={s.value}
+                                    substatBreakdown={s}
+                                    compact
+                                  />
+                                ))}
+                              </div>
+                            </td>
+                            <td>
+                              {a.location ? (
+                                <CharacterBadge
+                                  characterKey={a.location}
+                                  compact
+                                />
+                              ) : (
+                                <span className="muted">—</span>
+                              )}
+                            </td>
+                            <td>{a.lock ? '🔒' : ''}</td>
+                          </tr>
+                        )
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>

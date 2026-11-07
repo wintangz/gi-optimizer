@@ -95,89 +95,109 @@ export function WeaponTilePicker({
         aria-label={ariaLabel}
         className="tile-picker-grid"
       >
-        {filtered.map((opt) => {
-          const meta = getWeaponMeta(opt.weaponKey)
-          const label = opt.label ?? meta.displayName
-          const isSelected = selectedIds
-            ? selectedIds.includes(opt.id)
-            : value === opt.id
-          const imageFailed = Boolean(failedKeys[opt.weaponKey])
-          const iconUrl = getCdnIconUrl(opt.weaponKey)
-          const borderWidth = isSelected ? 3 : 2
+        {filtered.length === 0 ? (
+          <div
+            className="muted"
+            data-testid="weapon-picker-empty"
+            style={{
+              gridColumn: '1 / -1',
+              fontSize: '0.8rem',
+              padding: '0.4rem',
+              textAlign: 'center',
+            }}
+          >
+            {search.trim()
+              ? `No weapons match “${search}”.`
+              : 'No weapons available.'}
+          </div>
+        ) : (
+          filtered.map((opt) => {
+            const meta = getWeaponMeta(opt.weaponKey)
+            const label = opt.label ?? meta.displayName
+            const isSelected = selectedIds
+              ? selectedIds.includes(opt.id)
+              : value === opt.id
+            const imageFailed = Boolean(failedKeys[opt.weaponKey])
+            const iconUrl = getCdnIconUrl(opt.weaponKey)
+            const borderWidth = isSelected ? 3 : 2
 
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              data-testid={`weapon-picker-tile-${opt.id}`}
-              data-weapon-key={opt.weaponKey}
-              data-rarity={String(meta.rarity)}
-              data-selected={isSelected ? 'true' : 'false'}
-              aria-pressed={isSelected}
-              aria-label={
-                opt.subcaption ? `${label} (${opt.subcaption})` : label
-              }
-              disabled={opt.disabled}
-              className={`tile-picker-item${isSelected ? ' is-selected' : ''}${
-                opt.disabled ? ' is-disabled' : ''
-              }`}
-              onClick={() => {
-                if (!opt.disabled) onChange(opt.id)
-              }}
-            >
-              {isSelected && (
-                <span
-                  data-testid="tile-selected-check"
-                  aria-hidden="true"
-                  className="tile-picker-check"
-                >
-                  ✓
-                </span>
-              )}
-              <span
-                className="tile-picker-frame"
-                style={{
-                  width: `${imageSize}px`,
-                  height: `${imageSize}px`,
-                  background: ITEM_DARK_SURFACE_BG,
-                  color: 'var(--fg)',
-                  border: `${borderWidth}px solid ${meta.rarityColor.border}`,
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                data-testid={`weapon-picker-tile-${opt.id}`}
+                data-weapon-key={opt.weaponKey}
+                data-rarity={String(meta.rarity)}
+                data-selected={isSelected ? 'true' : 'false'}
+                aria-pressed={isSelected}
+                aria-label={
+                  opt.subcaption ? `${label} (${opt.subcaption})` : label
+                }
+                disabled={opt.disabled}
+                className={`tile-picker-item${isSelected ? ' is-selected' : ''}${
+                  opt.disabled ? ' is-disabled' : ''
+                }`}
+                onClick={() => {
+                  if (!opt.disabled) onChange(opt.id)
                 }}
               >
-                {imageFailed ? (
-                  <WeaponTypeIcon
-                    weaponType={meta.weaponType}
-                    iconProps={{ size: Math.round(imageSize * 0.46) }}
-                  />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={iconUrl}
-                    alt={label}
-                    width={imageSize}
-                    height={imageSize}
-                    loading="lazy"
-                    decoding="async"
-                    onError={() =>
-                      setPickerState((prev) => ({
-                        search: typeof prev?.search === 'string' ? prev.search : '',
-                        failedKeys: {
-                          ...(prev?.failedKeys ?? {}),
-                          [opt.weaponKey]: true,
-                        },
-                      }))
-                    }
-                    className="tile-picker-img"
-                  />
+                {isSelected && (
+                  <span
+                    data-testid="tile-selected-check"
+                    aria-hidden="true"
+                    className="tile-picker-check"
+                  >
+                    ✓
+                  </span>
                 )}
-              </span>
-              <span className="tile-picker-caption">{label}</span>
-              {opt.subcaption && (
-                <span className="tile-picker-subcaption">{opt.subcaption}</span>
-              )}
-            </button>
-          )
-        })}
+                <span
+                  className="tile-picker-frame"
+                  style={{
+                    width: `${imageSize}px`,
+                    height: `${imageSize}px`,
+                    background: ITEM_DARK_SURFACE_BG,
+                    color: 'var(--fg)',
+                    border: `${borderWidth}px solid ${meta.rarityColor.border}`,
+                  }}
+                >
+                  {imageFailed ? (
+                    <WeaponTypeIcon
+                      weaponType={meta.weaponType}
+                      iconProps={{ size: Math.round(imageSize * 0.46) }}
+                    />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={iconUrl}
+                      alt={label}
+                      width={imageSize}
+                      height={imageSize}
+                      loading="lazy"
+                      decoding="async"
+                      onError={() =>
+                        setPickerState((prev) => ({
+                          search:
+                            typeof prev?.search === 'string' ? prev.search : '',
+                          failedKeys: {
+                            ...(prev?.failedKeys ?? {}),
+                            [opt.weaponKey]: true,
+                          },
+                        }))
+                      }
+                      className="tile-picker-img"
+                    />
+                  )}
+                </span>
+                <span className="tile-picker-caption">{label}</span>
+                {opt.subcaption && (
+                  <span className="tile-picker-subcaption">
+                    {opt.subcaption}
+                  </span>
+                )}
+              </button>
+            )
+          })
+        )}
       </div>
     </div>
   )
@@ -257,30 +277,98 @@ export function CharacterTilePicker({
         aria-label={ariaLabel}
         className="tile-picker-grid"
       >
-        {filtered.map((opt) => {
-          const isSelected = selectedKeys
-            ? selectedKeys.includes(opt.key)
-            : value === opt.key
-          const borderWidth = isSelected ? 3 : 2
+        {filtered.length === 0 ? (
+          <div
+            className="muted"
+            data-testid="character-picker-empty"
+            style={{
+              gridColumn: '1 / -1',
+              fontSize: '0.8rem',
+              padding: '0.4rem',
+              textAlign: 'center',
+            }}
+          >
+            {search.trim()
+              ? `No characters match “${search}”.`
+              : 'No characters available.'}
+          </div>
+        ) : (
+          filtered.map((opt) => {
+            const isSelected = selectedKeys
+              ? selectedKeys.includes(opt.key)
+              : value === opt.key
+            const borderWidth = isSelected ? 3 : 2
 
-          if (!opt.key) {
-            const allLabel = opt.label ?? 'All Characters'
-            const rc = getRarityColor(4)
+            if (!opt.key) {
+              const allLabel = opt.label ?? 'All Characters'
+              const rc = getRarityColor(4)
+              return (
+                <button
+                  key="__all__"
+                  type="button"
+                  data-testid="character-picker-tile-all"
+                  data-character-key=""
+                  data-selected={isSelected ? 'true' : 'false'}
+                  aria-pressed={isSelected}
+                  aria-label={allLabel}
+                  disabled={opt.disabled}
+                  className={`tile-picker-item${isSelected ? ' is-selected' : ''}${
+                    opt.disabled ? ' is-disabled' : ''
+                  }`}
+                  onClick={() => {
+                    if (!opt.disabled) onChange('')
+                  }}
+                >
+                  {isSelected && (
+                    <span
+                      data-testid="tile-selected-check"
+                      aria-hidden="true"
+                      className="tile-picker-check"
+                    >
+                      ✓
+                    </span>
+                  )}
+                  <span
+                    className="tile-picker-frame"
+                    style={{
+                      width: `${imageSize}px`,
+                      height: `${imageSize}px`,
+                      background: ITEM_DARK_SURFACE_BG,
+                      color: 'var(--fg)',
+                      border: `${borderWidth}px solid ${rc.border}`,
+                    }}
+                  >
+                    ALL
+                  </span>
+                  <span className="tile-picker-caption">{allLabel}</span>
+                </button>
+              )
+            }
+
+            const meta = getCharacterMeta(opt.key)
+            const effectiveRarity = opt.rarity ?? meta.rarity
+            const rc = getRarityColor(effectiveRarity)
+            const label = opt.label ?? meta.displayName
+            const imageFailed = Boolean(failedKeys[opt.key])
+            const iconUrl = getCdnIconUrl(opt.key)
+
             return (
               <button
-                key="__all__"
+                key={opt.key}
                 type="button"
-                data-testid="character-picker-tile-all"
-                data-character-key=""
+                data-testid={`character-picker-tile-${opt.key}`}
+                data-character-key={opt.key}
+                data-element={meta.element}
+                data-rarity={String(effectiveRarity)}
                 data-selected={isSelected ? 'true' : 'false'}
                 aria-pressed={isSelected}
-                aria-label={allLabel}
+                aria-label={label}
                 disabled={opt.disabled}
                 className={`tile-picker-item${isSelected ? ' is-selected' : ''}${
                   opt.disabled ? ' is-disabled' : ''
                 }`}
                 onClick={() => {
-                  if (!opt.disabled) onChange('')
+                  if (!opt.disabled) onChange(opt.key)
                 }}
               >
                 {isSelected && (
@@ -297,96 +385,48 @@ export function CharacterTilePicker({
                   style={{
                     width: `${imageSize}px`,
                     height: `${imageSize}px`,
-                    background: ITEM_DARK_SURFACE_BG,
-                    color: 'var(--fg)',
-                    border: `${borderWidth}px solid ${rc.border}`,
+                    background: meta.elementColor.bg,
+                    color: meta.elementColor.fg,
+                    border: imageFailed
+                      ? `${borderWidth}px dashed ${rc.border}`
+                      : `${borderWidth}px solid ${rc.border}`,
                   }}
                 >
-                  ALL
+                  {imageFailed ? (
+                    meta.initials
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={iconUrl}
+                      alt={label}
+                      width={imageSize}
+                      height={imageSize}
+                      loading="lazy"
+                      decoding="async"
+                      onError={() =>
+                        setPickerState((prev) => ({
+                          search:
+                            typeof prev?.search === 'string' ? prev.search : '',
+                          failedKeys: {
+                            ...(prev?.failedKeys ?? {}),
+                            [opt.key]: true,
+                          },
+                        }))
+                      }
+                      className="tile-picker-img-cover"
+                    />
+                  )}
                 </span>
-                <span className="tile-picker-caption">{allLabel}</span>
+                <span className="tile-picker-caption">{label}</span>
+                {opt.subcaption && (
+                  <span className="tile-picker-subcaption">
+                    {opt.subcaption}
+                  </span>
+                )}
               </button>
             )
-          }
-
-          const meta = getCharacterMeta(opt.key)
-          const effectiveRarity = opt.rarity ?? meta.rarity
-          const rc = getRarityColor(effectiveRarity)
-          const label = opt.label ?? meta.displayName
-          const imageFailed = Boolean(failedKeys[opt.key])
-          const iconUrl = getCdnIconUrl(opt.key)
-
-          return (
-            <button
-              key={opt.key}
-              type="button"
-              data-testid={`character-picker-tile-${opt.key}`}
-              data-character-key={opt.key}
-              data-element={meta.element}
-              data-rarity={String(effectiveRarity)}
-              data-selected={isSelected ? 'true' : 'false'}
-              aria-pressed={isSelected}
-              aria-label={label}
-              disabled={opt.disabled}
-              className={`tile-picker-item${isSelected ? ' is-selected' : ''}${
-                opt.disabled ? ' is-disabled' : ''
-              }`}
-              onClick={() => {
-                if (!opt.disabled) onChange(opt.key)
-              }}
-            >
-              {isSelected && (
-                <span
-                  data-testid="tile-selected-check"
-                  aria-hidden="true"
-                  className="tile-picker-check"
-                >
-                  ✓
-                </span>
-              )}
-              <span
-                className="tile-picker-frame"
-                style={{
-                  width: `${imageSize}px`,
-                  height: `${imageSize}px`,
-                  background: meta.elementColor.bg,
-                  color: meta.elementColor.fg,
-                  border: imageFailed
-                    ? `${borderWidth}px dashed ${rc.border}`
-                    : `${borderWidth}px solid ${rc.border}`,
-                }}
-              >
-                {imageFailed ? (
-                  meta.initials
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={iconUrl}
-                    alt={label}
-                    width={imageSize}
-                    height={imageSize}
-                    loading="lazy"
-                    decoding="async"
-                    onError={() =>
-                      setPickerState((prev) => ({
-                        search: typeof prev?.search === 'string' ? prev.search : '',
-                        failedKeys: {
-                          ...(prev?.failedKeys ?? {}),
-                          [opt.key]: true,
-                        },
-                      }))
-                    }
-                    className="tile-picker-img-cover"
-                  />
-                )}
-              </span>
-              <span className="tile-picker-caption">{label}</span>
-              {opt.subcaption && (
-                <span className="tile-picker-subcaption">{opt.subcaption}</span>
-              )}
-            </button>
-          )
-        })}
+          })
+        )}
       </div>
     </div>
   )
@@ -492,74 +532,94 @@ export function ArtifactSetTilePicker({
           </button>
         )}
 
-        {filtered.map((sk) => {
-          const meta = getArtifactMeta({ setKey: sk, slotKey: 'flower' })
-          const isSelected = value === sk
-          const imageFailed = Boolean(failedKeys[sk])
-          const iconUrl = getCdnArtifactIconUrl(sk, 'flower')
-          const borderWidth = isSelected ? 3 : 2
+        {filtered.length === 0 ? (
+          <div
+            className="muted"
+            data-testid="artifact-set-picker-empty"
+            style={{
+              gridColumn: '1 / -1',
+              fontSize: '0.8rem',
+              padding: '0.4rem',
+              textAlign: 'center',
+            }}
+          >
+            {search.trim()
+              ? `No artifact sets match “${search}”.`
+              : 'No artifact sets available.'}
+          </div>
+        ) : (
+          filtered.map((sk) => {
+            const meta = getArtifactMeta({ setKey: sk, slotKey: 'flower' })
+            const isSelected = value === sk
+            const imageFailed = Boolean(failedKeys[sk])
+            const iconUrl = getCdnArtifactIconUrl(sk, 'flower')
+            const borderWidth = isSelected ? 3 : 2
 
-          return (
-            <button
-              key={sk}
-              type="button"
-              data-testid={`artifact-set-picker-tile-${sk}`}
-              data-artifact-set={sk}
-              data-rarity={String(meta.rarity)}
-              data-selected={isSelected ? 'true' : 'false'}
-              aria-pressed={isSelected}
-              aria-label={meta.setDisplayName}
-              title={meta.setDisplayName}
-              className={`tile-picker-item${isSelected ? ' is-selected' : ''}`}
-              onClick={() => onChange(sk)}
-            >
-              {isSelected && (
-                <span
-                  data-testid="tile-selected-check"
-                  aria-hidden="true"
-                  className="tile-picker-check"
-                >
-                  ✓
-                </span>
-              )}
-              <span
-                className="tile-picker-frame"
-                style={{
-                  width: `${imageSize}px`,
-                  height: `${imageSize}px`,
-                  background: ITEM_DARK_SURFACE_BG,
-                  color: 'var(--fg)',
-                  border: `${borderWidth}px solid ${meta.rarityColor.border}`,
-                }}
+            return (
+              <button
+                key={sk}
+                type="button"
+                data-testid={`artifact-set-picker-tile-${sk}`}
+                data-artifact-set={sk}
+                data-rarity={String(meta.rarity)}
+                data-selected={isSelected ? 'true' : 'false'}
+                aria-pressed={isSelected}
+                aria-label={meta.setDisplayName}
+                title={meta.setDisplayName}
+                className={`tile-picker-item${isSelected ? ' is-selected' : ''}`}
+                onClick={() => onChange(sk)}
               >
-                {imageFailed ? (
-                  <SetEmblemIcon size={Math.round(imageSize * 0.46)} />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={iconUrl}
-                    alt={meta.setDisplayName}
-                    width={imageSize}
-                    height={imageSize}
-                    loading="lazy"
-                    decoding="async"
-                    onError={() =>
-                      setPickerState((prev) => ({
-                        search: typeof prev?.search === 'string' ? prev.search : '',
-                        failedKeys: {
-                          ...(prev?.failedKeys ?? {}),
-                          [sk]: true,
-                        },
-                      }))
-                    }
-                    className="tile-picker-img"
-                  />
+                {isSelected && (
+                  <span
+                    data-testid="tile-selected-check"
+                    aria-hidden="true"
+                    className="tile-picker-check"
+                  >
+                    ✓
+                  </span>
                 )}
-              </span>
-              <span className="tile-picker-caption">{meta.setDisplayName}</span>
-            </button>
-          )
-        })}
+                <span
+                  className="tile-picker-frame"
+                  style={{
+                    width: `${imageSize}px`,
+                    height: `${imageSize}px`,
+                    background: ITEM_DARK_SURFACE_BG,
+                    color: 'var(--fg)',
+                    border: `${borderWidth}px solid ${meta.rarityColor.border}`,
+                  }}
+                >
+                  {imageFailed ? (
+                    <SetEmblemIcon size={Math.round(imageSize * 0.46)} />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={iconUrl}
+                      alt={meta.setDisplayName}
+                      width={imageSize}
+                      height={imageSize}
+                      loading="lazy"
+                      decoding="async"
+                      onError={() =>
+                        setPickerState((prev) => ({
+                          search:
+                            typeof prev?.search === 'string' ? prev.search : '',
+                          failedKeys: {
+                            ...(prev?.failedKeys ?? {}),
+                            [sk]: true,
+                          },
+                        }))
+                      }
+                      className="tile-picker-img"
+                    />
+                  )}
+                </span>
+                <span className="tile-picker-caption">
+                  {meta.setDisplayName}
+                </span>
+              </button>
+            )
+          })
+        )}
       </div>
     </div>
   )

@@ -457,4 +457,186 @@ describe('ImportPage (import-table-honesty)', () => {
       globalThis.FileReader = OriginalFileReader
     }
   })
+
+  it('responsive-and-small-fixes: import dropzone is clickable as a whole and shows a visible drag-over state', () => {
+    mockRecord = null
+    let tree = renderPass()
+
+    const dropzone = findAllElements(
+      tree,
+      (el) => el.props['data-testid'] === 'import-dropzone'
+    )[0]!
+    expect(dropzone).toBeDefined()
+    expect(dropzone.props.className).toBe('gi-dropzone')
+    expect(dropzone.props['data-drag-over']).toBe('false')
+
+    // Wire a spy onto inputRef.current.click
+    const clickSpy = vi.fn()
+    hookStore.refs[0]!.current = { click: clickSpy }
+    ;(
+      dropzone.props.onClick as (e: {
+        target: unknown
+        currentTarget: unknown
+      }) => void
+    )({
+      target: dropzone,
+      currentTarget: dropzone,
+    })
+    expect(clickSpy).toHaveBeenCalledTimes(1)
+
+    // Drag over -> sets is-drag-over class and data-drag-over="true"
+    ;(
+      dropzone.props.onDragOver as (e: { preventDefault: () => void }) => void
+    )({ preventDefault: () => {} })
+    tree = renderPass()
+    const dragDropzone = findAllElements(
+      tree,
+      (el) => el.props['data-testid'] === 'import-dropzone'
+    )[0]!
+    expect(dragDropzone.props.className).toBe('gi-dropzone is-drag-over')
+    expect(dragDropzone.props['data-drag-over']).toBe('true')
+
+    // Drag leave -> clears is-drag-over
+    ;(
+      dragDropzone.props.onDragLeave as (e: {
+        preventDefault: () => void
+      }) => void
+    )({ preventDefault: () => {} })
+    tree = renderPass()
+    const afterLeave = findAllElements(
+      tree,
+      (el) => el.props['data-testid'] === 'import-dropzone'
+    )[0]!
+    expect(afterLeave.props.className).toBe('gi-dropzone')
+    expect(afterLeave.props['data-drag-over']).toBe('false')
+  })
+
+  it('responsive-and-small-fixes: zero-match searches in character, weapon, and artifact tables show a no-matches message', () => {
+    mockRecord = {
+      importedAt: '2026-11-08T00:00:00.000Z',
+      fileName: 'account.json',
+      source: 'Irminsul',
+      good: {
+        format: 'GOOD',
+        version: 3,
+        source: 'Irminsul',
+        characters: [
+          {
+            key: 'Furina',
+            level: 90,
+            constellation: 0,
+            ascension: 6,
+            talent: { auto: 1, skill: 10, burst: 10 },
+          },
+        ],
+        weapons: [
+          {
+            id: 'wep_1',
+            key: 'FavoniusSword',
+            level: 90,
+            ascension: 6,
+            refinement: 5,
+            location: 'Furina',
+            lock: true,
+          },
+        ],
+        artifacts: [
+          {
+            id: 'art_1',
+            setKey: 'GoldenTroupe',
+            slotKey: 'flower',
+            level: 20,
+            rarity: 5,
+            mainStatKey: 'hp',
+            location: 'Furina',
+            lock: true,
+            substats: [{ key: 'critRate_', value: 3.9 }],
+          },
+        ],
+      },
+    }
+
+    // 1. Characters tab zero-match search
+    let tree = renderPass()
+    const charSearchInput = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'input' && el.props['aria-label'] === 'Search characters'
+    )[0]!
+    ;(
+      charSearchInput.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: 'zzzz-no-char' } })
+    tree = renderPass()
+    const charEmpty = findAllElements(
+      tree,
+      (el) => el.props['data-testid'] === 'import-characters-empty'
+    )[0]!
+    expect(charEmpty).toBeDefined()
+    expect(collectText(charEmpty.children)).toContain(
+      'No characters match “zzzz-no-char”.'
+    )
+
+    // 2. Weapons tab zero-match search
+    const weaponsTabBtn = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'button' &&
+        el.props.role === 'tab' &&
+        collectText(el.children).includes('Weapons (1)')
+    )[0]!
+    ;(weaponsTabBtn.props.onClick as () => void)()
+    tree = renderPass()
+    const wepSearchInput = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'input' && el.props['aria-label'] === 'Search weapons'
+    )[0]!
+    ;(
+      wepSearchInput.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: 'zzzz-no-weapon' } })
+    tree = renderPass()
+    const wepEmpty = findAllElements(
+      tree,
+      (el) => el.props['data-testid'] === 'import-weapons-empty'
+    )[0]!
+    expect(wepEmpty).toBeDefined()
+    expect(collectText(wepEmpty.children)).toContain(
+      'No weapons match “zzzz-no-weapon”.'
+    )
+
+    // 3. Artifacts tab zero-match filter
+    const artifactsTabBtn = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'button' &&
+        el.props.role === 'tab' &&
+        collectText(el.children).includes('Artifacts (1)')
+    )[0]!
+    ;(artifactsTabBtn.props.onClick as () => void)()
+    tree = renderPass()
+    const slotFilterSelect = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'select' &&
+        el.props['aria-label'] === 'Filter artifacts by slot'
+    )[0]!
+    ;(
+      slotFilterSelect.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: 'circlet' } })
+    tree = renderPass()
+    const artEmpty = findAllElements(
+      tree,
+      (el) => el.props['data-testid'] === 'import-artifacts-empty'
+    )[0]!
+    expect(artEmpty).toBeDefined()
+    expect(collectText(artEmpty.children)).toContain(
+      'No artifacts match the active filters.'
+    )
+  })
 })

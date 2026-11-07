@@ -1113,4 +1113,29 @@ describe('Deferred Engine Start on Custom Teams Page (teams-deferred-start)', ()
       )
     ).toHaveLength(0)
   })
+
+  it('responsive-and-small-fixes: Teams editor Save button uses SaveIcon distinct from Export JSON DownloadIcon', () => {
+    const teamsTree = renderPass()
+    const saveBtn = findAllElements(
+      teamsTree,
+      (el) => el.props['data-testid'] === 'teams-save-btn'
+    )[0]!
+    const exportBtn = findAllElements(
+      teamsTree,
+      (el) => el.props['data-testid'] === 'teams-export-json-btn'
+    )[0]!
+    expect(saveBtn).toBeDefined()
+    expect(exportBtn).toBeDefined()
+
+    const saveIcons = findAllElements(
+      saveBtn.children,
+      (el) => el.type === 'svg' && el.props['data-gi-icon'] === 'SaveIcon'
+    )
+    const exportIcons = findAllElements(
+      exportBtn.children,
+      (el) => el.type === 'svg' && el.props['data-gi-icon'] === 'DownloadIcon'
+    )
+    expect(saveIcons).toHaveLength(1)
+    expect(exportIcons).toHaveLength(1)
+  })
 })

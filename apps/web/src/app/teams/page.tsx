@@ -21,6 +21,7 @@ import {
   CopyIcon,
   DownloadIcon,
   PlayIcon,
+  SaveIcon,
   TrashIcon,
   UploadIcon,
   type GiElementWithPhyKey,
@@ -597,14 +598,16 @@ function TeamsInner() {
           <button
             type="button"
             className="btn-primary btn-icon"
+            data-testid="teams-save-btn"
             onClick={() => void handleSavePreset(false)}
           >
-            <DownloadIcon size={15} />
+            <SaveIcon size={15} />
             <span>Save</span>
           </button>
           <button
             type="button"
             className="btn-secondary btn-icon"
+            data-testid="teams-save-copy-btn"
             onClick={() => void handleSavePreset(true)}
           >
             <CopyIcon size={15} />
@@ -613,6 +616,7 @@ function TeamsInner() {
           <button
             type="button"
             className="btn-secondary btn-icon"
+            data-testid="teams-export-json-btn"
             onClick={handleExportJson}
           >
             <DownloadIcon size={15} />
