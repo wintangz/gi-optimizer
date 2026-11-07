@@ -2336,4 +2336,137 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       'class="error" data-testid="weapon-compare-unmet-SplendorOfTranquilWaters"'
     )
   })
+
+  it('styles team-wide member rows according to each member actual outcome rather than giving every non-skipped member is-best and ok styling (team-result-status)', () => {
+    const preset = getBundledPreset('official/neuvillette-hypercarry')!
+    const multiPreset = {
+      ...preset,
+      rotation: {
+        ...preset.rotation,
+        targets: [
+          {
+            ...preset.rotation.targets[0]!,
+            memberKey: 'Neuvillette',
+          },
+          {
+            label: 'Surintendante Chevalmarine',
+            memberKey: 'Furina',
+            path: ['skill', 'chevalmarineDmg'],
+            count: 6,
+          },
+          {
+            label: 'Kazuha Slash',
+            memberKey: 'KaedeharaKazuha',
+            path: ['burst', 'dmg'],
+            count: 1,
+          },
+        ],
+      },
+    }
+
+    const html = renderToStaticMarkup(
+      <TeamOptimizationList
+        preset={multiPreset}
+        artifactById={new Map()}
+        result={{
+          teamTotal: 1320000,
+          currentTeamTotal: 1300000,
+          testedCombinations: 100,
+          durationMs: 25,
+          members: [
+            // Slot 1: Improved (+10.0%) -> earns is-best / comp-rank-best and ok subtotal
+            {
+              memberKey: 'Neuvillette',
+              memberIndex: 0,
+              skippedSolver: false,
+              rotationRowCount: 1,
+              selection: { artifactIds: {} },
+              currentSelection: { artifactIds: {} },
+              subtotal: 990000,
+              currentSubtotal: 900000,
+              evaluation: { total: 990000, stats: {}, instances: [] },
+              currentEvaluation: null,
+              tested: 50,
+              skipped: 0,
+              durationMs: 10,
+            },
+            // Slot 2: Decreased (-10.0%) -> no is-best / comp-rank-best, muted subtotal and muted delta
+            {
+              memberKey: 'Furina',
+              memberIndex: 1,
+              skippedSolver: false,
+              rotationRowCount: 1,
+              selection: { artifactIds: {} },
+              currentSelection: { artifactIds: {} },
+              subtotal: 270000,
+              currentSubtotal: 300000,
+              evaluation: { total: 270000, stats: {}, instances: [] },
+              currentEvaluation: null,
+              tested: 30,
+              skipped: 0,
+              durationMs: 10,
+            },
+            // Slot 3: Unchanged (0.0%) -> no is-best / comp-rank-best, neutral subtotal, muted delta
+            {
+              memberKey: 'KaedeharaKazuha',
+              memberIndex: 2,
+              skippedSolver: false,
+              rotationRowCount: 1,
+              selection: { artifactIds: {} },
+              currentSelection: { artifactIds: {} },
+              subtotal: 60000,
+              currentSubtotal: 60000,
+              evaluation: { total: 60000, stats: {}, instances: [] },
+              currentEvaluation: null,
+              tested: 20,
+              skipped: 0,
+              durationMs: 5,
+            },
+          ],
+        }}
+      />
+    )
+
+    // Improved member (Neuvillette) earns is-best and ok
+    expect(html).toContain(
+      'data-testid="team-opt-member-Neuvillette" data-member-key="Neuvillette" data-skipped-solver="false" data-member-status="improved" data-member-delta-sign="+"'
+    )
+    expect(html).toContain(
+      'class="comp-rank-pill comp-rank-best is-best" data-testid="team-opt-rank-Neuvillette">SLOT 1<'
+    )
+    expect(html).toContain(
+      'class="comp-row-total ok" data-testid="team-opt-subtotal-Neuvillette">990,000<'
+    )
+    expect(html).toContain(
+      'class="comp-row-delta ok" data-testid="team-opt-member-delta-Neuvillette" data-delta-sign="+">+10.0%<'
+    )
+
+    // Decreased member (Furina) does NOT get is-best or ok; gets neutral rank pill and muted subtotal + delta
+    expect(html).toContain(
+      'data-testid="team-opt-member-Furina" data-member-key="Furina" data-skipped-solver="false" data-member-status="decreased" data-member-delta-sign="-"'
+    )
+    expect(html).toContain(
+      'class="comp-rank-pill" data-testid="team-opt-rank-Furina">SLOT 2<'
+    )
+    expect(html).toContain(
+      'class="comp-row-total muted" data-testid="team-opt-subtotal-Furina">270,000<'
+    )
+    expect(html).toContain(
+      'class="comp-row-delta muted" data-testid="team-opt-member-delta-Furina" data-delta-sign="-">−10.0%<'
+    )
+
+    // Unchanged member (KaedeharaKazuha) does NOT get is-best or ok; gets neutral rank pill and neutral subtotal
+    expect(html).toContain(
+      'data-testid="team-opt-member-KaedeharaKazuha" data-member-key="KaedeharaKazuha" data-skipped-solver="false" data-member-status="unchanged" data-member-delta-sign="0"'
+    )
+    expect(html).toContain(
+      'class="comp-rank-pill" data-testid="team-opt-rank-KaedeharaKazuha">SLOT 3<'
+    )
+    expect(html).toContain(
+      'class="comp-row-total" data-testid="team-opt-subtotal-KaedeharaKazuha">60,000<'
+    )
+    expect(html).toContain(
+      'class="comp-row-delta muted" data-testid="team-opt-member-delta-KaedeharaKazuha" data-delta-sign="0">0.0%<'
+    )
+  })
 })

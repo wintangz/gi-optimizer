@@ -3227,6 +3227,12 @@ export function TeamOptimizationList({
     result.teamTotal,
     result.currentTeamTotal
   )
+  const isTeamImproved = teamDelta.sign === '+'
+  const teamStatus = isTeamImproved
+    ? 'improved'
+    : teamDelta.sign === '-'
+      ? 'decreased'
+      : 'unchanged'
 
   return (
     <div
@@ -3235,18 +3241,36 @@ export function TeamOptimizationList({
       aria-label="Team Optimization Results"
     >
       <div
-        className="comp-row is-best team-opt-summary-banner"
+        className={`comp-row${
+          isTeamImproved ? ' comp-row-best is-best' : ''
+        } team-opt-summary-banner`}
         data-testid="team-opt-summary-banner"
+        data-team-status={teamStatus}
       >
         <div className="comp-row-summary">
           <div className="comp-row-main">
             <div className="comp-row-rank">
-              <span className="comp-rank-pill is-best">TEAM TOTAL</span>
-              <span className="comp-best-tag">Disjoint 5pc Assignment</span>
+              <span
+                className={`comp-rank-pill${
+                  isTeamImproved ? ' comp-rank-best is-best' : ''
+                }`}
+                data-testid="team-opt-banner-pill"
+              >
+                TEAM TOTAL
+              </span>
+              <span className={isTeamImproved ? 'comp-best-tag' : 'muted'}>
+                Disjoint 5pc Assignment
+              </span>
             </div>
             <div className="comp-row-metrics">
               <strong
-                className="comp-row-total ok"
+                className={`comp-row-total${
+                  isTeamImproved
+                    ? ' ok'
+                    : teamDelta.sign === '-'
+                      ? ' muted'
+                      : ''
+                }`}
                 data-testid="team-opt-total"
               >
                 {formatNum(result.teamTotal)}
@@ -3306,13 +3330,24 @@ export function TeamOptimizationList({
           )
         }
 
+        const isMemberImproved = memberDelta.sign === '+'
+        const memberStatus = isMemberImproved
+          ? 'improved'
+          : memberDelta.sign === '-'
+            ? 'decreased'
+            : 'unchanged'
+
         return (
           <div
             key={mKey}
-            className="comp-row team-opt-member-row"
+            className={`comp-row team-opt-member-row${
+              isMemberImproved ? ' comp-row-best is-best' : ''
+            }`}
             data-testid={`team-opt-member-${mKey}`}
             data-member-key={mKey}
             data-skipped-solver="false"
+            data-member-status={memberStatus}
+            data-member-delta-sign={memberDelta.sign}
           >
             <div
               className="comp-row-summary"
@@ -3322,7 +3357,12 @@ export function TeamOptimizationList({
             >
               <div className="comp-row-main">
                 <div className="comp-row-rank">
-                  <span className="comp-rank-pill is-best">
+                  <span
+                    className={`comp-rank-pill${
+                      isMemberImproved ? ' comp-rank-best is-best' : ''
+                    }`}
+                    data-testid={`team-opt-rank-${mKey}`}
+                  >
                     SLOT {memberRes.memberIndex + 1}
                   </span>
                   <CharacterBadge characterKey={mKey} compact />
@@ -3334,7 +3374,13 @@ export function TeamOptimizationList({
 
                 <div className="comp-row-metrics">
                   <strong
-                    className="comp-row-total ok"
+                    className={`comp-row-total${
+                      isMemberImproved
+                        ? ' ok'
+                        : memberDelta.sign === '-'
+                          ? ' muted'
+                          : ''
+                    }`}
                     data-testid={`team-opt-subtotal-${mKey}`}
                   >
                     {formatNum(memberRes.subtotal)}

@@ -849,7 +849,8 @@ td {
   transition: border-color 120ms ease;
 }
 
-.comp-row-best {
+.comp-row-best,
+.comp-row.is-best {
   border-color: var(--ok);
   background: linear-gradient(
     180deg,
@@ -898,7 +899,8 @@ td {
   border: 1px solid var(--border);
 }
 
-.comp-rank-best {
+.comp-rank-best,
+.comp-rank-pill.is-best {
   background: rgba(76, 195, 138, 0.18);
   color: var(--ok);
   border-color: rgba(76, 195, 138, 0.5);
