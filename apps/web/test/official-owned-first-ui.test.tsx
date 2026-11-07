@@ -530,4 +530,32 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     ).toContain('Default Weapon')
     expect(findByTestId(tree4, 'reset-target-weapon-btn')).toBeUndefined()
   })
+
+  it('orders sections top-to-bottom: Team & Buffs/Passives -> Weapon Selection -> Artifact Settings & Stat Constraints -> Optimize & Results (optimize-page-section-order)', () => {
+    const tree = renderPass()
+    const orderedTestIds = findAll(
+      tree,
+      (n) => typeof n.props['data-testid'] === 'string'
+    ).map((n) => n.props['data-testid'] as string)
+
+    const idxTeamRoster = orderedTestIds.indexOf('preset-team-roster')
+    const idxBuffsPanel = orderedTestIds.indexOf('conditional-toggle-panel')
+    const idxWeaponModeBar = orderedTestIds.indexOf('optimize-weapon-mode-bar')
+    const idxWeaponPicker = orderedTestIds.indexOf(
+      'official-target-weapon-picker'
+    )
+    const idxFilterPair = orderedTestIds.indexOf('optimize-filter-panels-pair')
+    const idxConstraintsCard = orderedTestIds.indexOf('constraints-card')
+    const idxResultsCard = orderedTestIds.indexOf('results-card')
+    const idxRunOptimizeBtn = orderedTestIds.indexOf('run-optimize-btn')
+
+    expect(idxTeamRoster).toBeGreaterThanOrEqual(0)
+    expect(idxBuffsPanel).toBeGreaterThan(idxTeamRoster)
+    expect(idxWeaponModeBar).toBeGreaterThan(idxBuffsPanel)
+    expect(idxWeaponPicker).toBeGreaterThan(idxWeaponModeBar)
+    expect(idxFilterPair).toBeGreaterThan(idxWeaponPicker)
+    expect(idxConstraintsCard).toBeGreaterThan(idxFilterPair)
+    expect(idxResultsCard).toBeGreaterThan(idxConstraintsCard)
+    expect(idxRunOptimizeBtn).toBeGreaterThan(idxResultsCard)
+  })
 })

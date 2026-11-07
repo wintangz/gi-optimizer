@@ -1117,9 +1117,39 @@ function OptimizeInner() {
         )}
 
         {activePreset && <PresetRotationSummary preset={activePreset} />}
+      </section>
 
-        {/* Weapon Mode Switcher: Single Weapon vs Compare Weapons */}
-        {activePreset && (
+      {/* 1b. BUFFS & PASSIVES PANEL */}
+      {activePreset && (
+        <ConditionalTogglePanel
+          preset={activePreset}
+          settings={settings}
+          onChangeSettings={(next) => {
+            void updateSettings(next)
+            setOptResult(null)
+            setOptimisedEvals([])
+          }}
+          good={record?.good}
+          activeTargetWeaponKey={
+            targetWeaponOverrideSpec?.key ??
+            displayedTargetWeaponSpec?.key ??
+            record?.good.weapons.find((w) => w.id === effectiveWeaponId)
+              ?.key ??
+            record?.good.weapons.find(
+              (w) => w.location === activePreset.target
+            )?.key
+          }
+        />
+      )}
+
+      {/* 2. WEAPON SELECTION CARD */}
+      {activePreset && (
+        <section
+          className="panel gi-card"
+          data-testid="weapon-selection-card"
+          aria-label="Weapon Selection"
+        >
+          {/* Weapon Mode Switcher: Single Weapon vs Compare Weapons */}
           <div
             className="weapon-compare-mode-bar"
             data-testid="optimize-weapon-mode-bar"
@@ -1160,244 +1190,249 @@ function OptimizeInner() {
               Optimize Team
             </button>
           </div>
-        )}
 
-        {activePreset && optimizeMode === 'compare' && (
-          <WeaponComparisonPanel
-            targetCharacterKey={activePreset.target}
-            good={record?.good}
-            selectedCandidates={activeCompareCandidates}
-            onChangeCandidates={(next) => {
-              setCompareCandidatesByPreset((prev) => ({
-                ...prev,
-                [activePreset.id]: next,
-              }))
-              setCompareResult(null)
-            }}
-          />
-        )}
-
-        {/* Target Weapon Selector (Akasha & Official Presets) */}
-        {optimizeMode === 'single' &&
-          activePreset &&
-          hasTargetWeaponPicker &&
-          displayedTargetWeaponSpec && (
-            <div
-              className="preset-akasha-box"
-              data-testid={
-                isAkashaPreset
-                  ? 'akasha-weapon-picker-box'
-                  : 'official-target-weapon-picker'
-              }
-            >
-              {isAkashaPreset && activePreset.team[0]?.build.type === 'fixed' ? (
-                <>
-                  <div className="preset-akasha-top">
-                    <strong>
-                      Akasha Artifact-Only Mode — Fixed Target &amp; Free Weapon
-                      Selector
-                    </strong>
-                    <span
-                      className="ok"
-                      style={{ fontSize: '0.82rem', fontWeight: 600 }}
-                    >
-                      ✓ Fixed Spec: {displayName(activePreset.target)} Lv.
-                      {activePreset.team[0].build.character.level} C
-                      {activePreset.team[0].build.character.constellation}{' '}
-                      (Talents{' '}
-                      {activePreset.team[0].build.character.talent.auto}/
-                      {activePreset.team[0].build.character.talent.skill}/
-                      {activePreset.team[0].build.character.talent.burst})
-                    </span>
-                  </div>
-
-                  <div className="muted preset-akasha-desc">
-                    Artifact-only mode: fixed character stats &amp; simulated
-                    weapon; only your imported GOOD artifacts are used.
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="preset-akasha-top">
-                    <strong>
-                      Target Weapon Selector — {displayName(activePreset.target)}
-                    </strong>
-                    <div
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                      }}
-                    >
-                      <span
-                        className={targetWeaponOverrideSpec ? 'warn' : 'ok'}
-                        data-testid="target-weapon-mode-status"
-                        style={{ fontSize: '0.82rem', fontWeight: 600 }}
-                      >
-                        {targetWeaponOverrideSpec
-                          ? `Override: ${displayName(targetWeaponOverrideSpec.key)} R${targetWeaponOverrideSpec.refinement}`
-                          : '✓ Default Weapon'}
-                      </span>
-                      {targetWeaponOverrideSpec && (
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          data-testid="reset-target-weapon-btn"
-                          style={{
-                            fontSize: '0.75rem',
-                            padding: '0.16rem 0.48rem',
-                          }}
-                          onClick={() => {
-                            setAkashaWeaponByPreset((prev) => {
-                              const next = { ...prev }
-                              delete next[activePreset.id]
-                              return next
-                            })
-                            setOptResult(null)
-                            setOptimisedEvals([])
-                          }}
-                        >
-                          Reset to Default
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="muted preset-akasha-desc">
-                    Choose any{' '}
-                    {getCharacterMeta(activePreset.target).weaponType} (owned or
-                    simulated) and refinement for{' '}
-                    {displayName(activePreset.target)}; both the Current build
-                    baseline and the optimizer use the selected weapon.
-                  </div>
-                </>
-              )}
-
-              <div className="preset-akasha-controls">
-                <WeaponBadge
-                  weaponKey={displayedTargetWeaponSpec.key}
-                  subtitle={`R${displayedTargetWeaponSpec.refinement} · Lv.${displayedTargetWeaponSpec.level ?? 90}`}
-                />
-
-                <label className="presets-filter-label-sm">
-                  <span className="muted">Refinement:</span>
-                  <select
-                    aria-label="Weapon Refinement"
-                    data-testid="target-weapon-refinement-select"
-                    value={displayedTargetWeaponSpec.refinement}
-                    disabled={
-                      getWeaponMeta(displayedTargetWeaponSpec.key).rarity <= 2
-                    }
-                    onChange={(e) => {
-                      const nextRef = Number(e.target.value)
-                      setAkashaWeaponByPreset((prev) => ({
-                        ...prev,
-                        [activePreset.id]: {
-                          key: displayedTargetWeaponSpec.key,
-                          refinement: nextRef,
-                        },
-                      }))
-                      setOptResult(null)
-                      setOptimisedEvals([])
-                    }}
-                  >
-                    {[1, 2, 3, 4, 5].map((r) => (
-                      <option key={r} value={r}>
-                        R{r}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <WeaponTilePicker
-                ariaLabel="Simulated Weapon"
-                value={displayedTargetWeaponSpec.key}
-                options={availableAkashaWeapons.map((w) => ({
-                  id: w.key,
-                  weaponKey: w.key,
-                  label: w.displayName,
-                }))}
-                onChange={(nextKey) => {
-                  const meta = getWeaponMeta(nextKey)
-                  const nextRef =
-                    meta.rarity <= 2
-                      ? 1
-                      : displayedTargetWeaponSpec.refinement
-                  setAkashaWeaponByPreset((prev) => ({
-                    ...prev,
-                    [activePreset.id]: {
-                      key: nextKey,
-                      refinement: nextRef,
-                    },
-                  }))
-                  setOptResult(null)
-                  setOptimisedEvals([])
-                }}
-              />
-            </div>
+          {optimizeMode === 'compare' && (
+            <WeaponComparisonPanel
+              targetCharacterKey={activePreset.target}
+              good={record?.good}
+              selectedCandidates={activeCompareCandidates}
+              onChangeCandidates={(next) => {
+                setCompareCandidatesByPreset((prev) => ({
+                  ...prev,
+                  [activePreset.id]: next,
+                }))
+                setCompareResult(null)
+              }}
+            />
           )}
 
-        {optimizeMode === 'single' &&
-          activePreset &&
-          !isAkashaPreset &&
-          matchReport && (
-          <div className="preset-match-box">
-            <div className="preset-akasha-top">
-              <strong>
-                Target Character &amp; Weapon Check:{' '}
-                <span className={matchReport.canRun ? 'ok' : 'error'}>
-                  {matchReport.canRun
-                    ? `Ready (${displayName(activePreset.target)})`
-                    : 'Target Character / Weapon Requirements Not Met'}
-                </span>
-              </strong>
-              <span className="muted" style={{ fontSize: '0.82rem' }}>
-                Simulated (<code>SIM</code>) preset teammates are fixed and
-                never checked against your account.
-              </span>
-            </div>
-            <ul className="preset-match-list preset-match-results">
-              {matchReport.parts.map((pt, i) => (
-                <li
-                  key={i}
-                  className={`preset-match-item ${pt.ok ? 'ok' : 'error'}`}
-                >
-                  {pt.ok ? '✓' : '✕'} {pt.message}
-                  {pt.part === 'weapon' &&
-                    pt.candidates &&
-                    pt.candidates.length > 0 && (
-                      <div
-                        className="preset-match-candidates"
-                        style={{ marginTop: '0.4rem', width: '100%' }}
+          {/* Target Weapon Selector (Akasha & Official Presets) */}
+          {optimizeMode === 'single' &&
+            hasTargetWeaponPicker &&
+            displayedTargetWeaponSpec && (
+              <div
+                className="preset-akasha-box"
+                data-testid={
+                  isAkashaPreset
+                    ? 'akasha-weapon-picker-box'
+                    : 'official-target-weapon-picker'
+                }
+              >
+                {isAkashaPreset && activePreset.team[0]?.build.type === 'fixed' ? (
+                  <>
+                    <div className="preset-akasha-top">
+                      <strong>
+                        Akasha Artifact-Only Mode — Fixed Target &amp; Free Weapon
+                        Selector
+                      </strong>
+                      <span
+                        className="ok"
+                        style={{ fontSize: '0.82rem', fontWeight: 600 }}
                       >
-                        <WeaponTilePicker
-                          ariaLabel="Qualifying Weapon Copy"
-                          value={
-                            selectedWeaponId ||
-                            matchReport.selectedWeaponId ||
-                            pt.candidates[0]!.id
-                          }
-                          options={pt.candidates.map((cand) => ({
-                            id: cand.id,
-                            weaponKey: cand.key,
-                            label: displayName(cand.key),
-                            subcaption: `R${cand.refinement} Lv.${cand.level} ${
-                              cand.location
-                                ? `(${displayName(cand.location)})`
-                                : '(Inventory)'
-                            }`,
-                          }))}
-                          onChange={(nextId) => setSelectedWeaponId(nextId)}
-                        />
-                      </div>
-                    )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+                        ✓ Fixed Spec: {displayName(activePreset.target)} Lv.
+                        {activePreset.team[0].build.character.level} C
+                        {activePreset.team[0].build.character.constellation}{' '}
+                        (Talents{' '}
+                        {activePreset.team[0].build.character.talent.auto}/
+                        {activePreset.team[0].build.character.talent.skill}/
+                        {activePreset.team[0].build.character.talent.burst})
+                      </span>
+                    </div>
 
+                    <div className="muted preset-akasha-desc">
+                      Artifact-only mode: fixed character stats &amp; simulated
+                      weapon; only your imported GOOD artifacts are used.
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="preset-akasha-top">
+                      <strong>
+                        Target Weapon Selector — {displayName(activePreset.target)}
+                      </strong>
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <span
+                          className={targetWeaponOverrideSpec ? 'warn' : 'ok'}
+                          data-testid="target-weapon-mode-status"
+                          style={{ fontSize: '0.82rem', fontWeight: 600 }}
+                        >
+                          {targetWeaponOverrideSpec
+                            ? `Override: ${displayName(targetWeaponOverrideSpec.key)} R${targetWeaponOverrideSpec.refinement}`
+                            : '✓ Default Weapon'}
+                        </span>
+                        {targetWeaponOverrideSpec && (
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            data-testid="reset-target-weapon-btn"
+                            style={{
+                              fontSize: '0.75rem',
+                              padding: '0.16rem 0.48rem',
+                            }}
+                            onClick={() => {
+                              setAkashaWeaponByPreset((prev) => {
+                                const next = { ...prev }
+                                delete next[activePreset.id]
+                                return next
+                              })
+                              setOptResult(null)
+                              setOptimisedEvals([])
+                            }}
+                          >
+                            Reset to Default
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="muted preset-akasha-desc">
+                      Choose any{' '}
+                      {getCharacterMeta(activePreset.target).weaponType} (owned or
+                      simulated) and refinement for{' '}
+                      {displayName(activePreset.target)}; both the Current build
+                      baseline and the optimizer use the selected weapon.
+                    </div>
+                  </>
+                )}
+
+                <div className="preset-akasha-controls">
+                  <WeaponBadge
+                    weaponKey={displayedTargetWeaponSpec.key}
+                    subtitle={`R${displayedTargetWeaponSpec.refinement} · Lv.${displayedTargetWeaponSpec.level ?? 90}`}
+                  />
+
+                  <label className="presets-filter-label-sm">
+                    <span className="muted">Refinement:</span>
+                    <select
+                      aria-label="Weapon Refinement"
+                      data-testid="target-weapon-refinement-select"
+                      value={displayedTargetWeaponSpec.refinement}
+                      disabled={
+                        getWeaponMeta(displayedTargetWeaponSpec.key).rarity <= 2
+                      }
+                      onChange={(e) => {
+                        const nextRef = Number(e.target.value)
+                        setAkashaWeaponByPreset((prev) => ({
+                          ...prev,
+                          [activePreset.id]: {
+                            key: displayedTargetWeaponSpec.key,
+                            refinement: nextRef,
+                          },
+                        }))
+                        setOptResult(null)
+                        setOptimisedEvals([])
+                      }}
+                    >
+                      {[1, 2, 3, 4, 5].map((r) => (
+                        <option key={r} value={r}>
+                          R{r}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <WeaponTilePicker
+                  ariaLabel="Simulated Weapon"
+                  value={displayedTargetWeaponSpec.key}
+                  options={availableAkashaWeapons.map((w) => ({
+                    id: w.key,
+                    weaponKey: w.key,
+                    label: w.displayName,
+                  }))}
+                  onChange={(nextKey) => {
+                    const meta = getWeaponMeta(nextKey)
+                    const nextRef =
+                      meta.rarity <= 2
+                        ? 1
+                        : displayedTargetWeaponSpec.refinement
+                    setAkashaWeaponByPreset((prev) => ({
+                      ...prev,
+                      [activePreset.id]: {
+                        key: nextKey,
+                        refinement: nextRef,
+                      },
+                    }))
+                    setOptResult(null)
+                    setOptimisedEvals([])
+                  }}
+                />
+              </div>
+            )}
+
+          {optimizeMode === 'single' &&
+            !isAkashaPreset &&
+            matchReport && (
+            <div className="preset-match-box">
+              <div className="preset-akasha-top">
+                <strong>
+                  Target Character &amp; Weapon Check:{' '}
+                  <span className={matchReport.canRun ? 'ok' : 'error'}>
+                    {matchReport.canRun
+                      ? `Ready (${displayName(activePreset.target)})`
+                      : 'Target Character / Weapon Requirements Not Met'}
+                  </span>
+                </strong>
+                <span className="muted" style={{ fontSize: '0.82rem' }}>
+                  Simulated (<code>SIM</code>) preset teammates are fixed and
+                  never checked against your account.
+                </span>
+              </div>
+              <ul className="preset-match-list preset-match-results">
+                {matchReport.parts.map((pt, i) => (
+                  <li
+                    key={i}
+                    className={`preset-match-item ${pt.ok ? 'ok' : 'error'}`}
+                  >
+                    {pt.ok ? '✓' : '✕'} {pt.message}
+                    {pt.part === 'weapon' &&
+                      pt.candidates &&
+                      pt.candidates.length > 0 && (
+                        <div
+                          className="preset-match-candidates"
+                          style={{ marginTop: '0.4rem', width: '100%' }}
+                        >
+                          <WeaponTilePicker
+                            ariaLabel="Qualifying Weapon Copy"
+                            value={
+                              selectedWeaponId ||
+                              matchReport.selectedWeaponId ||
+                              pt.candidates[0]!.id
+                            }
+                            options={pt.candidates.map((cand) => ({
+                              id: cand.id,
+                              weaponKey: cand.key,
+                              label: displayName(cand.key),
+                              subcaption: `R${cand.refinement} Lv.${cand.level} ${
+                                cand.location
+                                  ? `(${displayName(cand.location)})`
+                                  : '(Inventory)'
+                              }`,
+                            }))}
+                            onChange={(nextId) => setSelectedWeaponId(nextId)}
+                          />
+                        </div>
+                      )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 3a. ARTIFACT SETTINGS CARD */}
+      <section
+        className="panel gi-card"
+        data-testid="artifact-settings-card"
+        aria-label="Artifact Settings"
+      >
         {/* Artifact Pool Settings */}
         <div className="gi-setup-grid">
           <label className="gi-field-label">
@@ -1622,30 +1657,7 @@ function OptimizeInner() {
         />
       </section>
 
-      {/* 2. BUFFS & PASSIVES PANEL */}
-      {activePreset && (
-        <ConditionalTogglePanel
-          preset={activePreset}
-          settings={settings}
-          onChangeSettings={(next) => {
-            void updateSettings(next)
-            setOptResult(null)
-            setOptimisedEvals([])
-          }}
-          good={record?.good}
-          activeTargetWeaponKey={
-            targetWeaponOverrideSpec?.key ??
-            displayedTargetWeaponSpec?.key ??
-            record?.good.weapons.find((w) => w.id === effectiveWeaponId)
-              ?.key ??
-            record?.good.weapons.find(
-              (w) => w.location === activePreset.target
-            )?.key
-          }
-        />
-      )}
-
-      {/* 3. CONSTRAINTS CARD */}
+      {/* 3b. CONSTRAINTS CARD */}
       <ConstraintsCard
         settings={settings}
         onChange={(next) => void updateSettings(next)}
