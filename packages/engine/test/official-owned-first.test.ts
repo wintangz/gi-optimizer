@@ -192,4 +192,108 @@ describe('Official Presets Owned-First Teammate Resolution (official-presets-own
       2
     )
   })
+
+  it('(4) official-preset-weapon-picker: target weaponOverride on an official preset re-evaluates Current and re-optimizes artifacts for the chosen weapon without affecting teammates, while defaults keep owned equipped weapon or sim-toggled authored weapon', async () => {
+    const furinaPreset = getBundledPreset('official/furina-salon-subdps')!
+    const smallGood = {
+      ...fullGood,
+      artifacts: fullGood.artifacts.filter(
+        (a: { location?: string }) => a.location === 'Furina'
+      ),
+    }
+    const smallSession = createSession(smallGood)
+
+    // 1. Default (no explicit weaponOverride): owned target keeps its equipped GOOD weapon
+    const currentDefault = smallSession.currentBuild(furinaPreset)
+    expect(currentDefault.weaponId).toBeDefined()
+    expect(currentDefault.weaponOverride).toBeUndefined()
+    const evalDefault = smallSession.evaluate(furinaPreset)
+
+    // 2. Explicit weaponOverride on official preset (e.g. KeyOfKhajNisut R5 Lv.90):
+    // Current build evaluation and optimizer both use KeyOfKhajNisut R5 while teammates stay unchanged
+    const keyOverride = {
+      key: 'KeyOfKhajNisut',
+      level: 90,
+      ascension: 6,
+      refinement: 5,
+    }
+    const evalWithKey = smallSession.evaluate(furinaPreset, {
+      artifactIds: currentDefault.artifactIds,
+      weaponOverride: keyOverride,
+    })
+    expect(evalWithKey.stats.hp!).toBeGreaterThan(evalDefault.stats.hp!)
+    expect(evalWithKey.total).not.toBeCloseTo(evalDefault.total, 0)
+
+    const optWithKey = await smallSession.optimize(
+      furinaPreset,
+      { ...DEFAULT_OPTIMIZER_SETTINGS, topN: 1 },
+      { weaponOverride: keyOverride, maxWorkers: 1 }
+    )
+    expect(optWithKey.builds).toHaveLength(1)
+    expect(optWithKey.builds[0]!.weaponOverride).toEqual(keyOverride)
+    expect(optWithKey.builds[0]!.weaponId).toBeUndefined()
+    expect(optWithKey.builds[0]!.total).toBeCloseTo(evalWithKey.total, 2)
+
+    // 3. Sim-toggled / TC target with no explicit weaponOverride keeps the preset's authored weapon
+    const simTargetPreset = {
+      ...furinaPreset,
+      team: [
+        {
+          ...furinaPreset.team[0]!,
+          build: {
+            type: 'tc' as const,
+            tc: {
+              character: {
+                level: 90,
+                ascension: 6,
+                constellation: 0,
+                talent: { auto: 6, skill: 10, burst: 10 },
+              },
+              weapon: {
+                key: 'FleuveCendreFerryman',
+                level: 90,
+                ascension: 6,
+                refinement: 5,
+              },
+              artifact: {
+                slots: {
+                  flower: { statKey: 'hp', level: 20, rarity: 5 },
+                  plume: { statKey: 'atk', level: 20, rarity: 5 },
+                  sands: { statKey: 'hp_', level: 20, rarity: 5 },
+                  goblet: { statKey: 'hydro_dmg_', level: 20, rarity: 5 },
+                  circlet: { statKey: 'critRate_', level: 20, rarity: 5 },
+                },
+                substats: { type: 'max' as const, rarity: 5 as const, stats: {} },
+                sets: { GoldenTroupe: 4 as const },
+              },
+            },
+          },
+        },
+        ...furinaPreset.team.slice(1),
+      ],
+    }
+
+    const simCurrent = smallSession.currentBuild(simTargetPreset)
+    expect(simCurrent.weaponOverride).toEqual({
+      key: 'FleuveCendreFerryman',
+      level: 90,
+      ascension: 6,
+      refinement: 5,
+    })
+    const evalSimDefault = smallSession.evaluate(simTargetPreset, {
+      artifactIds: currentDefault.artifactIds,
+      memberBuildModes: { Furina: 'tc' },
+    })
+    const evalSimExplicitFleuve = smallSession.evaluate(simTargetPreset, {
+      artifactIds: currentDefault.artifactIds,
+      weaponOverride: {
+        key: 'FleuveCendreFerryman',
+        level: 90,
+        ascension: 6,
+        refinement: 5,
+      },
+      memberBuildModes: { Furina: 'tc' },
+    })
+    expect(evalSimDefault.total).toBeCloseTo(evalSimExplicitFleuve.total, 4)
+  })
 })

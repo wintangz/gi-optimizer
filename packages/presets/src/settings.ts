@@ -187,9 +187,25 @@ export function resolvePresetMemberBuildMode(opts: {
     : (ownedCharKeys as ReadonlySet<string>).has(characterKey)
 
   if (isTarget) {
+    if (memberBuildType === 'fixed') {
+      return {
+        characterKey,
+        mode: 'tc',
+        ownedInGood,
+        forcedSimulated: false,
+      }
+    }
+    const defaultTargetMode: MemberBuildMode =
+      memberBuildType === 'owned' ? 'owned' : 'tc'
+    const mode: MemberBuildMode =
+      overrideMode === 'tc'
+        ? 'tc'
+        : overrideMode === 'owned' && ownedInGood
+          ? 'owned'
+          : defaultTargetMode
     return {
       characterKey,
-      mode: memberBuildType === 'owned' ? 'owned' : 'tc',
+      mode,
       ownedInGood,
       forcedSimulated: false,
     }

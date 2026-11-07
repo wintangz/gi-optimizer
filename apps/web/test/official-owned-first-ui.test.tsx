@@ -209,11 +209,23 @@ vi.mock('@/lib/storage/useGood', () => ({
   }),
 }))
 
-const mockEvaluatePresetInWorker = vi.fn(async () => ({
-  currentBuild: { weaponId: 'w_furina', artifactIds: {} },
+const mockEvaluatePresetInWorker = vi.fn<
+  (args?: unknown) => Promise<{
+    currentBuild: { weaponId: string; artifactIds: Record<string, string> }
+    result: { total: number; instances: never[]; stats: Record<string, number> }
+  }>
+>(async () => ({
+  currentBuild: { weaponId: 'w_furina', artifactIds: { flower: 'art_1' } },
   result: { total: 374658, instances: [], stats: {} },
 }))
-const mockOptimizePresetInWorker = vi.fn(async () => ({
+const mockOptimizePresetInWorker = vi.fn<
+  (args?: unknown) => Promise<{
+    builds: never[]
+    tested: number
+    skipped: number
+    durationMs: number
+  }>
+>(async () => ({
   builds: [],
   tested: 0,
   skipped: 0,
@@ -221,8 +233,9 @@ const mockOptimizePresetInWorker = vi.fn(async () => ({
 }))
 
 vi.mock('@/lib/engine/workerClient', () => ({
-  evaluatePresetInWorker: () => mockEvaluatePresetInWorker(),
-  optimizePresetInWorker: () => mockOptimizePresetInWorker(),
+  evaluatePresetInWorker: (args: unknown) => mockEvaluatePresetInWorker(args),
+  optimizePresetInWorker: (args: unknown) => mockOptimizePresetInWorker(args),
+  optimizeTeamInWorker: vi.fn(),
   getCatalogInWorker: async () => ({
     targetsByChar: {},
     conditionalsByChar: {},
@@ -418,5 +431,103 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
         findAll([panel], (n) => n.props.className === 'tile-picker-grid')
       ).toHaveLength(1)
     }
+  })
+
+  it('renders the target weapon picker on official presets, keeps default weapon when untouched, and passes weaponOverride to Current build evaluation and optimizer when chosen (official-preset-weapon-picker)', async () => {
+    mockOptimizePresetInWorker.mockClear()
+    const tree1 = renderPass()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    // (1) Official preset renders the target weapon picker showing Furina's equipped SplendorOfTranquilWaters by default
+    const weaponPickerBox = findByTestId(
+      tree1,
+      'official-target-weapon-picker'
+    )
+    expect(weaponPickerBox).toBeDefined()
+    const modeStatus = findByTestId(tree1, 'target-weapon-mode-status')
+    expect(collectText([modeStatus!])).toContain('Default Weapon')
+    expect(findByTestId(tree1, 'reset-target-weapon-btn')).toBeUndefined()
+
+    // Default evaluation did NOT need a second re-eval with weaponOverride
+    expect(mockEvaluatePresetInWorker).toHaveBeenCalledTimes(1)
+    expect(
+      (mockEvaluatePresetInWorker.mock.calls[0]?.[0] as { selection?: unknown })
+        ?.selection
+    ).toBeUndefined()
+
+    // (2) Select an unowned sword (KeyOfKhajNisut) in the target weapon picker tile grid
+    const keyTile = findByTestId(tree1, 'weapon-picker-tile-KeyOfKhajNisut')
+    expect(keyTile).toBeDefined()
+    ;(keyTile!.props.onClick as () => void)()
+
+    mockEvaluatePresetInWorker.mockClear()
+    const tree2 = renderPass()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const modeStatusAfterPick = findByTestId(tree2, 'target-weapon-mode-status')
+    expect(collectText([modeStatusAfterPick!])).toContain(
+      'Override: Key of Khaj Nisut R1'
+    )
+    expect(findByTestId(tree2, 'reset-target-weapon-btn')).toBeDefined()
+
+    // Current build evaluation now re-evaluates with weaponOverride: KeyOfKhajNisut Lv.90 A6 R1
+    expect(mockEvaluatePresetInWorker).toHaveBeenCalledTimes(2)
+    const reEvalCall = mockEvaluatePresetInWorker.mock.calls[1]?.[0] as {
+      selection?: { weaponOverride?: unknown; weaponId?: string }
+    }
+    expect(reEvalCall.selection?.weaponOverride).toEqual({
+      key: 'KeyOfKhajNisut',
+      level: 90,
+      ascension: 6,
+      refinement: 1,
+    })
+    expect(reEvalCall.selection?.weaponId).toBeUndefined()
+
+    // (3) Change Refinement dropdown to R5 -> updates weaponOverride to R5
+    const refSelect = findByTestId(tree2, 'target-weapon-refinement-select')
+    expect(refSelect).toBeDefined()
+    ;(
+      refSelect!.props.onChange as (e: { target: { value: string } }) => void
+    )({ target: { value: '5' } })
+
+    mockEvaluatePresetInWorker.mockClear()
+    const tree3 = renderPass()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(
+      collectText([findByTestId(tree3, 'target-weapon-mode-status')!])
+    ).toContain('Override: Key of Khaj Nisut R5')
+
+    // Click "Optimize" and verify optimizePresetInWorker receives weaponOverride: KeyOfKhajNisut Lv.90 A6 R5
+    const runBtn = findByTestId(tree3, 'run-optimize-btn')
+    expect(runBtn).toBeDefined()
+    await (runBtn!.props.onClick as () => Promise<void>)()
+
+    expect(mockOptimizePresetInWorker).toHaveBeenCalledTimes(1)
+    const optCall = mockOptimizePresetInWorker.mock.calls[0]?.[0] as {
+      weaponOverride?: unknown
+      weaponId?: string
+    }
+    expect(optCall.weaponOverride).toEqual({
+      key: 'KeyOfKhajNisut',
+      level: 90,
+      ascension: 6,
+      refinement: 5,
+    })
+    expect(optCall.weaponId).toBeUndefined()
+
+    // (4) Click "Reset to Default" -> clears override and returns to Default Weapon
+    const resetBtn = findByTestId(tree3, 'reset-target-weapon-btn')
+    expect(resetBtn).toBeDefined()
+    ;(resetBtn!.props.onClick as () => void)()
+
+    const tree4 = renderPass()
+    expect(
+      collectText([findByTestId(tree4, 'target-weapon-mode-status')!])
+    ).toContain('Default Weapon')
+    expect(findByTestId(tree4, 'reset-target-weapon-btn')).toBeUndefined()
   })
 })

@@ -167,7 +167,9 @@ export function buildSimulatedCachedWeapon(
 
 export function resolveFixedTargetOverrides(
   preset: Preset,
-  weaponOverride?: SimulatedWeaponSpec
+  weaponOverride?: SimulatedWeaponSpec,
+  memberBuildModes?: Record<string, MemberBuildMode>,
+  ownedCharKeys?: ReadonlySet<string>
 ): {
   isFixedTarget: boolean
   overrideChar?: TcCharacter
@@ -187,6 +189,30 @@ export function resolveFixedTargetOverrides(
       overrideChar: targetMember.build.character,
       overrideWeapon: buildSimulatedCachedWeapon(wSpec),
       effectiveWeaponSpec: wSpec,
+    }
+  }
+  if (targetMember?.build.type === 'tc') {
+    const resolvedMode = resolvePresetMemberBuildMode({
+      presetSource: preset.source,
+      isTarget: true,
+      memberBuildType: targetMember.build.type,
+      characterKey: targetMember.key,
+      ownedCharKeys: ownedCharKeys ?? new Set(),
+      overrideMode: memberBuildModes?.[targetMember.key],
+    }).mode
+    if (resolvedMode === 'tc') {
+      const wSpec: SimulatedWeaponSpec = weaponOverride ?? {
+        key: targetMember.build.tc.weapon.key,
+        level: targetMember.build.tc.weapon.level,
+        ascension: targetMember.build.tc.weapon.ascension,
+        refinement: targetMember.build.tc.weapon.refinement,
+      }
+      return {
+        isFixedTarget: true,
+        overrideChar: targetMember.build.tc.character,
+        overrideWeapon: buildSimulatedCachedWeapon(wSpec),
+        effectiveWeaponSpec: wSpec,
+      }
     }
   }
   if (weaponOverride) {
@@ -307,11 +333,13 @@ export function computeDefaultMemberConditionals(opts: {
     }
 
     // Auto-populate GO weapon conditionals at their max state when the target
-    // ('fixed' or 'owned') has an explicit weapon choice and the preset's
+    // ('fixed', 'owned', or 'tc') has an explicit weapon choice and the preset's
     // conditional map has no entry for that weapon's sheet.
     if (
       isTarget &&
-      (member.build.type === 'fixed' || member.build.type === 'owned') &&
+      (member.build.type === 'fixed' ||
+        member.build.type === 'owned' ||
+        member.build.type === 'tc') &&
       activeTargetWeaponKey &&
       !member.conditional[activeTargetWeaponKey]
     ) {
@@ -389,11 +417,23 @@ export function resolveEffectiveTeamConditionals(opts: {
   const resolvedBuildByMember: Record<string, ResolvedMemberBuild> = {}
 
   const targetMember = preset.team[0]
+  const resolvedTargetMode = targetMember
+    ? resolvePresetMemberBuildMode({
+        presetSource: preset.source,
+        isTarget: true,
+        memberBuildType: targetMember.build.type,
+        characterKey: targetMember.key,
+        ownedCharKeys,
+        overrideMode: memberBuildModes?.[targetMember.key],
+      }).mode
+    : 'owned'
   const resolvedTargetWepKey =
     activeTargetWeaponKey ??
     (targetMember?.build.type === 'fixed'
       ? targetMember.build.weapon.key
-      : undefined)
+      : targetMember?.build.type === 'tc' && resolvedTargetMode === 'tc'
+        ? targetMember.build.tc.weapon.key
+        : undefined)
 
   for (let i = 0; i < Math.min(4, preset.team.length); i++) {
     const member = preset.team[i]!
@@ -509,12 +549,6 @@ export function hydratePresetTeam(
   }
 
   const targetMember = preset.team[0]
-  const resolvedWeaponKey =
-    activeWeaponKey ??
-    (targetMember?.build.type === 'fixed'
-      ? targetMember.build.weapon.key
-      : undefined)
-
   const resolvedMembers = preset.team
     .slice(0, 4)
     .map((member, idx) =>
@@ -527,6 +561,13 @@ export function hydratePresetTeam(
         overrideMode: opts?.memberBuildModes?.[member.key],
       })
     )
+  const resolvedWeaponKey =
+    activeWeaponKey ??
+    (targetMember?.build.type === 'fixed'
+      ? targetMember.build.weapon.key
+      : targetMember?.build.type === 'tc' && resolvedMembers[0]?.mode === 'tc'
+        ? targetMember.build.tc.weapon.key
+        : undefined)
 
   const fingerprint = presetTeamFingerprint(
     preset,
@@ -723,7 +764,12 @@ export function hydrateTeamIntoDb(
   dbImportedCharKeys.set(db as object, goodCharKeys)
 
   const { isFixedTarget, overrideChar, overrideWeapon, effectiveWeaponSpec } =
-    resolveFixedTargetOverrides(preset, selection?.weaponOverride)
+    resolveFixedTargetOverrides(
+      preset,
+      selection?.weaponOverride,
+      selection?.memberBuildModes,
+      goodCharKeys
+    )
 
   const selectedWeaponKey =
     effectiveWeaponSpec?.key ??
@@ -1382,7 +1428,12 @@ export function createSession(good: unknown): EngineSession {
         overrideChar,
         overrideWeapon: fixedOrSimWeapon,
         effectiveWeaponSpec,
-      } = resolveFixedTargetOverrides(preset, selection?.weaponOverride)
+      } = resolveFixedTargetOverrides(
+        preset,
+        selection?.weaponOverride,
+        selection?.memberBuildModes,
+        goodCharKeys
+      )
 
       let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
       if (!isFixedTarget && !overrideWeapon && selection?.weaponId) {
@@ -1530,23 +1581,28 @@ export function createSession(good: unknown): EngineSession {
         maxWorkers?: number
       }
     ): Promise<OptimizeResult> {
-      const {
-        isFixedTarget,
-        overrideChar,
-        overrideWeapon: fixedOrSimWeapon,
-        effectiveWeaponSpec,
-      } = resolveFixedTargetOverrides(preset, opts?.weaponOverride)
-
-      let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
-      if (!isFixedTarget && !overrideWeapon && opts?.weaponId) {
-        overrideWeapon = baseDb.weapons.get(opts.weaponId)
-      }
-
       const effectiveMemberBuildModes =
         opts?.memberBuildModes ?? settings.memberBuildModes?.[preset.id]
       const effectiveMemberConditionals =
         opts?.memberConditionals ??
         settings.memberConditionalOverrides?.[preset.id]
+
+      const {
+        isFixedTarget,
+        overrideChar,
+        overrideWeapon: fixedOrSimWeapon,
+        effectiveWeaponSpec,
+      } = resolveFixedTargetOverrides(
+        preset,
+        opts?.weaponOverride,
+        effectiveMemberBuildModes,
+        goodCharKeys
+      )
+
+      let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
+      if (!isFixedTarget && !overrideWeapon && opts?.weaponId) {
+        overrideWeapon = baseDb.weapons.get(opts.weaponId)
+      }
 
       const { teamId, targetTeamCharId } = hydratePresetTeam(
         baseDb,
@@ -1601,11 +1657,24 @@ export function createSession(good: unknown): EngineSession {
           (rt) => resolveRotationTargetOwner(rt, preset).memberKey === memberKey
         )
 
-        const currentSelection = currentMemberBuild(
+        const baseCurrentSelection = currentMemberBuild(
           preset,
           memberKey,
           effectiveMemberBuildModes
         )
+        const currentSelection: BuildSelection =
+          memberIndex === 0 && opts?.weaponOverride
+            ? {
+                ...baseCurrentSelection,
+                weaponId: undefined,
+                weaponOverride: opts.weaponOverride,
+              }
+            : memberIndex === 0 && opts?.weaponId
+              ? {
+                  ...baseCurrentSelection,
+                  weaponId: opts.weaponId,
+                }
+              : baseCurrentSelection
 
         if (memberRows.length === 0) {
           members.push({
@@ -1640,7 +1709,9 @@ export function createSession(good: unknown): EngineSession {
           effectiveWeaponSpec,
         } = resolveFixedTargetOverrides(
           memberPreset,
-          memberIndex === 0 ? opts?.weaponOverride : undefined
+          memberIndex === 0 ? opts?.weaponOverride : undefined,
+          effectiveMemberBuildModes,
+          goodCharKeys
         )
 
         let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
