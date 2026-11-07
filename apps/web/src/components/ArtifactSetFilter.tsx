@@ -142,33 +142,19 @@ export function ArtifactSetFilter({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '0.5rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <span
-          className="muted"
-          style={{
-            fontSize: '0.85rem',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-          }}
-        >
+    <div
+      className="opt-filter-panel"
+      data-testid="artifact-set-filter-panel"
+    >
+      <div className="opt-filter-panel-header">
+        <span className="opt-filter-panel-title">
           <FunnelIcon size={14} />
           Artifact Set Filter
         </span>
         <span
           data-testid="artifact-set-filter-summary"
+          className="opt-filter-panel-summary"
           style={{
-            fontSize: '0.78rem',
-            fontWeight: 600,
             color:
               mode === 'include'
                 ? 'var(--accent)'
@@ -182,82 +168,54 @@ export function ArtifactSetFilter({
       </div>
 
       {/* Mode segmented selector */}
-      <div
-        role="group"
-        aria-label="Artifact set filter mode"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '0.3rem',
-        }}
-      >
-        {MODE_OPTIONS.map((opt) => {
-          const active = mode === opt.mode
-          return (
-            <button
-              key={opt.mode}
-              type="button"
-              aria-pressed={active}
-              onClick={() => handleModeChange(opt.mode)}
-              style={{
-                padding: '0.35rem 0.45rem',
-                fontSize: '0.78rem',
-                fontWeight: active ? 700 : 500,
-                borderColor: active ? 'var(--accent)' : 'var(--border)',
-                background: active
-                  ? 'rgba(122, 162, 255, 0.18)'
-                  : 'transparent',
-                color: active ? 'var(--accent)' : 'var(--fg)',
-              }}
-            >
-              {opt.label}
-            </button>
-          )
-        })}
+      <div className="opt-filter-panel-subbar">
+        <div
+          role="group"
+          aria-label="Artifact set filter mode"
+          className="opt-filter-mode-group"
+        >
+          {MODE_OPTIONS.map((opt) => {
+            const active = mode === opt.mode
+            return (
+              <button
+                key={opt.mode}
+                type="button"
+                aria-pressed={active}
+                onClick={() => handleModeChange(opt.mode)}
+                style={{
+                  fontWeight: active ? 700 : 500,
+                  borderColor: active ? 'var(--accent)' : 'var(--border)',
+                  background: active
+                    ? 'rgba(122, 162, 255, 0.18)'
+                    : 'transparent',
+                  color: active ? 'var(--accent)' : 'var(--fg)',
+                }}
+              >
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Search + Bulk actions */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.35rem',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
+      <div className="tile-picker-toolbar">
         <input
           type="search"
+          className="tile-picker-search"
           aria-label="Search artifact sets"
           placeholder="Search artifact sets…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: '1 1 140px',
-            minWidth: 0,
-            fontSize: '0.8rem',
-            padding: '0.3rem 0.55rem',
-          }}
         />
-        <div style={{ display: 'flex', gap: '0.25rem' }}>
-          <button
-            type="button"
-            onClick={handleSelectAll}
-            style={{ fontSize: '0.74rem', padding: '0.25rem 0.45rem' }}
-          >
+        <div className="opt-filter-bulk-actions">
+          <button type="button" onClick={handleSelectAll}>
             Select all
           </button>
-          <button
-            type="button"
-            onClick={handleClear}
-            style={{ fontSize: '0.74rem', padding: '0.25rem 0.45rem' }}
-          >
+          <button type="button" onClick={handleClear}>
             Clear
           </button>
-          <button
-            type="button"
-            onClick={handleInvert}
-            style={{ fontSize: '0.74rem', padding: '0.25rem 0.45rem' }}
-          >
+          <button type="button" onClick={handleInvert}>
             Invert
           </button>
         </div>

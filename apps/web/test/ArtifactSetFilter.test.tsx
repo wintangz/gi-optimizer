@@ -11,6 +11,11 @@ describe('ArtifactSetFilter Component (artifact-set-filter, image-led-pickers & 
         onChange={() => {}}
       />
     )
+    expect(html).toContain('data-testid="artifact-set-filter-panel"')
+    expect(html).toContain('class="opt-filter-panel"')
+    expect(html).toContain('class="opt-filter-panel-header"')
+    expect(html).toContain('class="opt-filter-panel-subbar"')
+    expect(html).toContain('class="tile-picker-toolbar"')
     expect(html).toContain('data-testid="artifact-set-filter-summary"')
     expect(html).toContain(
       `All ${ALL_ARTIFACT_SET_KEYS.length} artifact sets allowed`

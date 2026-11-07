@@ -390,5 +390,33 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     )!
     expect(kazuhaToggleAfter.props['data-build-mode']).toBe('tc')
     expect(collectText([kazuhaToggleAfter])).toBe('Simulated (TC)')
+
+    // (4) Protected Characters and Artifact Set Filter sit as a matched pair (optimize-panels-alignment)
+    const filterPair = findByTestId(tree2, 'optimize-filter-panels-pair')!
+    expect(filterPair).toBeDefined()
+    expect(filterPair.props.className).toBe('opt-filter-pair')
+
+    const protectedPanel = findByTestId(tree2, 'protected-characters-panel')!
+    const artFilterPanel = findByTestId(tree2, 'artifact-set-filter-panel')!
+    expect(protectedPanel).toBeDefined()
+    expect(artFilterPanel).toBeDefined()
+    expect(protectedPanel.props.className).toBe('opt-filter-panel')
+    expect(artFilterPanel.props.className).toBe('opt-filter-panel')
+
+    // Both panels have matched header, subbar, search toolbar, and tile-picker-grid
+    for (const panel of [protectedPanel, artFilterPanel]) {
+      expect(
+        findAll([panel], (n) => n.props.className === 'opt-filter-panel-header')
+      ).toHaveLength(1)
+      expect(
+        findAll([panel], (n) => n.props.className === 'opt-filter-panel-subbar')
+      ).toHaveLength(1)
+      expect(
+        findAll([panel], (n) => n.props.className === 'tile-picker-toolbar')
+      ).toHaveLength(1)
+      expect(
+        findAll([panel], (n) => n.props.className === 'tile-picker-grid')
+      ).toHaveLength(1)
+    }
   })
 })

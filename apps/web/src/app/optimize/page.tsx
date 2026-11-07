@@ -980,23 +980,44 @@ function OptimizeInner() {
 
         {/* Protected Characters & Multi-Mode Artifact Set Filter */}
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
-            gap: '1rem',
-          }}
+          className="opt-filter-pair"
+          data-testid="optimize-filter-panels-pair"
         >
-          <div className="preset-provenance-box">
-            <div
-              className="muted"
-              style={{ fontSize: '0.84rem', marginBottom: '0.4rem' }}
-            >
-              Protected Characters (click a tile to keep/release their equipped
-              artifacts):
+          <div
+            className="opt-filter-panel"
+            data-testid="protected-characters-panel"
+          >
+            <div className="opt-filter-panel-header">
+              <span className="opt-filter-panel-title">
+                Protected Characters
+              </span>
+              <span
+                data-testid="protected-characters-summary"
+                className="opt-filter-panel-summary"
+                style={{
+                  color:
+                    settings.excludedCharacters.length > 0
+                      ? 'var(--warn)'
+                      : 'var(--ok)',
+                }}
+              >
+                {settings.excludedCharacters.length > 0
+                  ? `${settings.excludedCharacters.length} protected`
+                  : 'None protected'}
+              </span>
             </div>
+
+            <div className="opt-filter-panel-subbar">
+              <span className="opt-filter-panel-hint">
+                Click a character tile to keep or release their equipped
+                artifacts.
+              </span>
+            </div>
+
             {(record?.good.characters ?? []).length > 0 ? (
               <CharacterTilePicker
                 ariaLabel="Protect character"
+                searchable
                 selectedKeys={settings.excludedCharacters}
                 options={(record?.good.characters ?? []).map((c) => ({
                   key: c.key,
@@ -1016,8 +1037,34 @@ function OptimizeInner() {
                 }}
               />
             ) : (
-              <div className="muted" style={{ fontSize: '0.82rem' }}>
-                Import a GOOD file to select characters to protect.
+              <div className="tile-picker-wrap">
+                <div className="tile-picker-toolbar">
+                  <input
+                    type="search"
+                    className="tile-picker-search"
+                    aria-label="Search Protect character"
+                    placeholder="Search characters…"
+                    disabled
+                    value=""
+                    readOnly
+                  />
+                </div>
+                <div
+                  role="group"
+                  aria-label="Protect character"
+                  className="tile-picker-grid"
+                >
+                  <div
+                    className="muted"
+                    style={{
+                      gridColumn: '1 / -1',
+                      fontSize: '0.82rem',
+                      padding: '0.4rem',
+                    }}
+                  >
+                    Import a GOOD file to select characters to protect.
+                  </div>
+                </div>
               </div>
             )}
           </div>
