@@ -1,0 +1,105 @@
+{
+  "presetId": "official/vesna-stellar-swirl",
+  "target": "Vesna",
+  "total": 246513.54859044513,
+  "instances": [
+    {
+      "label": "The Art of Victory Skill Cast",
+      "path": [
+        "skill",
+        "skillDmg"
+      ],
+      "count": 1,
+      "perHit": 405.6464404553121,
+      "subtotal": 405.6464404553121
+    },
+    {
+      "label": "Burst Spirit Blade Stellar Swirl (×5)",
+      "path": [
+        "burst",
+        "spiritStellarswirlDmg"
+      ],
+      "count": 5,
+      "perHit": 31218.49327202435,
+      "subtotal": 156092.46636012173
+    },
+    {
+      "label": "Wind Pinion Coordinated Attack (×6)",
+      "path": [
+        "skill",
+        "windPinionDmg"
+      ],
+      "count": 6,
+      "perHit": 105.46807451838116,
+      "subtotal": 632.8084471102869
+    },
+    {
+      "label": "Lv. 1 Windborne Sword",
+      "path": [
+        "skill",
+        "sword1Dmg"
+      ],
+      "count": 1,
+      "perHit": 405.6464404553121,
+      "subtotal": 405.6464404553121
+    },
+    {
+      "label": "Lv. 2 Windborne Sword",
+      "path": [
+        "skill",
+        "sword2Dmg"
+      ],
+      "count": 1,
+      "perHit": 608.4696606829681,
+      "subtotal": 608.4696606829681
+    },
+    {
+      "label": "Lv. 2 Spirit Blade Stellar Swirl",
+      "path": [
+        "skill",
+        "sword2SpiritStellarswirlDmg"
+      ],
+      "count": 1,
+      "perHit": 17993.512546557922,
+      "subtotal": 17993.512546557922
+    },
+    {
+      "label": "Lv. 3 Spirit Blade Initial Stellar Swirl (×4)",
+      "path": [
+        "skill",
+        "sword3SpiritStellarswirlDmg"
+      ],
+      "count": 4,
+      "perHit": 12115.74333523951,
+      "subtotal": 48462.97334095804
+    },
+    {
+      "label": "Lv. 3 Spirit Blade Final Stellar Swirl",
+      "path": [
+        "skill",
+        "sword3SpiritFinalStellarswirlDmg"
+      ],
+      "count": 1,
+      "perHit": 21912.025354103524,
+      "subtotal": 21912.025354103524
+    }
+  ],
+  "stats": {
+    "hp": 13262.3220984,
+    "atk": 970.9382887200001,
+    "def": 730.1266515000001,
+    "eleMas": 25,
+    "critRate_": 0.242,
+    "critDMG_": 0.5,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}

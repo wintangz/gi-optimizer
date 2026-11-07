@@ -1,0 +1,158 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "official/vesna-stellar-swirl",
+  "name": "Vesna — Stellar Swirl (Odette · Vodyanitsa · Faruzan)",
+  "description": "Official meta preset for Vesna Stellar Swirl with Odette (Stellar Radiance SS + A1 4× Team Splendor + Heart of the Furnace 4p + Whitelake Frostfeather), Vodyanitsa (Anemo/Hydro/Cryo RES shred + A4 Stellar Swirl flat DMG + Hymn of the Maelstrom + Tenacity 4p), and Faruzan C6 (Anemo RES shred + Anemo DMG% + Anemo CRIT DMG% + Elegy + Noblesse 4p).",
+  "source": "official",
+  "author": "gi-optimizer",
+  "target": "Vesna",
+  "team": [
+    {
+      "key": "Vesna",
+      "build": { "type": "owned" },
+      "requirement": {},
+      "conditional": {
+        "Vesna": {
+          "skillArmed": "on",
+          "a0StellarRadiance": "ss",
+          "a1Stacks": "6"
+        },
+        "ScarletProof": {
+          "4Ss": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Odette",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "WhitelakeFrostfeather", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critDMG_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "critRate_": 23.3, "critDMG_": 46.6 } },
+            "sets": { "HeartOfTheFurnace": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Odette": {
+          "a0StellarRadiance": "ss",
+          "a1TeamSplendor": "4",
+          "burst": "on"
+        },
+        "WhitelakeFrostfeather": {
+          "passive": "3"
+        },
+        "HeartOfTheFurnace": {
+          "4Stellar": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Vodyanitsa",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 10 } },
+          "weapon": { "key": "HymnOfTheMaelstrom", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "hp_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "hp": 1195, "enerRech_": 33.0 } },
+            "sets": { "TenacityOfTheMillelith": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Vodyanitsa": {
+          "skillHit": "on",
+          "a1Vortex": "on",
+          "a4LeadVocal": "on",
+          "a4Chorus": "on"
+        },
+        "HymnOfTheMaelstrom": {
+          "stacks": "3",
+          "frozenSwirl": "on"
+        },
+        "TenacityOfTheMillelith": {
+          "skill": "cast"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Faruzan",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "ElegyForTheEnd", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "enerRech_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "anemo_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "enerRech_": 44.0, "critRate_": 31.1 } },
+            "sets": { "NoblesseOblige": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Faruzan": {
+          "burstBenefit": "on",
+          "burstHit": "on",
+          "a4Active": "on",
+          "c6Crit": "on"
+        },
+        "ElegyForTheEnd": {
+          "ThePartingRefrain": "on"
+        },
+        "NoblesseOblige": {
+          "set4": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "E -> Q -> Windborne Sword Lv.1–Lv.3 Spirit Blade Combo",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "skillDmg"], "count": 1, "label": "The Art of Victory Skill Cast", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "spiritStellarswirlDmg"], "count": 5, "label": "Burst Spirit Blade Stellar Swirl (×5)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "windPinionDmg"], "count": 6, "label": "Wind Pinion Coordinated Attack (×6)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "sword1Dmg"], "count": 1, "label": "Lv. 1 Windborne Sword", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "sword2Dmg"], "count": 1, "label": "Lv. 2 Windborne Sword", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "sword2SpiritStellarswirlDmg"], "count": 1, "label": "Lv. 2 Spirit Blade Stellar Swirl", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "sword3SpiritStellarswirlDmg"], "count": 4, "label": "Lv. 3 Spirit Blade Initial Stellar Swirl (×4)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "sword3SpiritFinalStellarswirlDmg"], "count": 1, "label": "Lv. 3 Spirit Blade Final Stellar Swirl", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  }
+}
