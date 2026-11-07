@@ -607,5 +607,14 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(pieceHtml).toContain(
       'CD% 15.5%: 2 rolls (7.77 + 7.77 / max 7.77%) = 200% RV'
     )
+    expect(pieceHtml).toContain('class="artifact-piece-card"')
+    expect(pieceHtml).toContain('class="artifact-piece-slot-icon"')
+    expect(pieceHtml).toContain('class="artifact-substat-line"')
+    expect(pieceHtml).toContain(
+      'data-testid="artifact-piece-owner" title="Equipped on Furina in imported GOOD data"'
+    )
+    // Substats are compact icon+value items inside .artifact-piece-substats, not .gi-stat-chip pills
+    const substatsSection = pieceHtml.split('class="artifact-piece-substats"')[1] ?? ''
+    expect(substatsSection).not.toContain('gi-stat-chip')
   })
 })

@@ -1032,8 +1032,17 @@ td {
 }
 
 .comp-details-subheader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
   font-size: 0.84rem;
   color: var(--fg);
+}
+
+.comp-details-subhint {
+  display: block;
+  font-size: 0.76rem;
+  line-height: 1.35;
 }
 
 .comp-stat-diff-table {
@@ -1149,10 +1158,180 @@ td {
   gap: 0.3rem;
 }
 
-.comp-details-pieces {
+.comp-details-artifacts-section {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.45rem;
+}
+
+.comp-details-pieces {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.55rem;
+  align-items: stretch;
+}
+
+@media (max-width: 1120px) {
+  .comp-details-pieces {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .comp-details-pieces {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .comp-details-pieces {
+    grid-template-columns: 1fr;
+  }
+}
+
+.artifact-piece-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  padding: 0.55rem 0.62rem;
+  background: #171b26;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.artifact-piece-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.artifact-piece-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.artifact-piece-slot-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.artifact-piece-level {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.05rem 0.28rem;
+  border-radius: 4px;
+  background: #232736;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.artifact-piece-main-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.artifact-piece-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.artifact-piece-owner {
+  display: inline-flex;
+  align-items: center;
+}
+
+.artifact-piece-lock {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  line-height: 1;
+  cursor: help;
+}
+
+.artifact-piece-substats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.22rem 0.45rem;
+  padding-top: 0.32rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.07);
+}
+
+.artifact-substat-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.artifact-substat-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.artifact-substat-label {
+  color: var(--muted);
+}
+
+.artifact-substat-val {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.comp-damage-table th.comp-dmg-col-name,
+.comp-damage-table td.comp-dmg-col-name {
+  width: 100%;
+  min-width: 180px;
+}
+
+.comp-damage-table th.comp-dmg-col-compact,
+.comp-damage-table td.comp-dmg-col-compact {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.comp-damage-table th.comp-dmg-col-hits,
+.comp-damage-table td.comp-dmg-col-hits {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.comp-damage-table th.comp-dmg-col-num,
+.comp-damage-table td.comp-dmg-col-num {
+  width: 1%;
+  min-width: 96px;
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.comp-damage-table th.comp-dmg-col-delta,
+.comp-damage-table td.comp-dmg-col-delta {
+  min-width: 84px;
+  font-weight: 600;
 }
 
 .gi-table-wrap {

@@ -851,7 +851,10 @@ function BuildStatComparisonSection({
           {showDiff ? 'Core Stat Comparison vs. Current' : 'Core Build Stats'}
         </strong>
         {statBreakdowns && (
-          <span className="muted" style={{ fontSize: '0.75rem' }}>
+          <span
+            className="muted comp-details-subhint"
+            data-testid={`comp-stat-hint-${rowKey}`}
+          >
             Click a stat row to inspect its source breakdown
           </span>
         )}
@@ -1274,17 +1277,19 @@ export function BuildComparisonList({
                 </div>
 
                 <div className="gi-table-wrap">
-                  <table className="gi-table">
+                  <table className="gi-table comp-damage-table">
                     <thead>
                       <tr>
-                        <th>Damage Instance</th>
-                        <th>Reaction</th>
-                        <th>Hit Mode</th>
-                        <th>Hits</th>
-                        <th>Per-Hit DMG</th>
-                        <th>Subtotal DMG</th>
+                        <th className="comp-dmg-col-name">Damage Instance</th>
+                        <th className="comp-dmg-col-compact">Reaction</th>
+                        <th className="comp-dmg-col-compact">Hit Mode</th>
+                        <th className="comp-dmg-col-hits">Hits</th>
+                        <th className="comp-dmg-col-num">Per-Hit DMG</th>
+                        <th className="comp-dmg-col-num">Subtotal DMG</th>
                         {row.kind === 'optimized' && currentBuild && (
-                          <th>vs. Current</th>
+                          <th className="comp-dmg-col-num comp-dmg-col-delta">
+                            vs. Current
+                          </th>
                         )}
                       </tr>
                     </thead>
@@ -1325,7 +1330,7 @@ export function BuildComparisonList({
                                   : undefined
                               }
                             >
-                              <td>
+                              <td className="comp-dmg-col-name">
                                 <span className="comp-stat-label-cell">
                                   <strong>{inst.label}</strong>
                                   {inst.breakdown && (
@@ -1348,25 +1353,31 @@ export function BuildComparisonList({
                                   )}
                                 </span>
                               </td>
-                              <td>
+                              <td className="comp-dmg-col-compact">
                                 <RotationReactionBadge
                                   reaction={targetSpec?.reaction}
                                   compact
                                 />
                               </td>
-                              <td>
+                              <td className="comp-dmg-col-compact">
                                 <RotationHitModeBadge
                                   hitMode={targetSpec?.hitMode}
                                   compact
                                 />
                               </td>
-                              <td>×{inst.count}</td>
-                              <td>{formatNum(inst.perHit)}</td>
-                              <td>
+                              <td className="comp-dmg-col-hits">×{inst.count}</td>
+                              <td className="comp-dmg-col-num">
+                                {formatNum(inst.perHit)}
+                              </td>
+                              <td className="comp-dmg-col-num">
                                 <strong>{formatNum(inst.subtotal)}</strong>
                               </td>
                               {row.kind === 'optimized' && currentBuild && (
-                                <td className={instDelta?.cls ?? 'muted'}>
+                                <td
+                                  className={`comp-dmg-col-num comp-dmg-col-delta ${
+                                    instDelta?.cls ?? 'muted'
+                                  }`}
+                                >
                                   {instDelta ? instDelta.text : '—'}
                                 </td>
                               )}
@@ -1406,26 +1417,44 @@ export function BuildComparisonList({
                   />
                 )}
 
-                <div className="comp-details-pieces">
-                  {OPTIMIZE_SLOTS.map((slot) => {
-                    const artId = row.selection.artifactIds[slot]
-                    const art = artId ? artifactById.get(artId) : undefined
-                    if (!art) return null
-                    return (
-                      <ArtifactPieceRow
-                        key={slot}
-                        setKey={art.setKey}
-                        slotKey={art.slotKey as IdentifierSlotKey}
-                        rarity={art.rarity}
-                        level={art.level}
-                        mainStatKey={art.mainStatKey}
-                        substats={art.substats}
-                        location={art.location}
-                        lock={art.lock}
-                        compact
-                      />
-                    )
-                  })}
+                <div
+                  className="comp-details-artifacts-section"
+                  data-testid={`comp-artifacts-section-${row.id}`}
+                >
+                  <div className="comp-details-subheader">
+                    <strong>Artifacts</strong>
+                    <span
+                      className="muted comp-details-subhint"
+                      data-testid={`artifacts-legend-${row.id}`}
+                    >
+                      Character badge = equipped owner in imported data · 🔒 =
+                      locked in imported data
+                    </span>
+                  </div>
+                  <div
+                    className="comp-details-pieces"
+                    data-testid={`comp-details-pieces-${row.id}`}
+                  >
+                    {OPTIMIZE_SLOTS.map((slot) => {
+                      const artId = row.selection.artifactIds[slot]
+                      const art = artId ? artifactById.get(artId) : undefined
+                      if (!art) return null
+                      return (
+                        <ArtifactPieceRow
+                          key={slot}
+                          setKey={art.setKey}
+                          slotKey={art.slotKey as IdentifierSlotKey}
+                          rarity={art.rarity}
+                          level={art.level}
+                          mainStatKey={art.mainStatKey}
+                          substats={art.substats}
+                          location={art.location}
+                          lock={art.lock}
+                          compact
+                        />
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -2299,42 +2328,67 @@ export function WeaponComparisonList({
                         </div>
 
                         <div
-                          className="comp-details-pieces"
-                          data-testid={`weapon-compare-build-pieces-${wKey}-${bIdx}`}
+                          className="comp-details-artifacts-section"
+                          data-testid={`weapon-compare-artifacts-section-${wKey}-${bIdx}`}
                         >
-                          {OPTIMIZE_SLOTS.map((slot) => {
-                            const artId = buildSelection.artifactIds[slot]
-                            const art = artId
-                              ? artifactById.get(artId)
-                              : undefined
-                            if (!art) return null
-                            return (
-                              <ArtifactPieceRow
-                                key={slot}
-                                setKey={art.setKey}
-                                slotKey={art.slotKey as IdentifierSlotKey}
-                                rarity={art.rarity}
-                                level={art.level}
-                                mainStatKey={art.mainStatKey}
-                                substats={art.substats}
-                                location={art.location}
-                                lock={art.lock}
-                                compact
-                              />
-                            )
-                          })}
+                          <div className="comp-details-subheader">
+                            <strong>Artifacts</strong>
+                            <span
+                              className="muted comp-details-subhint"
+                              data-testid={`weapon-compare-artifacts-legend-${wKey}-${bIdx}`}
+                            >
+                              Character badge = equipped owner in imported data
+                              · 🔒 = locked in imported data
+                            </span>
+                          </div>
+                          <div
+                            className="comp-details-pieces"
+                            data-testid={`weapon-compare-build-pieces-${wKey}-${bIdx}`}
+                          >
+                            {OPTIMIZE_SLOTS.map((slot) => {
+                              const artId = buildSelection.artifactIds[slot]
+                              const art = artId
+                                ? artifactById.get(artId)
+                                : undefined
+                              if (!art) return null
+                              return (
+                                <ArtifactPieceRow
+                                  key={slot}
+                                  setKey={art.setKey}
+                                  slotKey={art.slotKey as IdentifierSlotKey}
+                                  rarity={art.rarity}
+                                  level={art.level}
+                                  mainStatKey={art.mainStatKey}
+                                  substats={art.substats}
+                                  location={art.location}
+                                  lock={art.lock}
+                                  compact
+                                />
+                              )
+                            })}
+                          </div>
                         </div>
 
                         <div className="gi-table-wrap">
-                          <table className="gi-table">
+                          <table className="gi-table comp-damage-table">
                             <thead>
                               <tr>
-                                <th>Damage Instance</th>
-                                <th>Reaction</th>
-                                <th>Hit Mode</th>
-                                <th>Hits</th>
-                                <th>Per-Hit DMG</th>
-                                <th>Subtotal DMG</th>
+                                <th className="comp-dmg-col-name">
+                                  Damage Instance
+                                </th>
+                                <th className="comp-dmg-col-compact">
+                                  Reaction
+                                </th>
+                                <th className="comp-dmg-col-compact">
+                                  Hit Mode
+                                </th>
+                                <th className="comp-dmg-col-hits">Hits</th>
+                                <th className="comp-dmg-col-num">
+                                  Per-Hit DMG
+                                </th>
+                                <th className="comp-dmg-col-num">
+                                  Subtotal DMG
+                                </th>
                               </tr>
                             </thead>
                             <tbody>
@@ -2363,7 +2417,7 @@ export function WeaponComparisonList({
                                           : undefined
                                       }
                                     >
-                                      <td>
+                                      <td className="comp-dmg-col-name">
                                         <span className="comp-stat-label-cell">
                                           <strong>{inst.label}</strong>
                                           {inst.breakdown && (
@@ -2388,21 +2442,25 @@ export function WeaponComparisonList({
                                           )}
                                         </span>
                                       </td>
-                                      <td>
+                                      <td className="comp-dmg-col-compact">
                                         <RotationReactionBadge
                                           reaction={targetSpec?.reaction}
                                           compact
                                         />
                                       </td>
-                                      <td>
+                                      <td className="comp-dmg-col-compact">
                                         <RotationHitModeBadge
                                           hitMode={targetSpec?.hitMode}
                                           compact
                                         />
                                       </td>
-                                      <td>×{inst.count}</td>
-                                      <td>{formatNum(inst.perHit)}</td>
-                                      <td>
+                                      <td className="comp-dmg-col-hits">
+                                        ×{inst.count}
+                                      </td>
+                                      <td className="comp-dmg-col-num">
+                                        {formatNum(inst.perHit)}
+                                      </td>
+                                      <td className="comp-dmg-col-num">
                                         <strong>
                                           {formatNum(inst.subtotal)}
                                         </strong>
@@ -3146,15 +3204,15 @@ export function TeamOptimizationList({
                 </div>
 
                 <div className="gi-table-wrap">
-                  <table className="gi-table">
+                  <table className="gi-table comp-damage-table">
                     <thead>
                       <tr>
-                        <th>Damage Instance</th>
-                        <th>Reaction</th>
-                        <th>Hit Mode</th>
-                        <th>Hits</th>
-                        <th>Per-Hit DMG</th>
-                        <th>Subtotal DMG</th>
+                        <th className="comp-dmg-col-name">Damage Instance</th>
+                        <th className="comp-dmg-col-compact">Reaction</th>
+                        <th className="comp-dmg-col-compact">Hit Mode</th>
+                        <th className="comp-dmg-col-hits">Hits</th>
+                        <th className="comp-dmg-col-num">Per-Hit DMG</th>
+                        <th className="comp-dmg-col-num">Subtotal DMG</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3183,7 +3241,7 @@ export function TeamOptimizationList({
                                   : undefined
                               }
                             >
-                              <td>
+                              <td className="comp-dmg-col-name">
                                 <span className="comp-stat-label-cell">
                                   <strong>{inst.label}</strong>
                                   {inst.breakdown && (
@@ -3208,21 +3266,23 @@ export function TeamOptimizationList({
                                   )}
                                 </span>
                               </td>
-                              <td>
+                              <td className="comp-dmg-col-compact">
                                 <RotationReactionBadge
                                   reaction={targetSpec?.reaction}
                                   compact
                                 />
                               </td>
-                              <td>
+                              <td className="comp-dmg-col-compact">
                                 <RotationHitModeBadge
                                   hitMode={targetSpec?.hitMode}
                                   compact
                                 />
                               </td>
-                              <td>×{inst.count}</td>
-                              <td>{formatNum(inst.perHit)}</td>
-                              <td>
+                              <td className="comp-dmg-col-hits">×{inst.count}</td>
+                              <td className="comp-dmg-col-num">
+                                {formatNum(inst.perHit)}
+                              </td>
+                              <td className="comp-dmg-col-num">
                                 <strong>{formatNum(inst.subtotal)}</strong>
                               </td>
                             </tr>
@@ -3261,26 +3321,44 @@ export function TeamOptimizationList({
                   />
                 )}
 
-                <div className="comp-details-pieces">
-                  {OPTIMIZE_SLOTS.map((slot) => {
-                    const artId = memberRes.selection.artifactIds[slot]
-                    const art = artId ? artifactById.get(artId) : undefined
-                    if (!art) return null
-                    return (
-                      <ArtifactPieceRow
-                        key={slot}
-                        setKey={art.setKey}
-                        slotKey={art.slotKey as IdentifierSlotKey}
-                        rarity={art.rarity}
-                        level={art.level}
-                        mainStatKey={art.mainStatKey}
-                        substats={art.substats}
-                        location={art.location}
-                        lock={art.lock}
-                        compact
-                      />
-                    )
-                  })}
+                <div
+                  className="comp-details-artifacts-section"
+                  data-testid={`team-opt-artifacts-section-${mKey}`}
+                >
+                  <div className="comp-details-subheader">
+                    <strong>Artifacts</strong>
+                    <span
+                      className="muted comp-details-subhint"
+                      data-testid={`team-opt-artifacts-legend-${mKey}`}
+                    >
+                      Character badge = equipped owner in imported data · 🔒 =
+                      locked in imported data
+                    </span>
+                  </div>
+                  <div
+                    className="comp-details-pieces"
+                    data-testid={`team-opt-details-pieces-${mKey}`}
+                  >
+                    {OPTIMIZE_SLOTS.map((slot) => {
+                      const artId = memberRes.selection.artifactIds[slot]
+                      const art = artId ? artifactById.get(artId) : undefined
+                      if (!art) return null
+                      return (
+                        <ArtifactPieceRow
+                          key={slot}
+                          setKey={art.setKey}
+                          slotKey={art.slotKey as IdentifierSlotKey}
+                          rarity={art.rarity}
+                          level={art.level}
+                          mainStatKey={art.mainStatKey}
+                          substats={art.substats}
+                          location={art.location}
+                          lock={art.lock}
+                          compact
+                        />
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             )}

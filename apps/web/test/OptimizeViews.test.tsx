@@ -1772,4 +1772,92 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       )
     }
   })
+
+  it('lays out build Details with compact right-aligned damage numeric cluster, spaced stat comparison hint, and 5-card artifact grid with owner/lock legend & tooltips (build-details-layout)', () => {
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+    const sampleFlower = {
+      id: 'art_f_layout',
+      setKey: 'GoldenTroupe',
+      slotKey: 'flower' as const,
+      level: 20,
+      rarity: 5 as const,
+      mainStatKey: 'hp',
+      location: 'Furina',
+      lock: true,
+      substats: [
+        { key: 'critRate_', value: 10.5 },
+        { key: 'critDMG_', value: 21.0 },
+      ],
+    }
+    const artifactMap = new Map([[sampleFlower.id, sampleFlower]])
+
+    const evaluation = {
+      total: 420000,
+      stats: {
+        hp: 40000,
+        atk: 1200,
+        def: 850,
+        eleMas: 40,
+        enerRech_: 1.8,
+        critRate_: 0.85,
+        critDMG_: 1.9,
+      },
+      statBreakdowns: {},
+      instances: [
+        {
+          label: 'Gentilhomme Usher DMG',
+          path: ['skill', 'usherDmg'],
+          count: 7,
+          perHit: 60000,
+          subtotal: 420000,
+        },
+      ],
+    }
+
+    const html = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={artifactMap}
+        initialExpandedRowId="opt-0"
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: { flower: 'art_f_layout' } },
+          evaluation: { ...evaluation, total: 400000 },
+        }}
+        optimizedBuilds={[
+          {
+            selection: { weaponId: 'w1', artifactIds: { flower: 'art_f_layout' } },
+            total: 420000,
+            evaluation,
+          },
+        ]}
+      />
+    )
+
+    // 1. Damage table uses .comp-damage-table with .comp-dmg-col-name and right-aligned .comp-dmg-col-num cluster
+    expect(html).toContain('class="gi-table comp-damage-table"')
+    expect(html).toContain('class="comp-dmg-col-name">Damage Instance<')
+    expect(html).toContain('class="comp-dmg-col-num">Per-Hit DMG<')
+    expect(html).toContain('class="comp-dmg-col-num">Subtotal DMG<')
+    expect(html).toContain('class="comp-dmg-col-num comp-dmg-col-delta">vs. Current<')
+
+    // 2. Core Stat Comparison heading and hint are separated with .comp-details-subhint
+    expect(html).toContain('class="comp-details-subheader"')
+    expect(html).toContain('class="muted comp-details-subhint"')
+    expect(html).toContain('Click a stat row to inspect its source breakdown')
+
+    // 3. Artifacts heading, legend, and piece cards with owner/lock tooltips
+    expect(html).toContain('class="comp-details-artifacts-section"')
+    expect(html).toContain('>Artifacts<')
+    expect(html).toContain('data-testid="artifacts-legend-opt-0"')
+    expect(html).toContain(
+      'Character badge = equipped owner in imported data · 🔒 = locked in imported data'
+    )
+    expect(html).toContain('class="artifact-piece-card"')
+    expect(html).toContain(
+      'data-testid="artifact-piece-owner" title="Equipped on Furina in imported GOOD data"'
+    )
+    expect(html).toContain(
+      'data-testid="artifact-piece-lock" title="Locked in imported GOOD data"'
+    )
+  })
 })

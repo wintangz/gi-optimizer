@@ -845,48 +845,101 @@ export function ArtifactPieceRow({
     level,
     substats,
   })
+  const artMeta = getArtifactMeta({ setKey, slotKey, rarity })
+  const ownerDisplayName = location
+    ? getCharacterMeta(location).displayName
+    : null
 
   return (
     <div
       data-testid="artifact-piece-row"
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: compact ? '0.32rem' : '0.4rem',
-      }}
+      data-slot={slotKey}
+      className="artifact-piece-card"
     >
-      <ArtifactBadge
-        setKey={setKey}
-        slotKey={slotKey}
-        rarity={rarity}
-        compact
-      />
-      <span
-        style={{
-          fontSize: '0.73rem',
-          fontWeight: 700,
-          padding: '0.06rem 0.3rem',
-          borderRadius: '4px',
-          background: '#232736',
-          color: 'var(--fg)',
-        }}
+      <div className="artifact-piece-header">
+        <div className="artifact-piece-identity">
+          <span
+            className="artifact-piece-slot-icon"
+            data-testid="artifact-piece-slot-icon"
+            title={artMeta.slotDisplayName}
+          >
+            <SlotIcon slotKey={slotKey} iconProps={{ size: 13 }} />
+          </span>
+          <ArtifactBadge
+            setKey={setKey}
+            slotKey={slotKey}
+            rarity={rarity}
+            compact
+          />
+          <span
+            className="artifact-piece-level"
+            data-testid="artifact-piece-level"
+          >
+            +{level}
+          </span>
+        </div>
+        <ArtifactRvBadge rv={rvInfo} compact={compact} />
+      </div>
+
+      <div className="artifact-piece-main-row">
+        <StatChip statKey={mainStatKey} isMain compact />
+        {(location || lock) && (
+          <div className="artifact-piece-badges">
+            {location && (
+              <span
+                className="artifact-piece-owner"
+                data-testid="artifact-piece-owner"
+                title={`Equipped on ${ownerDisplayName} in imported GOOD data`}
+              >
+                <CharacterBadge characterKey={location} compact />
+              </span>
+            )}
+            {lock && (
+              <span
+                className="artifact-piece-lock"
+                data-testid="artifact-piece-lock"
+                title="Locked in imported GOOD data"
+                aria-label="Locked in imported GOOD data"
+              >
+                🔒
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div
+        className="artifact-piece-substats"
+        data-testid="artifact-piece-substats"
       >
-        +{level}
-      </span>
-      <ArtifactRvBadge rv={rvInfo} compact={compact} />
-      <StatChip statKey={mainStatKey} isMain compact />
-      {rvInfo.substats.map((s, idx) => (
-        <StatChip
-          key={`${s.key}-${idx}`}
-          statKey={s.key}
-          value={s.value}
-          substatBreakdown={s}
-          compact
-        />
-      ))}
-      {location && <CharacterBadge characterKey={location} compact />}
-      {lock && <span title="Locked">🔒</span>}
+        {rvInfo.substats.map((s, idx) => {
+          const isPct = s.key.endsWith('_')
+          const valStr = `${
+            isPct ? s.value.toFixed(1).replace(/\.0$/, '') : Math.round(s.value)
+          }${isPct ? '%' : ''}`
+          const sLabel = shortStatLabel(s.key)
+          return (
+            <span
+              key={`${s.key}-${idx}`}
+              className="artifact-substat-line"
+              data-testid="artifact-substat-line"
+              data-stat-key={s.key}
+              data-roll-count={String(s.rollCount)}
+              data-substat-rv={s.rv.toFixed(1)}
+              data-max-roll={String(s.maxRoll)}
+              title={formatSubstatRollBreakdownLine(s)}
+            >
+              {hasStatIcon(s.key) && (
+                <span className="artifact-substat-icon">
+                  <StatIcon statKey={s.key} iconProps={{ size: 12 }} />
+                </span>
+              )}
+              <span className="artifact-substat-label">{sLabel}</span>
+              <strong className="artifact-substat-val">+{valStr}</strong>
+            </span>
+          )
+        })}
+      </div>
     </div>
   )
 }
