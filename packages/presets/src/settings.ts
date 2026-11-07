@@ -103,6 +103,43 @@ export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
   topN: 5,
 }
 
+/**
+ * Migrates a persisted or caller-supplied OptimizerSettings object so that a
+ * legacy `erFloor` (when no `enerRech_` constraint is already present in
+ * `constraints`) is converted into `{ stat: 'enerRech_', min: erFloor }`,
+ * making `constraints` the single source of truth.
+ */
+export function migrateOptimizerSettings(
+  raw?: Partial<OptimizerSettings>
+): OptimizerSettings {
+  const merged: OptimizerSettings = {
+    ...DEFAULT_OPTIMIZER_SETTINGS,
+    ...(raw ?? {}),
+  }
+  const existing = Array.isArray(merged.constraints)
+    ? merged.constraints.map((c) => ({ ...c }))
+    : []
+
+  const legacyEr = merged.erFloor
+  if (
+    typeof legacyEr === 'number' &&
+    Number.isFinite(legacyEr) &&
+    legacyEr > 0
+  ) {
+    const hasErConstraint = existing.some((c) => c.stat === 'enerRech_')
+    if (!hasErConstraint) {
+      existing.unshift({
+        stat: 'enerRech_',
+        min: legacyEr,
+      })
+    }
+  }
+
+  delete merged.erFloor
+  merged.constraints = existing
+  return merged
+}
+
 export function normalizePieceCounts(
   pieces: readonly number[] | undefined
 ): SetPieceCount[] {

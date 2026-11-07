@@ -36,6 +36,7 @@ export {
   STAT_CONSTRAINT_KEYS,
   isActiveStatConstraint,
   isPercentStatConstraintKey,
+  migrateOptimizerSettings,
   normalizeStatConstraintValue,
   type ArtifactSlot,
   type BuildSelection,

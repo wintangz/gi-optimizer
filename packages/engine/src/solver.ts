@@ -36,6 +36,7 @@ import {
 import {
   ALL_ARTIFACT_SET_KEYS,
   isActiveStatConstraint,
+  migrateOptimizerSettings,
   normalizeStatConstraintValue,
   resolveArtSetExclusion,
   type Preset,
@@ -387,20 +388,10 @@ export async function runSolver(
   const unoptimizedNodes: NumNode[] = []
   const constraintBounds: Array<{ min: number; max: number }> = []
 
-  // Energy Recharge NEVER enters the objective (FR-003).
-  // When an ER floor is specified by the user, enforce it as a hard constraint.
-  if (settings.erFloor !== undefined && settings.erFloor > 0) {
-    // Normalize: if user passed e.g. 160 for 160%, convert to 1.60; if 1.6, keep 1.6.
-    const erMin =
-      settings.erFloor > 10 ? settings.erFloor / 100 : settings.erFloor
-    unoptimizedNodes.push(input.total.enerRech_)
-    constraintBounds.push({
-      min: erMin,
-      max: Number.POSITIVE_INFINITY,
-    })
-  }
+  // Migrate any legacy erFloor on load so `constraints` is the single source of truth.
+  const effectiveSettings = migrateOptimizerSettings(settings)
 
-  for (const c of settings.constraints ?? []) {
+  for (const c of effectiveSettings.constraints ?? []) {
     if (!isActiveStatConstraint(c)) continue
     const statNode = (input.total as Record<string, NumNode | undefined>)[
       c.stat

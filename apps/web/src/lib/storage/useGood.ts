@@ -3,6 +3,7 @@
 import type { Preset } from '@gi/presets/src/schema'
 import {
   DEFAULT_OPTIMIZER_SETTINGS,
+  migrateOptimizerSettings,
   type OptimizerSettings,
 } from '@gi/presets/src/settings'
 import { useCallback, useEffect, useState } from 'react'
@@ -105,14 +106,21 @@ export function useOptimizerSettings() {
   useEffect(() => {
     loadSettings()
       .then((s) => {
-        if (s) setSettings({ ...DEFAULT_OPTIMIZER_SETTINGS, ...s })
+        if (s) {
+          const migrated = migrateOptimizerSettings(s)
+          setSettings(migrated)
+          if (s.erFloor !== undefined) {
+            void saveSettings(migrated)
+          }
+        }
       })
       .finally(() => setLoading(false))
   }, [])
 
   const update = useCallback(async (next: OptimizerSettings) => {
-    setSettings(next)
-    await saveSettings(next)
+    const clean = migrateOptimizerSettings(next)
+    setSettings(clean)
+    await saveSettings(clean)
   }, [])
 
   return { settings, loading, update }

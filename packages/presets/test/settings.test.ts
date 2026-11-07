@@ -8,6 +8,7 @@ import {
   invertSets,
   isActiveStatConstraint,
   isPercentStatConstraintKey,
+  migrateOptimizerSettings,
   normalizeStatConstraintValue,
   resolveArtSetExclusion,
   resolveEffectiveSetFilter,
@@ -211,6 +212,55 @@ describe('Stat Constraints Settings & Normalization (stat-constraints)', () => {
     expect(
       isActiveStatConstraint({ stat: 'atk', min: 1500, max: 2500 })
     ).toBe(true)
+  })
+
+  it('migrates legacy erFloor into a constraints entry { stat: "enerRech_", min: <that floor> } and never duplicates when enerRech_ constraint already exists (optimize-experience-ui)', () => {
+    // Decimal legacy erFloor (1.6 -> { stat: 'enerRech_', min: 1.6 })
+    const migratedDecimal = migrateOptimizerSettings({
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      erFloor: 1.6,
+    })
+    expect(migratedDecimal.erFloor).toBeUndefined()
+    expect(migratedDecimal.constraints).toEqual([
+      { stat: 'enerRech_', min: 1.6 },
+    ])
+    expect(
+      normalizeStatConstraintValue(
+        'enerRech_',
+        migratedDecimal.constraints[0]?.min
+      )
+    ).toBeCloseTo(1.6)
+
+    // Display-unit legacy erFloor (160 -> { stat: 'enerRech_', min: 160 })
+    const migratedDisplay = migrateOptimizerSettings({
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      erFloor: 160,
+    })
+    expect(migratedDisplay.erFloor).toBeUndefined()
+    expect(migratedDisplay.constraints).toEqual([
+      { stat: 'enerRech_', min: 160 },
+    ])
+    expect(
+      normalizeStatConstraintValue(
+        'enerRech_',
+        migratedDisplay.constraints[0]?.min
+      )
+    ).toBeCloseTo(1.6)
+
+    // Does NOT duplicate if an enerRech_ constraint already exists
+    const alreadyConstrained = migrateOptimizerSettings({
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      erFloor: 1.6,
+      constraints: [
+        { stat: 'enerRech_', min: 180 },
+        { stat: 'critRate_', min: 70 },
+      ],
+    })
+    expect(alreadyConstrained.erFloor).toBeUndefined()
+    expect(alreadyConstrained.constraints).toEqual([
+      { stat: 'enerRech_', min: 180 },
+      { stat: 'critRate_', min: 70 },
+    ])
   })
 })
 

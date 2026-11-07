@@ -2,21 +2,18 @@
 
 import OptimizeLoading from './loading'
 import { ArtifactSetFilter } from '@/components/ArtifactSetFilter'
-import {
-  ArtifactBadge,
-  ArtifactPieceRow,
-  BuildComparisonBars,
-  CharacterBadge,
-  StatChip,
-  WeaponBadge,
-} from '@/components/Identifier'
+import { CharacterBadge, WeaponBadge } from '@/components/Identifier'
 import { ProgressBar, ResultsSkeleton, Spinner } from '@/components/Loading'
+import {
+  BuildComparisonList,
+  ConstraintsCard,
+  type ComparisonBuildEntry,
+} from '@/components/OptimizeViews'
 import {
   DownloadIcon,
   GearIcon,
   PlayIcon,
   StopIcon,
-  TrashIcon,
   UploadIcon,
 } from '@/components/SvgIcons'
 import {
@@ -32,7 +29,6 @@ import {
   useUserPresets,
 } from '@/lib/storage/useGood'
 import type {
-  ArtifactSlot,
   BuildSelection,
   OptimizeProgress,
   OptimizeResult,
@@ -46,75 +42,14 @@ import {
   getCharacterMeta,
   getPresetBadge,
   getWeaponMeta,
-  isPercentStatConstraintKey,
   listBundledPresets,
   listWeaponsForType,
   matchAccount,
-  STAT_CONSTRAINT_KEYS,
-  type IdentifierSlotKey,
   type Preset,
-  type StatConstraint,
-  type StatConstraintKey,
 } from '@gi/presets'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, useState } from 'react'
-
-const SLOTS: ArtifactSlot[] = ['flower', 'plume', 'sands', 'goblet', 'circlet']
-
-const DISPLAY_STATS: Array<{
-  key: StatConstraintKey
-  label: string
-  isPercent: boolean
-}> = [
-  { key: 'hp', label: 'Max HP', isPercent: false },
-  { key: 'atk', label: 'ATK', isPercent: false },
-  { key: 'def', label: 'DEF', isPercent: false },
-  { key: 'eleMas', label: 'Elemental Mastery', isPercent: false },
-  { key: 'critRate_', label: 'CRIT Rate', isPercent: true },
-  { key: 'critDMG_', label: 'CRIT DMG', isPercent: true },
-  { key: 'enerRech_', label: 'Energy Recharge', isPercent: true },
-  { key: 'heal_', label: 'Healing Bonus', isPercent: true },
-  { key: 'pyro_dmg_', label: 'Pyro DMG Bonus', isPercent: true },
-  { key: 'hydro_dmg_', label: 'Hydro DMG Bonus', isPercent: true },
-  { key: 'electro_dmg_', label: 'Electro DMG Bonus', isPercent: true },
-  { key: 'cryo_dmg_', label: 'Cryo DMG Bonus', isPercent: true },
-  { key: 'anemo_dmg_', label: 'Anemo DMG Bonus', isPercent: true },
-  { key: 'geo_dmg_', label: 'Geo DMG Bonus', isPercent: true },
-  { key: 'dendro_dmg_', label: 'Dendro DMG Bonus', isPercent: true },
-  { key: 'physical_dmg_', label: 'Physical DMG Bonus', isPercent: true },
-]
-
-function formatNum(n: number): string {
-  return Math.round(n).toLocaleString()
-}
-
-function formatStat(val: number | undefined, isPercent: boolean): string {
-  if (val === undefined || Number.isNaN(val)) return '—'
-  if (isPercent) return `${(val * 100).toFixed(1)}%`
-  return Math.round(val).toLocaleString()
-}
-
-function formatDiff(
-  curr: number,
-  opt: number,
-  isPercentStat = false
-): { text: string; cls: string } {
-  const diff = opt - curr
-  if (Math.abs(diff) < 1e-4) return { text: '0', cls: 'muted' }
-  const sign = diff > 0 ? '+' : ''
-  if (isPercentStat) {
-    return {
-      text: `${sign}${(diff * 100).toFixed(1)}%`,
-      cls: diff > 0 ? 'ok' : 'error',
-    }
-  }
-  const pct = curr > 0 ? ` (${sign}${((diff / curr) * 100).toFixed(2)}%)` : ''
-  return {
-    text: `${sign}${Math.round(diff).toLocaleString()}${pct}`,
-    cls: diff > 0 ? 'ok' : 'error',
-  }
-}
 
 function OptimizeInner() {
   const searchParams = useSearchParams()
@@ -164,15 +99,14 @@ function OptimizeInner() {
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState<OptimizeProgress | null>(null)
   const [optResult, setOptResult] = useState<OptimizeResult | null>(null)
-  const [selectedBuildIdx, setSelectedBuildIdx] = useState(0)
   const [optError, setOptError] = useState<string | null>(null)
 
   const [currentSelection, setCurrentSelection] =
     useState<BuildSelection | null>(null)
   const [currentEval, setCurrentEval] = useState<RotationResult | null>(null)
-  const [optimisedEval, setOptimisedEval] = useState<RotationResult | null>(
-    null
-  )
+  const [optimisedEvals, setOptimisedEvals] = useState<
+    Array<RotationResult | null>
+  >([])
   const [evaluating, setEvaluating] = useState(false)
   const [hydratingEngine, setHydratingEngine] = useState(false)
 
@@ -364,14 +298,12 @@ function OptimizeInner() {
     effectiveWeaponId,
   ])
 
-  const activeOptBuild = optResult?.builds[selectedBuildIdx] ?? null
-
-  // Off-main-thread evaluation of selected Optimised Build via the shared worker session
+  // Off-main-thread evaluation of all returned Top-N Optimised Builds via the shared worker session
   useEffect(() => {
     let cancelled = false
-    if (!record?.good || !activePreset || !activeOptBuild) {
+    if (!record?.good || !activePreset || !optResult || optResult.builds.length === 0) {
       void Promise.resolve().then(() => {
-        if (!cancelled) setOptimisedEval(null)
+        if (!cancelled) setOptimisedEvals([])
       })
       return () => {
         cancelled = true
@@ -381,20 +313,25 @@ function OptimizeInner() {
     void (async () => {
       setEvaluating(true)
       try {
-        const res = await evaluatePresetInWorker({
-          datasetKey: record.importedAt,
-          good: record.good,
-          preset: activePreset,
-          selection: isAkashaPreset
-            ? { ...activeOptBuild, weaponOverride: akashaWeaponSpec }
-            : activeOptBuild,
-        })
+        const evals = await Promise.all(
+          optResult.builds.map(async (b) => {
+            const res = await evaluatePresetInWorker({
+              datasetKey: record.importedAt,
+              good: record.good,
+              preset: activePreset,
+              selection: isAkashaPreset
+                ? { ...b, weaponOverride: akashaWeaponSpec }
+                : b,
+            })
+            return res.result
+          })
+        )
         if (!cancelled) {
-          setOptimisedEval(res.result)
+          setOptimisedEvals(evals)
         }
       } catch {
         if (!cancelled) {
-          setOptimisedEval(null)
+          setOptimisedEvals([])
         }
       } finally {
         if (!cancelled) {
@@ -406,14 +343,14 @@ function OptimizeInner() {
     return () => {
       cancelled = true
     }
-  }, [record, activePreset, activeOptBuild, isAkashaPreset, akashaWeaponSpec])
+  }, [record, activePreset, optResult, isAkashaPreset, akashaWeaponSpec])
 
   async function startOptimization() {
     if (!record?.good || !activePreset || !canRunPreset) return
     setRunning(true)
     setOptError(null)
     setOptResult(null)
-    setSelectedBuildIdx(0)
+    setOptimisedEvals([])
     setProgress({ tested: 0, skipped: 0, total: 0 })
 
     try {
@@ -471,60 +408,49 @@ function OptimizeInner() {
     URL.revokeObjectURL(url)
   }
 
-  function renderArtifactCell(id: string | undefined) {
-    if (!id) return <span className="muted">None</span>
-    const a = artifactById.get(id)
-    if (!a) return <code>{id}</code>
-
-    return (
-      <ArtifactPieceRow
-        setKey={a.setKey}
-        slotKey={a.slotKey as IdentifierSlotKey}
-        rarity={a.rarity}
-        level={a.level}
-        mainStatKey={a.mainStatKey}
-        substats={a.substats}
-        location={a.location}
-        lock={a.lock}
-        compact
-      />
-    )
-  }
-
   if (goodLoading || presetsLoading || settingsLoading) {
     return <OptimizeLoading />
   }
 
   const showCurrentComparison = Boolean(
-    currentEval && (!isAkashaPreset || hasCurrentEquippedArtifacts)
+    currentEval &&
+      currentSelection &&
+      (!isAkashaPreset || hasCurrentEquippedArtifacts)
   )
-  const primaryEval = showCurrentComparison ? currentEval : optimisedEval
+
+  const comparisonOptimizedBuilds: ComparisonBuildEntry[] = (
+    optResult?.builds ?? []
+  ).map((b, idx) => ({
+    selection: b,
+    total: b.total,
+    evaluation: optimisedEvals[idx] ?? null,
+  }))
+
+  const hasAnyResults =
+    showCurrentComparison || comparisonOptimizedBuilds.length > 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      <div>
-        <h1 style={{ margin: 0 }}>Single-Character Rotation Optimizer</h1>
-        <p className="muted" style={{ margin: '0.25rem 0 0' }}>
-          Maximise target rotation damage across your imported artifacts (ER excluded from objective; use ER floor below).
-        </p>
-      </div>
+    <div className="gi-page">
+      <header className="gi-page-header">
+        <div>
+          <h1 className="gi-page-title">Single-Character Rotation Optimizer</h1>
+          <p className="gi-page-subtitle">
+            Maximise target rotation damage across your imported artifacts with
+            real GO team buffs and final-stat constraints.
+          </p>
+        </div>
+      </header>
 
       {!record && (
         <div
-          className="panel"
-          style={{
-            borderColor: 'var(--warn)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '1rem',
-          }}
+          className="panel presets-warn-banner"
+          data-testid="missing-good-banner"
         >
           <span className="warn">
             Import your GOOD JSON to evaluate and optimise artifacts.
           </span>
           <Link href="/import">
-            <button type="button" className="btn-icon">
+            <button type="button" className="btn-primary btn-icon">
               <UploadIcon size={15} />
               <span>Import GOOD</span>
             </button>
@@ -532,62 +458,33 @@ function OptimizeInner() {
         </div>
       )}
 
-      {/* Preset Selection & Setup / Compatibility Gate */}
-      <div
-        className="panel"
-        style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}
+      {/* 1. SETUP CARD */}
+      <section
+        className="panel gi-card"
+        data-testid="setup-card"
+        aria-label="Setup"
       >
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              flex: 1,
-            }}
-          >
-            <strong>Preset:</strong>
-            <select
-              value={activePreset?.id ?? ''}
-              onChange={(e) => {
-                setSelectedPresetId(e.target.value)
-                setSelectedWeaponId('')
-                setOptResult(null)
-              }}
-              style={{ minWidth: '320px', flex: 1 }}
-            >
-              {allPresets.map((p) => {
-                const b = getPresetBadge(p)
-                return (
-                  <option key={p.id} value={p.id}>
-                    [{b.label}] {p.name} (Target: {displayName(p.target)})
-                  </option>
-                )
-              })}
-            </select>
-          </label>
-
+        <div className="gi-card-header">
+          <div>
+            <h2 className="gi-card-title">Setup</h2>
+            <p className="gi-card-subtitle">
+              Choose a rotation preset, target weapon, and artifact pool
+              rules.
+            </p>
+          </div>
           {activePreset && (
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className="preset-detail-actions">
               <Link
                 href={`/teams?fork=${encodeURIComponent(activePreset.id)}`}
               >
-                <button type="button" className="btn-icon">
+                <button type="button" className="btn-secondary btn-icon">
                   <GearIcon size={15} />
                   <span>Customize</span>
                 </button>
               </Link>
               <button
                 type="button"
-                className="btn-icon"
+                className="btn-secondary btn-icon"
                 disabled={!canRunPreset}
                 onClick={() => void handleExportGO(currentSelection, 'current')}
                 title="Export a Genshin Optimizer database with this preset team & Custom Multi-Target pre-loaded"
@@ -599,21 +496,35 @@ function OptimizeInner() {
           )}
         </div>
 
-        {/* Team Roster Visual Summary */}
+        {/* Preset Selector & Team Roster */}
+        <div className="gi-setup-grid">
+          <label className="gi-field-label" style={{ gridColumn: '1 / -1' }}>
+            <span className="muted">Rotation Preset</span>
+            <select
+              aria-label="Preset"
+              value={activePreset?.id ?? ''}
+              onChange={(e) => {
+                setSelectedPresetId(e.target.value)
+                setSelectedWeaponId('')
+                setOptResult(null)
+                setOptimisedEvals([])
+              }}
+            >
+              {allPresets.map((p) => {
+                const b = getPresetBadge(p)
+                return (
+                  <option key={p.id} value={p.id}>
+                    [{b.label}] {p.name} (Target: {displayName(p.target)})
+                  </option>
+                )
+              })}
+            </select>
+          </label>
+        </div>
+
         {activePreset && (
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '0.6rem',
-              alignItems: 'center',
-              padding: '0.5rem 0.75rem',
-              background: '#151821',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-            }}
-          >
-            <span className="muted" style={{ fontSize: '0.85rem' }}>
+          <div className="preset-gear-row-md preset-provenance-box">
+            <span className="muted" style={{ fontSize: '0.84rem' }}>
               Preset Team:
             </span>
             {activePreset.team.map((m, idx) => (
@@ -633,31 +544,16 @@ function OptimizeInner() {
           isAkashaPreset &&
           activePreset.team[0]?.build.type === 'fixed' &&
           akashaWeaponSpec && (
-            <div
-              style={{
-                background: '#151821',
-                border: '1px solid var(--accent)',
-                borderRadius: '6px',
-                padding: '0.75rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.6rem',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                }}
-              >
+            <div className="preset-akasha-box">
+              <div className="preset-akasha-top">
                 <strong>
                   Akasha Artifact-Only Mode — Fixed Target &amp; Free Weapon
                   Selector
                 </strong>
-                <span className="ok" style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                <span
+                  className="ok"
+                  style={{ fontSize: '0.82rem', fontWeight: 600 }}
+                >
                   ✓ Fixed Spec: {displayName(activePreset.target)} Lv.
                   {activePreset.team[0].build.character.level} C
                   {activePreset.team[0].build.character.constellation} (Talents{' '}
@@ -667,31 +563,18 @@ function OptimizeInner() {
                 </span>
               </div>
 
-              <div className="muted" style={{ fontSize: '0.8rem' }}>
-                Artifact-only mode: fixed character stats &amp; simulated weapon; only your imported GOOD artifacts are used.
+              <div className="muted preset-akasha-desc">
+                Artifact-only mode: fixed character stats &amp; simulated
+                weapon; only your imported GOOD artifacts are used.
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '0.85rem',
-                  alignItems: 'center',
-                }}
-              >
+              <div className="preset-akasha-controls">
                 <WeaponBadge
                   weaponKey={akashaWeaponSpec.key}
                   subtitle={`R${akashaWeaponSpec.refinement} · Lv.${akashaWeaponSpec.level ?? 90}`}
                 />
 
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    fontSize: '0.88rem',
-                  }}
-                >
+                <label className="presets-filter-label-sm">
                   <span className="muted">Weapon:</span>
                   <select
                     aria-label="Simulated Weapon"
@@ -709,6 +592,7 @@ function OptimizeInner() {
                         },
                       }))
                       setOptResult(null)
+                      setOptimisedEvals([])
                     }}
                   >
                     {availableAkashaWeapons.map((w) => (
@@ -719,14 +603,7 @@ function OptimizeInner() {
                   </select>
                 </label>
 
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    fontSize: '0.88rem',
-                  }}
-                >
+                <label className="presets-filter-label-sm">
                   <span className="muted">Refinement:</span>
                   <select
                     aria-label="Weapon Refinement"
@@ -742,6 +619,7 @@ function OptimizeInner() {
                         },
                       }))
                       setOptResult(null)
+                      setOptimisedEvals([])
                     }}
                   >
                     {[1, 2, 3, 4, 5].map((r) => (
@@ -756,23 +634,8 @@ function OptimizeInner() {
           )}
 
         {activePreset && !isAkashaPreset && matchReport && (
-          <div
-            style={{
-              background: '#151821',
-              border: '1px solid var(--border)',
-              borderRadius: '6px',
-              padding: '0.75rem',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '0.5rem',
-              }}
-            >
+          <div className="preset-match-box">
+            <div className="preset-akasha-top">
               <strong>
                 Target Character &amp; Weapon Check:{' '}
                 <span className={matchReport.canRun ? 'ok' : 'error'}>
@@ -786,32 +649,23 @@ function OptimizeInner() {
                 never checked against your account.
               </span>
             </div>
-            <ul
-              style={{
-                margin: '0.4rem 0 0',
-                paddingLeft: '1.25rem',
-                fontSize: '0.9rem',
-              }}
-            >
+            <ul className="preset-match-list preset-match-results">
               {matchReport.parts.map((pt, i) => (
-                <li key={i} className={pt.ok ? 'ok' : 'error'}>
+                <li
+                  key={i}
+                  className={`preset-match-item ${pt.ok ? 'ok' : 'error'}`}
+                >
                   {pt.ok ? '✓' : '✕'} {pt.message}
                   {pt.part === 'weapon' &&
                     pt.candidates &&
                     pt.candidates.length > 0 && (
-                      <span
-                        style={{
-                          marginLeft: '0.6rem',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                        }}
-                      >
+                      <span className="preset-match-candidates">
                         <WeaponBadge
                           weaponKey={pt.candidates[0]!.key}
                           compact
                         />
                         <select
+                          aria-label="Qualifying Weapon Copy"
                           value={selectedWeaponId}
                           onChange={(e) => setSelectedWeaponId(e.target.value)}
                         >
@@ -835,62 +689,13 @@ function OptimizeInner() {
             </ul>
           </div>
         )}
-      </div>
 
-      {/* GO-Style Optimizer Settings Panel */}
-      <div
-        className="panel"
-        style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}
-      >
-        <strong>
-          Optimizer Constraints &amp; Pool Settings (GO-Style User Settings)
-        </strong>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '0.85rem',
-          }}
-        >
-          <label
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
-          >
-            <span className="muted" style={{ fontSize: '0.85rem' }}>
-              Minimum Energy Recharge Floor (%)
-            </span>
-            <input
-              type="number"
-              min={100}
-              max={400}
-              step={5}
-              placeholder="No ER constraint (e.g. 160)"
-              value={
-                settings.erFloor
-                  ? Math.round(
-                      settings.erFloor > 10
-                        ? settings.erFloor
-                        : settings.erFloor * 100
-                    )
-                  : ''
-              }
-              onChange={(e) => {
-                const raw = e.target.value.trim()
-                const num = raw ? Number(raw) : undefined
-                void updateSettings({
-                  ...settings,
-                  erFloor: num && num > 0 ? num / 100 : undefined,
-                })
-              }}
-            />
-          </label>
-
-          <label
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
-          >
-            <span className="muted" style={{ fontSize: '0.85rem' }}>
-              Main-Stat Assumption Level
-            </span>
+        {/* Artifact Pool Settings */}
+        <div className="gi-setup-grid">
+          <label className="gi-field-label">
+            <span className="muted">Main-Stat Assumption Level</span>
             <select
+              aria-label="Main-Stat Assumption Level"
               value={settings.mainStatAssumptionLevel}
               onChange={(e) =>
                 void updateSettings({
@@ -914,15 +719,12 @@ function OptimizeInner() {
             </select>
           </label>
 
-          <label
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
-          >
-            <span className="muted" style={{ fontSize: '0.85rem' }}>
-              Artifact Level Range (Min / Max)
-            </span>
-            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          <label className="gi-field-label">
+            <span className="muted">Artifact Level Range (Min / Max)</span>
+            <div className="preset-gear-row">
               <input
                 type="number"
+                aria-label="Artifact Level Min"
                 min={0}
                 max={20}
                 value={settings.levelLow}
@@ -935,11 +737,12 @@ function OptimizeInner() {
                     ),
                   })
                 }
-                style={{ width: '70px' }}
+                style={{ width: '74px' }}
               />
-              <span>to</span>
+              <span className="muted">to</span>
               <input
                 type="number"
+                aria-label="Artifact Level Max"
                 min={0}
                 max={20}
                 value={settings.levelHigh}
@@ -952,18 +755,15 @@ function OptimizeInner() {
                     ),
                   })
                 }
-                style={{ width: '70px' }}
+                style={{ width: '74px' }}
               />
             </div>
           </label>
 
-          <label
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
-          >
-            <span className="muted" style={{ fontSize: '0.85rem' }}>
-              Top N Builds to Return
-            </span>
+          <label className="gi-field-label">
+            <span className="muted">Top N Builds to Return</span>
             <select
+              aria-label="Top N Builds to Return"
               value={settings.topN}
               onChange={(e) =>
                 void updateSettings({
@@ -980,194 +780,8 @@ function OptimizeInner() {
           </label>
         </div>
 
-        {/* Stat Constraints Editor */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem',
-            padding: '0.65rem 0.75rem',
-            background: '#151821',
-            borderRadius: '6px',
-            border: '1px solid var(--border)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
-            }}
-          >
-            <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>
-              Final Stat Constraints (Min / Max)
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const existing = settings.constraints ?? []
-                const used = new Set(existing.map((c) => c.stat))
-                const nextStat: StatConstraintKey =
-                  STAT_CONSTRAINT_KEYS.find((k) => !used.has(k)) ?? 'critRate_'
-                const nextEntry: StatConstraint = { stat: nextStat }
-                void updateSettings({
-                  ...settings,
-                  constraints: [...existing, nextEntry],
-                })
-              }}
-              style={{ fontSize: '0.82rem', padding: '0.25rem 0.65rem' }}
-            >
-              + Add Constraint
-            </button>
-          </div>
-
-          {(settings.constraints ?? []).length === 0 ? (
-            <span className="muted" style={{ fontSize: '0.82rem' }}>
-              No final-stat constraints added. Click &ldquo;+ Add Constraint&rdquo; to bound HP, ATK, DEF, EM, CRIT, ER, Healing Bonus, or Elemental DMG%.
-            </span>
-          ) : (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.45rem',
-              }}
-            >
-              {(settings.constraints ?? []).map((constraint, idx) => {
-                const isPct = isPercentStatConstraintKey(constraint.stat)
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '0.5rem',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <select
-                      aria-label={`Constraint ${idx + 1} Stat`}
-                      value={constraint.stat}
-                      onChange={(e) => {
-                        const nextList = [...(settings.constraints ?? [])]
-                        nextList[idx] = {
-                          ...constraint,
-                          stat: e.target.value as StatConstraintKey,
-                        }
-                        void updateSettings({
-                          ...settings,
-                          constraints: nextList,
-                        })
-                      }}
-                      style={{ minWidth: '180px' }}
-                    >
-                      {DISPLAY_STATS.map((st) => (
-                        <option key={st.key} value={st.key}>
-                          {st.label} {st.isPercent ? '(%)' : ''}
-                        </option>
-                      ))}
-                    </select>
-
-                    <input
-                      type="number"
-                      aria-label={`Constraint ${idx + 1} Min`}
-                      step={isPct ? 1 : 10}
-                      placeholder={isPct ? 'Min (%)' : 'Min'}
-                      value={
-                        typeof constraint.min === 'number' &&
-                        Number.isFinite(constraint.min)
-                          ? constraint.min
-                          : ''
-                      }
-                      onChange={(e) => {
-                        const raw = e.target.value.trim()
-                        const num = raw !== '' ? Number(raw) : undefined
-                        const nextList = [...(settings.constraints ?? [])]
-                        const updated: StatConstraint = {
-                          ...constraint,
-                          min:
-                            num !== undefined && Number.isFinite(num)
-                              ? num
-                              : undefined,
-                        }
-                        if (updated.min === undefined) delete updated.min
-                        nextList[idx] = updated
-                        void updateSettings({
-                          ...settings,
-                          constraints: nextList,
-                        })
-                      }}
-                      style={{ width: '120px' }}
-                    />
-
-                    <input
-                      type="number"
-                      aria-label={`Constraint ${idx + 1} Max`}
-                      step={isPct ? 1 : 10}
-                      placeholder={isPct ? 'Max (%)' : 'Max'}
-                      value={
-                        typeof constraint.max === 'number' &&
-                        Number.isFinite(constraint.max)
-                          ? constraint.max
-                          : ''
-                      }
-                      onChange={(e) => {
-                        const raw = e.target.value.trim()
-                        const num = raw !== '' ? Number(raw) : undefined
-                        const nextList = [...(settings.constraints ?? [])]
-                        const updated: StatConstraint = {
-                          ...constraint,
-                          max:
-                            num !== undefined && Number.isFinite(num)
-                              ? num
-                              : undefined,
-                        }
-                        if (updated.max === undefined) delete updated.max
-                        nextList[idx] = updated
-                        void updateSettings({
-                          ...settings,
-                          constraints: nextList,
-                        })
-                      }}
-                      style={{ width: '120px' }}
-                    />
-
-                    <button
-                      type="button"
-                      className="btn-icon"
-                      aria-label={`Remove Constraint ${idx + 1}`}
-                      onClick={() => {
-                        const nextList = (settings.constraints ?? []).filter(
-                          (_, i) => i !== idx
-                        )
-                        void updateSettings({
-                          ...settings,
-                          constraints: nextList,
-                        })
-                      }}
-                      style={{ padding: '0.25rem 0.5rem' }}
-                    >
-                      <TrashIcon size={14} />
-                      <span>Remove</span>
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '1.25rem',
-            alignItems: 'center',
-          }}
-        >
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <div className="presets-filter-bar">
+          <label className="presets-filter-label">
             <input
               type="checkbox"
               checked={settings.includeEquippedOnOthers}
@@ -1181,7 +795,7 @@ function OptimizeInner() {
             <span>Include artifacts equipped on other characters</span>
           </label>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <label className="presets-filter-label">
             <input
               type="checkbox"
               checked={Boolean(settings.lockedOnly)}
@@ -1200,19 +814,20 @@ function OptimizeInner() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
             gap: '1rem',
           }}
         >
-          <div>
+          <div className="preset-provenance-box">
             <div
               className="muted"
-              style={{ fontSize: '0.85rem', marginBottom: '0.3rem' }}
+              style={{ fontSize: '0.84rem', marginBottom: '0.4rem' }}
             >
-              Protected Characters (do not take their equipped artifacts):
+              Protected Characters (keep their equipped artifacts):
             </div>
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <div className="preset-gear-row">
               <select
+                aria-label="Protect character"
                 value={excludeCharInput}
                 onChange={(e) => setExcludeCharInput(e.target.value)}
               >
@@ -1225,6 +840,7 @@ function OptimizeInner() {
               </select>
               <button
                 type="button"
+                className="btn-secondary"
                 disabled={!excludeCharInput}
                 onClick={() => {
                   if (
@@ -1242,26 +858,23 @@ function OptimizeInner() {
                   }
                 }}
               >
-                Exclude
+                Protect
               </button>
             </div>
             {settings.excludedCharacters.length > 0 && (
               <div
-                style={{
-                  display: 'flex',
-                  gap: '0.35rem',
-                  flexWrap: 'wrap',
-                  marginTop: '0.4rem',
-                }}
+                className="preset-gear-row"
+                style={{ marginTop: '0.5rem' }}
               >
                 {settings.excludedCharacters.map((ck) => (
                   <span
                     key={ck}
                     style={{
-                      background: '#252a3a',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '4px',
-                      fontSize: '0.85rem',
+                      background: '#232838',
+                      border: '1px solid var(--border)',
+                      padding: '0.18rem 0.45rem',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.35rem',
@@ -1270,6 +883,8 @@ function OptimizeInner() {
                     <CharacterBadge characterKey={ck} compact />
                     <button
                       type="button"
+                      className="btn-ghost-sm"
+                      aria-label={`Unprotect ${displayName(ck)}`}
                       onClick={() =>
                         void updateSettings({
                           ...settings,
@@ -1277,11 +892,7 @@ function OptimizeInner() {
                             settings.excludedCharacters.filter((x) => x !== ck),
                         })
                       }
-                      style={{
-                        padding: '0 0.25rem',
-                        border: 'none',
-                        background: 'transparent',
-                      }}
+                      style={{ padding: '0 0.25rem' }}
                     >
                       ×
                     </button>
@@ -1296,58 +907,40 @@ function OptimizeInner() {
             onChange={(next) => void updateSettings(next)}
           />
         </div>
+      </section>
 
-        {/* Action Row & Real Optimization Progress Bar */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
-            paddingTop: '0.5rem',
-            borderTop: '1px solid var(--border)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            {!running ? (
-              <button
-                type="button"
-                className="btn-icon"
-                disabled={!canRunPreset}
-                onClick={() => void startOptimization()}
-                style={{
-                  background: 'var(--accent)',
-                  color: '#0b0d12',
-                  fontWeight: 700,
-                  padding: '0.55rem 1.25rem',
-                }}
-              >
-                <PlayIcon size={16} />
-                <span>Optimize</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn-icon"
-                onClick={cancelOptimization}
-                style={{
-                  background: 'var(--err)',
-                  color: '#0b0d12',
-                  fontWeight: 700,
-                  padding: '0.55rem 1.25rem',
-                }}
-              >
-                <StopIcon size={16} />
-                <span>Cancel</span>
-              </button>
+      {/* 2. CONSTRAINTS CARD */}
+      <ConstraintsCard
+        settings={settings}
+        onChange={(next) => void updateSettings(next)}
+      />
+
+      {/* 3. RESULTS CARD (including Run Action & Progress / Empty States) */}
+      <section
+        className="panel gi-card"
+        data-testid="results-card"
+        aria-label="Results"
+      >
+        <div className="gi-card-header">
+          <div className="preset-gear-row-md">
+            {activePreset && (
+              <CharacterBadge
+                characterKey={activePreset.target}
+                simulated={isAkashaPreset}
+                role="target"
+              />
             )}
+            <div>
+              <h2 className="gi-card-title">Results</h2>
+              <p className="gi-card-subtitle">
+                {activePreset
+                  ? `${activePreset.name} · Rotation Repeat ×${activePreset.rotation.repeat ?? 1}`
+                  : 'Compare your current build against top-ranked optimizer builds.'}
+              </p>
+            </div>
+          </div>
 
+          <div className="preset-gear-row-md">
             {evaluating && !running && (
               <Spinner
                 label={
@@ -1360,336 +953,109 @@ function OptimizeInner() {
               />
             )}
 
-            {optResult && !running && (
-              <span className="ok" style={{ fontSize: '0.9rem' }}>
-                ✓ Finished in {(optResult.durationMs / 1000).toFixed(2)}s —
-                found {optResult.builds.length} qualifying build(s) (
-                {optResult.tested.toLocaleString()} tested,{' '}
-                {optResult.skipped.toLocaleString()} pruned).
-              </span>
+            {!running ? (
+              <button
+                type="button"
+                className="btn-run-primary btn-icon"
+                data-testid="run-optimize-btn"
+                disabled={!canRunPreset}
+                onClick={() => void startOptimization()}
+              >
+                <PlayIcon size={16} />
+                <span>Optimize</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn-run-cancel btn-icon"
+                data-testid="cancel-optimize-btn"
+                onClick={cancelOptimization}
+              >
+                <StopIcon size={16} />
+                <span>Cancel</span>
+              </button>
             )}
           </div>
+        </div>
 
-          {running && progress && (
+        {running && progress && (
+          <div className="preset-provenance-box" data-testid="progress-card">
             <ProgressBar
               tested={progress.tested}
               skipped={progress.skipped}
               total={progress.total}
               label="Optimizing builds…"
             />
-          )}
-        </div>
-
-        {optError && <div className="error">Error: {optError}</div>}
-      </div>
-
-      {/* Results & Current vs Optimised Comparison */}
-      {evaluating && !primaryEval && (
-        <ResultsSkeleton
-          label={
-            hydratingEngine ? 'Loading optimizer engine…' : 'Evaluating…'
-          }
-        />
-      )}
-
-      {isAkashaPreset &&
-        !evaluating &&
-        !hasCurrentEquippedArtifacts &&
-        !optimisedEval &&
-        record && (
-          <div
-            className="panel"
-            style={{
-              borderColor: 'var(--accent)',
-              background: 'rgba(122, 162, 255, 0.06)',
-            }}
-          >
-            <span className="muted">
-              No artifacts equipped on{' '}
-              <strong>{displayName(activePreset!.target)}</strong> — click{' '}
-              <strong>Optimize</strong> to search your artifact pool.
-            </span>
           </div>
         )}
 
-      {optResult && optResult.builds.length === 0 && !running && (
-        <div className="panel" style={{ borderColor: 'var(--err)' }}>
-          <span className="error">
-            No build met constraints — constraints could not be met with the current artifact pool (relax stat constraints or ER floor, include equipped artifacts, or widen set filter).
-          </span>
-        </div>
-      )}
-
-      {primaryEval && activePreset && (
-        <div
-          className="panel"
-          style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}
-        >
+        {optResult && !running && (
           <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '0.75rem',
-            }}
+            className="preset-provenance-box ok"
+            style={{ fontSize: '0.88rem' }}
+            data-testid="optimize-summary-banner"
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <CharacterBadge
-                  characterKey={activePreset.target}
-                  simulated={isAkashaPreset}
-                  role="target"
-                />
-                <h2 style={{ margin: 0 }}>
-                  {showCurrentComparison && optimisedEval
-                    ? 'Current Build vs. Optimised Build Comparison'
-                    : showCurrentComparison
-                      ? 'Current Equipped Build Rotation Breakdown'
-                      : 'Optimised Build Rotation Breakdown (No Current Build Equipped)'}
-                </h2>
-              </div>
-              <div className="muted" style={{ fontSize: '0.9rem' }}>
-                Preset: <strong>{activePreset.name}</strong> · Rotation Repeat ×
-                {activePreset.rotation.repeat ?? 1}
-              </div>
-            </div>
-
-            {optResult && optResult.builds.length > 0 && (
-              <div
-                style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
-              >
-                <span className="muted">Rank:</span>
-                <select
-                  value={selectedBuildIdx}
-                  onChange={(e) => setSelectedBuildIdx(Number(e.target.value))}
-                >
-                  {optResult.builds.map((b, i) => (
-                    <option key={i} value={i}>
-                      #{i + 1} — {formatNum(b.total)} Total Rotation DMG
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="btn-icon"
-                  onClick={() =>
-                    void handleExportGO(
-                      activeOptBuild,
-                      `opt-rank-${selectedBuildIdx + 1}`
-                    )
-                  }
-                >
-                  <DownloadIcon size={15} />
-                  <span>Verify GO (.json)</span>
-                </button>
-              </div>
-            )}
+            ✓ Finished in {(optResult.durationMs / 1000).toFixed(2)}s — found{' '}
+            {optResult.builds.length} qualifying build(s) (
+            {optResult.tested.toLocaleString()} tested,{' '}
+            {optResult.skipped.toLocaleString()} pruned).
           </div>
+        )}
 
-          {/* Proportional Horizontal Build Comparison Bars */}
-          <BuildComparisonBars
-            currentTotal={showCurrentComparison ? currentEval?.total : undefined}
-            optimisedTotal={optimisedEval?.total}
-            rank={selectedBuildIdx + 1}
+        {optError && (
+          <div className="gi-empty-card gi-empty-card-err" role="alert">
+            Error: {optError}
+          </div>
+        )}
+
+        {evaluating && !hasAnyResults && (
+          <ResultsSkeleton
+            label={
+              hydratingEngine ? 'Loading optimizer engine…' : 'Evaluating…'
+            }
           />
+        )}
 
-          {/* Per-Instance Rotation Damage Table */}
-          <div>
-            <h3 style={{ margin: '0 0 0.5rem' }}>
-              Per-Instance Rotation Breakdown
-            </h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Damage Instance</th>
-                  <th>Hits</th>
-                  {showCurrentComparison && (
-                    <>
-                      <th>Current Per-Hit</th>
-                      <th>Current Subtotal</th>
-                    </>
-                  )}
-                  {optimisedEval && (
-                    <>
-                      <th>Optimised Per-Hit</th>
-                      <th>Optimised Subtotal</th>
-                      {showCurrentComparison && <th>Difference</th>}
-                    </>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {primaryEval.instances.map((inst, idx) => {
-                  const optInst = optimisedEval?.instances[idx]
-                  const diff =
-                    showCurrentComparison && currentEval && optInst
-                      ? formatDiff(
-                          currentEval.instances[idx]!.subtotal,
-                          optInst.subtotal
-                        )
-                      : null
-                  return (
-                    <tr key={idx}>
-                      <td>
-                        <strong>{inst.label}</strong>
-                      </td>
-                      <td>×{inst.count}</td>
-                      {showCurrentComparison && currentEval && (
-                        <>
-                          <td>{formatNum(currentEval.instances[idx]!.perHit)}</td>
-                          <td>
-                            {formatNum(currentEval.instances[idx]!.subtotal)}
-                          </td>
-                        </>
-                      )}
-                      {optInst && (
-                        <>
-                          <td>{formatNum(optInst.perHit)}</td>
-                          <td>
-                            <strong>{formatNum(optInst.subtotal)}</strong>
-                          </td>
-                          {showCurrentComparison && diff && (
-                            <td className={diff.cls}>{diff.text}</td>
-                          )}
-                        </>
-                      )}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+        {optResult && optResult.builds.length === 0 && !running && (
+          <div
+            className="gi-empty-card gi-empty-card-err"
+            data-testid="constraints-unmet-card"
+          >
+            No build met constraints — constraints could not be met with the
+            current artifact pool (relax stat constraints, include equipped
+            artifacts, or widen the artifact set filter).
           </div>
+        )}
 
-          {/* Artifact Slot Comparison */}
-          <div>
-            <h3 style={{ margin: '0 0 0.5rem' }}>
-              Artifact Loadout {showCurrentComparison ? 'Comparison (Slot by Slot)' : '(Optimised Build)'}
-            </h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Slot</th>
-                  {showCurrentComparison && <th>Current Equipped Artifact</th>}
-                  {activeOptBuild && (
-                    <>
-                      <th>Optimised Artifact</th>
-                      {showCurrentComparison && <th>Status</th>}
-                    </>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {SLOTS.map((slot) => {
-                  const currId = currentSelection?.artifactIds[slot]
-                  const optId = activeOptBuild?.artifactIds[slot]
-                  const changed = activeOptBuild && currId !== optId
-                  const currArt = currId ? artifactById.get(currId) : undefined
-                  const optArt = optId ? artifactById.get(optId) : undefined
-                  const refSetKey =
-                    optArt?.setKey ?? currArt?.setKey ?? 'GoldenTroupe'
+        {isAkashaPreset &&
+          !evaluating &&
+          !hasCurrentEquippedArtifacts &&
+          comparisonOptimizedBuilds.length === 0 &&
+          record && (
+            <div className="gi-empty-card" data-testid="akasha-no-current-card">
+              No artifacts equipped on{' '}
+              <strong>{displayName(activePreset!.target)}</strong> — click{' '}
+              <strong>Optimize</strong> to search your artifact pool.
+            </div>
+          )}
 
-                  return (
-                    <tr key={slot}>
-                      <td>
-                        <ArtifactBadge
-                          setKey={refSetKey}
-                          slotKey={slot}
-                          slotOnly
-                          compact
-                        />
-                      </td>
-                      {showCurrentComparison && (
-                        <td style={{ fontSize: '0.88rem' }}>
-                          {renderArtifactCell(currId)}
-                        </td>
-                      )}
-                      {activeOptBuild && (
-                        <>
-                          <td style={{ fontSize: '0.88rem' }}>
-                            {renderArtifactCell(optId)}
-                          </td>
-                          {showCurrentComparison && (
-                            <td className={changed ? 'warn' : 'muted'}>
-                              {changed ? 'Swapped' : 'Kept'}
-                            </td>
-                          )}
-                        </>
-                      )}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Final Stats Comparison */}
-          <div>
-            <h3 style={{ margin: '0 0 0.5rem' }}>Final Character Stats</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Stat</th>
-                  {showCurrentComparison && <th>Current Build</th>}
-                  {optimisedEval && (
-                    <>
-                      <th>Optimised Build</th>
-                      {showCurrentComparison && <th>Delta</th>}
-                    </>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {DISPLAY_STATS.filter((st) => {
-                  const cVal = currentEval?.stats[st.key] ?? 0
-                  const oVal = optimisedEval?.stats[st.key] ?? 0
-                  if (
-                    (st.key.endsWith('_dmg_') || st.key === 'heal_') &&
-                    cVal === 0 &&
-                    oVal === 0
-                  )
-                    return false
-                  return true
-                }).map((st) => {
-                  const cVal = currentEval?.stats[st.key] ?? 0
-                  const oVal = optimisedEval?.stats[st.key] ?? 0
-                  const diff =
-                    showCurrentComparison && currentEval && optimisedEval
-                      ? formatDiff(cVal, oVal, st.isPercent)
-                      : null
-                  return (
-                    <tr key={st.key}>
-                      <td>
-                        <StatChip statKey={st.key} showLabel />
-                      </td>
-                      {showCurrentComparison && currentEval && (
-                        <td>{formatStat(cVal, st.isPercent)}</td>
-                      )}
-                      {optimisedEval && (
-                        <>
-                          <td>
-                            <strong>{formatStat(oVal, st.isPercent)}</strong>
-                          </td>
-                          {showCurrentComparison && diff && (
-                            <td className={diff.cls}>{diff.text}</td>
-                          )}
-                        </>
-                      )}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+        {hasAnyResults && activePreset && (
+          <BuildComparisonList
+            preset={activePreset}
+            currentBuild={
+              showCurrentComparison && currentSelection && currentEval
+                ? {
+                    selection: currentSelection,
+                    evaluation: currentEval,
+                  }
+                : null
+            }
+            optimizedBuilds={comparisonOptimizedBuilds}
+            artifactById={artifactById}
+            onExportGO={(sel, label) => void handleExportGO(sel, label)}
+          />
+        )}
+      </section>
     </div>
   )
 }

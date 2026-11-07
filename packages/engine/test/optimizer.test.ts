@@ -657,5 +657,23 @@ describe('Single-Character Optimizer Solver (single-character-optimizer)', () =>
         expect(ev.stats.critRate_!).toBeLessThanOrEqual(crMax / 100 + 1e-4)
       }
     })
+
+    it('produces identical solver results for an enerRech_ min constraint and legacy erFloor of the same value (optimize-experience-ui)', async () => {
+      const legacyErRes = await session.optimize(furinaPreset, {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        erFloor: 1.25,
+        topN: 5,
+      })
+      const unifiedConstraintRes = await session.optimize(furinaPreset, {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        constraints: [{ stat: 'enerRech_', min: 125 }],
+        topN: 5,
+      })
+
+      expect(unifiedConstraintRes.builds.length).toBeGreaterThan(0)
+      expect(unifiedConstraintRes.builds).toEqual(legacyErRes.builds)
+      expect(unifiedConstraintRes.tested).toBe(legacyErRes.tested)
+      expect(unifiedConstraintRes.skipped).toBe(legacyErRes.skipped)
+    })
   })
 })
