@@ -49,6 +49,7 @@ vi.mock('react', async (importOriginal) => {
 import {
   BuildComparisonList,
   ConstraintsCard,
+  formatCoreStatComparison,
   formatRelativeDelta,
   rankWeaponComparisonRows,
   resolveWeaponCompareCandidate,
@@ -652,5 +653,287 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     )
     expect(listHtml).toContain('>No build meets constraints<')
     expect(listHtml).toContain('data-testid="weapon-compare-details-FavoniusSword"')
+  })
+
+  it('formats core stat comparisons with current -> build -> signed diff and ok/error/muted classes', () => {
+    // Flat stat increase
+    expect(formatCoreStatComparison('hp', 41200, 38500)).toEqual({
+      currentText: (38500).toLocaleString(),
+      buildText: (41200).toLocaleString(),
+      diffText: `+${(2700).toLocaleString()}`,
+      asciiDiffText: `+${(2700).toLocaleString()}`,
+      sign: '+',
+      cls: 'ok',
+    })
+
+    // Flat stat decrease
+    expect(formatCoreStatComparison('atk', 1150, 1210)).toEqual({
+      currentText: (1210).toLocaleString(),
+      buildText: (1150).toLocaleString(),
+      diffText: '−60',
+      asciiDiffText: '-60',
+      sign: '-',
+      cls: 'error',
+    })
+
+    // Flat stat unchanged
+    expect(formatCoreStatComparison('def', 850, 850)).toEqual({
+      currentText: '850',
+      buildText: '850',
+      diffText: '0',
+      asciiDiffText: '0',
+      sign: '0',
+      cls: 'muted',
+    })
+
+    // Percent stat increase
+    expect(formatCoreStatComparison('critDMG_', 2.15, 1.924)).toEqual({
+      currentText: '192.4%',
+      buildText: '215.0%',
+      diffText: '+22.6%',
+      asciiDiffText: '+22.6%',
+      sign: '+',
+      cls: 'ok',
+    })
+
+    // Percent stat decrease
+    expect(formatCoreStatComparison('enerRech_', 1.5, 1.62)).toEqual({
+      currentText: '162.0%',
+      buildText: '150.0%',
+      diffText: '−12.0%',
+      asciiDiffText: '-12.0%',
+      sign: '-',
+      cls: 'error',
+    })
+
+    // Percent stat unchanged
+    expect(formatCoreStatComparison('critRate_', 0.785, 0.785)).toEqual({
+      currentText: '78.5%',
+      buildText: '78.5%',
+      diffText: '0.0%',
+      asciiDiffText: '0.0%',
+      sign: '0',
+      cls: 'muted',
+    })
+
+    // Plain mode (no baseline)
+    expect(formatCoreStatComparison('critRate_', 0.785)).toEqual({
+      currentText: null,
+      buildText: '78.5%',
+      diffText: null,
+      asciiDiffText: null,
+      sign: null,
+      cls: 'muted',
+    })
+  })
+
+  it('shows core stat diffs in BuildComparisonList and WeaponComparisonList expanded Details against Current, and plain stats when the row IS Current or no Current baseline exists', () => {
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+    const currentStats = {
+      hp: 38500,
+      atk: 1210,
+      def: 850,
+      eleMas: 40,
+      enerRech_: 1.62,
+      critRate_: 0.785,
+      critDMG_: 1.924,
+    }
+    const optStats = {
+      hp: 41200, // +2,700 (ok)
+      atk: 1150, // -60 (error)
+      def: 850, // 0 (muted)
+      eleMas: 80, // +40 (ok)
+      enerRech_: 1.5, // -12.0% (error)
+      critRate_: 0.785, // 0.0% (muted)
+      critDMG_: 2.15, // +22.6% (ok)
+    }
+
+    // 1. BuildComparisonList: expanded optimized build (#1) with Current baseline
+    const optExpandedHtml = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        initialExpandedRowId="opt-0"
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: { total: 300000, stats: currentStats, instances: [] },
+        }}
+        optimizedBuilds={[
+          {
+            selection: { weaponId: 'w1', artifactIds: {} },
+            total: 330000,
+            evaluation: { total: 330000, stats: optStats, instances: [] },
+          },
+        ]}
+      />
+    )
+
+    expect(optExpandedHtml).toContain(
+      'data-testid="comp-stat-diffs-opt-0" data-mode="diff"'
+    )
+    expect(optExpandedHtml).toContain('Core Stat Comparison vs. Current')
+    // All 7 core stats present with current -> build -> signed diff
+    for (const statKey of [
+      'hp',
+      'atk',
+      'def',
+      'eleMas',
+      'enerRech_',
+      'critRate_',
+      'critDMG_',
+    ]) {
+      expect(optExpandedHtml).toContain(
+        `data-testid="comp-stat-row-opt-0-${statKey}"`
+      )
+      expect(optExpandedHtml).toContain(
+        `data-testid="comp-stat-current-opt-0-${statKey}"`
+      )
+      expect(optExpandedHtml).toContain(
+        `data-testid="comp-stat-value-opt-0-${statKey}"`
+      )
+      expect(optExpandedHtml).toContain(
+        `data-testid="comp-stat-diff-opt-0-${statKey}"`
+      )
+    }
+    // Check green (ok), red (error), grey (muted) classes and signed values
+    expect(optExpandedHtml).toContain(
+      'class="comp-stat-num comp-stat-diff-delta ok" data-testid="comp-stat-diff-opt-0-hp" data-diff-sign="+" data-diff-ascii="+2,700">+2,700<'
+    )
+    expect(optExpandedHtml).toContain(
+      'class="comp-stat-num comp-stat-diff-delta error" data-testid="comp-stat-diff-opt-0-atk" data-diff-sign="-" data-diff-ascii="-60">−60<'
+    )
+    expect(optExpandedHtml).toContain(
+      'class="comp-stat-num comp-stat-diff-delta muted" data-testid="comp-stat-diff-opt-0-def" data-diff-sign="0" data-diff-ascii="0">0<'
+    )
+    expect(optExpandedHtml).toContain(
+      'class="comp-stat-num comp-stat-diff-delta error" data-testid="comp-stat-diff-opt-0-enerRech_" data-diff-sign="-" data-diff-ascii="-12.0%">−12.0%<'
+    )
+    expect(optExpandedHtml).toContain(
+      'class="comp-stat-num comp-stat-diff-delta muted" data-testid="comp-stat-diff-opt-0-critRate_" data-diff-sign="0" data-diff-ascii="0.0%">0.0%<'
+    )
+    expect(optExpandedHtml).toContain(
+      'class="comp-stat-num comp-stat-diff-delta ok" data-testid="comp-stat-diff-opt-0-critDMG_" data-diff-sign="+" data-diff-ascii="+22.6%">+22.6%<'
+    )
+
+    // 2. BuildComparisonList: expanded Current build row shows plain stats with no diff column
+    const currentExpandedHtml = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        initialExpandedRowId="current"
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: { total: 300000, stats: currentStats, instances: [] },
+        }}
+        optimizedBuilds={[
+          {
+            selection: { weaponId: 'w1', artifactIds: {} },
+            total: 330000,
+            evaluation: { total: 330000, stats: optStats, instances: [] },
+          },
+        ]}
+      />
+    )
+    expect(currentExpandedHtml).toContain(
+      'data-testid="comp-stat-diffs-current" data-mode="plain"'
+    )
+    expect(currentExpandedHtml).toContain('Core Build Stats')
+    expect(currentExpandedHtml).not.toContain(
+      'data-testid="comp-stat-diff-current-hp"'
+    )
+    expect(currentExpandedHtml).toContain(
+      'data-testid="comp-stat-value-current-hp"'
+    )
+
+    // 3. BuildComparisonList: no Current baseline exists (currentBuild={null}) -> plain stats with no diff column
+    const noBaselineHtml = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        currentBuild={null}
+        optimizedBuilds={[
+          {
+            selection: { weaponId: 'w1', artifactIds: {} },
+            total: 330000,
+            evaluation: { total: 330000, stats: optStats, instances: [] },
+          },
+        ]}
+      />
+    )
+    expect(noBaselineHtml).toContain(
+      'data-testid="comp-stat-diffs-opt-0" data-mode="plain"'
+    )
+    expect(noBaselineHtml).not.toContain(
+      'data-testid="comp-stat-diff-opt-0-hp"'
+    )
+
+    // 4. WeaponComparisonList: expanded weapon row shows stat diffs against Current build when currentBuild is provided, and plain stats when currentBuild is null
+    const rankedWeapons = rankWeaponComparisonRows([
+      {
+        candidate: {
+          weaponKey: 'SplendorOfTranquilWaters',
+          level: 90,
+          ascension: 6,
+          refinement: 1,
+          isOwned: false,
+          isEquippedBaseline: false,
+        },
+        status: 'ok',
+        rank: null,
+        total: 420000,
+        percentBehindLeader: null,
+        bestBuild: {
+          weaponOverride: {
+            key: 'SplendorOfTranquilWaters',
+            level: 90,
+            ascension: 6,
+            refinement: 1,
+          },
+          artifactIds: {},
+          total: 420000,
+        },
+        evaluation: {
+          total: 420000,
+          stats: optStats,
+          instances: [],
+        },
+        tested: 10,
+        skipped: 2,
+        durationMs: 4,
+      },
+    ])
+
+    const weaponDiffHtml = renderToStaticMarkup(
+      <WeaponComparisonList
+        preset={preset}
+        result={rankedWeapons}
+        artifactById={new Map()}
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: { total: 300000, stats: currentStats, instances: [] },
+        }}
+      />
+    )
+    expect(weaponDiffHtml).toContain(
+      'data-testid="comp-stat-diffs-SplendorOfTranquilWaters" data-mode="diff"'
+    )
+    expect(weaponDiffHtml).toContain(
+      'data-testid="comp-stat-diff-SplendorOfTranquilWaters-critDMG_" data-diff-sign="+" data-diff-ascii="+22.6%">+22.6%<'
+    )
+
+    const weaponPlainHtml = renderToStaticMarkup(
+      <WeaponComparisonList
+        preset={preset}
+        result={rankedWeapons}
+        artifactById={new Map()}
+        currentBuild={null}
+      />
+    )
+    expect(weaponPlainHtml).toContain(
+      'data-testid="comp-stat-diffs-SplendorOfTranquilWaters" data-mode="plain"'
+    )
+    expect(weaponPlainHtml).not.toContain(
+      'data-testid="comp-stat-diff-SplendorOfTranquilWaters-critDMG_"'
+    )
   })
 })

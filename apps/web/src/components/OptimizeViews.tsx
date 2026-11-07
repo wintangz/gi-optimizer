@@ -7,7 +7,7 @@ import {
   WeaponBadge,
 } from '@/components/Identifier'
 import { WeaponTilePicker } from '@/components/TilePickers'
-import { DownloadIcon, TrashIcon } from '@/components/SvgIcons'
+import { DownloadIcon, StatIcon, TrashIcon } from '@/components/SvgIcons'
 import { shortStatLabel } from '@/lib/itemMeta'
 import type {
   ArtifactSlot,
@@ -50,6 +50,136 @@ export const CORE_RESULT_STAT_KEYS = [
   'critRate_',
   'critDMG_',
 ] as const
+
+export type CoreResultStatKey = (typeof CORE_RESULT_STAT_KEYS)[number]
+
+export const CORE_STAT_DIFF_LABELS: Record<CoreResultStatKey, string> = {
+  hp: 'HP',
+  atk: 'ATK',
+  def: 'DEF',
+  eleMas: 'EM',
+  enerRech_: 'ER',
+  critRate_: 'CR',
+  critDMG_: 'CD',
+}
+
+export interface CoreStatComparisonFormatted {
+  currentText: string | null
+  buildText: string
+  diffText: string | null
+  asciiDiffText: string | null
+  sign: '+' | '-' | '0' | null
+  cls: 'ok' | 'error' | 'muted'
+}
+
+export function formatCoreStatComparison(
+  statKey: CoreResultStatKey,
+  buildRaw: number,
+  currentRaw?: number
+): CoreStatComparisonFormatted {
+  const isPct = statKey.endsWith('_')
+  const safeBuild = Number.isFinite(buildRaw) ? buildRaw : 0
+
+  if (isPct) {
+    const buildTenths = Math.round(safeBuild * 1000) / 10
+    const buildText = `${buildTenths.toFixed(1)}%`
+
+    if (currentRaw === undefined || !Number.isFinite(currentRaw)) {
+      return {
+        currentText: null,
+        buildText,
+        diffText: null,
+        asciiDiffText: null,
+        sign: null,
+        cls: 'muted',
+      }
+    }
+
+    const currTenths = Math.round(currentRaw * 1000) / 10
+    const currentText = `${currTenths.toFixed(1)}%`
+    const diffTenths = Math.round((buildTenths - currTenths) * 10) / 10
+
+    if (Math.abs(diffTenths) < 0.05) {
+      return {
+        currentText,
+        buildText,
+        diffText: '0.0%',
+        asciiDiffText: '0.0%',
+        sign: '0',
+        cls: 'muted',
+      }
+    }
+    if (diffTenths > 0) {
+      const val = `+${diffTenths.toFixed(1)}%`
+      return {
+        currentText,
+        buildText,
+        diffText: val,
+        asciiDiffText: val,
+        sign: '+',
+        cls: 'ok',
+      }
+    }
+    const abs = Math.abs(diffTenths).toFixed(1)
+    return {
+      currentText,
+      buildText,
+      diffText: `−${abs}%`,
+      asciiDiffText: `-${abs}%`,
+      sign: '-',
+      cls: 'error',
+    }
+  }
+
+  const buildInt = Math.round(safeBuild)
+  const buildText = buildInt.toLocaleString()
+
+  if (currentRaw === undefined || !Number.isFinite(currentRaw)) {
+    return {
+      currentText: null,
+      buildText,
+      diffText: null,
+      asciiDiffText: null,
+      sign: null,
+      cls: 'muted',
+    }
+  }
+
+  const currInt = Math.round(currentRaw)
+  const currentText = currInt.toLocaleString()
+  const diffInt = buildInt - currInt
+
+  if (diffInt === 0) {
+    return {
+      currentText,
+      buildText,
+      diffText: '0',
+      asciiDiffText: '0',
+      sign: '0',
+      cls: 'muted',
+    }
+  }
+  if (diffInt > 0) {
+    const val = `+${diffInt.toLocaleString()}`
+    return {
+      currentText,
+      buildText,
+      diffText: val,
+      asciiDiffText: val,
+      sign: '+',
+      cls: 'ok',
+    }
+  }
+  const abs = Math.abs(diffInt).toLocaleString()
+  return {
+    currentText,
+    buildText,
+    diffText: `−${abs}`,
+    asciiDiffText: `-${abs}`,
+    sign: '-',
+    cls: 'error',
+  }
+}
 
 export const STAT_PICKER_OPTIONS: ReadonlyArray<{
   key: StatConstraintKey
@@ -442,6 +572,129 @@ export function formatRelativeDelta(
   }
 }
 
+interface BuildStatComparisonSectionProps {
+  rowKey: string
+  stats: Record<string, number>
+  baselineStats?: Record<string, number>
+  isCurrentBuild?: boolean
+}
+
+function BuildStatComparisonSection({
+  rowKey,
+  stats,
+  baselineStats,
+  isCurrentBuild = false,
+}: BuildStatComparisonSectionProps) {
+  const showDiff = Boolean(baselineStats && !isCurrentBuild)
+
+  return (
+    <div
+      className="comp-stat-comparison"
+      data-testid={`comp-stat-diffs-${rowKey}`}
+      data-mode={showDiff ? 'diff' : 'plain'}
+    >
+      <div className="comp-details-subheader">
+        <strong>
+          {showDiff ? 'Core Stat Comparison vs. Current' : 'Core Build Stats'}
+        </strong>
+      </div>
+
+      <div className="gi-table-wrap">
+        <table
+          className="gi-table comp-stat-diff-table"
+          aria-label={
+            showDiff
+              ? 'Core stat comparison against Current build'
+              : 'Core build stats'
+          }
+        >
+          <thead>
+            <tr>
+              <th>Stat</th>
+              {showDiff ? (
+                <>
+                  <th>Current</th>
+                  <th aria-hidden="true" className="comp-stat-arrow-col" />
+                  <th>This Build</th>
+                  <th>Diff</th>
+                </>
+              ) : (
+                <th>Value</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {CORE_RESULT_STAT_KEYS.map((statKey) => {
+              const buildRaw = stats[statKey] ?? 0
+              const currentRaw = showDiff
+                ? (baselineStats?.[statKey] ?? 0)
+                : undefined
+              const formatted = formatCoreStatComparison(
+                statKey,
+                buildRaw,
+                currentRaw
+              )
+              const label = CORE_STAT_DIFF_LABELS[statKey]
+
+              return (
+                <tr
+                  key={statKey}
+                  data-testid={`comp-stat-row-${rowKey}-${statKey}`}
+                  data-stat-key={statKey}
+                >
+                  <td>
+                    <span className="comp-stat-label-cell">
+                      <StatIcon statKey={statKey} iconProps={{ size: 13 }} />
+                      <strong>{label}</strong>
+                    </span>
+                  </td>
+                  {showDiff ? (
+                    <>
+                      <td
+                        className="comp-stat-num muted"
+                        data-testid={`comp-stat-current-${rowKey}-${statKey}`}
+                      >
+                        {formatted.currentText}
+                      </td>
+                      <td
+                        className="comp-stat-arrow muted"
+                        aria-hidden="true"
+                      >
+                        →
+                      </td>
+                      <td
+                        className="comp-stat-num"
+                        data-testid={`comp-stat-value-${rowKey}-${statKey}`}
+                      >
+                        <strong>{formatted.buildText}</strong>
+                      </td>
+                      <td
+                        className={`comp-stat-num comp-stat-diff-delta ${formatted.cls}`}
+                        data-testid={`comp-stat-diff-${rowKey}-${statKey}`}
+                        data-diff-sign={formatted.sign ?? '0'}
+                        data-diff-ascii={formatted.asciiDiffText ?? ''}
+                      >
+                        {formatted.diffText}
+                      </td>
+                    </>
+                  ) : (
+                    <td
+                      className="comp-stat-num"
+                      data-testid={`comp-stat-value-${rowKey}-${statKey}`}
+                    >
+                      <strong>{formatted.buildText}</strong>
+                    </td>
+                  )}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 export function BuildComparisonList({
   preset,
   currentBuild,
@@ -762,6 +1015,15 @@ export function BuildComparisonList({
                     </tbody>
                   </table>
                 </div>
+
+                {row.evaluation.stats && (
+                  <BuildStatComparisonSection
+                    rowKey={row.id}
+                    stats={row.evaluation.stats}
+                    baselineStats={currentBuild?.evaluation?.stats}
+                    isCurrentBuild={row.kind === 'current'}
+                  />
+                )}
 
                 <div className="comp-details-pieces">
                   {OPTIMIZE_SLOTS.map((slot) => {
@@ -1146,6 +1408,10 @@ export interface WeaponComparisonListProps {
   preset: Preset
   result: WeaponCompareResult
   artifactById: ReadonlyMap<string, IArtifact>
+  currentBuild?: {
+    selection: BuildSelection
+    evaluation: RotationResult
+  } | null
   onExportGO?: (selection: BuildSelection, label: string) => void
   initialExpandedWeaponKey?: string | null
 }
@@ -1154,6 +1420,7 @@ export function WeaponComparisonList({
   preset,
   result,
   artifactById,
+  currentBuild,
   onExportGO,
   initialExpandedWeaponKey,
 }: WeaponComparisonListProps) {
@@ -1171,6 +1438,16 @@ export function WeaponComparisonList({
   }
 
   const maxTotal = Math.max(result.leaderTotal ?? 1, 1)
+  const equippedBaselineRow = result.rows.find(
+    (r) =>
+      r.status === 'ok' &&
+      r.candidate.isEquippedBaseline &&
+      Boolean(r.evaluation?.stats)
+  )
+  const effectiveBaselineStats =
+    currentBuild !== undefined
+      ? currentBuild?.evaluation?.stats
+      : equippedBaselineRow?.evaluation?.stats
 
   return (
     <div
@@ -1461,6 +1738,23 @@ export function WeaponComparisonList({
                     </tbody>
                   </table>
                 </div>
+
+                {row.evaluation.stats && (
+                  <BuildStatComparisonSection
+                    rowKey={wKey}
+                    stats={row.evaluation.stats}
+                    baselineStats={effectiveBaselineStats}
+                    isCurrentBuild={
+                      currentBuild !== undefined
+                        ? Boolean(
+                            currentBuild &&
+                              (row.evaluation === currentBuild.evaluation ||
+                                row.bestBuild === currentBuild.selection)
+                          )
+                        : isBaseline
+                    }
+                  />
+                )}
 
                 <div className="comp-details-pieces">
                   {OPTIMIZE_SLOTS.map((slot) => {

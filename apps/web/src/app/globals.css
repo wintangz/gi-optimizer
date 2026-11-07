@@ -1025,6 +1025,46 @@ td {
   font-size: 0.88rem;
 }
 
+.comp-stat-comparison {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.comp-details-subheader {
+  font-size: 0.84rem;
+  color: var(--fg);
+}
+
+.comp-stat-diff-table {
+  font-size: 0.84rem;
+}
+
+.comp-stat-label-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.comp-stat-num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.comp-stat-arrow-col {
+  width: 1.5rem;
+}
+
+.comp-stat-arrow {
+  text-align: center;
+  width: 1.5rem;
+  user-select: none;
+}
+
+.comp-stat-diff-delta {
+  font-weight: 600;
+}
+
 .comp-details-pieces {
   display: flex;
   flex-direction: column;

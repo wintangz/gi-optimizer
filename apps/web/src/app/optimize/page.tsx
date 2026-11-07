@@ -1503,6 +1503,14 @@ function OptimizeInner() {
                 preset={activePreset}
                 result={compareResult}
                 artifactById={artifactById}
+                currentBuild={
+                  showCurrentComparison && currentSelection && currentEval
+                    ? {
+                        selection: currentSelection,
+                        evaluation: currentEval,
+                      }
+                    : null
+                }
                 onExportGO={(sel, label) => void handleExportGO(sel, label)}
               />
             )}
