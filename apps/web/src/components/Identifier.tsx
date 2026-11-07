@@ -11,8 +11,10 @@ import {
   type GiElementWithPhyKey,
 } from '@/components/SvgIcons'
 import {
+  CLOUDINARY_GENSHIN_BASE_URL,
   formatRarityStars,
   getArtifactMeta,
+  getCdnIconUrl,
   getCharacterMeta,
   getElementColor,
   getRarityColor,
@@ -21,7 +23,9 @@ import {
   type IdentifierElement,
   type IdentifierSlotKey,
 } from '@/lib/itemMeta'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+
+export { CLOUDINARY_GENSHIN_BASE_URL, getCdnIconUrl }
 
 export type CharacterRoleTag = 'target' | 'owned' | 'none'
 
@@ -76,6 +80,9 @@ export function CharacterBadge({
   compact = false,
   subtitle,
 }: CharacterBadgeProps) {
+  const [failedKey, setFailedKey] = useState<string | null>(null)
+  const imageFailed = failedKey === characterKey
+  const iconUrl = getCdnIconUrl(characterKey)
   const meta = getCharacterMeta(characterKey)
   const size = compact ? 24 : 30
   const effectiveRole = simulated ? 'simulated' : role
@@ -104,6 +111,7 @@ export function CharacterBadge({
           height: `${size}px`,
           minWidth: `${size}px`,
           borderRadius: '999px',
+          overflow: 'hidden',
           background: meta.elementColor.bg,
           color: meta.elementColor.fg,
           border: simulated
@@ -120,7 +128,27 @@ export function CharacterBadge({
           userSelect: 'none',
         }}
       >
-        {meta.initials}
+        {imageFailed ? (
+          meta.initials
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={iconUrl}
+            alt={meta.displayName}
+            width={size}
+            height={size}
+            loading="lazy"
+            decoding="async"
+            onError={() => setFailedKey(characterKey)}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              borderRadius: '999px',
+              display: 'block',
+            }}
+          />
+        )}
       </span>
 
       <span
@@ -254,8 +282,12 @@ export function WeaponBadge({
   compact = false,
   subtitle,
 }: WeaponBadgeProps) {
+  const [failedKey, setFailedKey] = useState<string | null>(null)
+  const imageFailed = failedKey === weaponKey
+  const iconUrl = getCdnIconUrl(weaponKey)
   const meta = getWeaponMeta(weaponKey, rarityOverride)
   const iconSize = compact ? 14 : 16
+  const imgSize = compact ? 18 : 22
   const starsText = formatRarityStars(meta.rarity)
 
   return (
@@ -289,10 +321,31 @@ export function WeaponBadge({
           lineHeight: 1.2,
         }}
       >
-        <WeaponTypeIcon
-          weaponType={meta.weaponType}
-          iconProps={{ size: iconSize }}
-        />
+        {imageFailed ? (
+          <WeaponTypeIcon
+            weaponType={meta.weaponType}
+            iconProps={{ size: iconSize }}
+          />
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={iconUrl}
+            alt={meta.displayName}
+            width={imgSize}
+            height={imgSize}
+            loading="lazy"
+            decoding="async"
+            onError={() => setFailedKey(weaponKey)}
+            style={{
+              width: `${imgSize}px`,
+              height: `${imgSize}px`,
+              objectFit: 'contain',
+              borderRadius: '4px',
+              display: 'block',
+              flexShrink: 0,
+            }}
+          />
+        )}
         <strong>{meta.displayName}</strong>
       </span>
 

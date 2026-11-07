@@ -1,11 +1,53 @@
+import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const hookStore = {
+  active: false,
+  states: [] as unknown[],
+  stateIdx: 0,
+  reset() {
+    this.states = []
+    this.stateIdx = 0
+  },
+  beginRender() {
+    this.stateIdx = 0
+  },
+}
+
+vi.mock('react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react')>()
+  return {
+    ...actual,
+    useState<T>(initial: T | (() => T)) {
+      if (!hookStore.active) {
+        return actual.useState(initial)
+      }
+      const idx = hookStore.stateIdx++
+      if (idx >= hookStore.states.length) {
+        hookStore.states.push(
+          typeof initial === 'function' ? (initial as () => T)() : initial
+        )
+      }
+      const setState = (next: T | ((prev: T) => T)) => {
+        const prevVal = hookStore.states[idx] as T
+        const nextVal =
+          typeof next === 'function' ? (next as (prev: T) => T)(prevVal) : next
+        hookStore.states[idx] = nextVal
+      }
+      return [hookStore.states[idx] as T, setState] as const
+    },
+  }
+})
+
 import {
   ArtifactBadge,
   ArtifactPieceRow,
   BuildComparisonBars,
   CharacterBadge,
+  CLOUDINARY_GENSHIN_BASE_URL,
   ElementBadge,
+  getCdnIconUrl,
   ItemIdentifier,
   RarityStars,
   StatChip,
@@ -22,8 +64,104 @@ import {
   UploadIcon,
 } from '../src/components/SvgIcons'
 
-describe('Shared Visual Identifier Components (visual-identifiers)', () => {
-  it('renders CharacterBadge with element color, 2-letter initials, and role pills for target vs owned vs simulated (tc)', () => {
+interface VNode {
+  type: string
+  props: Record<string, unknown>
+  children: Array<VNode | string>
+}
+
+function evaluateTree(node: unknown): Array<VNode | string> {
+  if (node === null || node === undefined || typeof node === 'boolean') {
+    return []
+  }
+  if (typeof node === 'string' || typeof node === 'number') {
+    return [String(node)]
+  }
+  if (Array.isArray(node)) {
+    return node.flatMap((child) => evaluateTree(child))
+  }
+  if (typeof node === 'object' && 'type' in (node as Record<string, unknown>)) {
+    const el = node as {
+      type: unknown
+      props?: Record<string, unknown>
+    }
+    const props = el.props ?? {}
+    if (typeof el.type === 'function') {
+      const rendered = (el.type as (p: Record<string, unknown>) => unknown)(
+        props
+      )
+      return evaluateTree(rendered)
+    }
+    if (typeof el.type === 'string') {
+      const children = evaluateTree(props.children)
+      return [{ type: el.type, props, children }]
+    }
+    return evaluateTree(props.children)
+  }
+  return []
+}
+
+function renderWithHooks(element: React.ReactElement): VNode[] {
+  hookStore.active = true
+  hookStore.beginRender()
+  try {
+    return evaluateTree(element).filter(
+      (n): n is VNode => typeof n !== 'string'
+    )
+  } finally {
+    hookStore.active = false
+  }
+}
+
+function findAllElements(
+  nodes: Array<VNode | string>,
+  predicate: (el: VNode) => boolean
+): VNode[] {
+  const matches: VNode[] = []
+  for (const n of nodes) {
+    if (typeof n !== 'string') {
+      if (predicate(n)) {
+        matches.push(n)
+      }
+      matches.push(...findAllElements(n.children, predicate))
+    }
+  }
+  return matches
+}
+
+function collectText(nodes: Array<VNode | string>): string {
+  return nodes
+    .map((n) => (typeof n === 'string' ? n : collectText(n.children)))
+    .join('')
+}
+
+describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-images)', () => {
+  afterEach(() => {
+    hookStore.reset()
+  })
+
+  it('constructs Cloudinary icon URLs from one shared base constant without special-casing missing keys', () => {
+    expect(CLOUDINARY_GENSHIN_BASE_URL).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin'
+    )
+    expect(getCdnIconUrl('Furina')).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Furina.png'
+    )
+    expect(getCdnIconUrl('SplendorOfTranquilWaters')).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/SplendorOfTranquilWaters.png'
+    )
+    expect(getCdnIconUrl('Somnia')).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Somnia.png'
+    )
+    expect(getCdnIconUrl('TravelerCryo')).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/TravelerCryo.png'
+    )
+    expect(getCdnIconUrl('QuantumCatalyst')).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/QuantumCatalyst.png'
+    )
+  })
+
+  it('renders CharacterBadge with Cloudinary CDN image, element color ring/background, and role pills for target vs owned vs simulated (tc)', () => {
     const targetHtml = renderToStaticMarkup(
       <CharacterBadge characterKey="Furina" role="target" />
     )
@@ -31,7 +169,11 @@ describe('Shared Visual Identifier Components (visual-identifiers)', () => {
     expect(targetHtml).toContain('data-element="hydro"')
     expect(targetHtml).toContain('data-simulated="false"')
     expect(targetHtml).toContain('data-role="target"')
-    expect(targetHtml).toContain('>FU<')
+    expect(targetHtml).toContain(
+      'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Furina.png"'
+    )
+    expect(targetHtml).toContain('border-radius:999px')
+    expect(targetHtml).toContain('object-fit:cover')
     expect(targetHtml).toContain('Furina')
     expect(targetHtml).toContain('YOUR CHARACTER · TARGET')
 
@@ -39,6 +181,9 @@ describe('Shared Visual Identifier Components (visual-identifiers)', () => {
       <CharacterBadge characterKey="Neuvillette" role="owned" />
     )
     expect(ownedHtml).toContain('data-role="owned"')
+    expect(ownedHtml).toContain(
+      'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Neuvillette.png"'
+    )
     expect(ownedHtml).toContain('YOUR BUILD')
 
     const simHtml = renderToStaticMarkup(
@@ -47,6 +192,9 @@ describe('Shared Visual Identifier Components (visual-identifiers)', () => {
     expect(simHtml).toContain('data-simulated="true"')
     expect(simHtml).toContain('data-role="simulated"')
     expect(simHtml).toContain('dashed')
+    expect(simHtml).toContain(
+      'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/KaedeharaKazuha.png"'
+    )
     expect(simHtml).toContain('SIM · Fixed Preset Build')
 
     const simCompactHtml = renderToStaticMarkup(
@@ -56,7 +204,7 @@ describe('Shared Visual Identifier Components (visual-identifiers)', () => {
     expect(simCompactHtml).toContain('>SIM<')
   })
 
-  it('renders WeaponBadge with rarity color and weapon-type glyph', () => {
+  it('renders WeaponBadge with Cloudinary CDN image, rarity color, and star rating', () => {
     const wepHtml = renderToStaticMarkup(
       <WeaponBadge
         weaponKey="SplendorOfTranquilWaters"
@@ -66,8 +214,87 @@ describe('Shared Visual Identifier Components (visual-identifiers)', () => {
     expect(wepHtml).toContain('data-identifier-kind="weapon"')
     expect(wepHtml).toContain('data-weapon-type="sword"')
     expect(wepHtml).toContain('data-rarity="5"')
+    expect(wepHtml).toContain(
+      'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/SplendorOfTranquilWaters.png"'
+    )
     expect(wepHtml).toContain('Splendor of Tranquil Waters')
     expect(wepHtml).toContain('Lv. 90 R1')
+  })
+
+  it('falls back to circle + initials on CharacterBadge and WeaponTypeIcon on WeaponBadge when the CDN image errors (cdn-icon-images)', () => {
+    // 1. CharacterBadge fallback on image load failure
+    hookStore.reset()
+    let charTree = renderWithHooks(
+      <CharacterBadge characterKey="Furina" role="target" />
+    )
+    let imgs = findAllElements(charTree, (el) => el.type === 'img')
+    expect(imgs).toHaveLength(1)
+    expect(imgs[0]!.props.src).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Furina.png'
+    )
+
+    // Trigger onError
+    ;(imgs[0]!.props.onError as () => void)()
+    charTree = renderWithHooks(
+      <CharacterBadge characterKey="Furina" role="target" />
+    )
+    expect(findAllElements(charTree, (el) => el.type === 'img')).toHaveLength(0)
+    expect(collectText(charTree)).toContain('FU')
+    expect(collectText(charTree)).toContain('Furina')
+
+    // Switching characterKey on the same badge resets error state for the new key
+    charTree = renderWithHooks(
+      <CharacterBadge characterKey="Somnia" role="target" />
+    )
+    imgs = findAllElements(charTree, (el) => el.type === 'img')
+    expect(imgs).toHaveLength(1)
+    expect(imgs[0]!.props.src).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Somnia.png'
+    )
+    ;(imgs[0]!.props.onError as () => void)()
+    charTree = renderWithHooks(
+      <CharacterBadge characterKey="Somnia" role="target" />
+    )
+    expect(findAllElements(charTree, (el) => el.type === 'img')).toHaveLength(0)
+    expect(collectText(charTree)).toContain('SO')
+
+    // 2. WeaponBadge fallback on image load failure
+    hookStore.reset()
+    let wepTree = renderWithHooks(
+      <WeaponBadge weaponKey="SplendorOfTranquilWaters" subtitle="R1" />
+    )
+    let wepImgs = findAllElements(wepTree, (el) => el.type === 'img')
+    expect(wepImgs).toHaveLength(1)
+    expect(wepImgs[0]!.props.src).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/SplendorOfTranquilWaters.png'
+    )
+    expect(
+      findAllElements(
+        wepTree,
+        (el) => el.type === 'svg' && el.props['data-gi-icon'] === 'SwordIcon'
+      )
+    ).toHaveLength(0)
+
+    // Trigger onError -> falls back to WeaponTypeIcon (SwordIcon)
+    ;(wepImgs[0]!.props.onError as () => void)()
+    wepTree = renderWithHooks(
+      <WeaponBadge weaponKey="SplendorOfTranquilWaters" subtitle="R1" />
+    )
+    expect(findAllElements(wepTree, (el) => el.type === 'img')).toHaveLength(0)
+    const fallbackIcons = findAllElements(
+      wepTree,
+      (el) => el.type === 'svg' && el.props['data-gi-icon'] === 'SwordIcon'
+    )
+    expect(fallbackIcons).toHaveLength(1)
+    expect(collectText(wepTree)).toContain('Splendor of Tranquil Waters')
+
+    // Switching weaponKey to QuantumCatalyst attempts CDN load then falls back on error
+    wepTree = renderWithHooks(<WeaponBadge weaponKey="QuantumCatalyst" />)
+    wepImgs = findAllElements(wepTree, (el) => el.type === 'img')
+    expect(wepImgs).toHaveLength(1)
+    expect(wepImgs[0]!.props.src).toBe(
+      'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/QuantumCatalyst.png'
+    )
   })
 
   it('renders ArtifactBadge with deterministic set hue, rarity border, and slot glyph', () => {
@@ -111,7 +338,9 @@ describe('Shared Visual Identifier Components (visual-identifiers)', () => {
       <CharacterBadge characterKey="Furina" role="target" />
     )
     expect(charHtml).not.toContain('<svg')
-    expect(charHtml).toContain('>FU<')
+    expect(charHtml).toContain(
+      'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Furina.png"'
+    )
 
     const wepHtml = renderToStaticMarkup(
       <WeaponBadge weaponKey="FavoniusSword" subtitle="R5" />
@@ -196,4 +425,3 @@ describe('Shared Visual Identifier Components (visual-identifiers)', () => {
     expect(iconsHtml).not.toContain('<img')
   })
 })
-

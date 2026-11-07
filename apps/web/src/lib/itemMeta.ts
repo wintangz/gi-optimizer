@@ -22,3 +22,11 @@ export {
   type WeaponMeta,
 } from '@gi/presets/src/metadata'
 
+export const CLOUDINARY_GENSHIN_BASE_URL =
+  'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin'
+
+export function getCdnIconUrl(key: string): string {
+  return `${CLOUDINARY_GENSHIN_BASE_URL}/${key}.png`
+}
+
+
