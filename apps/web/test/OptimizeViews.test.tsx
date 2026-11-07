@@ -2896,4 +2896,158 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       findByTestId(remountedTree, 'solver-pool-filters-body')
     ).toBeDefined()
   })
+
+  it('aligns 5 artifact cards horizontally including off-piece Shimenawa Reminiscence and highlights active Level Range filter in SolverPoolFiltersPanel when only a level range is set (visual-design-pass)', () => {
+    // 1. Build with 4pc Golden Troupe + off-piece Shimenawa's Reminiscence produces 5 cards with identical 5-zone structure
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+    const pieces: IArtifact[] = [
+      {
+        id: 'a-flower',
+        setKey: 'GoldenTroupe',
+        slotKey: 'flower',
+        level: 20,
+        rarity: 5,
+        mainStatKey: 'hp',
+        location: 'Furina',
+        lock: true,
+        substats: [
+          { key: 'critRate_', value: 10.5 },
+          { key: 'critDMG_', value: 14.0 },
+          { key: 'hp_', value: 9.9 },
+          { key: 'enerRech_', value: 11.0 },
+        ],
+      },
+      {
+        id: 'a-plume',
+        setKey: 'GoldenTroupe',
+        slotKey: 'plume',
+        level: 20,
+        rarity: 5,
+        mainStatKey: 'atk',
+        location: 'Furina',
+        lock: true,
+        substats: [
+          { key: 'critRate_', value: 7.8 },
+          { key: 'critDMG_', value: 21.0 },
+          { key: 'hp_', value: 5.8 },
+          { key: 'enerRech_', value: 6.5 },
+        ],
+      },
+      {
+        id: 'a-sands',
+        setKey: 'GoldenTroupe',
+        slotKey: 'sands',
+        level: 20,
+        rarity: 5,
+        mainStatKey: 'hp_',
+        location: 'Furina',
+        lock: false,
+        substats: [
+          { key: 'critRate_', value: 11.7 },
+          { key: 'critDMG_', value: 13.2 },
+          { key: 'enerRech_', value: 16.2 },
+        ],
+      },
+      {
+        id: 'a-goblet',
+        setKey: 'GoldenTroupe',
+        slotKey: 'goblet',
+        level: 20,
+        rarity: 5,
+        mainStatKey: 'hp_',
+        location: '',
+        lock: true,
+        substats: [
+          { key: 'critRate_', value: 9.7 },
+          { key: 'critDMG_', value: 19.4 },
+          { key: 'enerRech_', value: 11.7 },
+          { key: 'hp', value: 508 },
+        ],
+      },
+      {
+        id: 'a-circlet',
+        setKey: 'ShimenawasReminiscence',
+        slotKey: 'circlet',
+        level: 20,
+        rarity: 5,
+        mainStatKey: 'critDMG_',
+        location: 'HuTao',
+        lock: true,
+        substats: [
+          { key: 'critRate_', value: 14.0 },
+          { key: 'hp_', value: 10.5 },
+          { key: 'enerRech_', value: 12.3 },
+          { key: 'eleMas', value: 23 },
+        ],
+      },
+    ]
+    const artMap = new Map(pieces.map((p) => [p.id, p]))
+    const fullSelection = {
+      weaponId: 'w1',
+      artifactIds: {
+        flower: 'a-flower',
+        plume: 'a-plume',
+        sands: 'a-sands',
+        goblet: 'a-goblet',
+        circlet: 'a-circlet',
+      },
+    }
+
+    const detailsHtml = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={artMap}
+        initialExpandedRowId="opt-0"
+        currentBuild={{
+          selection: fullSelection,
+          evaluation: { total: 350000, stats: { hp: 39000 }, instances: [] },
+        }}
+        optimizedBuilds={[
+          {
+            selection: fullSelection,
+            total: 380000,
+            evaluation: { total: 380000, stats: { hp: 41000 }, instances: [] },
+          },
+        ]}
+      />
+    )
+
+    // Verify all 5 cards render the 5-zone template and numeric stat headers carry right-aligned comp-stat-num
+    expect(detailsHtml).toContain('Shimenawa&#x27;s Reminiscence')
+    expect(detailsHtml.match(/data-testid="artifact-piece-header"/g)).toHaveLength(5)
+    expect(detailsHtml.match(/data-testid="artifact-piece-rv-row"/g)).toHaveLength(5)
+    expect(detailsHtml.match(/data-testid="artifact-piece-main-row"/g)).toHaveLength(5)
+    expect(detailsHtml.match(/data-testid="artifact-piece-substats"/g)).toHaveLength(5)
+    expect(detailsHtml.match(/data-testid="artifact-piece-owner-row"/g)).toHaveLength(5)
+    expect(detailsHtml).toContain('<th class="comp-stat-col-label">Stat</th>')
+    expect(detailsHtml).toContain('<th class="comp-stat-num">Current</th>')
+    expect(detailsHtml).toContain('<th class="comp-stat-num">This Build</th>')
+    expect(detailsHtml).toContain('<th class="comp-stat-num">Diff</th>')
+
+    // 2. Pool Filters panel with ONLY a level range set (16..20) marks only the level range control as active
+    resetSolverPoolFiltersExpandedSession()
+    const levelOnlyHtml = renderToStaticMarkup(
+      <SolverPoolFiltersPanel
+        settings={{
+          ...DEFAULT_OPTIMIZER_SETTINGS,
+          levelLow: 16,
+          levelHigh: 20,
+        }}
+        onChange={() => {}}
+      />
+    )
+    expect(levelOnlyHtml).toContain('1 pool filter active')
+    expect(levelOnlyHtml).toContain(
+      'class="opt-pool-filter-field is-active" data-testid="pool-filter-field-level" data-active="true"'
+    )
+    expect(levelOnlyHtml).toContain(
+      'class="opt-pool-active-pill" data-testid="pool-filter-active-level">Lv. 16–20<'
+    )
+    expect(levelOnlyHtml).toContain(
+      'class="opt-pool-filter-field" data-testid="pool-filter-field-rarity" data-active="false"'
+    )
+    expect(levelOnlyHtml).toContain(
+      'class="opt-pool-filter-field" data-testid="pool-filter-field-rv" data-active="false"'
+    )
+  })
 })

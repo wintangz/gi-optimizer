@@ -856,7 +856,10 @@ export function ArtifactPieceRow({
       data-slot={slotKey}
       className="artifact-piece-card"
     >
-      <div className="artifact-piece-header">
+      <div
+        className="artifact-piece-header"
+        data-testid="artifact-piece-header"
+      >
         <div className="artifact-piece-identity">
           <span
             className="artifact-piece-slot-icon"
@@ -871,41 +874,37 @@ export function ArtifactPieceRow({
             rarity={rarity}
             compact
           />
-          <span
-            className="artifact-piece-level"
-            data-testid="artifact-piece-level"
-          >
-            +{level}
-          </span>
         </div>
-        <ArtifactRvBadge rv={rvInfo} compact={compact} />
+        <span
+          className="artifact-piece-level"
+          data-testid="artifact-piece-level"
+        >
+          +{level}
+        </span>
       </div>
 
-      <div className="artifact-piece-main-row">
-        <StatChip statKey={mainStatKey} isMain compact />
-        {(location || lock) && (
-          <div className="artifact-piece-badges">
-            {location && (
-              <span
-                className="artifact-piece-owner"
-                data-testid="artifact-piece-owner"
-                title={`Equipped on ${ownerDisplayName} in imported GOOD data`}
-              >
-                <CharacterBadge characterKey={location} compact />
-              </span>
-            )}
-            {lock && (
-              <span
-                className="artifact-piece-lock"
-                data-testid="artifact-piece-lock"
-                title="Locked in imported GOOD data"
-                aria-label="Locked in imported GOOD data"
-              >
-                🔒
-              </span>
-            )}
-          </div>
+      <div
+        className="artifact-piece-rv-row"
+        data-testid="artifact-piece-rv-row"
+      >
+        <ArtifactRvBadge rv={rvInfo} compact={compact} />
+        {lock && (
+          <span
+            className="artifact-piece-lock"
+            data-testid="artifact-piece-lock"
+            title="Locked in imported GOOD data"
+            aria-label="Locked in imported GOOD data"
+          >
+            🔒
+          </span>
         )}
+      </div>
+
+      <div
+        className="artifact-piece-main-row"
+        data-testid="artifact-piece-main-row"
+      >
+        <StatChip statKey={mainStatKey} isMain compact />
       </div>
 
       <div
@@ -939,6 +938,28 @@ export function ArtifactPieceRow({
             </span>
           )
         })}
+      </div>
+
+      <div
+        className="artifact-piece-owner-row"
+        data-testid="artifact-piece-owner-row"
+      >
+        {location ? (
+          <span
+            className="artifact-piece-owner"
+            data-testid="artifact-piece-owner"
+            title={`Equipped on ${ownerDisplayName} in imported GOOD data`}
+          >
+            <CharacterBadge characterKey={location} compact />
+          </span>
+        ) : (
+          <span
+            className="artifact-piece-unequipped muted"
+            data-testid="artifact-piece-unequipped"
+          >
+            Unequipped
+          </span>
+        )}
       </div>
     </div>
   )

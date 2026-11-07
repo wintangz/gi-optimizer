@@ -1128,16 +1128,16 @@ function BuildStatComparisonSection({
         >
           <thead>
             <tr>
-              <th>Stat</th>
+              <th className="comp-stat-col-label">Stat</th>
               {showDiff ? (
                 <>
-                  <th>Current</th>
+                  <th className="comp-stat-num">Current</th>
                   <th aria-hidden="true" className="comp-stat-arrow-col" />
-                  <th>This Build</th>
-                  <th>Diff</th>
+                  <th className="comp-stat-num">This Build</th>
+                  <th className="comp-stat-num">Diff</th>
                 </>
               ) : (
-                <th>Value</th>
+                <th className="comp-stat-num">Value</th>
               )}
             </tr>
           </thead>
@@ -1169,7 +1169,7 @@ function BuildStatComparisonSection({
                         : undefined
                     }
                   >
-                    <td>
+                    <td className="comp-stat-col-label">
                       <span className="comp-stat-label-cell">
                         {sb && (
                           <span
@@ -3022,6 +3022,12 @@ export function SolverPoolFiltersPanel({
     settings.requiredSubstatsMode === 'any' ? 'any' : 'all'
   const minRarity = settings.minRarity ?? 1
   const minRv = settings.minRv ?? 0
+  const levelLow = settings.levelLow ?? 0
+  const levelHigh = settings.levelHigh ?? 20
+  const levelFilterActive = levelLow > 0 || levelHigh < 20
+  const rarityFilterActive = minRarity > 1
+  const rvFilterActive = minRv > 0
+  const substatsFilterActive = requiredSubstats.length > 0
 
   function toggleExpanded() {
     const next = !isExpanded
@@ -3208,47 +3214,44 @@ export function SolverPoolFiltersPanel({
               {VARIABLE_MAIN_STAT_SLOTS.map((slot) => {
                 const slotOptions = ART_SLOT_MAIN_KEYS[slot]
                 const selectedForSlot = mainStatKeys[slot] ?? []
+                const slotActive = selectedForSlot.length > 0
                 return (
                   <div
                     key={slot}
-                    className="opt-pool-slot-row"
+                    className={`opt-pool-slot-row${slotActive ? ' is-active' : ''}`}
                     data-testid={`mainstat-filter-row-${slot}`}
+                    data-active={slotActive ? 'true' : 'false'}
                   >
                     <div className="opt-pool-slot-label">
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                          fontWeight: 600,
-                        }}
-                      >
+                      <span className="opt-pool-slot-name">
                         <SlotIcon slotKey={slot} iconProps={{ size: 15 }} />
                         {SLOT_FILTER_LABELS[slot]}
                       </span>
-                      <span
-                        className="muted"
-                        style={{ fontSize: '0.75rem' }}
-                        data-testid={`mainstat-summary-${slot}`}
-                      >
-                        {selectedForSlot.length === 0
-                          ? 'All'
-                          : `${selectedForSlot.length} allowed`}
-                      </span>
-                      {selectedForSlot.length > 0 && (
-                        <button
-                          type="button"
-                          data-testid={`mainstat-clear-${slot}`}
-                          className="secondary"
-                          style={{
-                            padding: '0.1rem 0.42rem',
-                            fontSize: '0.72rem',
-                          }}
-                          onClick={() => clearSlotMainStats(slot)}
+                      <div className="opt-pool-slot-status">
+                        <span
+                          className={
+                            slotActive ? 'opt-pool-active-pill' : 'muted'
+                          }
+                          style={
+                            slotActive ? undefined : { fontSize: '0.75rem' }
+                          }
+                          data-testid={`mainstat-summary-${slot}`}
                         >
-                          Any
-                        </button>
-                      )}
+                          {selectedForSlot.length === 0
+                            ? 'All'
+                            : `${selectedForSlot.length} allowed`}
+                        </span>
+                        {slotActive && (
+                          <button
+                            type="button"
+                            data-testid={`mainstat-clear-${slot}`}
+                            className="secondary opt-pool-clear-btn"
+                            onClick={() => clearSlotMainStats(slot)}
+                          >
+                            Any
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="opt-pool-chip-wrap">
                       {slotOptions.map((statKey) => {
@@ -3296,18 +3299,19 @@ export function SolverPoolFiltersPanel({
                 </span>
               </span>
               <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                }}
+                className={`opt-pool-toggle-group${substatsFilterActive ? ' is-filter-active' : ' is-filter-idle'}`}
               >
                 <button
                   type="button"
                   data-testid="required-substats-mode-all"
                   aria-pressed={requiredSubstatsMode === 'all'}
-                  className={requiredSubstatsMode === 'all' ? '' : 'secondary'}
-                  style={{ padding: '0.16rem 0.52rem', fontSize: '0.74rem' }}
+                  className={`gi-toggle-btn${
+                    requiredSubstatsMode === 'all' ? ' is-selected' : ' secondary'
+                  }${
+                    substatsFilterActive && requiredSubstatsMode === 'all'
+                      ? ' is-active'
+                      : ''
+                  }`}
                   onClick={() =>
                     onChange({ ...settings, requiredSubstatsMode: 'all' })
                   }
@@ -3318,20 +3322,24 @@ export function SolverPoolFiltersPanel({
                   type="button"
                   data-testid="required-substats-mode-any"
                   aria-pressed={requiredSubstatsMode === 'any'}
-                  className={requiredSubstatsMode === 'any' ? '' : 'secondary'}
-                  style={{ padding: '0.16rem 0.52rem', fontSize: '0.74rem' }}
+                  className={`gi-toggle-btn${
+                    requiredSubstatsMode === 'any' ? ' is-selected' : ' secondary'
+                  }${
+                    substatsFilterActive && requiredSubstatsMode === 'any'
+                      ? ' is-active'
+                      : ''
+                  }`}
                   onClick={() =>
                     onChange({ ...settings, requiredSubstatsMode: 'any' })
                   }
                 >
                   Any of
                 </button>
-                {requiredSubstats.length > 0 && (
+                {substatsFilterActive && (
                   <button
                     type="button"
                     data-testid="required-substats-clear"
-                    className="secondary"
-                    style={{ padding: '0.16rem 0.48rem', fontSize: '0.74rem' }}
+                    className="secondary opt-pool-clear-btn"
                     onClick={() =>
                       onChange({ ...settings, requiredSubstats: [] })
                     }
@@ -3363,11 +3371,25 @@ export function SolverPoolFiltersPanel({
 
           {/* 3. Level Range, Minimum Rarity & Minimum RV Threshold */}
           <div className="opt-pool-filters-bottom-row">
-            <div className="opt-pool-filter-field">
-              <span className="muted" style={{ fontSize: '0.78rem' }}>
-                Artifact Level Range
-              </span>
-              <div className="preset-gear-row">
+            <div
+              className={`opt-pool-filter-field${levelFilterActive ? ' is-active' : ''}`}
+              data-testid="pool-filter-field-level"
+              data-active={levelFilterActive ? 'true' : 'false'}
+            >
+              <div className="opt-pool-field-header">
+                <span className="opt-pool-field-label">
+                  Artifact Level Range
+                </span>
+                {levelFilterActive && (
+                  <span
+                    className="opt-pool-active-pill"
+                    data-testid="pool-filter-active-level"
+                  >
+                    Lv. {levelLow}–{levelHigh}
+                  </span>
+                )}
+              </div>
+              <div className="opt-pool-field-controls">
                 <input
                   type="text"
                   inputMode="numeric"
@@ -3390,7 +3412,7 @@ export function SolverPoolFiltersPanel({
                       e.currentTarget.blur()
                     }
                   }}
-                  style={{ width: '68px' }}
+                  style={{ width: '58px' }}
                 />
                 <span className="muted">to</span>
                 <input
@@ -3415,17 +3437,29 @@ export function SolverPoolFiltersPanel({
                       e.currentTarget.blur()
                     }
                   }}
-                  style={{ width: '68px' }}
+                  style={{ width: '58px' }}
                 />
               </div>
             </div>
 
-            <div className="opt-pool-filter-field">
-              <span className="muted" style={{ fontSize: '0.78rem' }}>
-                Minimum Rarity
-              </span>
+            <div
+              className={`opt-pool-filter-field${rarityFilterActive ? ' is-active' : ''}`}
+              data-testid="pool-filter-field-rarity"
+              data-active={rarityFilterActive ? 'true' : 'false'}
+            >
+              <div className="opt-pool-field-header">
+                <span className="opt-pool-field-label">Minimum Rarity</span>
+                {rarityFilterActive && (
+                  <span
+                    className="opt-pool-active-pill"
+                    data-testid="pool-filter-active-rarity"
+                  >
+                    {minRarity === 5 ? '5★ Only' : `${minRarity}★+`}
+                  </span>
+                )}
+              </div>
               <div
-                className="preset-gear-row"
+                className="opt-pool-toggle-group"
                 role="group"
                 aria-label="Minimum Artifact Rarity"
               >
@@ -3437,8 +3471,9 @@ export function SolverPoolFiltersPanel({
                       type="button"
                       data-testid={`pool-filter-rarity-${r}`}
                       aria-pressed={active}
-                      className={active ? '' : 'secondary'}
-                      style={{ padding: '0.22rem 0.52rem', fontSize: '0.76rem' }}
+                      className={`gi-toggle-btn${
+                        active ? ' is-selected' : ' secondary'
+                      }${active && r > 1 ? ' is-active' : ''}`}
                       onClick={() => onChange({ ...settings, minRarity: r })}
                     >
                       {r === 1 ? 'All (1★+)' : r === 5 ? '5★ Only' : `${r}★+`}
@@ -3448,11 +3483,25 @@ export function SolverPoolFiltersPanel({
               </div>
             </div>
 
-            <div className="opt-pool-filter-field">
-              <span className="muted" style={{ fontSize: '0.78rem' }}>
-                Minimum Roll Value (RV)
-              </span>
-              <div className="preset-gear-row">
+            <div
+              className={`opt-pool-filter-field${rvFilterActive ? ' is-active' : ''}`}
+              data-testid="pool-filter-field-rv"
+              data-active={rvFilterActive ? 'true' : 'false'}
+            >
+              <div className="opt-pool-field-header">
+                <span className="opt-pool-field-label">
+                  Minimum Roll Value (RV)
+                </span>
+                {rvFilterActive && (
+                  <span
+                    className="opt-pool-active-pill"
+                    data-testid="pool-filter-active-rv"
+                  >
+                    ≥ {minRv}% RV
+                  </span>
+                )}
+              </div>
+              <div className="opt-pool-field-controls">
                 <input
                   type="text"
                   inputMode="decimal"
@@ -3471,9 +3520,9 @@ export function SolverPoolFiltersPanel({
                       e.currentTarget.blur()
                     }
                   }}
-                  style={{ width: '84px' }}
+                  style={{ width: '76px' }}
                 />
-                <span className="muted" style={{ fontSize: '0.8rem' }}>
+                <span className="muted" style={{ fontSize: '0.78rem' }}>
                   % RV min
                 </span>
               </div>
