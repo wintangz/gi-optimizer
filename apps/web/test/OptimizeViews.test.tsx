@@ -51,6 +51,7 @@ import {
   ConstraintsCard,
   formatCoreStatComparison,
   formatRelativeDelta,
+  PresetRotationSummary,
   rankWeaponComparisonRows,
   resolveWeaponCompareCandidate,
   WeaponComparisonList,
@@ -934,6 +935,201 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     )
     expect(weaponPlainHtml).not.toContain(
       'data-testid="comp-stat-diff-SplendorOfTranquilWaters-critDMG_"'
+    )
+  })
+
+  it('surfaces reaction chips (styled by element), explicit "No reaction" markers, and hit modes from structured rotation fields without relying on label text (rotation-breakdown-reactions)', () => {
+    const basePreset = getBundledPreset('official/mavuika-melt-hypercarry')!
+    // Strip any "(Melt)" or "(No Reaction)" from labels to prove we read rt.reaction and rt.hitMode, not label text
+    const preset = {
+      ...basePreset,
+      rotation: {
+        ...basePreset.rotation,
+        targets: [
+          {
+            path: ['burst', 'skillDmg'],
+            count: 1,
+            label: 'Plain Label Alpha',
+            hitMode: 'avgHit' as const,
+            reaction: 'melt' as const,
+            bonusStats: {},
+          },
+          {
+            path: ['skill', 'chargedCyclicDmg'],
+            count: 4,
+            label: 'Plain Label Beta',
+            hitMode: 'critHit' as const,
+            bonusStats: {},
+          },
+          {
+            path: ['skill', 'chargedFinalDmg'],
+            count: 1,
+            label: 'Plain Label Gamma',
+            hitMode: 'hit' as const,
+            reaction: 'vaporize' as const,
+            bonusStats: {},
+          },
+        ],
+      },
+    }
+
+    const sampleInstances = [
+      {
+        label: 'Plain Label Alpha',
+        path: ['burst', 'skillDmg'],
+        count: 1,
+        perHit: 400000,
+        subtotal: 400000,
+      },
+      {
+        label: 'Plain Label Beta',
+        path: ['skill', 'chargedCyclicDmg'],
+        count: 4,
+        perHit: 50000,
+        subtotal: 200000,
+      },
+      {
+        label: 'Plain Label Gamma',
+        path: ['skill', 'chargedFinalDmg'],
+        count: 1,
+        perHit: 120000,
+        subtotal: 120000,
+      },
+    ]
+
+    // 1. PresetRotationSummary
+    const summaryHtml = renderToStaticMarkup(
+      <PresetRotationSummary preset={preset} />
+    )
+    expect(summaryHtml).toContain('data-testid="preset-rotation-summary"')
+    expect(summaryHtml).toContain(
+      'data-testid="rotation-reaction-chip" data-reaction="melt" data-element="cryo"'
+    )
+    expect(summaryHtml).toContain('>Melt<')
+    expect(summaryHtml).toContain(
+      'data-testid="rotation-no-reaction" data-reaction="none"'
+    )
+    expect(summaryHtml).toContain('>No reaction<')
+    expect(summaryHtml).toContain(
+      'data-testid="rotation-reaction-chip" data-reaction="vaporize" data-element="hydro"'
+    )
+    expect(summaryHtml).toContain('>Vaporize<')
+    expect(summaryHtml).toContain(
+      'data-testid="rotation-hit-mode" data-hit-mode="avgHit"'
+    )
+    expect(summaryHtml).toContain('>Avg Hit<')
+    expect(summaryHtml).toContain(
+      'data-testid="rotation-hit-mode" data-hit-mode="critHit"'
+    )
+    expect(summaryHtml).toContain('>Crit Hit<')
+    expect(summaryHtml).toContain(
+      'data-testid="rotation-hit-mode" data-hit-mode="hit"'
+    )
+    expect(summaryHtml).toContain('>Hit<')
+
+    // 2. BuildComparisonList: expanded Current build and expanded #1 optimized build
+    const currentExpanded = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        initialExpandedRowId="current"
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: { total: 720000, stats: {}, instances: sampleInstances },
+        }}
+        optimizedBuilds={[
+          {
+            selection: { weaponId: 'w1', artifactIds: {} },
+            total: 750000,
+            evaluation: { total: 750000, stats: {}, instances: sampleInstances },
+          },
+        ]}
+      />
+    )
+    expect(currentExpanded).toContain('data-testid="comp-instance-row-current-0"')
+    expect(currentExpanded).toContain(
+      'data-testid="rotation-reaction-chip" data-reaction="melt" data-element="cryo"'
+    )
+    expect(currentExpanded).toContain(
+      'data-testid="rotation-no-reaction" data-reaction="none"'
+    )
+    expect(currentExpanded).toContain('>No reaction<')
+
+    const optExpanded = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        initialExpandedRowId="opt-0"
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: { total: 720000, stats: {}, instances: sampleInstances },
+        }}
+        optimizedBuilds={[
+          {
+            selection: { weaponId: 'w1', artifactIds: {} },
+            total: 750000,
+            evaluation: { total: 750000, stats: {}, instances: sampleInstances },
+          },
+        ]}
+      />
+    )
+    expect(optExpanded).toContain('data-testid="comp-instance-row-opt-0-0"')
+    expect(optExpanded).toContain(
+      'data-testid="rotation-reaction-chip" data-reaction="melt" data-element="cryo"'
+    )
+    expect(optExpanded).toContain(
+      'data-testid="rotation-no-reaction" data-reaction="none"'
+    )
+
+    // 3. WeaponComparisonList: expanded weapon row
+    const weaponHtml = renderToStaticMarkup(
+      <WeaponComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        result={rankWeaponComparisonRows([
+          {
+            candidate: {
+              weaponKey: 'AThousandBlazingSuns',
+              level: 90,
+              ascension: 6,
+              refinement: 1,
+              isOwned: false,
+              isEquippedBaseline: false,
+            },
+            status: 'ok',
+            rank: null,
+            total: 750000,
+            percentBehindLeader: null,
+            bestBuild: {
+              weaponOverride: {
+                key: 'AThousandBlazingSuns',
+                level: 90,
+                ascension: 6,
+                refinement: 1,
+              },
+              artifactIds: {},
+              total: 750000,
+            },
+            evaluation: {
+              total: 750000,
+              stats: {},
+              instances: sampleInstances,
+            },
+            tested: 5,
+            skipped: 0,
+            durationMs: 2,
+          },
+        ])}
+      />
+    )
+    expect(weaponHtml).toContain(
+      'data-testid="weapon-compare-instance-row-AThousandBlazingSuns-0"'
+    )
+    expect(weaponHtml).toContain(
+      'data-testid="rotation-reaction-chip" data-reaction="melt" data-element="cryo"'
+    )
+    expect(weaponHtml).toContain(
+      'data-testid="rotation-no-reaction" data-reaction="none"'
     )
   })
 })

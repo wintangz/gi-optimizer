@@ -6,6 +6,8 @@ import {
   ArtifactBadge,
   CharacterBadge,
   ElementBadge,
+  RotationHitModeBadge,
+  RotationReactionBadge,
   StatChip,
   WeaponBadge,
 } from '@/components/Identifier'
@@ -21,7 +23,6 @@ import {
   SlotIcon,
   TrashIcon,
   UploadIcon,
-   type GiElementWithPhyKey,
   type GiSlotKey,
 } from '@/components/SvgIcons'
 import {
@@ -29,7 +30,6 @@ import {
   useOptimizerSettings,
   useUserPresets,
 } from '@/lib/storage/useGood'
-import { humanizeKey } from '@gi/good/src/suggest'
 import {
   formatConstellationReq,
   formatRefinementReq,
@@ -51,13 +51,6 @@ import {
 } from '@gi/presets/src/settings'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-
-const REACTION_ELEMENT: Record<string, GiElementWithPhyKey> = {
-  vaporize: 'hydro',
-  melt: 'cryo',
-  aggravate: 'electro',
-  spread: 'dendro',
-}
 
 export default function PresetsPage() {
   const { record, loading: goodLoading } = useGoodStorage()
@@ -342,6 +335,32 @@ export default function PresetsPage() {
                     <div style={{ marginTop: '0.2rem' }}>
                       Rotation: <strong>{p.rotation.name}</strong> ·{' '}
                       {p.rotation.targets.length} instance(s) ×{p.rotation.repeat}
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.22rem',
+                        marginTop: '0.3rem',
+                      }}
+                    >
+                      {p.rotation.targets.map((rt, rIdx) => (
+                        <div
+                          key={rIdx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            flexWrap: 'wrap',
+                            fontSize: '0.78rem',
+                          }}
+                        >
+                          <span>{rt.label || rt.path.join('.')}</span>
+                          <span className="muted">×{rt.count}</span>
+                          <RotationReactionBadge reaction={rt.reaction} compact />
+                          <RotationHitModeBadge hitMode={rt.hitMode} compact />
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -951,7 +970,7 @@ export default function PresetsPage() {
                   </thead>
                   <tbody>
                     {activePreset.rotation.targets.map((rt, i) => (
-                      <tr key={i}>
+                      <tr key={i} data-testid={`preset-rotation-row-${i}`}>
                         <td>
                           <strong>{rt.label || rt.path.join('.')}</strong>
                         </td>
@@ -959,21 +978,14 @@ export default function PresetsPage() {
                           <code>{rt.path.join('.')}</code>
                         </td>
                         <td>×{rt.count}</td>
-                        <td>{humanizeKey(rt.hitMode)}</td>
                         <td>
-                          {rt.reaction ? (
-                            REACTION_ELEMENT[rt.reaction] ? (
-                              <ElementBadge
-                                element={REACTION_ELEMENT[rt.reaction]!}
-                                label={humanizeKey(rt.reaction)}
-                                compact
-                              />
-                            ) : (
-                              humanizeKey(rt.reaction)
-                            )
-                          ) : (
-                            <span className="muted">—</span>
-                          )}
+                          <RotationHitModeBadge hitMode={rt.hitMode} compact />
+                        </td>
+                        <td>
+                          <RotationReactionBadge
+                            reaction={rt.reaction}
+                            compact
+                          />
                         </td>
                       </tr>
                     ))}

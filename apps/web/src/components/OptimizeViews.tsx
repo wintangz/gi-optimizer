@@ -3,6 +3,8 @@
 import {
   ArtifactBadge,
   ArtifactPieceRow,
+  RotationHitModeBadge,
+  RotationReactionBadge,
   StatChip,
   WeaponBadge,
 } from '@/components/Identifier'
@@ -975,6 +977,8 @@ export function BuildComparisonList({
                     <thead>
                       <tr>
                         <th>Damage Instance</th>
+                        <th>Reaction</th>
+                        <th>Hit Mode</th>
                         <th>Hits</th>
                         <th>Per-Hit DMG</th>
                         <th>Subtotal DMG</th>
@@ -985,6 +989,7 @@ export function BuildComparisonList({
                     </thead>
                     <tbody>
                       {row.evaluation.instances.map((inst, idx) => {
+                        const targetSpec = preset.rotation.targets[idx]
                         const currInst =
                           currentBuild?.evaluation.instances[idx]
                         const instDelta =
@@ -995,9 +1000,24 @@ export function BuildComparisonList({
                               )
                             : null
                         return (
-                          <tr key={idx}>
+                          <tr
+                            key={idx}
+                            data-testid={`comp-instance-row-${row.id}-${idx}`}
+                          >
                             <td>
                               <strong>{inst.label}</strong>
+                            </td>
+                            <td>
+                              <RotationReactionBadge
+                                reaction={targetSpec?.reaction}
+                                compact
+                              />
+                            </td>
+                            <td>
+                              <RotationHitModeBadge
+                                hitMode={targetSpec?.hitMode}
+                                compact
+                              />
                             </td>
                             <td>×{inst.count}</td>
                             <td>{formatNum(inst.perHit)}</td>
@@ -1717,24 +1737,44 @@ export function WeaponComparisonList({
                     <thead>
                       <tr>
                         <th>Damage Instance</th>
+                        <th>Reaction</th>
+                        <th>Hit Mode</th>
                         <th>Hits</th>
                         <th>Per-Hit DMG</th>
                         <th>Subtotal DMG</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {row.evaluation.instances.map((inst, idx) => (
-                        <tr key={idx}>
-                          <td>
-                            <strong>{inst.label}</strong>
-                          </td>
-                          <td>×{inst.count}</td>
-                          <td>{formatNum(inst.perHit)}</td>
-                          <td>
-                            <strong>{formatNum(inst.subtotal)}</strong>
-                          </td>
-                        </tr>
-                      ))}
+                      {row.evaluation.instances.map((inst, idx) => {
+                        const targetSpec = preset.rotation.targets[idx]
+                        return (
+                          <tr
+                            key={idx}
+                            data-testid={`weapon-compare-instance-row-${wKey}-${idx}`}
+                          >
+                            <td>
+                              <strong>{inst.label}</strong>
+                            </td>
+                            <td>
+                              <RotationReactionBadge
+                                reaction={targetSpec?.reaction}
+                                compact
+                              />
+                            </td>
+                            <td>
+                              <RotationHitModeBadge
+                                hitMode={targetSpec?.hitMode}
+                                compact
+                              />
+                            </td>
+                            <td>×{inst.count}</td>
+                            <td>{formatNum(inst.perHit)}</td>
+                            <td>
+                              <strong>{formatNum(inst.subtotal)}</strong>
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1782,6 +1822,67 @@ export function WeaponComparisonList({
           </div>
         )
       })}
+    </div>
+  )
+}
+
+export interface PresetRotationSummaryProps {
+  preset: Preset
+  showFormulaPath?: boolean
+}
+
+export function PresetRotationSummary({
+  preset,
+  showFormulaPath = false,
+}: PresetRotationSummaryProps) {
+  return (
+    <div
+      className="preset-rotation-summary"
+      data-testid="preset-rotation-summary"
+    >
+      <div className="comp-details-header">
+        <strong>
+          Rotation: {preset.rotation.name} (Repeat ×
+          {preset.rotation.repeat ?? 1})
+        </strong>
+      </div>
+      <div className="gi-table-wrap">
+        <table className="gi-table">
+          <thead>
+            <tr>
+              <th>Damage Instance</th>
+              {showFormulaPath && <th>GO Formula Path</th>}
+              <th>Reaction</th>
+              <th>Hit Mode</th>
+              <th>Hit Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            {preset.rotation.targets.map((rt, idx) => (
+              <tr
+                key={idx}
+                data-testid={`preset-rotation-row-${idx}`}
+              >
+                <td>
+                  <strong>{rt.label || rt.path.join('.')}</strong>
+                </td>
+                {showFormulaPath && (
+                  <td>
+                    <code>{rt.path.join('.')}</code>
+                  </td>
+                )}
+                <td>
+                  <RotationReactionBadge reaction={rt.reaction} compact />
+                </td>
+                <td>
+                  <RotationHitModeBadge hitMode={rt.hitMode} compact />
+                </td>
+                <td>×{rt.count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

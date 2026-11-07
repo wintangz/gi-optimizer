@@ -5,6 +5,8 @@ import {
   ArtifactBadge,
   CharacterBadge,
   ElementBadge,
+  RotationHitModeBadge,
+  RotationReactionBadge,
   WeaponBadge,
 } from '@/components/Identifier'
 import {
@@ -1469,22 +1471,41 @@ function TeamsInner() {
               <thead>
                 <tr>
                   <th>Instance</th>
+                  <th>Reaction</th>
+                  <th>Hit Mode</th>
                   <th>Count</th>
                   <th>Per-Hit DMG</th>
                   <th>Subtotal DMG</th>
                 </tr>
               </thead>
               <tbody>
-                {livePreview.result.instances.map((inst, i) => (
-                  <tr key={i}>
-                    <td>{inst.label}</td>
-                    <td>×{inst.count}</td>
-                    <td>{Math.round(inst.perHit).toLocaleString()}</td>
-                    <td>
-                      <strong>{Math.round(inst.subtotal).toLocaleString()}</strong>
-                    </td>
-                  </tr>
-                ))}
+                {livePreview.result.instances.map((inst, i) => {
+                  const targetSpec = draft.rotation.targets[i]
+                  return (
+                    <tr key={i}>
+                      <td>{inst.label}</td>
+                      <td>
+                        <RotationReactionBadge
+                          reaction={targetSpec?.reaction}
+                          compact
+                        />
+                      </td>
+                      <td>
+                        <RotationHitModeBadge
+                          hitMode={targetSpec?.hitMode}
+                          compact
+                        />
+                      </td>
+                      <td>×{inst.count}</td>
+                      <td>{Math.round(inst.perHit).toLocaleString()}</td>
+                      <td>
+                        <strong>
+                          {Math.round(inst.subtotal).toLocaleString()}
+                        </strong>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

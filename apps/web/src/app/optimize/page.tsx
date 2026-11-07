@@ -8,6 +8,7 @@ import { ProgressBar, ResultsSkeleton, Spinner } from '@/components/Loading'
 import {
   BuildComparisonList,
   ConstraintsCard,
+  PresetRotationSummary,
   rankWeaponComparisonRows,
   resolveWeaponCompareCandidate,
   WeaponComparisonList,
@@ -915,6 +916,8 @@ function OptimizeInner() {
             })}
           </div>
         )}
+
+        {activePreset && <PresetRotationSummary preset={activePreset} />}
 
         {/* Weapon Mode Switcher: Single Weapon vs Compare Weapons */}
         {activePreset && (

@@ -604,6 +604,122 @@ export function ElementBadge({
   )
 }
 
+export const REACTION_ELEMENT_MAP: Record<string, IdentifierElement> = {
+  vaporize: 'hydro',
+  melt: 'cryo',
+  spread: 'dendro',
+  aggravate: 'electro',
+}
+
+export const REACTION_LABELS: Record<string, string> = {
+  vaporize: 'Vaporize',
+  melt: 'Melt',
+  spread: 'Spread',
+  aggravate: 'Aggravate',
+}
+
+export const HIT_MODE_LABELS: Record<string, string> = {
+  avgHit: 'Avg Hit',
+  critHit: 'Crit Hit',
+  hit: 'Hit',
+  global: 'Global',
+}
+
+export function formatHitModeLabel(hitMode?: string): string {
+  if (!hitMode) return 'Avg Hit'
+  return HIT_MODE_LABELS[hitMode] ?? hitMode
+}
+
+export function RotationReactionBadge({
+  reaction,
+  compact = false,
+}: {
+  reaction?: string
+  compact?: boolean
+}) {
+  if (!reaction) {
+    return (
+      <span
+        data-testid="rotation-no-reaction"
+        data-reaction="none"
+        className="muted rotation-no-reaction-chip"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          fontSize: compact ? '0.73rem' : '0.78rem',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        No reaction
+      </span>
+    )
+  }
+
+  const ele = REACTION_ELEMENT_MAP[reaction]
+  const label = REACTION_LABELS[reaction] ?? reaction
+  const ec = ele ? getElementColor(ele) : null
+
+  return (
+    <span
+      data-testid="rotation-reaction-chip"
+      data-reaction={reaction}
+      data-element={ele ?? 'none'}
+      className="rotation-reaction-chip"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.24rem',
+        padding: compact ? '0.08rem 0.38rem' : '0.12rem 0.45rem',
+        borderRadius: '999px',
+        background: ec ? ec.bg : '#1d2130',
+        color: ec ? ec.fg : 'var(--fg)',
+        border: `1px solid ${ec ? ec.border : 'var(--border)'}`,
+        fontSize: compact ? '0.73rem' : '0.78rem',
+        fontWeight: 700,
+        lineHeight: 1.2,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {ele && <ElementIcon ele={ele} iconProps={{ size: compact ? 12 : 13 }} />}
+      <span>{label}</span>
+    </span>
+  )
+}
+
+export function RotationHitModeBadge({
+  hitMode,
+  compact = false,
+}: {
+  hitMode?: string
+  compact?: boolean
+}) {
+  const effectiveMode = hitMode || 'avgHit'
+  const label = formatHitModeLabel(effectiveMode)
+
+  return (
+    <span
+      data-testid="rotation-hit-mode"
+      data-hit-mode={effectiveMode}
+      className="rotation-hit-mode-chip"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: compact ? '0.08rem 0.36rem' : '0.12rem 0.42rem',
+        borderRadius: '5px',
+        background: '#1d2130',
+        color: 'var(--fg)',
+        border: '1px solid var(--border)',
+        fontSize: compact ? '0.73rem' : '0.78rem',
+        fontWeight: 600,
+        lineHeight: 1.2,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </span>
+  )
+}
+
 export interface ArtifactPieceRowProps {
   setKey: string
   slotKey: IdentifierSlotKey
