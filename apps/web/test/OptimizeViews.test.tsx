@@ -53,12 +53,15 @@ vi.mock('react', async (importOriginal) => {
 })
 
 import type { WeaponCompareCandidate } from '@gi/engine'
+import { formatHumanConditionalEntry } from '../src/components/ConditionalTogglePanel'
 import {
   BuildComparisonList,
   ConstraintsCard,
   formatCoreStatComparison,
+  formatParseIssuePlain,
   formatRelativeDelta,
   formatRotationRowLabel,
+  humanizeFormulaPath,
   PresetRotationSummary,
   rankWeaponComparisonRows,
   resolveWeaponCompareCandidate,
@@ -2433,12 +2436,12 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       />
     )
 
-    // Improved member (Neuvillette) earns is-best and ok
+    // Improved member (Neuvillette) earns is-best and ok, rank pill shows member display name
     expect(html).toContain(
       'data-testid="team-opt-member-Neuvillette" data-member-key="Neuvillette" data-skipped-solver="false" data-member-status="improved" data-member-delta-sign="+"'
     )
     expect(html).toContain(
-      'class="comp-rank-pill comp-rank-best is-best" data-testid="team-opt-rank-Neuvillette">SLOT 1<'
+      'class="comp-rank-pill comp-rank-best is-best" data-testid="team-opt-rank-Neuvillette">Neuvillette<'
     )
     expect(html).toContain(
       'class="comp-row-total ok" data-testid="team-opt-subtotal-Neuvillette">990,000<'
@@ -2447,12 +2450,12 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       'class="comp-row-delta ok" data-testid="team-opt-member-delta-Neuvillette" data-delta-sign="+">+10.0%<'
     )
 
-    // Decreased member (Furina) does NOT get is-best or ok; gets neutral rank pill and muted subtotal + delta
+    // Decreased member (Furina) does NOT get is-best or ok; gets neutral rank pill with member display name and muted subtotal + delta
     expect(html).toContain(
       'data-testid="team-opt-member-Furina" data-member-key="Furina" data-skipped-solver="false" data-member-status="decreased" data-member-delta-sign="-"'
     )
     expect(html).toContain(
-      'class="comp-rank-pill" data-testid="team-opt-rank-Furina">SLOT 2<'
+      'class="comp-rank-pill" data-testid="team-opt-rank-Furina">Furina<'
     )
     expect(html).toContain(
       'class="comp-row-total muted" data-testid="team-opt-subtotal-Furina">270,000<'
@@ -2461,12 +2464,12 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       'class="comp-row-delta muted" data-testid="team-opt-member-delta-Furina" data-delta-sign="-">−10.0%<'
     )
 
-    // Unchanged member (KaedeharaKazuha) does NOT get is-best or ok; gets neutral rank pill and neutral subtotal
+    // Unchanged member (KaedeharaKazuha) does NOT get is-best or ok; gets neutral rank pill with member display name and neutral subtotal
     expect(html).toContain(
       'data-testid="team-opt-member-KaedeharaKazuha" data-member-key="KaedeharaKazuha" data-skipped-solver="false" data-member-status="unchanged" data-member-delta-sign="0"'
     )
     expect(html).toContain(
-      'class="comp-rank-pill" data-testid="team-opt-rank-KaedeharaKazuha">SLOT 3<'
+      'class="comp-rank-pill" data-testid="team-opt-rank-KaedeharaKazuha">Kaedehara Kazuha<'
     )
     expect(html).toContain(
       'class="comp-row-total" data-testid="team-opt-subtotal-KaedeharaKazuha">60,000<'
@@ -2748,5 +2751,87 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       'class="comp-baseline-tag" data-testid="weapon-compare-baseline-badge-FavoniusSword" title="Your currently equipped build">Current<'
     )
     expect(listHtml).not.toContain('>Current Baseline<')
+  })
+
+  it('uses plain user-facing language for conditionals, rotation labels, parse diagnostics, and team results (user-facing-language)', () => {
+    // 1. Human-readable conditional formatting
+    const gtEntry = formatHumanConditionalEntry('GoldenTroupe', 'set4', 'on')
+    expect(gtEntry).toBe(
+      'Golden Troupe: Character is off-field (Active (On))'
+    )
+
+    const mhEntry = formatHumanConditionalEntry(
+      'MarechausseeHunter',
+      'set4',
+      '3'
+    )
+    expect(mhEntry).toBe('Marechaussee Hunter: After HP changes (3 Stacks)')
+
+    // 2. Rotation row label falls back to human formula name and never renders raw dot paths
+    expect(formatRotationRowLabel('skill.0', ['skill', '0'])).toBe(
+      'Elemental Skill — 1-Hit DMG'
+    )
+    expect(formatRotationRowLabel('', ['normal', '2'])).toBe(
+      'Normal Attack — 3-Hit DMG'
+    )
+    expect(humanizeFormulaPath(['skill', 'usherDmg'])).toBe(
+      'Elemental Skill — Usher DMG'
+    )
+
+    // 3. Plain-language import parse diagnostics (1-based index + plain description)
+    const artIssue = formatParseIssuePlain({
+      severity: 'warning',
+      path: 'artifacts[812].substats[1].key',
+      message: "Unrecognized substat key 'critRate'; substat ignored.",
+    })
+    expect(artIssue.entryLabel).toBe('Artifact #813')
+    expect(artIssue.description).toBe(
+      "a substat has an unknown type ('critRate')"
+    )
+
+    const charIssue = formatParseIssuePlain({
+      severity: 'error',
+      path: 'characters[0].key',
+      message: 'Character is missing a string "key".',
+    })
+    expect(charIssue.entryLabel).toBe('Character #1')
+    expect(charIssue.description).toBe('Character is missing a name.')
+
+    // 4. TeamOptimizationList uses "Artifacts assigned without overlap" and member names instead of SLOT 1/2
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+    const teamHtml = renderToStaticMarkup(
+      <TeamOptimizationList
+        preset={preset}
+        artifactById={new Map()}
+        result={{
+          teamTotal: 500000,
+          currentTeamTotal: 450000,
+          tested: 100,
+          skipped: 0,
+          durationMs: 10,
+          members: [
+            {
+              memberKey: 'Furina',
+              memberIndex: 0,
+              skippedSolver: false,
+              rotationRowCount: 1,
+              selection: { artifactIds: {} },
+              currentSelection: { artifactIds: {} },
+              subtotal: 500000,
+              currentSubtotal: 450000,
+              evaluation: { total: 500000, stats: {}, instances: [] },
+              currentEvaluation: null,
+              tested: 100,
+              skipped: 0,
+              durationMs: 10,
+            },
+          ],
+        }}
+      />
+    )
+    expect(teamHtml).toContain('Artifacts assigned without overlap')
+    expect(teamHtml).not.toContain('Disjoint 5pc Assignment')
+    expect(teamHtml).toContain('data-testid="team-opt-rank-Furina">Furina<')
+    expect(teamHtml).not.toContain('>SLOT 1<')
   })
 })

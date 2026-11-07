@@ -8,6 +8,7 @@ import {
   StatChip,
   WeaponBadge,
 } from '@/components/Identifier'
+import { formatParseIssuePlain } from '@/components/OptimizeViews'
 import { Spinner } from '@/components/Loading'
 import { FunnelIcon, TrashIcon, UploadIcon } from '@/components/SvgIcons'
 import { useGoodStorage } from '@/lib/storage/useGood'
@@ -476,14 +477,20 @@ export default function ImportPage() {
                         overflowY: 'auto',
                       }}
                     >
-                      {list.slice(0, 100).map((iss, idx) => (
-                        <li key={idx} className="preset-match-item">
-                          <code>{iss.path}</code>: {iss.message}
-                          {iss.suggestion && (
-                            <span className="ok"> ({iss.suggestion})</span>
-                          )}
-                        </li>
-                      ))}
+                      {list.slice(0, 100).map((iss, idx) => {
+                        const plain = formatParseIssuePlain(iss)
+                        return (
+                          <li
+                            key={idx}
+                            className="preset-match-item"
+                            data-testid={`parse-issue-${sev}-${idx}`}
+                            title={iss.path}
+                          >
+                            <strong>{plain.entryLabel}:</strong>{' '}
+                            {plain.description}
+                          </li>
+                        )
+                      })}
                       {list.length > 100 && (
                         <li className="muted">
                           …and {list.length - 100} more {sev} diagnostics.

@@ -1,6 +1,7 @@
 'use client'
 
 import TeamsLoading from './loading'
+import { formatHumanConditionalEntry } from '@/components/ConditionalTogglePanel'
 import {
   ArtifactBadge,
   CharacterBadge,
@@ -9,6 +10,7 @@ import {
   RotationReactionBadge,
   WeaponBadge,
 } from '@/components/Identifier'
+import { humanizeFormulaPath } from '@/components/OptimizeViews'
 import {
   ArtifactSetTilePicker,
   CharacterTilePicker,
@@ -575,8 +577,11 @@ function TeamsInner() {
     <div className="gi-page">
       <div className="gi-page-header">
         <div>
-          <div className="warn" style={{ fontSize: '0.82rem', fontWeight: 600 }}>
-            {badge.label} (Unverified Setup Bundle)
+          <div
+            className="preset-detail-badge muted"
+            data-testid="teams-preset-kind-badge"
+          >
+            {badge.label}
           </div>
           <h1 className="gi-page-title">Custom Team &amp; Preset Builder</h1>
           <p className="gi-page-subtitle">
@@ -1172,7 +1177,7 @@ function TeamsInner() {
                   }}
                 >
                   <div className="muted" style={{ marginBottom: '0.3rem' }}>
-                    Active GO Conditionals:
+                    Active Conditionals:
                   </div>
                   <div
                     style={{
@@ -1196,7 +1201,12 @@ function TeamsInner() {
                             }}
                           >
                             <span>
-                              {displayName(sheet)}.{ck} = <strong>{cv}</strong>
+                              {formatHumanConditionalEntry(
+                                sheet,
+                                ck,
+                                cv,
+                                condCatalog
+                              )}
                             </span>
                             <button
                               type="button"
@@ -1328,7 +1338,7 @@ function TeamsInner() {
               <tr>
                 <th>Member</th>
                 <th>Label</th>
-                <th>GO Formula Target</th>
+                <th>Damage Formula</th>
                 <th>Hit Count</th>
                 <th>Hit Mode</th>
                 <th>Reaction</th>
@@ -1392,6 +1402,7 @@ function TeamsInner() {
                     <td>
                       <select
                         value={normPathKey}
+                        title={normPathKey}
                         onFocus={startEngine}
                         onMouseDown={startEngine}
                         onChange={(e) => {
@@ -1405,25 +1416,31 @@ function TeamsInner() {
                                 ? undefined
                                 : rowMemberKey,
                             path: parts,
-                            label: desc?.name ?? e.target.value,
+                            label: desc?.name ?? humanizeFormulaPath(parts),
                           })
                         }}
                       >
                         {!hasTargetOption && normPathKey && (
-                          <option value={normPathKey}>
-                            {rt.label
-                              ? `${rt.label} (${normPathKey})`
-                              : normPathKey}
+                          <option value={normPathKey} title={normPathKey}>
+                            {rt.label &&
+                            rt.label.trim() &&
+                            rt.label.trim() !== normPathKey
+                              ? rt.label
+                              : humanizeFormulaPath(normPath)}
                           </option>
                         )}
-                        {rowTargetCatalog.map((t) => (
-                          <option
-                            key={t.path.join('.')}
-                            value={t.path.join('.')}
-                          >
-                            {t.name} ({t.path.join('.')})
-                          </option>
-                        ))}
+                        {rowTargetCatalog.map((t) => {
+                          const pathKey = t.path.join('.')
+                          return (
+                            <option
+                              key={pathKey}
+                              value={pathKey}
+                              title={pathKey}
+                            >
+                              {t.name}
+                            </option>
+                          )
+                        })}
                       </select>
                     </td>
                     <td>

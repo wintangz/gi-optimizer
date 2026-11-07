@@ -392,15 +392,14 @@ describe('Deferred Engine Start on Custom Teams Page (teams-deferred-start)', ()
     )
     expect(loadBtn).toHaveLength(1)
 
-    // Rotation target <select> preserves the current path via the fallback <option>
+    // Rotation target <select> preserves the current path via the fallback <option> without raw path suffix
     const fallbackOptions = findAllElements(
       tree,
       (el) => el.type === 'option' && el.props.value === 'skill.usherDmg'
     )
     expect(fallbackOptions).toHaveLength(1)
-    expect(collectText(fallbackOptions[0]!.children)).toBe(
-      'Normal 1 (skill.usherDmg)'
-    )
+    expect(collectText(fallbackOptions[0]!.children)).toBe('Normal 1')
+    expect(fallbackOptions[0]!.props.title).toBe('skill.usherDmg')
   })
 
   it('US2: clicking "Load Engine & Preview" starts the engine, shows "Loading optimizer engine…", loads catalogs, and evaluates the live preview', async () => {
@@ -456,7 +455,8 @@ describe('Deferred Engine Start on Custom Teams Page (teams-deferred-start)', ()
     const finalText = collectText(tree)
     expect(mockEvaluatePresetInWorker).toHaveBeenCalledTimes(1)
     expect(finalText).toContain('Total: 42,500 DMG')
-    expect(finalText).toContain('Gentilhomme Usher DMG (skill.usherDmg)')
+    expect(finalText).toContain('Gentilhomme Usher DMG')
+    expect(finalText).not.toContain('(skill.usherDmg)')
   })
 
   it('US2: picking a preset in "Load or Fork Existing Preset" starts the engine on demand', async () => {
@@ -920,5 +920,79 @@ describe('Deferred Engine Start on Custom Teams Page (teams-deferred-start)', ()
     )[0]!
     await (presetsConfirmBtn.props.onClick as () => Promise<void>)()
     expect(mockRemoveUserPreset).toHaveBeenCalledWith('user/test-confirm-delete')
+  })
+
+  it('user-facing-language: replaces raw conditional keys, drops GO Formula Path column and raw formula option suffixes, removes (Unverified Setup Bundle) banner, and shows short Akasha provenance label', async () => {
+    // 1. Teams editor: no "(Unverified Setup Bundle)" banner, provenance badge remains, formula dropdown has no raw "(skill.usherDmg)" suffix
+    const teamsTree = renderPass()
+    const teamsText = collectText(teamsTree)
+    expect(teamsText).not.toContain('(Unverified Setup Bundle)')
+    const kindBadge = findAllElements(
+      teamsTree,
+      (el) => el.props['data-testid'] === 'teams-preset-kind-badge'
+    )
+    expect(kindBadge).toHaveLength(1)
+    expect(collectText(kindBadge[0]!.children)).toBe(
+      'Custom — use at your own risk'
+    )
+
+    const formulaOptions = findAllElements(
+      teamsTree,
+      (el) => el.type === 'option' && el.props.value === 'skill.usherDmg'
+    )
+    expect(formulaOptions).toHaveLength(1)
+    expect(collectText(formulaOptions[0]!.children)).toBe('Normal 1')
+    expect(formulaOptions[0]!.props.title).toBe('skill.usherDmg')
+
+    // 2. Presets page: Active Conditionals show human-readable labels, rotation table omits "GO Formula Path" column, Akasha link shows short text
+    hookStore.reset()
+    const renderPresetsPass = (): VNode[] => {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        const nodes = evaluateTree(React.createElement(PresetsPage))
+        hookStore.flushEffects()
+        return nodes.filter((n): n is VNode => typeof n !== 'string')
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    let presetsTree = renderPresetsPass()
+    await vi.runAllTimersAsync()
+    await Promise.resolve()
+    presetsTree = renderPresetsPass()
+
+    const presetsText = collectText(presetsTree)
+    expect(presetsText).not.toContain('GO Formula Path')
+    // Active conditionals should be human-readable, not raw `GoldenTroupe.set4 = on`
+    expect(presetsText).not.toContain('.set4 = on')
+    const condCells = findAllElements(
+      presetsTree,
+      (el) => el.type === 'td' && el.props.className === 'preset-td-conds'
+    )
+    expect(condCells.length).toBeGreaterThan(0)
+    const allCondText = condCells.map((c) => collectText(c.children)).join(' | ')
+    expect(allCondText).not.toContain(' = ')
+
+    // Switch to Akasha presets and verify Akasha provenance link visible text is short
+    const akashaPreset = listBundledPresets().find((p) => p.akasha)!
+    const akashaCard = findAllElements(
+      presetsTree,
+      (el) =>
+        el.type === 'div' &&
+        el.props.role === 'button' &&
+        collectText(el.children).includes(akashaPreset.name)
+    )[0]
+    if (akashaCard) {
+      ;(akashaCard.props.onClick as () => void)()
+      presetsTree = renderPresetsPass()
+      const akashaLink = findAllElements(
+        presetsTree,
+        (el) => el.props['data-testid'] === 'akasha-provenance-link'
+      )[0]!
+      expect(collectText(akashaLink.children)).toBe('Akasha leaderboard case')
+      expect(akashaLink.props.href).toBe(akashaPreset.akasha!.leaderboardUrl)
+    }
   })
 })

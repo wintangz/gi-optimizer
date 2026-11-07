@@ -1,7 +1,11 @@
 'use client'
 
 import PresetsLoading from './loading'
-import { ConditionalTogglePanel } from '@/components/ConditionalTogglePanel'
+import {
+  ConditionalTogglePanel,
+  formatHumanConditionalEntry,
+} from '@/components/ConditionalTogglePanel'
+import { formatRotationRowLabel } from '@/components/OptimizeViews'
 import {
   ArtifactBadge,
   CharacterBadge,
@@ -522,8 +526,10 @@ export default function PresetsPage() {
                   href={activePreset.akasha.leaderboardUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  title={activePreset.akasha.leaderboardUrl}
+                  data-testid="akasha-provenance-link"
                 >
-                  {activePreset.akasha.leaderboardUrl}
+                  Akasha leaderboard case
                 </a>
                 {activePreset.akasha.notes && (
                   <div className="muted mt-xs">{activePreset.akasha.notes}</div>
@@ -739,7 +745,9 @@ export default function PresetsPage() {
                           m.conditional ?? {}
                         )) {
                           for (const [ck, cv] of Object.entries(map)) {
-                            condList.push(`${displayName(sheet)}.${ck} = ${cv}`)
+                            condList.push(
+                              formatHumanConditionalEntry(sheet, ck, cv)
+                            )
                           }
                         }
                       }
@@ -1003,7 +1011,6 @@ export default function PresetsPage() {
                   <thead>
                     <tr>
                       <th>Damage Instance</th>
-                      <th>GO Formula Path</th>
                       <th>Hit Count</th>
                       <th>Hit Mode</th>
                       <th>Reaction</th>
@@ -1013,10 +1020,9 @@ export default function PresetsPage() {
                     {activePreset.rotation.targets.map((rt, i) => (
                       <tr key={i} data-testid={`preset-rotation-row-${i}`}>
                         <td>
-                          <strong>{rt.label || rt.path.join('.')}</strong>
-                        </td>
-                        <td>
-                          <code>{rt.path.join('.')}</code>
+                          <strong>
+                            {formatRotationRowLabel(rt.label, rt.path)}
+                          </strong>
                         </td>
                         <td>×{rt.count}</td>
                         <td>

@@ -376,4 +376,85 @@ describe('ImportPage (import-table-honesty)', () => {
       globalThis.FileReader = OriginalFileReader
     }
   })
+
+  it('user-facing-language: formats import parse diagnostics in plain words instead of raw data paths', async () => {
+    mockRecord = null
+    mockSave.mockResolvedValue(undefined)
+
+    let nextFileText = ''
+    const OriginalFileReader = globalThis.FileReader
+    class MockFileReader {
+      result: string | null = null
+      onload: (() => void) | null = null
+      readAsText() {
+        this.result = nextFileText
+        if (this.onload) this.onload()
+      }
+    }
+    globalThis.FileReader = MockFileReader as unknown as typeof FileReader
+
+    try {
+      let tree = renderPass()
+      const fileInput = findAllElements(
+        tree,
+        (el) => el.type === 'input' && el.props.type === 'file'
+      )[0]!
+
+      nextFileText = JSON.stringify({
+        format: 'GOOD',
+        version: 3,
+        source: 'Irminsul',
+        characters: [
+          {
+            key: 'Furina',
+            level: 90,
+            constellation: 0,
+            ascension: 6,
+            talent: { auto: 1, skill: 10, burst: 10 },
+          },
+        ],
+        weapons: [],
+        artifacts: [
+          {
+            setKey: 'GoldenTroupe',
+            slotKey: 'flower',
+            level: 20,
+            rarity: 5,
+            mainStatKey: 'hp',
+            location: '',
+            lock: false,
+            substats: [
+              { key: 'critRate_', value: 3.9 },
+              { key: 'unknownSubstatKey', value: 10 },
+            ],
+          },
+        ],
+      })
+      ;(
+        fileInput.props.onChange as (e: {
+          target: { value: string; files: Array<{ name: string }> }
+        }) => void
+      )({
+        target: {
+          value: 'C:\\fakepath\\bad.json',
+          files: [{ name: 'bad.json' }],
+        },
+      })
+
+      await vi.waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1))
+      tree = renderPass()
+      const errorItem = findAllElements(
+        tree,
+        (el) => el.props['data-testid'] === 'parse-issue-error-0'
+      )[0]!
+      expect(errorItem).toBeDefined()
+      const errorText = collectText(errorItem.children)
+      expect(errorText).toContain(
+        "Artifact #1: a substat has an unknown type ('unknownSubstatKey')"
+      )
+      expect(errorText).not.toContain('artifacts[0].substats[1].key')
+    } finally {
+      globalThis.FileReader = OriginalFileReader
+    }
+  })
 })

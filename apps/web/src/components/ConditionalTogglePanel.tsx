@@ -66,7 +66,7 @@ const SECTION_SHORT_BADGE: Record<string, string> = {
   set4: '4pc',
 }
 
-function cleanConditionalLabel(
+export function cleanConditionalLabel(
   cond: ConditionalDescriptor,
   sheetDisplayName: string
 ): string {
@@ -83,7 +83,7 @@ function cleanConditionalLabel(
   return raw
 }
 
-function formatStateOptionLabel(st: ConditionalStateDescriptor): string {
+export function formatStateOptionLabel(st: ConditionalStateDescriptor): string {
   if (!st.name || st.name === st.key) {
     if (st.key === 'on') return 'Active (On)'
     if (/^\d+$/.test(st.key)) return `${st.key} Stack${st.key === '1' ? '' : 's'}`
@@ -93,6 +93,245 @@ function formatStateOptionLabel(st: ConditionalStateDescriptor): string {
     return prettifyConditionalKey(st.name)
   }
   return st.name
+}
+
+const STATIC_GO_CONDITIONAL_LABELS: Record<
+  string,
+  { label: string; states?: Record<string, string> }
+> = {
+  'ArchaicPetra.element': {
+    label:
+      'After obtaining a Crystallize Shard or triggering a Lunar-Crystallize reaction',
+    states: { hydro: 'Hydro', pyro: 'Pyro', cryo: 'Cryo', electro: 'Electro' },
+  },
+  'Arlecchino.bondPercent': {
+    label: 'Current Life Bond percentage',
+    states: { '130': '130%' },
+  },
+  'Bennett.activeInArea': {
+    label: "Character is inside the ability's field",
+    states: { activeInArea: 'Active In Area' },
+  },
+  'Citlali.a1NsFreezeMelt': {
+    label:
+      'While Itzpapa is on the field, and a nearby party member triggers Frozen or Melt reaction',
+    states: { on: 'Active (On)' },
+  },
+  'CrimsonWitchOfFlames.stack': {
+    label: 'After using Elemental Skill',
+    states: { '1': '1 Stack', '2': '2 Stacks', '3': '3 Stacks' },
+  },
+  'EngulfingLightning.TimelessDream': {
+    label: 'After using Elemental Burst',
+    states: { on: 'Active (On)' },
+  },
+  'FragmentOfHarmonicWhimsy.stacks': {
+    label: 'After the value of a Bond of Life increases or decreases',
+    states: { '1': '1 Time', '2': '2 Times', '3': '3 Times' },
+  },
+  'Furina.burstFanfare': {
+    label: 'Fanfare',
+  },
+  'Furina.c2Overstack': {
+    label: 'Fanfare above the limit',
+  },
+  'Furina.skillHpConsumeStacks': {
+    label: 'Number of characters who offered HP',
+    states: {
+      '1': '1 Member',
+      '2': '2 Members',
+      '3': '3 Members',
+      '4': '4 Members',
+    },
+  },
+  'GoldenTroupe.set4': {
+    label: 'Character is off-field',
+    states: { on: 'Active (On)' },
+  },
+  'HuTao.GuideToAfterlifeVoyage': {
+    label: 'In the Paramita Papilio state',
+    states: { on: 'Active (On)' },
+  },
+  'HuTao.SanguineRouge': {
+    label: 'HP less than or equal to 50%',
+    states: { on: 'Active (On)' },
+  },
+  'KaedeharaKazuha.swirlelectro': {
+    label: 'After triggering an Electro Swirl reaction',
+    states: { electro: 'After triggering an Electro Swirl reaction' },
+  },
+  'KaedeharaKazuha.swirlhydro': {
+    label: 'After triggering a Hydro Swirl reaction',
+    states: { hydro: 'After triggering a Hydro Swirl reaction' },
+  },
+  'KujouSara.c6': {
+    label: 'Character has had their ATK increased by Tengu Juurai',
+    states: { c6: 'C6' },
+  },
+  'KujouSara.TenguJuuraiAmbush': {
+    label: 'Under the effects of Tengu Juurai: Ambush',
+    states: { TenguJuuraiAmbush: 'Tengu Juurai Ambush' },
+  },
+  'MarechausseeHunter.set4': {
+    label: 'After HP changes',
+    states: { '1': '1 Stack', '2': '2 Stacks', '3': '3 Stacks' },
+  },
+  'Mavuika.a1NsBurst': {
+    label: 'After nearby party members trigger a Nightsoul Burst',
+    states: { on: 'Active (On)' },
+  },
+  'Mavuika.a4TimeSinceBurst': {
+    label: 'Time since burst used',
+    states: { '0': '0 Seconds' },
+  },
+  'Mavuika.burstSpirit': {
+    label: 'Fighting Spirit',
+  },
+  'Neuvillette.a1Stacks': {
+    label: 'Past Draconic Glories',
+    states: { '1': '1 Stack', '2': '2 Stacks', '3': '3 Stacks' },
+  },
+  'Neuvillette.a4Hp': {
+    label: '% Current HP',
+    states: { '50': '80%' },
+  },
+  'NoblesseOblige.set4': {
+    label: 'After using Elemental Burst',
+    states: { on: 'Active (On)' },
+  },
+  'ObsidianCodex.2NightsoulBlessing': {
+    label: "Character in Nightsoul's Blessing and on the field",
+    states: { on: 'Active (On)' },
+  },
+  'ObsidianCodex.4NightsoulConsume': {
+    label: 'Character consumes 1 Nightsoul point while on the field',
+    states: { on: 'Active (On)' },
+  },
+  'RaidenShogun.burstResolve': {
+    label: 'Resolve Stacks',
+    states: {
+      '10': '10 Stacks',
+      '20': '20 Stacks',
+      '30': '30 Stacks',
+      '40': '40 Stacks',
+      '50': '50 Stacks',
+      '60': '60 Stacks',
+    },
+  },
+  'RaidenShogun.skillEye': {
+    label: 'Carrying the Eye of Stormy Judgement',
+    states: { skillEye: 'Skill Eye' },
+  },
+  'ScrollOfTheHeroOfCinderCity.nightsoul_pyro': {
+    label:
+      "After triggering a Pyro-related Elemental Reaction while in Nightsoul's Blessing",
+    states: {
+      pyro: "After triggering a Pyro-related Elemental Reaction while in Nightsoul's Blessing",
+    },
+  },
+  'ScrollOfTheHeroOfCinderCity.react_pyro': {
+    label: 'After triggering a Pyro-related Elemental Reaction',
+    states: {
+      pyro: 'After triggering a Pyro-related Elemental Reaction',
+    },
+  },
+  'SplendorOfTranquilWaters.selfHpChange': {
+    label: 'After HP changes',
+    states: { '1': '1 Time', '2': '2 Times', '3': '3 Times' },
+  },
+  'SplendorOfTranquilWaters.teamHpChange': {
+    label: "After a teammate's HP changes",
+    states: { '1': '1 Time', '2': '2 Times' },
+  },
+  'StaffOfHoma.RecklessCinnabar': {
+    label: 'HP less than 50%',
+    states: { on: 'Active (On)' },
+  },
+  'StaffOfTheScarletSands.stacks': {
+    label: 'After hitting an opponent with an Elemental Skill',
+    states: { '1': '1 Hit', '2': '2 Hits', '3': '3 Hits' },
+  },
+  'TenacityOfTheMillelith.skill': {
+    label: 'After hitting an opponent with an Elemental Skill',
+    states: { cast: 'Cast' },
+  },
+  'ThrillingTalesOfDragonSlayers.Heritage': {
+    label: 'After switching from this character',
+    states: { on: 'Active (On)' },
+  },
+  'ViridescentVenerer.swirlelectro': {
+    label: 'After triggering an Electro Swirl reaction',
+    states: { electro: 'After triggering an Electro Swirl reaction' },
+  },
+  'ViridescentVenerer.swirlhydro': {
+    label: 'After triggering a Hydro Swirl reaction',
+    states: { hydro: 'After triggering a Hydro Swirl reaction' },
+  },
+  'Xilonen.sourceActive': {
+    label: 'Nighsoul Points hit the maximum',
+    states: { on: 'Active (On)' },
+  },
+  'Yelan.a4Stacks': {
+    label: 'After using Elemental Burst',
+    states: { '8': '8 Seconds' },
+  },
+  'Zhongli.skill': {
+    label: 'Enemy is near the Jade Shield',
+    states: { on: 'Active (On)' },
+  },
+}
+
+/**
+ * Formats an active conditional entry (`sheetKey`, `condKey`, `stateValue`) into
+ * human-readable words using the same label source as the Buffs & Passives panel.
+ */
+export function formatHumanConditionalEntry(
+  sheetKey: string,
+  condKey: string,
+  stateValue: string,
+  catalog?: readonly ConditionalDescriptor[]
+): string {
+  const sheetDisplayName = displayName(sheetKey)
+  const desc = catalog?.find((c) => c.sheet === sheetKey && c.key === condKey)
+  if (desc) {
+    const condLabel = cleanConditionalLabel(desc, sheetDisplayName)
+    const stateDesc = desc.states.find((s) => s.key === stateValue)
+    const stateLabel = stateDesc
+      ? formatStateOptionLabel(stateDesc)
+      : formatStateOptionLabel({ key: stateValue, name: stateValue })
+    if (stateLabel === condLabel) {
+      return `${sheetDisplayName}: ${condLabel}`
+    }
+    return `${sheetDisplayName}: ${condLabel} (${stateLabel})`
+  }
+
+  const staticEntry = STATIC_GO_CONDITIONAL_LABELS[`${sheetKey}.${condKey}`]
+  if (staticEntry) {
+    const condLabel = staticEntry.label
+    const mappedState = staticEntry.states?.[stateValue]
+    const stateLabel =
+      mappedState ??
+      formatStateOptionLabel({ key: stateValue, name: stateValue })
+    if (stateLabel === condLabel) {
+      return `${sheetDisplayName}: ${condLabel}`
+    }
+    return `${sheetDisplayName}: ${condLabel} (${stateLabel})`
+  }
+
+  const fallbackCondLabel =
+    condKey === 'set4'
+      ? '4-Piece Bonus'
+      : condKey === 'set2'
+        ? '2-Piece Bonus'
+        : prettifyConditionalKey(condKey)
+  const fallbackStateLabel = formatStateOptionLabel({
+    key: stateValue,
+    name: stateValue,
+  })
+  if (fallbackStateLabel === fallbackCondLabel) {
+    return `${sheetDisplayName}: ${fallbackCondLabel}`
+  }
+  return `${sheetDisplayName}: ${fallbackCondLabel} (${fallbackStateLabel})`
 }
 
 function deriveDefaultArtSetConditionalsFromCatalog(

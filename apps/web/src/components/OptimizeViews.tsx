@@ -38,6 +38,7 @@ import {
   ART_SLOT_MAIN_KEYS,
   type IArtifact,
   type IGOOD,
+  type ParseIssue,
 } from '@gi/good'
 import {
   displayName,
@@ -296,16 +297,79 @@ function formatNum(n: number): string {
   return Math.round(n).toLocaleString()
 }
 
+const FORMULA_SECTION_LABELS: Record<string, string> = {
+  normal: 'Normal Attack',
+  charged: 'Charged Attack',
+  plunging: 'Plunging Attack',
+  skill: 'Elemental Skill',
+  burst: 'Elemental Burst',
+  passive1: 'Ascension 1 Passive',
+  passive2: 'Ascension 4 Passive',
+  passive3: 'Utility Passive',
+  constellation1: 'Constellation 1',
+  constellation2: 'Constellation 2',
+  constellation3: 'Constellation 3',
+  constellation4: 'Constellation 4',
+  constellation5: 'Constellation 5',
+  constellation6: 'Constellation 6',
+}
+
+export function humanizeFormulaPath(path: readonly string[]): string {
+  if (!path || path.length === 0) return 'Damage Hit'
+  const section = path[0] ?? ''
+  const key = path.slice(1).join(' ')
+  const secLabel =
+    FORMULA_SECTION_LABELS[section] ??
+    section
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/_/g, ' ')
+      .replace(/\b([a-z])/g, (m) => m.toUpperCase())
+  if (!key) return secLabel || 'Damage Hit'
+  if (/^\d+$/.test(key)) {
+    return `${secLabel} — ${Number(key) + 1}-Hit DMG`
+  }
+  const spaced = key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[._-]+/g, ' ')
+    .replace(/\b([a-z])/g, (m) => m.toUpperCase())
+    .replace(/\bDmg\b/g, 'DMG')
+  return `${secLabel} — ${spaced}`
+}
+
+const RAW_FORMULA_PATH_RE =
+  /^(?:normal|charged|plunging|skill|burst|passive[123]|constellation[1-6])(?:\.[a-z0-9_]+)+$/i
+
 const REDUNDANT_ROTATION_PAREN_CLAUSE_RE =
   /^(?:(?:melt|vaporize|vape|spread|aggravate|overloaded|overload|electro[-\s]?charged|superconduct|swirl|shattered|crystallize|burgeon|hyperbloom|lunar[-\s]?(?:charged|bloom|crystallize)|no[-\s]?reaction|raw|unreacted)(?:\s+(?:[×x]\s*\d+|\d+\s*[×x]\s*\d+|\d+\s*hits?))?|(?:normal\s+)?(?:[×x]\s*\d+|\d+\s*[×x]\s*\d+|\d+\s*hits?))$/i
 
-export function formatRotationRowLabel(label: string): string {
-  const trimmed = label.trim()
+export function formatRotationRowLabel(
+  label?: string,
+  fallbackPath?: readonly string[]
+): string {
+  const trimmed = (label ?? '').trim()
+  if (!trimmed) {
+    return fallbackPath && fallbackPath.length > 0
+      ? humanizeFormulaPath(fallbackPath)
+      : 'Damage Hit'
+  }
+  if (
+    (fallbackPath && trimmed === fallbackPath.join('.')) ||
+    RAW_FORMULA_PATH_RE.test(trimmed)
+  ) {
+    return humanizeFormulaPath(
+      fallbackPath && fallbackPath.length > 0
+        ? fallbackPath
+        : trimmed.split('.')
+    )
+  }
   const match = trimmed.match(/^(.*?)\s*\(([^()]+)\)\s*$/)
   if (!match) return trimmed
   const base = match[1]!.trim()
   const inner = match[2]!.trim()
   if (!base || !inner) return trimmed
+  if (RAW_FORMULA_PATH_RE.test(inner)) {
+    return base
+  }
   const clauses = inner
     .split(/\s*[,/;·]\s*/)
     .map((c) => c.trim())
@@ -317,6 +381,115 @@ export function formatRotationRowLabel(label: string): string {
     return base
   }
   return trimmed
+}
+
+export interface PlainParseIssue {
+  entryLabel: string
+  description: string
+  fullText: string
+}
+
+const FIELD_PLAIN_LABELS: Record<string, string> = {
+  key: 'name',
+  setKey: 'artifact set',
+  slotKey: 'slot',
+  mainStatKey: 'main stat',
+  rarity: 'rarity',
+  level: 'level',
+  ascension: 'ascension',
+  constellation: 'constellation',
+  refinement: 'refinement',
+  location: 'equipped character',
+  id: 'ID',
+  substats: 'substats',
+  'talent.auto': 'Normal Attack talent',
+  'talent.skill': 'Elemental Skill talent',
+  'talent.burst': 'Elemental Burst talent',
+}
+
+export function formatParseIssuePlain(issue: ParseIssue): PlainParseIssue {
+  const rawPath = (issue.path ?? '').trim()
+  let entryLabel = 'File'
+  let fieldContext = ''
+
+  const subMatch = rawPath.match(
+    /^artifacts\[(\d+)\]\.substats\[(\d+)\](?:\.([a-zA-Z0-9_.]+))?$/
+  )
+  const itemMatch = rawPath.match(
+    /^(artifacts|weapons|characters)\[(\d+)\](?:\.([a-zA-Z0-9_.]+))?$/
+  )
+
+  if (subMatch) {
+    const artNum = Number(subMatch[1]) + 1
+    const subNum = Number(subMatch[2]) + 1
+    entryLabel = `Artifact #${artNum}`
+    fieldContext = `substat #${subNum}`
+  } else if (itemMatch) {
+    const kind = itemMatch[1]!
+    const idx = Number(itemMatch[2]) + 1
+    const field = itemMatch[3] ?? ''
+    const noun =
+      kind === 'artifacts'
+        ? 'Artifact'
+        : kind === 'weapons'
+          ? 'Weapon'
+          : 'Character'
+    entryLabel = `${noun} #${idx}`
+    if (field) {
+      fieldContext = FIELD_PLAIN_LABELS[field] ?? field
+    }
+  } else if (rawPath === 'root' || !rawPath) {
+    entryLabel = 'File'
+  } else if (rawPath === 'format') {
+    entryLabel = 'File format'
+  } else if (rawPath === 'version') {
+    entryLabel = 'File version'
+  } else if (rawPath === 'source') {
+    entryLabel = 'Scanner source'
+  } else if (/^line\s+\d+/i.test(rawPath)) {
+    entryLabel = rawPath.replace(/^line/i, 'Line').replace(/col\b/i, 'column')
+  } else if (
+    rawPath === 'characters' ||
+    rawPath === 'weapons' ||
+    rawPath === 'artifacts'
+  ) {
+    entryLabel = `${rawPath[0]!.toUpperCase()}${rawPath.slice(1)} list`
+  } else {
+    entryLabel = rawPath
+  }
+
+  let desc = issue.message.trim()
+  const invalidSubstatMatch =
+    desc.match(/^'([^']+)' is not a valid substat(.*)$/i) ??
+    desc.match(/^unrecognized substat key '([^']+)'(?:;\s*substat ignored\.?)?(.*)$/i)
+  if (invalidSubstatMatch) {
+    const badKey = invalidSubstatMatch[1]!
+    const rest = invalidSubstatMatch[2] ?? ''
+    desc = `a substat has an unknown type ('${badKey}')${rest}`
+  } else {
+    desc = desc
+      .replace(/\bcharacters\[(\d+)\]/g, (_, n) => `Character #${Number(n) + 1}`)
+      .replace(/\bweapons\[(\d+)\]/g, (_, n) => `Weapon #${Number(n) + 1}`)
+      .replace(/\bartifacts\[(\d+)\]/g, (_, n) => `Artifact #${Number(n) + 1}`)
+      .replace(/missing a string "setKey"/gi, 'missing an artifact set name')
+      .replace(/missing a string "key"/gi, 'missing a name')
+      .replace(/Unknown character key /gi, 'Unknown character ')
+      .replace(/Unknown weapon key /gi, 'Unknown weapon ')
+  }
+
+  if (
+    fieldContext &&
+    !desc.toLowerCase().includes('substat') &&
+    !desc.toLowerCase().includes(fieldContext.toLowerCase())
+  ) {
+    entryLabel = `${entryLabel} (${fieldContext})`
+  }
+
+  return {
+    entryLabel,
+    description: desc,
+    fullText: `${entryLabel}: ${desc}`,
+  }
 }
 
 function formatDisplayBoundValue(val: number | undefined): string {
@@ -2755,7 +2928,7 @@ export function PresetRotationSummary({
                         </span>
                       )}
                       <strong>
-                        {formatRotationRowLabel(rt.label || rt.path.join('.'))}
+                        {formatRotationRowLabel(rt.label, rt.path)}
                       </strong>
                     </span>
                   </td>
@@ -3271,10 +3444,10 @@ export function TeamOptimizationList({
                 }`}
                 data-testid="team-opt-banner-pill"
               >
-                TEAM TOTAL
+                Team Total
               </span>
               <span className={isTeamImproved ? 'comp-best-tag' : 'muted'}>
-                Disjoint 5pc Assignment
+                Artifacts assigned without overlap
               </span>
             </div>
             <div className="comp-row-metrics">
@@ -3328,9 +3501,7 @@ export function TeamOptimizationList({
               <div className="comp-row-summary">
                 <div className="comp-row-main">
                   <div className="comp-row-rank">
-                    <span className="comp-rank-pill">
-                      SLOT {memberRes.memberIndex + 1}
-                    </span>
+                    <span className="comp-rank-pill">{displayName(mKey)}</span>
                     <CharacterBadge characterKey={mKey} compact />
                   </div>
                   <span
@@ -3378,7 +3549,7 @@ export function TeamOptimizationList({
                     }`}
                     data-testid={`team-opt-rank-${mKey}`}
                   >
-                    SLOT {memberRes.memberIndex + 1}
+                    {displayName(mKey)}
                   </span>
                   <CharacterBadge characterKey={mKey} compact />
                   <span className="muted" style={{ fontSize: '0.78rem' }}>
