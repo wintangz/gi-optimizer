@@ -156,7 +156,7 @@ export function formatCoreStatComparison(
       diffText: `−${abs}%`,
       asciiDiffText: `-${abs}%`,
       sign: '-',
-      cls: 'error',
+      cls: 'muted',
     }
   }
 
@@ -226,7 +226,7 @@ export function formatCoreStatComparison(
       rawDiffText,
       asciiRawDiffText,
       sign: '-',
-      cls: 'error',
+      cls: 'muted',
     }
   }
 
@@ -265,7 +265,7 @@ export function formatCoreStatComparison(
     rawDiffText,
     asciiRawDiffText,
     sign: '-',
-    cls: 'error',
+    cls: 'muted',
   }
 }
 
@@ -681,7 +681,7 @@ export function formatRelativeDelta(
     text: `−${abs}%`,
     asciiText: `-${abs}%`,
     sign: '-',
-    cls: 'error',
+    cls: 'muted',
   }
 }
 
@@ -2193,7 +2193,7 @@ export function WeaponComparisonList({
                   </strong>
 
                   <span
-                    className={`comp-row-delta ${isLeader ? 'ok' : 'error'}`}
+                    className={`comp-row-delta ${isLeader ? 'ok' : 'muted'}`}
                     data-testid={`weapon-compare-delta-${wKey}`}
                     data-pct-behind={pctBehind.toFixed(1)}
                     data-delta-ascii={behindAscii}
@@ -2393,7 +2393,7 @@ export function WeaponComparisonList({
                             </strong>
                             <span
                               className={`comp-row-delta ${
-                                buildIsLeader ? 'ok' : 'error'
+                                buildIsLeader ? 'ok' : 'muted'
                               }`}
                               data-testid={`weapon-compare-build-delta-${wKey}-${bIdx}`}
                               data-delta-ascii={buildBehindAscii}

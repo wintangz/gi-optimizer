@@ -1079,7 +1079,7 @@ export function BuildComparisonBars({
           <span className="muted">
             Proportional rotation total (100% = larger build)
           </span>
-          <strong className={diff >= 0 ? 'ok' : 'error'}>
+          <strong className={diff > 0 ? 'ok' : 'muted'}>
             {diff >= 0 ? '+' : ''}
             {Math.round(diff).toLocaleString()}
             {diffPct !== null

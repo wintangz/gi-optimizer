@@ -700,7 +700,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       rawDiffText: '−60',
       asciiRawDiffText: '-60',
       sign: '-',
-      cls: 'error',
+      cls: 'muted',
     })
 
     // Flat stat unchanged
@@ -744,7 +744,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       diffText: '−12.0%',
       asciiDiffText: '-12.0%',
       sign: '-',
-      cls: 'error',
+      cls: 'muted',
     })
 
     // Percent stat unchanged
@@ -836,18 +836,18 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         `data-testid="comp-stat-diff-opt-0-${statKey}"`
       )
     }
-    // Check green (ok), red (error), grey (muted) classes, relative % for flat stats + raw delta tooltip, and point diffs for % stats
+    // Check green (ok) and neutral/muted (muted) classes, relative % for flat stats + raw delta tooltip, and point diffs for % stats
     expect(optExpandedHtml).toContain(
       `class="comp-stat-num comp-stat-diff-delta ok" data-testid="comp-stat-diff-opt-0-hp" data-diff-sign="+" data-diff-ascii="+7.0%" data-raw-diff="+${(2700).toLocaleString()}" data-raw-diff-ascii="+${(2700).toLocaleString()}" title="+${(2700).toLocaleString()}">+7.0%<`
     )
     expect(optExpandedHtml).toContain(
-      'class="comp-stat-num comp-stat-diff-delta error" data-testid="comp-stat-diff-opt-0-atk" data-diff-sign="-" data-diff-ascii="-5.0%" data-raw-diff="−60" data-raw-diff-ascii="-60" title="−60">−5.0%<'
+      'class="comp-stat-num comp-stat-diff-delta muted" data-testid="comp-stat-diff-opt-0-atk" data-diff-sign="-" data-diff-ascii="-5.0%" data-raw-diff="−60" data-raw-diff-ascii="-60" title="−60">−5.0%<'
     )
     expect(optExpandedHtml).toContain(
       'class="comp-stat-num comp-stat-diff-delta muted" data-testid="comp-stat-diff-opt-0-def" data-diff-sign="0" data-diff-ascii="0.0%" data-raw-diff="0" data-raw-diff-ascii="0" title="0">0.0%<'
     )
     expect(optExpandedHtml).toContain(
-      'class="comp-stat-num comp-stat-diff-delta error" data-testid="comp-stat-diff-opt-0-enerRech_" data-diff-sign="-" data-diff-ascii="-12.0%">−12.0%<'
+      'class="comp-stat-num comp-stat-diff-delta muted" data-testid="comp-stat-diff-opt-0-enerRech_" data-diff-sign="-" data-diff-ascii="-12.0%">−12.0%<'
     )
     expect(optExpandedHtml).toContain(
       'class="comp-stat-num comp-stat-diff-delta muted" data-testid="comp-stat-diff-opt-0-critRate_" data-diff-sign="0" data-diff-ascii="0.0%">0.0%<'
@@ -2173,5 +2173,167 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(detailsHtml).not.toContain('(Melt)')
     expect(detailsHtml).not.toContain('comp-inline-breakdown-btn')
     expect(detailsHtml).toContain('class="comp-row-chevron"')
+  })
+
+  it('styles negative relative deltas with neutral muted class instead of red error class across build rows, weapon rows, team member rows, and stat diffs while reserving error for actual unmet constraints (delta-styling-tiers)', () => {
+    expect(formatRelativeDelta(99500, 100000)).toEqual({
+      text: '−0.5%',
+      asciiText: '-0.5%',
+      sign: '-',
+      cls: 'muted',
+    })
+    expect(formatRelativeDelta(100500, 100000)).toEqual({
+      text: '+0.5%',
+      asciiText: '+0.5%',
+      sign: '+',
+      cls: 'ok',
+    })
+    expect(formatRelativeDelta(100000, 100000)).toEqual({
+      text: '0.0%',
+      asciiText: '0.0%',
+      sign: '0',
+      cls: 'muted',
+    })
+
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+    const buildHtml = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        initialExpandedRowId="opt-0"
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: {
+            total: 400000,
+            stats: { hp: 40000, atk: 1200 },
+            instances: [
+              {
+                label: 'Gentilhomme Usher DMG',
+                path: ['skill', 'usherDmg'],
+                count: 7,
+                perHit: 57142,
+                subtotal: 400000,
+              },
+            ],
+          },
+        }}
+        optimizedBuilds={[
+          {
+            selection: { weaponId: 'w1', artifactIds: {} },
+            total: 398000,
+            evaluation: {
+              total: 398000,
+              stats: { hp: 39000, atk: 1180 },
+              instances: [
+                {
+                  label: 'Gentilhomme Usher DMG',
+                  path: ['skill', 'usherDmg'],
+                  count: 7,
+                  perHit: 56857,
+                  subtotal: 398000,
+                },
+              ],
+            },
+          },
+        ]}
+      />
+    )
+    expect(buildHtml).toContain(
+      'class="comp-row-delta muted" data-testid="comp-delta-opt-0" data-delta-sign="-" data-delta-ascii="-0.5%"'
+    )
+    expect(buildHtml).not.toContain('comp-row-delta error')
+    expect(buildHtml).not.toContain('comp-dmg-col-delta error')
+    expect(buildHtml).not.toContain('comp-stat-diff-delta error')
+
+    const rankedWeapons = rankWeaponComparisonRows([
+      {
+        candidate: {
+          weaponKey: 'FavoniusSword',
+          level: 90,
+          ascension: 6,
+          refinement: 5,
+          isOwned: true,
+          isEquippedBaseline: true,
+        },
+        status: 'ok',
+        rank: null,
+        total: 400000,
+        percentBehindLeader: null,
+        bestBuild: { artifactIds: {} },
+        evaluation: { total: 400000, stats: {}, instances: [] },
+        topBuilds: [
+          {
+            rank: 1,
+            selection: { artifactIds: {} },
+            evaluation: { total: 400000, stats: {}, instances: [] },
+          },
+          {
+            rank: 2,
+            selection: { artifactIds: {} },
+            evaluation: { total: 396000, stats: {}, instances: [] },
+          },
+        ],
+        tested: 10,
+        skipped: 0,
+        durationMs: 1,
+      },
+      {
+        candidate: {
+          weaponKey: 'FleuveCendreFerryman',
+          level: 90,
+          ascension: 6,
+          refinement: 5,
+          isOwned: false,
+          isEquippedBaseline: false,
+        },
+        status: 'ok',
+        rank: null,
+        total: 380000,
+        percentBehindLeader: null,
+        bestBuild: { artifactIds: {} },
+        evaluation: { total: 380000, stats: {}, instances: [] },
+        tested: 10,
+        skipped: 0,
+        durationMs: 1,
+      },
+      {
+        candidate: {
+          weaponKey: 'SplendorOfTranquilWaters',
+          level: 90,
+          ascension: 6,
+          refinement: 1,
+          isOwned: false,
+          isEquippedBaseline: false,
+        },
+        status: 'unmet',
+        rank: null,
+        total: null,
+        percentBehindLeader: null,
+        bestBuild: null,
+        evaluation: null,
+        tested: 0,
+        skipped: 10,
+        durationMs: 1,
+      },
+    ])
+    const weaponHtml = renderToStaticMarkup(
+      <WeaponComparisonList
+        preset={preset}
+        result={rankedWeapons}
+        artifactById={new Map()}
+      />
+    )
+    // Trailing weapon delta and #2 top-build delta use muted, not error
+    expect(weaponHtml).toContain(
+      'class="comp-row-delta muted" data-testid="weapon-compare-delta-FleuveCendreFerryman"'
+    )
+    expect(weaponHtml).toContain(
+      'class="comp-row-delta muted" data-testid="weapon-compare-build-delta-FavoniusSword-1"'
+    )
+    expect(weaponHtml).not.toContain('comp-row-delta error')
+    // Actual unmet-constraint message still uses error
+    expect(weaponHtml).toContain(
+      'class="error" data-testid="weapon-compare-unmet-SplendorOfTranquilWaters"'
+    )
   })
 })
