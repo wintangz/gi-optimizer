@@ -85,7 +85,9 @@ export function CharacterBadge({
   const imageFailed = failedKey === characterKey
   const iconUrl = getCdnIconUrl(characterKey)
   const meta = getCharacterMeta(characterKey)
-  const size = compact ? 24 : 30
+  const fallbackSize = compact ? 24 : 30
+  const imageSize = compact ? 27 : 34
+  const size = imageFailed ? fallbackSize : imageSize
   const effectiveRole = simulated ? 'simulated' : role
 
   return (
@@ -102,8 +104,9 @@ export function CharacterBadge({
         verticalAlign: 'middle',
       }}
     >
-      {/* Element-coloured circular avatar with dashed outer ring when simulated */}
+      {/* Element-coloured circular avatar: solid + slightly larger in image state, dashed + base size in fallback state */}
       <span
+        data-testid="character-avatar"
         title={`${meta.displayName} (${meta.element.toUpperCase()})${
           simulated ? ' — Simulated Preset Build' : ''
         }`}
@@ -115,11 +118,9 @@ export function CharacterBadge({
           overflow: 'hidden',
           background: meta.elementColor.bg,
           color: meta.elementColor.fg,
-          border: simulated
+          border: imageFailed
             ? `2px dashed ${meta.elementColor.border}`
             : `2px solid ${meta.elementColor.border}`,
-          outline: simulated ? '1px dashed rgba(245, 185, 66, 0.55)' : 'none',
-          outlineOffset: '1px',
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -183,7 +184,7 @@ export function CharacterBadge({
               letterSpacing: '0.03em',
               background: 'rgba(245, 185, 66, 0.14)',
               color: 'var(--warn)',
-              border: '1px dashed var(--warn)',
+              border: '1px solid var(--warn)',
             }}
           >
             {compact ? 'SIM' : 'SIM · Fixed Preset Build'}

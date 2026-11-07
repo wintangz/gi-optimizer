@@ -168,7 +168,7 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     )
   })
 
-  it('renders CharacterBadge with Cloudinary CDN image, element color ring/background, and role pills for target vs owned vs simulated (tc)', () => {
+  it('renders CharacterBadge with Cloudinary CDN image, solid border, +10% larger size (34px default / 27px compact), and never renders a dashed border in the image state (badge-image-state-style)', () => {
     const targetHtml = renderToStaticMarkup(
       <CharacterBadge characterKey="Furina" role="target" />
     )
@@ -179,6 +179,9 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(targetHtml).toContain(
       'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Furina.png"'
     )
+    expect(targetHtml).toContain('width:34px;height:34px;min-width:34px')
+    expect(targetHtml).toContain('border:2px solid ')
+    expect(targetHtml).not.toContain('dashed')
     expect(targetHtml).toContain('border-radius:999px')
     expect(targetHtml).toContain('object-fit:cover')
     expect(targetHtml).toContain('Furina')
@@ -191,6 +194,9 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(ownedHtml).toContain(
       'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Neuvillette.png"'
     )
+    expect(ownedHtml).toContain('width:34px;height:34px;min-width:34px')
+    expect(ownedHtml).toContain('border:2px solid ')
+    expect(ownedHtml).not.toContain('dashed')
     expect(ownedHtml).toContain('YOUR BUILD')
 
     const simHtml = renderToStaticMarkup(
@@ -198,7 +204,9 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     )
     expect(simHtml).toContain('data-simulated="true"')
     expect(simHtml).toContain('data-role="simulated"')
-    expect(simHtml).toContain('dashed')
+    expect(simHtml).toContain('width:34px;height:34px;min-width:34px')
+    expect(simHtml).toContain('border:2px solid ')
+    expect(simHtml).not.toContain('dashed')
     expect(simHtml).toContain(
       'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/KaedeharaKazuha.png"'
     )
@@ -208,6 +216,9 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
       <CharacterBadge characterKey="Baizhu" simulated compact />
     )
     expect(simCompactHtml).toContain('data-simulated="true"')
+    expect(simCompactHtml).toContain('width:27px;height:27px;min-width:27px')
+    expect(simCompactHtml).toContain('border:2px solid ')
+    expect(simCompactHtml).not.toContain('dashed')
     expect(simCompactHtml).toContain('>SIM<')
   })
 
@@ -228,19 +239,31 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(wepHtml).toContain('Lv. 90 R1')
   })
 
-  it('falls back to circle + initials on CharacterBadge and WeaponTypeIcon on WeaponBadge when the CDN image errors (cdn-icon-images)', () => {
-    // 1. CharacterBadge fallback on image load failure
+  it('falls back to circle + initials with dashed border and exact base size (30px / 24px compact) on CharacterBadge, and WeaponTypeIcon on WeaponBadge when the CDN image errors (cdn-icon-images & badge-image-state-style)', () => {
+    // 1. CharacterBadge image state vs fallback state on image load failure
     hookStore.reset()
     let charTree = renderWithHooks(
       <CharacterBadge characterKey="Furina" role="target" />
     )
+    let avatars = findAllElements(
+      charTree,
+      (el) =>
+        el.type === 'span' && el.props['data-testid'] === 'character-avatar'
+    )
+    expect(avatars).toHaveLength(1)
+    let avatarStyle = avatars[0]!.props.style as Record<string, string>
+    expect(avatarStyle.width).toBe('34px')
+    expect(avatarStyle.height).toBe('34px')
+    expect(avatarStyle.border).toContain('2px solid ')
+    expect(avatarStyle.border).not.toContain('dashed')
+
     let imgs = findAllElements(charTree, (el) => el.type === 'img')
     expect(imgs).toHaveLength(1)
     expect(imgs[0]!.props.src).toBe(
       'https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/Furina.png'
     )
 
-    // Trigger onError
+    // Trigger onError -> transitions to fallback state (30px + 2px dashed border + initials)
     ;(imgs[0]!.props.onError as () => void)()
     charTree = renderWithHooks(
       <CharacterBadge characterKey="Furina" role="target" />
@@ -248,11 +271,30 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(findAllElements(charTree, (el) => el.type === 'img')).toHaveLength(0)
     expect(collectText(charTree)).toContain('FU')
     expect(collectText(charTree)).toContain('Furina')
-
-    // Switching characterKey on the same badge resets error state for the new key
-    charTree = renderWithHooks(
-      <CharacterBadge characterKey="Somnia" role="target" />
+    avatars = findAllElements(
+      charTree,
+      (el) =>
+        el.type === 'span' && el.props['data-testid'] === 'character-avatar'
     )
+    avatarStyle = avatars[0]!.props.style as Record<string, string>
+    expect(avatarStyle.width).toBe('30px')
+    expect(avatarStyle.height).toBe('30px')
+    expect(avatarStyle.border).toContain('2px dashed ')
+
+    // Switching characterKey (and compact=true) resets to image state (27px + solid border), then falls back to 24px + dashed border on error
+    charTree = renderWithHooks(
+      <CharacterBadge characterKey="Somnia" role="target" compact />
+    )
+    avatars = findAllElements(
+      charTree,
+      (el) =>
+        el.type === 'span' && el.props['data-testid'] === 'character-avatar'
+    )
+    avatarStyle = avatars[0]!.props.style as Record<string, string>
+    expect(avatarStyle.width).toBe('27px')
+    expect(avatarStyle.border).toContain('2px solid ')
+    expect(avatarStyle.border).not.toContain('dashed')
+
     imgs = findAllElements(charTree, (el) => el.type === 'img')
     expect(imgs).toHaveLength(1)
     expect(imgs[0]!.props.src).toBe(
@@ -260,10 +302,19 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     )
     ;(imgs[0]!.props.onError as () => void)()
     charTree = renderWithHooks(
-      <CharacterBadge characterKey="Somnia" role="target" />
+      <CharacterBadge characterKey="Somnia" role="target" compact />
     )
     expect(findAllElements(charTree, (el) => el.type === 'img')).toHaveLength(0)
     expect(collectText(charTree)).toContain('SO')
+    avatars = findAllElements(
+      charTree,
+      (el) =>
+        el.type === 'span' && el.props['data-testid'] === 'character-avatar'
+    )
+    avatarStyle = avatars[0]!.props.style as Record<string, string>
+    expect(avatarStyle.width).toBe('24px')
+    expect(avatarStyle.height).toBe('24px')
+    expect(avatarStyle.border).toContain('2px dashed ')
 
     // 2. WeaponBadge fallback on image load failure
     hookStore.reset()
