@@ -2195,15 +2195,16 @@ export function WeaponComparisonList({
                   <span
                     className={`comp-row-delta ${isLeader ? 'ok' : 'muted'}`}
                     data-testid={`weapon-compare-delta-${wKey}`}
+                    data-delta-scope="leader"
                     data-pct-behind={pctBehind.toFixed(1)}
                     data-delta-ascii={behindAscii}
                     title={
                       isLeader
-                        ? 'Leading weapon total'
-                        : `${behindAscii} behind #1 weapon`
+                        ? 'Leading weapon total (0.0% vs. #1 leader weapon)'
+                        : `${behindAscii} vs. #1 leader weapon`
                     }
                   >
-                    {behindText}
+                    {behindText} vs. leader
                   </span>
                 </div>
 
@@ -2396,9 +2397,15 @@ export function WeaponComparisonList({
                                 buildIsLeader ? 'ok' : 'muted'
                               }`}
                               data-testid={`weapon-compare-build-delta-${wKey}-${bIdx}`}
+                              data-delta-scope="weapon-best"
                               data-delta-ascii={buildBehindAscii}
+                              title={
+                                buildIsLeader
+                                  ? 'Best build for this weapon (0.0% vs. weapon best)'
+                                  : `${buildBehindAscii} vs. this weapon's best build`
+                              }
                             >
-                              {buildBehindText}
+                              {buildBehindText} vs. weapon best
                             </span>
                           </div>
 

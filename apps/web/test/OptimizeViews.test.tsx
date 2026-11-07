@@ -658,7 +658,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     )
     expect(listHtml).toContain('>Current Baseline<')
     expect(listHtml).toContain('data-delta-ascii="-10.0%"')
-    expect(listHtml).toContain('>−10.0%<')
+    expect(listHtml).toContain('>−10.0% vs. leader<')
     expect(listHtml).toContain(
       'data-testid="weapon-compare-unmet-SplendorOfTranquilWaters"'
     )
@@ -2582,5 +2582,85 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       'title="20,000 Total Rotation DMG (2.0% of weapon best)"'
     )
     expect(weaponHtml).not.toContain('width:4.0%')
+  })
+
+  it('labels weapon comparison row deltas as vs. leader and expanded top-build deltas as vs. weapon best so their reference baselines are unambiguous (compare-delta-labels)', () => {
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+    const rankedWeapons = rankWeaponComparisonRows([
+      {
+        candidate: {
+          weaponKey: 'FavoniusSword',
+          level: 90,
+          ascension: 6,
+          refinement: 5,
+          isOwned: true,
+          isEquippedBaseline: true,
+        },
+        status: 'ok',
+        rank: null,
+        total: 400000,
+        percentBehindLeader: null,
+        bestBuild: { artifactIds: {} },
+        evaluation: { total: 400000, stats: {}, instances: [] },
+        topBuilds: [
+          {
+            rank: 1,
+            selection: { artifactIds: {} },
+            evaluation: { total: 400000, stats: {}, instances: [] },
+          },
+          {
+            rank: 2,
+            selection: { artifactIds: {} },
+            evaluation: { total: 392000, stats: {}, instances: [] },
+          },
+        ],
+        tested: 10,
+        skipped: 0,
+        durationMs: 1,
+      },
+      {
+        candidate: {
+          weaponKey: 'FleuveCendreFerryman',
+          level: 90,
+          ascension: 6,
+          refinement: 5,
+          isOwned: false,
+          isEquippedBaseline: false,
+        },
+        status: 'ok',
+        rank: null,
+        total: 360000,
+        percentBehindLeader: null,
+        bestBuild: { artifactIds: {} },
+        evaluation: { total: 360000, stats: {}, instances: [] },
+        tested: 10,
+        skipped: 0,
+        durationMs: 1,
+      },
+    ])
+
+    const html = renderToStaticMarkup(
+      <WeaponComparisonList
+        preset={preset}
+        result={rankedWeapons}
+        artifactById={new Map()}
+      />
+    )
+
+    // Weapon-level deltas explicitly label "vs. leader" and carry data-delta-scope="leader"
+    expect(html).toContain(
+      'data-testid="weapon-compare-delta-FavoniusSword" data-delta-scope="leader" data-pct-behind="0.0" data-delta-ascii="0.0%" title="Leading weapon total (0.0% vs. #1 leader weapon)">0.0% vs. leader<'
+    )
+    expect(html).toContain(
+      'data-testid="weapon-compare-delta-FleuveCendreFerryman" data-delta-scope="leader" data-pct-behind="10.0" data-delta-ascii="-10.0%" title="-10.0% vs. #1 leader weapon">−10.0% vs. leader<'
+    )
+
+    // Expanded top-build deltas explicitly label "vs. weapon best" and carry data-delta-scope="weapon-best"
+    expect(html).toContain(
+      'data-testid="weapon-compare-build-delta-FavoniusSword-0" data-delta-scope="weapon-best" data-delta-ascii="0.0%" title="Best build for this weapon (0.0% vs. weapon best)">0.0% vs. weapon best<'
+    )
+    expect(html).toContain(
+      'data-testid="weapon-compare-build-delta-FavoniusSword-1" data-delta-scope="weapon-best" data-delta-ascii="-2.0%" title="-2.0% vs. this weapon&#x27;s best build">−2.0% vs. weapon best<'
+    )
   })
 })
