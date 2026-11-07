@@ -35,10 +35,12 @@ import {
 } from '@genshin-optimizer/gi/wr'
 import {
   ALL_ARTIFACT_SET_KEYS,
+  computeArtifactRollValue,
   isActiveStatConstraint,
   migrateOptimizerSettings,
   normalizeStatConstraintValue,
   resolveArtSetExclusion,
+  type MainStatFilterSlotKey,
   type Preset,
   type TcCharacter,
 } from '@gi/presets'
@@ -314,15 +316,72 @@ export function filterArtifactsForOptimizer(
     )
   )
 
+  const minRarity =
+    typeof settings.minRarity === 'number' && settings.minRarity > 1
+      ? settings.minRarity
+      : 1
+
+  const slotMainAllowlists = new Map<string, Set<string>>()
+  if (settings.mainStatKeys) {
+    for (const slot of ['flower', 'plume', 'sands', 'goblet', 'circlet'] as const) {
+      const allowed = settings.mainStatKeys[slot as MainStatFilterSlotKey]
+      if (Array.isArray(allowed) && allowed.length > 0) {
+        slotMainAllowlists.set(slot, new Set(allowed))
+      }
+    }
+  }
+
+  const reqSubs = Array.isArray(settings.requiredSubstats)
+    ? settings.requiredSubstats.filter(Boolean)
+    : []
+  const reqSubsMode = settings.requiredSubstatsMode === 'any' ? 'any' : 'all'
+
+  const minRv =
+    typeof settings.minRv === 'number' &&
+    Number.isFinite(settings.minRv) &&
+    settings.minRv > 0
+      ? settings.minRv
+      : 0
+
   return allArts.filter((art: ICachedArtifact) => {
     if (art.level < settings.levelLow) return false
     if (art.level > settings.levelHigh) return false
+    if (minRarity > 1 && art.rarity < minRarity) return false
     if (settings.lockedOnly && !art.lock) return false
 
     if (art.location && art.location !== targetLoc) {
       if (!settings.includeEquippedOnOthers) return false
       if (excludedLocs.has(art.location)) return false
     }
+
+    if (slotMainAllowlists.size > 0) {
+      const allowedForSlot = slotMainAllowlists.get(art.slotKey)
+      if (allowedForSlot && !allowedForSlot.has(art.mainStatKey)) {
+        return false
+      }
+    }
+
+    if (reqSubs.length > 0) {
+      const presentSubKeys = new Set<string>()
+      for (const sub of art.substats ?? []) {
+        if (sub && sub.key && sub.value > 0) {
+          presentSubKeys.add(sub.key)
+        }
+      }
+      if (reqSubsMode === 'any') {
+        if (!reqSubs.some((k) => presentSubKeys.has(k))) return false
+      } else {
+        if (!reqSubs.every((k) => presentSubKeys.has(k))) return false
+      }
+    }
+
+    if (minRv > 0) {
+      const rv = computeArtifactRollValue(art)
+      if (rv.totalRv + 1e-6 < minRv && rv.totalRvRounded < minRv) {
+        return false
+      }
+    }
+
     return true
   })
 }

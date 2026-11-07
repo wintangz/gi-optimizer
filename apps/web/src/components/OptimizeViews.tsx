@@ -9,7 +9,12 @@ import {
   WeaponBadge,
 } from '@/components/Identifier'
 import { WeaponTilePicker } from '@/components/TilePickers'
-import { DownloadIcon, StatIcon, TrashIcon } from '@/components/SvgIcons'
+import {
+  DownloadIcon,
+  SlotIcon,
+  StatIcon,
+  TrashIcon,
+} from '@/components/SvgIcons'
 import { shortStatLabel } from '@/lib/itemMeta'
 import type {
   ArtifactSlot,
@@ -20,18 +25,29 @@ import type {
   WeaponCompareResult,
   WeaponCompareRowResult,
 } from '@gi/engine'
-import type { IArtifact, IGOOD } from '@gi/good'
+import {
+  ALL_SUBSTAT_KEYS,
+  ART_SLOT_MAIN_KEYS,
+  type IArtifact,
+  type IGOOD,
+} from '@gi/good'
 import {
   displayName,
   getCharacterMeta,
   getWeaponMeta,
   isPercentStatConstraintKey,
   listWeaponsForType,
+  resetSolverPoolFilters,
   STAT_CONSTRAINT_KEYS,
+  summarizeSolverPoolFilters,
+  VARIABLE_MAIN_STAT_SLOTS,
   type IdentifierSlotKey,
+  type MainStatAllowlistMap,
   type Preset,
+  type RequiredSubstatsMode,
   type StatConstraint,
   type StatConstraintKey,
+  type VariableMainStatSlotKey,
 } from '@gi/presets'
 import { useState } from 'react'
 
@@ -1882,6 +1898,366 @@ export function PresetRotationSummary({
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+const SLOT_FILTER_LABELS: Record<VariableMainStatSlotKey, string> = {
+  sands: 'Sands',
+  goblet: 'Goblet',
+  circlet: 'Circlet',
+}
+
+export interface SolverPoolFiltersPanelProps {
+  settings: OptimizerSettings
+  onChange: (next: OptimizerSettings) => void
+}
+
+export function SolverPoolFiltersPanel({
+  settings,
+  onChange,
+}: SolverPoolFiltersPanelProps) {
+  const summary = summarizeSolverPoolFilters(settings)
+  const mainStatKeys: MainStatAllowlistMap = settings.mainStatKeys ?? {}
+  const requiredSubstats: string[] = settings.requiredSubstats ?? []
+  const requiredSubstatsMode: RequiredSubstatsMode =
+    settings.requiredSubstatsMode === 'any' ? 'any' : 'all'
+  const minRarity = settings.minRarity ?? 1
+  const minRv = settings.minRv ?? 0
+
+  function toggleSlotMainStat(slot: VariableMainStatSlotKey, statKey: string) {
+    const existing = mainStatKeys[slot] ?? []
+    const isSelected = existing.includes(statKey)
+    const nextSlotList = isSelected
+      ? existing.filter((k) => k !== statKey)
+      : [...existing, statKey]
+    const nextMainStatKeys: MainStatAllowlistMap = { ...mainStatKeys }
+    if (nextSlotList.length === 0) {
+      delete nextMainStatKeys[slot]
+    } else {
+      nextMainStatKeys[slot] = nextSlotList
+    }
+    onChange({
+      ...settings,
+      mainStatKeys: nextMainStatKeys,
+    })
+  }
+
+  function clearSlotMainStats(slot: VariableMainStatSlotKey) {
+    const nextMainStatKeys: MainStatAllowlistMap = { ...mainStatKeys }
+    delete nextMainStatKeys[slot]
+    onChange({
+      ...settings,
+      mainStatKeys: nextMainStatKeys,
+    })
+  }
+
+  function toggleRequiredSubstat(substatKey: string) {
+    const isSelected = requiredSubstats.includes(substatKey)
+    const nextList = isSelected
+      ? requiredSubstats.filter((k) => k !== substatKey)
+      : [...requiredSubstats, substatKey]
+    onChange({
+      ...settings,
+      requiredSubstats: nextList,
+    })
+  }
+
+  return (
+    <div
+      className="opt-pool-filters-panel"
+      data-testid="solver-pool-filters-panel"
+    >
+      <div className="opt-filter-panel-header">
+        <span className="opt-filter-panel-title">
+          Artifact Pool Filters (Main Stats · Substats · Rarity · RV)
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span
+            data-testid="solver-pool-filters-summary"
+            className="opt-filter-panel-summary"
+            style={{
+              color: summary.isUnrestricted ? 'var(--ok)' : 'var(--warn)',
+            }}
+          >
+            {summary.text}
+          </span>
+          {!summary.isUnrestricted && (
+            <button
+              type="button"
+              data-testid="solver-pool-filters-reset"
+              className="secondary"
+              style={{ padding: '0.18rem 0.55rem', fontSize: '0.75rem' }}
+              onClick={() => onChange(resetSolverPoolFilters(settings))}
+            >
+              Reset Pool Filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 1. Main-Stat Allowlist per Slot */}
+      <div className="opt-pool-filters-section">
+        <div className="opt-pool-filters-subtitle">
+          Main-Stat Allowlist per Slot{' '}
+          <span className="muted" style={{ fontWeight: 400 }}>
+            (none selected = all main stats allowed)
+          </span>
+        </div>
+        <div className="opt-pool-mainstat-grid">
+          {VARIABLE_MAIN_STAT_SLOTS.map((slot) => {
+            const slotOptions = ART_SLOT_MAIN_KEYS[slot]
+            const selectedForSlot = mainStatKeys[slot] ?? []
+            return (
+              <div
+                key={slot}
+                className="opt-pool-slot-row"
+                data-testid={`mainstat-filter-row-${slot}`}
+              >
+                <div className="opt-pool-slot-label">
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <SlotIcon slotKey={slot} iconProps={{ size: 15 }} />
+                    {SLOT_FILTER_LABELS[slot]}
+                  </span>
+                  <span
+                    className="muted"
+                    style={{ fontSize: '0.75rem' }}
+                    data-testid={`mainstat-summary-${slot}`}
+                  >
+                    {selectedForSlot.length === 0
+                      ? 'All'
+                      : `${selectedForSlot.length} allowed`}
+                  </span>
+                  {selectedForSlot.length > 0 && (
+                    <button
+                      type="button"
+                      data-testid={`mainstat-clear-${slot}`}
+                      className="secondary"
+                      style={{
+                        padding: '0.1rem 0.42rem',
+                        fontSize: '0.72rem',
+                      }}
+                      onClick={() => clearSlotMainStats(slot)}
+                    >
+                      Any
+                    </button>
+                  )}
+                </div>
+                <div className="opt-pool-chip-wrap">
+                  {slotOptions.map((statKey) => {
+                    const isSelected = selectedForSlot.includes(statKey)
+                    return (
+                      <button
+                        key={statKey}
+                        type="button"
+                        data-testid={`mainstat-chip-${slot}-${statKey}`}
+                        aria-pressed={isSelected}
+                        className={`constraint-picker-chip${isSelected ? ' is-selected' : ''}`}
+                        onClick={() => toggleSlotMainStat(slot, statKey)}
+                      >
+                        <StatIcon statKey={statKey} iconProps={{ size: 13 }} />
+                        <span>{shortStatLabel(statKey)}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* 2. Required Substats */}
+      <div className="opt-pool-filters-section">
+        <div
+          className="opt-pool-filters-subtitle"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+          }}
+        >
+          <span>
+            Required Substats{' '}
+            <span className="muted" style={{ fontWeight: 400 }}>
+              (pieces must contain chosen substats)
+            </span>
+          </span>
+          <div
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          >
+            <button
+              type="button"
+              data-testid="required-substats-mode-all"
+              aria-pressed={requiredSubstatsMode === 'all'}
+              className={requiredSubstatsMode === 'all' ? '' : 'secondary'}
+              style={{ padding: '0.16rem 0.52rem', fontSize: '0.74rem' }}
+              onClick={() =>
+                onChange({ ...settings, requiredSubstatsMode: 'all' })
+              }
+            >
+              All of
+            </button>
+            <button
+              type="button"
+              data-testid="required-substats-mode-any"
+              aria-pressed={requiredSubstatsMode === 'any'}
+              className={requiredSubstatsMode === 'any' ? '' : 'secondary'}
+              style={{ padding: '0.16rem 0.52rem', fontSize: '0.74rem' }}
+              onClick={() =>
+                onChange({ ...settings, requiredSubstatsMode: 'any' })
+              }
+            >
+              Any of
+            </button>
+            {requiredSubstats.length > 0 && (
+              <button
+                type="button"
+                data-testid="required-substats-clear"
+                className="secondary"
+                style={{ padding: '0.16rem 0.48rem', fontSize: '0.74rem' }}
+                onClick={() => onChange({ ...settings, requiredSubstats: [] })}
+              >
+                Clear ({requiredSubstats.length})
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="opt-pool-chip-wrap">
+          {ALL_SUBSTAT_KEYS.map((subKey) => {
+            const isSelected = requiredSubstats.includes(subKey)
+            return (
+              <button
+                key={subKey}
+                type="button"
+                data-testid={`required-substat-chip-${subKey}`}
+                aria-pressed={isSelected}
+                className={`constraint-picker-chip${isSelected ? ' is-selected' : ''}`}
+                onClick={() => toggleRequiredSubstat(subKey)}
+              >
+                <StatIcon statKey={subKey} iconProps={{ size: 13 }} />
+                <span>{shortStatLabel(subKey)}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* 3. Level Range, Minimum Rarity & Minimum RV Threshold */}
+      <div className="opt-pool-filters-bottom-row">
+        <div className="opt-pool-filter-field">
+          <span className="muted" style={{ fontSize: '0.78rem' }}>
+            Artifact Level Range
+          </span>
+          <div className="preset-gear-row">
+            <input
+              type="number"
+              data-testid="pool-filter-level-low"
+              aria-label="Pool Filter Level Min"
+              min={0}
+              max={20}
+              value={settings.levelLow}
+              onChange={(e) =>
+                onChange({
+                  ...settings,
+                  levelLow: Math.max(
+                    0,
+                    Math.min(20, Number(e.target.value) || 0)
+                  ),
+                })
+              }
+              style={{ width: '68px' }}
+            />
+            <span className="muted">to</span>
+            <input
+              type="number"
+              data-testid="pool-filter-level-high"
+              aria-label="Pool Filter Level Max"
+              min={0}
+              max={20}
+              value={settings.levelHigh}
+              onChange={(e) =>
+                onChange({
+                  ...settings,
+                  levelHigh: Math.max(
+                    0,
+                    Math.min(20, Number(e.target.value) || 0)
+                  ),
+                })
+              }
+              style={{ width: '68px' }}
+            />
+          </div>
+        </div>
+
+        <div className="opt-pool-filter-field">
+          <span className="muted" style={{ fontSize: '0.78rem' }}>
+            Minimum Rarity
+          </span>
+          <div
+            className="preset-gear-row"
+            role="group"
+            aria-label="Minimum Artifact Rarity"
+          >
+            {([1, 2, 3, 4, 5] as const).map((r) => {
+              const active = minRarity === r
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  data-testid={`pool-filter-rarity-${r}`}
+                  aria-pressed={active}
+                  className={active ? '' : 'secondary'}
+                  style={{ padding: '0.22rem 0.52rem', fontSize: '0.76rem' }}
+                  onClick={() => onChange({ ...settings, minRarity: r })}
+                >
+                  {r === 1 ? 'All (1★+)' : r === 5 ? '5★ Only' : `${r}★+`}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="opt-pool-filter-field">
+          <span className="muted" style={{ fontSize: '0.78rem' }}>
+            Minimum Roll Value (RV)
+          </span>
+          <div className="preset-gear-row">
+            <input
+              type="number"
+              data-testid="pool-filter-min-rv"
+              aria-label="Minimum Artifact RV (%)"
+              min={0}
+              max={900}
+              step={10}
+              value={minRv}
+              onChange={(e) => {
+                const raw = Number(e.target.value)
+                onChange({
+                  ...settings,
+                  minRv:
+                    Number.isFinite(raw) && raw > 0
+                      ? Math.min(900, Math.max(0, raw))
+                      : 0,
+                })
+              }}
+              style={{ width: '84px' }}
+            />
+            <span className="muted" style={{ fontSize: '0.8rem' }}>
+              % RV min
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -54,6 +54,7 @@ import {
   PresetRotationSummary,
   rankWeaponComparisonRows,
   resolveWeaponCompareCandidate,
+  SolverPoolFiltersPanel,
   WeaponComparisonList,
   WeaponComparisonPanel,
 } from '../src/components/OptimizeViews'
@@ -1131,5 +1132,65 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(weaponHtml).toContain(
       'data-testid="rotation-no-reaction" data-reaction="none"'
     )
+  })
+
+  it('renders SolverPoolFiltersPanel and updates mainStatKeys, requiredSubstats, requiredSubstatsMode, minRarity, and minRv (solver-filters-deep)', () => {
+    let latestSettings = { ...DEFAULT_OPTIMIZER_SETTINGS }
+    const renderTree = () =>
+      evaluateTree(
+        <SolverPoolFiltersPanel
+          settings={latestSettings}
+          onChange={(next) => {
+            latestSettings = next
+          }}
+        />
+      )
+
+    let tree = renderTree()
+    const summaryNode = findByTestId(tree, 'solver-pool-filters-summary')
+    expect(summaryNode?.children).toContain('All pieces allowed')
+
+    // Click ER main stat chip on Sands
+    const sandsErChip = findByTestId(tree, 'mainstat-chip-sands-enerRech_')
+    expect(sandsErChip).toBeDefined()
+    ;(sandsErChip!.props.onClick as () => void)()
+    expect(latestSettings.mainStatKeys).toEqual({ sands: ['enerRech_'] })
+
+    // Re-render with updated settings and toggle required substat + mode
+    tree = renderTree()
+    const subCritRate = findByTestId(tree, 'required-substat-chip-critRate_')
+    expect(subCritRate).toBeDefined()
+    ;(subCritRate!.props.onClick as () => void)()
+    expect(latestSettings.requiredSubstats).toEqual(['critRate_'])
+
+    tree = renderTree()
+    const modeAnyBtn = findByTestId(tree, 'required-substats-mode-any')
+    ;(modeAnyBtn!.props.onClick as () => void)()
+    expect(latestSettings.requiredSubstatsMode).toBe('any')
+
+    // Minimum rarity 5★
+    tree = renderTree()
+    const rarity5Btn = findByTestId(tree, 'pool-filter-rarity-5')
+    ;(rarity5Btn!.props.onClick as () => void)()
+    expect(latestSettings.minRarity).toBe(5)
+
+    // Minimum RV input
+    tree = renderTree()
+    const rvInput = findByTestId(tree, 'pool-filter-min-rv')
+    expect(rvInput).toBeDefined()
+    ;(
+      rvInput!.props.onChange as (e: { target: { value: string } }) => void
+    )({ target: { value: '450' } })
+    expect(latestSettings.minRv).toBe(450)
+
+    // Reset Pool Filters button restores unrestricted defaults
+    tree = renderTree()
+    const resetBtn = findByTestId(tree, 'solver-pool-filters-reset')
+    expect(resetBtn).toBeDefined()
+    ;(resetBtn!.props.onClick as () => void)()
+    expect(latestSettings.mainStatKeys).toEqual({})
+    expect(latestSettings.requiredSubstats).toEqual([])
+    expect(latestSettings.minRarity).toBe(1)
+    expect(latestSettings.minRv).toBe(0)
   })
 })

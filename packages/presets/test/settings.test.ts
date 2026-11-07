@@ -10,11 +10,13 @@ import {
   isPercentStatConstraintKey,
   migrateOptimizerSettings,
   normalizeStatConstraintValue,
+  resetSolverPoolFilters,
   resolveArtSetExclusion,
   resolveEffectiveSetFilter,
   selectAllSets,
   STAT_CONSTRAINT_KEYS,
   summarizeArtSetFilter,
+  summarizeSolverPoolFilters,
   type OptimizerSettings,
 } from '../src/index'
 
@@ -276,5 +278,44 @@ describe('Default TC Teammate Template (buff-coverage-fixes)', () => {
     expect(member.conditional).toEqual({
       NoblesseOblige: { set4: 'on' },
     })
+  })
+})
+
+describe('Deep Artifact Pool Filters Settings (solver-filters-deep)', () => {
+  it('defaults all deep pool filters to unrestricted and summarizes active count accurately', () => {
+    const defSummary = summarizeSolverPoolFilters(DEFAULT_OPTIMIZER_SETTINGS)
+    expect(defSummary).toEqual({
+      activeCount: 0,
+      isUnrestricted: true,
+      text: 'All pieces allowed',
+    })
+
+    const filtered = {
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      mainStatKeys: {
+        sands: ['enerRech_'],
+        circlet: ['critRate_', 'critDMG_'],
+      },
+      requiredSubstats: ['critRate_', 'critDMG_'],
+      requiredSubstatsMode: 'any' as const,
+      levelLow: 16,
+      minRarity: 5 as const,
+      minRv: 450,
+    }
+    const filteredSummary = summarizeSolverPoolFilters(filtered)
+    expect(filteredSummary.isUnrestricted).toBe(false)
+    // sands + circlet (2) + requiredSubstats (1) + levelLow (1) + minRarity (1) + minRv (1) = 6
+    expect(filteredSummary.activeCount).toBe(6)
+    expect(filteredSummary.text).toBe('6 pool filters active')
+
+    const reset = resetSolverPoolFilters(filtered)
+    expect(summarizeSolverPoolFilters(reset).isUnrestricted).toBe(true)
+    expect(reset.mainStatKeys).toEqual({})
+    expect(reset.requiredSubstats).toEqual([])
+    expect(reset.requiredSubstatsMode).toBe('all')
+    expect(reset.levelLow).toBe(0)
+    expect(reset.levelHigh).toBe(20)
+    expect(reset.minRarity).toBe(1)
+    expect(reset.minRv).toBe(0)
   })
 })

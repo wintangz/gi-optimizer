@@ -5,6 +5,22 @@ export type SetPieceCount = 2 | 4
 export type SetFilterMode = 'all' | 'exclude' | 'include'
 export type ArtSetExclusionMap = Record<string, SetPieceCount[]>
 
+export type MainStatFilterSlotKey =
+  | 'flower'
+  | 'plume'
+  | 'sands'
+  | 'goblet'
+  | 'circlet'
+
+export type MainStatAllowlistMap = Partial<
+  Record<MainStatFilterSlotKey, string[]>
+>
+
+export type RequiredSubstatsMode = 'any' | 'all'
+
+export const VARIABLE_MAIN_STAT_SLOTS = ['sands', 'goblet', 'circlet'] as const
+export type VariableMainStatSlotKey = (typeof VARIABLE_MAIN_STAT_SLOTS)[number]
+
 export type MemberBuildMode = 'owned' | 'tc'
 export type MemberBuildModesMap = Record<string, MemberBuildMode>
 
@@ -96,6 +112,16 @@ export interface OptimizerSettings {
   mainStatAssumptionLevel: 0 | 4 | 8 | 12 | 16 | 20
   levelLow: number
   levelHigh: number
+  /** Per-slot allowed main stat keys; empty array or omitted = unrestricted. */
+  mainStatKeys?: MainStatAllowlistMap
+  /** Required substat keys that candidate artifacts must contain; empty array = unrestricted. */
+  requiredSubstats?: string[]
+  /** Whether candidate artifacts must have 'any' or 'all' of `requiredSubstats`. */
+  requiredSubstatsMode?: RequiredSubstatsMode
+  /** Minimum artifact rarity (1..5); 1 = unrestricted. */
+  minRarity?: 1 | 2 | 3 | 4 | 5
+  /** Minimum artifact Roll Value percentage (0 = unrestricted). */
+  minRv?: number
   /** Legacy / direct GO artSetExclusion map. */
   setExclusion?: ArtSetExclusionMap
   /** First-class set filter mode ('all' | 'exclude' | 'include'). */
@@ -127,6 +153,11 @@ export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
   mainStatAssumptionLevel: 0,
   levelLow: 0,
   levelHigh: 20,
+  mainStatKeys: {},
+  requiredSubstats: [],
+  requiredSubstatsMode: 'all',
+  minRarity: 1,
+  minRv: 0,
   setExclusion: {},
   setFilterMode: 'all',
   setFilterSelection: {},
@@ -411,7 +442,106 @@ export function migrateOptimizerSettings(
 
   delete merged.erFloor
   merged.constraints = existing
+  merged.mainStatKeys = merged.mainStatKeys ?? {}
+  merged.requiredSubstats = Array.isArray(merged.requiredSubstats)
+    ? [...merged.requiredSubstats]
+    : []
+  merged.requiredSubstatsMode =
+    merged.requiredSubstatsMode === 'any' ? 'any' : 'all'
+  merged.minRarity =
+    typeof merged.minRarity === 'number' &&
+    merged.minRarity >= 1 &&
+    merged.minRarity <= 5
+      ? (Math.round(merged.minRarity) as 1 | 2 | 3 | 4 | 5)
+      : 1
+  merged.minRv =
+    typeof merged.minRv === 'number' &&
+    Number.isFinite(merged.minRv) &&
+    merged.minRv > 0
+      ? merged.minRv
+      : 0
   return merged
+}
+
+export interface SolverPoolFilterSummary {
+  activeCount: number
+  isUnrestricted: boolean
+  text: string
+}
+
+export function summarizeSolverPoolFilters(
+  settings: Partial<OptimizerSettings> | undefined
+): SolverPoolFilterSummary {
+  if (!settings) {
+    return {
+      activeCount: 0,
+      isUnrestricted: true,
+      text: 'All pieces allowed',
+    }
+  }
+
+  let activeCount = 0
+  const mainStatKeys = settings.mainStatKeys ?? {}
+  for (const slot of ['flower', 'plume', 'sands', 'goblet', 'circlet'] as const) {
+    const allowed = mainStatKeys[slot]
+    if (Array.isArray(allowed) && allowed.length > 0) {
+      activeCount += 1
+    }
+  }
+
+  if (
+    Array.isArray(settings.requiredSubstats) &&
+    settings.requiredSubstats.length > 0
+  ) {
+    activeCount += 1
+  }
+
+  const levelLow = settings.levelLow ?? 0
+  const levelHigh = settings.levelHigh ?? 20
+  if (levelLow > 0 || levelHigh < 20) {
+    activeCount += 1
+  }
+
+  if ((settings.minRarity ?? 1) > 1) {
+    activeCount += 1
+  }
+
+  if (
+    typeof settings.minRv === 'number' &&
+    Number.isFinite(settings.minRv) &&
+    settings.minRv > 0
+  ) {
+    activeCount += 1
+  }
+
+  if (activeCount === 0) {
+    return {
+      activeCount: 0,
+      isUnrestricted: true,
+      text: 'All pieces allowed',
+    }
+  }
+
+  return {
+    activeCount,
+    isUnrestricted: false,
+    text: `${activeCount} pool ${activeCount === 1 ? 'filter' : 'filters'} active`,
+  }
+}
+
+export function resetSolverPoolFilters(
+  settings: OptimizerSettings
+): OptimizerSettings {
+  return {
+    ...settings,
+    levelLow: 0,
+    levelHigh: 20,
+    mainStatKeys: {},
+    requiredSubstats: [],
+    requiredSubstatsMode: 'all',
+    minRarity: 1,
+    minRv: 0,
+  }
 }
 
 export function normalizePieceCounts(

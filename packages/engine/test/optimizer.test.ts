@@ -3,7 +3,11 @@ import { ArtCharDatabase } from '@genshin-optimizer/gi/db'
 import { countBuilds } from '@genshin-optimizer/gi/solver'
 import { compactArtifacts } from '@genshin-optimizer/gi/solver-tc'
 import { getCharStat, getWeaponStat } from '@genshin-optimizer/gi/stats'
-import { ALL_WEAPON_KEYS, getBundledPreset } from '@gi/presets'
+import {
+  ALL_WEAPON_KEYS,
+  computeArtifactRollValue,
+  getBundledPreset,
+} from '@gi/presets'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -674,6 +678,163 @@ describe('Single-Character Optimizer Solver (single-character-optimizer)', () =>
       expect(unifiedConstraintRes.builds).toEqual(legacyErRes.builds)
       expect(unifiedConstraintRes.tested).toBe(legacyErRes.tested)
       expect(unifiedConstraintRes.skipped).toBe(legacyErRes.skipped)
+    })
+  })
+
+  describe('Deep Artifact Pool Filters (solver-filters-deep)', () => {
+    it('filters artifacts by per-slot mainStatKeys, requiredSubstats (any vs all), minRarity, and minRv, and applies to both optimize and compareWeapons', async () => {
+      const db = new ArtCharDatabase(1, new SandboxStorage())
+      db.importGOOD(smallGood as never, false, false, false)
+
+      // 1. Default settings keep the exact same artifact pool as legacy filter
+      const defaultPool = filterArtifactsForOptimizer(
+        db,
+        'Furina',
+        DEFAULT_OPTIMIZER_SETTINGS
+      )
+      expect(defaultPool.length).toBe(db.arts.values.length)
+
+      // 2. Main-stat allowlist per slot
+      const sandsMainStats = Array.from(
+        new Set(
+          defaultPool
+            .filter((a) => a.slotKey === 'sands')
+            .map((a) => a.mainStatKey)
+        )
+      )
+      expect(sandsMainStats.length).toBeGreaterThan(0)
+      const chosenSandsMain = sandsMainStats[0]!
+      const mainFiltered = filterArtifactsForOptimizer(db, 'Furina', {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        mainStatKeys: { sands: [chosenSandsMain] },
+      })
+      for (const art of mainFiltered) {
+        if (art.slotKey === 'sands') {
+          expect(art.mainStatKey).toBe(chosenSandsMain)
+        }
+      }
+
+      // 3. Required substats ('all' vs 'any')
+      const reqPair = ['critRate_', 'critDMG_']
+      const allModePool = filterArtifactsForOptimizer(db, 'Furina', {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        requiredSubstats: reqPair,
+        requiredSubstatsMode: 'all',
+      })
+      const anyModePool = filterArtifactsForOptimizer(db, 'Furina', {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        requiredSubstats: reqPair,
+        requiredSubstatsMode: 'any',
+      })
+      expect(anyModePool.length).toBeGreaterThanOrEqual(allModePool.length)
+      for (const art of allModePool) {
+        const keys = new Set(
+          art.substats
+            .filter((s: { key: string; value: number }) => s.key && s.value > 0)
+            .map((s: { key: string; value: number }) => s.key)
+        )
+        expect(keys.has('critRate_')).toBe(true)
+        expect(keys.has('critDMG_')).toBe(true)
+      }
+      for (const art of anyModePool) {
+        const keys = new Set(
+          art.substats
+            .filter((s: { key: string; value: number }) => s.key && s.value > 0)
+            .map((s: { key: string; value: number }) => s.key)
+        )
+        expect(keys.has('critRate_') || keys.has('critDMG_')).toBe(true)
+      }
+
+      // 4. Minimum RV threshold using Feature 2's computeArtifactRollValue
+      const rvThreshold = 450
+      const rvFiltered = filterArtifactsForOptimizer(db, 'Furina', {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        minRv: rvThreshold,
+      })
+      expect(rvFiltered.length).toBeLessThan(defaultPool.length)
+      for (const art of rvFiltered) {
+        const rv = computeArtifactRollValue(art)
+        expect(
+          rv.totalRv + 1e-6 >= rvThreshold || rv.totalRvRounded >= rvThreshold
+        ).toBe(true)
+      }
+
+      // 5. Minimum rarity filter (inject a 4★ piece and verify minRarity: 5 excludes it)
+      const goodWith4Star = {
+        ...smallGood,
+        artifacts: [
+          ...smallGood.artifacts,
+          {
+            setKey: 'GoldenTroupe',
+            slotKey: 'flower',
+            level: 16,
+            rarity: 4,
+            mainStatKey: 'hp',
+            location: '',
+            lock: true,
+            substats: [
+              { key: 'critRate_', value: 6.2 },
+              { key: 'critDMG_', value: 12.4 },
+            ],
+          },
+        ],
+      }
+      const dbWith4Star = new ArtCharDatabase(1, new SandboxStorage())
+      dbWith4Star.importGOOD(goodWith4Star as never, false, false, false)
+      const rarity1Pool = filterArtifactsForOptimizer(dbWith4Star, 'Furina', {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        minRarity: 1,
+      })
+      const rarity5Pool = filterArtifactsForOptimizer(dbWith4Star, 'Furina', {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        minRarity: 5,
+      })
+      expect(rarity1Pool.some((a) => a.rarity === 4)).toBe(true)
+      expect(rarity5Pool.every((a) => a.rarity === 5)).toBe(true)
+
+      // 6. End-to-end optimize + compareWeapons honor deep pool filters
+      const filteredSettings = {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        mainStatKeys: { sands: [chosenSandsMain] },
+        minRarity: 5 as const,
+        minRv: 300,
+        topN: 3,
+      }
+      const optRes = await session.optimize(furinaPreset, filteredSettings)
+      expect(optRes.builds.length).toBeGreaterThan(0)
+      for (const b of optRes.builds) {
+        const sandsId = b.artifactIds.sands
+        expect(sandsId).toBeDefined()
+        const sandsArt = db.arts.get(sandsId!)
+        expect(sandsArt?.mainStatKey).toBe(chosenSandsMain)
+        for (const slot of SLOTS) {
+          const art = db.arts.get(b.artifactIds[slot]!)!
+          expect(art.rarity).toBeGreaterThanOrEqual(5)
+          const rv = computeArtifactRollValue(art)
+          expect(rv.totalRv + 1e-6 >= 300 || rv.totalRvRounded >= 300).toBe(
+            true
+          )
+        }
+      }
+
+      const compareRes = await session.compareWeapons(
+        furinaPreset,
+        filteredSettings,
+        [
+          {
+            weaponKey: 'SplendorOfTranquilWaters',
+            level: 90,
+            ascension: 6,
+            refinement: 1,
+            isOwned: false,
+            isEquippedBaseline: false,
+          },
+        ]
+      )
+      expect(compareRes.rows).toHaveLength(1)
+      expect(compareRes.rows[0]!.status).toBe('ok')
+      const cmpSandsId = compareRes.rows[0]!.bestBuild!.artifactIds.sands!
+      expect(db.arts.get(cmpSandsId)?.mainStatKey).toBe(chosenSandsMain)
     })
   })
 })

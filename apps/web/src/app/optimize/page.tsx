@@ -11,6 +11,7 @@ import {
   PresetRotationSummary,
   rankWeaponComparisonRows,
   resolveWeaponCompareCandidate,
+  SolverPoolFiltersPanel,
   WeaponComparisonList,
   WeaponComparisonPanel,
   type ComparisonBuildEntry,
@@ -1333,6 +1334,12 @@ function OptimizeInner() {
             onChange={(next) => void updateSettings(next)}
           />
         </div>
+
+        {/* GO-Style Deep Artifact Pool Filters */}
+        <SolverPoolFiltersPanel
+          settings={settings}
+          onChange={(next) => void updateSettings(next)}
+        />
       </section>
 
       {/* 2. BUFFS & PASSIVES PANEL */}
