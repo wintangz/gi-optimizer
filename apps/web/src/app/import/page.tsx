@@ -114,6 +114,7 @@ export default function ImportPage() {
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
     const reader = new FileReader()
     reader.onload = () => {

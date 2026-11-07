@@ -298,4 +298,91 @@ describe('ImportPage (import-table-honesty)', () => {
     expect(collectText(narrowedCountEl.children)).toBe('Showing 50 of 350')
     expect(narrowedCountEl.props['data-truncated']).toBe('false')
   })
+
+  it('import-file-repick: resets the file input value after each pick so selecting the same filename again triggers onChange and imports updated data', async () => {
+    mockRecord = null
+    mockSave.mockResolvedValue(undefined)
+
+    // Stub FileReader for Node test environment
+    let nextFileText = ''
+    const OriginalFileReader = globalThis.FileReader
+    class MockFileReader {
+      result: string | null = null
+      onload: (() => void) | null = null
+      readAsText(_file: unknown) {
+        this.result = nextFileText
+        if (this.onload) this.onload()
+      }
+    }
+    globalThis.FileReader = MockFileReader as unknown as typeof FileReader
+
+    try {
+      const tree = renderPass()
+      const fileInput = findAllElements(
+        tree,
+        (el) => el.type === 'input' && el.props.type === 'file'
+      )[0]!
+      expect(fileInput).toBeDefined()
+
+      const fakeInputTarget = {
+        value: 'C:\\fakepath\\good_export.json',
+        files: [{ name: 'good_export.json' }],
+      }
+
+      // First pick of good_export.json
+      nextFileText = JSON.stringify({
+        format: 'GOOD',
+        version: 3,
+        source: 'Irminsul',
+        characters: [
+          {
+            key: 'Furina',
+            level: 90,
+            constellation: 0,
+            ascension: 6,
+            talent: { auto: 1, skill: 10, burst: 10 },
+          },
+        ],
+        weapons: [],
+        artifacts: [],
+      })
+      ;(fileInput.props.onChange as (e: { target: typeof fakeInputTarget }) => void)({
+        target: fakeInputTarget,
+      })
+
+      // Input value must be reset to '' immediately so picking the same file again fires change
+      expect(fakeInputTarget.value).toBe('')
+      await vi.waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1))
+      expect(mockSave.mock.calls[0]![0].fileName).toBe('good_export.json')
+      expect(mockSave.mock.calls[0]![0].good.characters[0].constellation).toBe(0)
+
+      // User edits good_export.json on disk (e.g. Furina C2) and picks the SAME file path again
+      fakeInputTarget.value = 'C:\\fakepath\\good_export.json'
+      nextFileText = JSON.stringify({
+        format: 'GOOD',
+        version: 3,
+        source: 'Irminsul',
+        characters: [
+          {
+            key: 'Furina',
+            level: 90,
+            constellation: 2,
+            ascension: 6,
+            talent: { auto: 1, skill: 10, burst: 10 },
+          },
+        ],
+        weapons: [],
+        artifacts: [],
+      })
+      ;(fileInput.props.onChange as (e: { target: typeof fakeInputTarget }) => void)({
+        target: fakeInputTarget,
+      })
+
+      expect(fakeInputTarget.value).toBe('')
+      await vi.waitFor(() => expect(mockSave).toHaveBeenCalledTimes(2))
+      expect(mockSave.mock.calls[1]![0].good.characters[0].constellation).toBe(2)
+    } finally {
+      globalThis.FileReader = OriginalFileReader
+    }
+  })
 })
