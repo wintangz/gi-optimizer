@@ -13,11 +13,12 @@ interface EffectEntry {
 
 const hookStore = {
   active: false,
-  states: [] as unknown[],
+  compStack: [] as Array<{ key: string; stateIdx: number }>,
+  statesByComp: new Map<string, unknown[]>(),
+  compCounts: new Map<string, number>(),
   refs: [] as { current: unknown }[],
   effects: [] as EffectEntry[],
   pendingEffects: [] as Array<{ idx: number; fn: () => (() => void) | void }>,
-  stateIdx: 0,
   refIdx: 0,
   effectIdx: 0,
   reset() {
@@ -26,19 +27,30 @@ const hookStore = {
         eff.cleanup()
       }
     }
-    this.states = []
+    this.compStack = []
+    this.statesByComp.clear()
+    this.compCounts.clear()
     this.refs = []
     this.effects = []
     this.pendingEffects = []
-    this.stateIdx = 0
     this.refIdx = 0
     this.effectIdx = 0
   },
   beginRender() {
-    this.stateIdx = 0
+    this.compStack = []
+    this.compCounts.clear()
     this.refIdx = 0
     this.effectIdx = 0
     this.pendingEffects = []
+  },
+  enterComp(fn: { name?: string }) {
+    const name = fn.name || 'Component'
+    const count = this.compCounts.get(name) ?? 0
+    this.compCounts.set(name, count + 1)
+    this.compStack.push({ key: `${name}#${count}`, stateIdx: 0 })
+  },
+  leaveComp() {
+    this.compStack.pop()
   },
   flushEffects() {
     const queue = [...this.pendingEffects]
@@ -76,19 +88,30 @@ vi.mock('react', async (importOriginal) => {
       if (!hookStore.active) {
         return actual.useState(initial)
       }
-      const idx = hookStore.stateIdx++
-      if (idx >= hookStore.states.length) {
-        hookStore.states.push(
+      const top = hookStore.compStack[hookStore.compStack.length - 1] ?? {
+        key: 'Root#0',
+        stateIdx: 0,
+      }
+      const compKey = top.key
+      const idx = top.stateIdx++
+      let arr = hookStore.statesByComp.get(compKey)
+      if (!arr) {
+        arr = []
+        hookStore.statesByComp.set(compKey, arr)
+      }
+      if (idx >= arr.length) {
+        arr.push(
           typeof initial === 'function' ? (initial as () => T)() : initial
         )
       }
       const setState = (next: T | ((prev: T) => T)) => {
-        const prevVal = hookStore.states[idx] as T
+        const targetArr = hookStore.statesByComp.get(compKey)!
+        const prevVal = targetArr[idx] as T
         const nextVal =
           typeof next === 'function' ? (next as (prev: T) => T)(prevVal) : next
-        hookStore.states[idx] = nextVal
+        targetArr[idx] = nextVal
       }
-      return [hookStore.states[idx] as T, setState] as const
+      return [arr[idx] as T, setState] as const
     },
     useRef<T>(initial: T) {
       if (!hookStore.active) {
@@ -270,10 +293,15 @@ function evaluateTree(node: unknown): Array<VNode | string> {
     }
     const props = el.props ?? {}
     if (typeof el.type === 'function') {
-      const rendered = (el.type as (p: Record<string, unknown>) => unknown)(
-        props
-      )
-      return evaluateTree(rendered)
+      hookStore.enterComp(el.type)
+      try {
+        const rendered = (el.type as (p: Record<string, unknown>) => unknown)(
+          props
+        )
+        return evaluateTree(rendered)
+      } finally {
+        hookStore.leaveComp()
+      }
     }
     if (typeof el.type === 'string') {
       const children = evaluateTree(props.children)
@@ -567,5 +595,73 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(
       findAll(tree, (n) => n.props['aria-label'] === 'Artifact Level Max')
     ).toHaveLength(0)
+  })
+
+  it('weapon-compare-minimum: requires at least 2 weapon candidates to enable Compare Weapons button, shows visible reason below 2, and enables at 2+', async () => {
+    mockOptimizePresetInWorker.mockClear()
+    const tree1 = renderPass()
+
+    // Switch to Compare Weapons mode; official/furina-salon-subdps seeds 1 candidate (equipped SplendorOfTranquilWaters)
+    const compareModeBtn = findByTestId(tree1, 'optimize-mode-compare')!
+    ;(compareModeBtn.props.onClick as () => void)()
+    const tree2 = renderPass()
+
+    // 1. With 1 candidate selected (< 2), run-weapon-compare-btn is disabled and reason is visible
+    const runCompareBtn1 = findByTestId(tree2, 'run-weapon-compare-btn')!
+    expect(runCompareBtn1.props.disabled).toBe(true)
+    expect(collectText([runCompareBtn1])).toContain('Compare Weapons (1)')
+    expect(runCompareBtn1.props.title).toBe(
+      'Select at least 2 weapons to run a comparison'
+    )
+
+    const minReason = findByTestId(tree2, 'weapon-compare-min-reason')
+    expect(minReason).toBeDefined()
+    expect(collectText([minReason!])).toContain(
+      'Select at least 2 weapons above to run a comparison (currently 1 selected).'
+    )
+    expect(
+      findByTestId(tree2, 'weapon-compare-minimum-notice')
+    ).toBeDefined()
+
+    // Clicking the disabled handler directly is a no-op
+    await (runCompareBtn1.props.onClick as () => Promise<void>)()
+    expect(mockOptimizePresetInWorker).not.toHaveBeenCalled()
+
+    // 2. Deselect the 1 weapon -> 0 candidates selected (< 2): still disabled with visible reason
+    const removeSplendorBtn = findByTestId(
+      tree2,
+      'weapon-compare-remove-SplendorOfTranquilWaters'
+    )!
+    ;(removeSplendorBtn.props.onClick as () => void)()
+    const tree3 = renderPass()
+    const runCompareBtn0 = findByTestId(tree3, 'run-weapon-compare-btn')!
+    expect(runCompareBtn0.props.disabled).toBe(true)
+    expect(
+      collectText([findByTestId(tree3, 'weapon-compare-min-reason')!])
+    ).toContain(
+      'Select at least 2 weapons above to run a comparison (currently 0 selected).'
+    )
+
+    // 3. Select 2 weapons (SplendorOfTranquilWaters and FavoniusSword) -> button becomes enabled and runs comparison
+    const pickSplendor = findByTestId(
+      tree3,
+      'weapon-picker-tile-SplendorOfTranquilWaters'
+    )!
+    ;(pickSplendor.props.onClick as () => void)()
+    const tree4 = renderPass()
+    const pickFav = findByTestId(tree4, 'weapon-picker-tile-FavoniusSword')!
+    ;(pickFav.props.onClick as () => void)()
+    const tree5 = renderPass()
+
+    const runCompareBtn2 = findByTestId(tree5, 'run-weapon-compare-btn')!
+    expect(runCompareBtn2.props.disabled).toBe(false)
+    expect(collectText([runCompareBtn2])).toContain('Compare Weapons (2)')
+    expect(findByTestId(tree5, 'weapon-compare-min-reason')).toBeUndefined()
+    expect(
+      findByTestId(tree5, 'weapon-compare-minimum-notice')
+    ).toBeUndefined()
+
+    await (runCompareBtn2.props.onClick as () => Promise<void>)()
+    expect(mockOptimizePresetInWorker).toHaveBeenCalledTimes(2)
   })
 })

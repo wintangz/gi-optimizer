@@ -52,6 +52,7 @@ vi.mock('react', async (importOriginal) => {
   }
 })
 
+import type { WeaponCompareCandidate } from '@gi/engine'
 import {
   BuildComparisonList,
   ConstraintsCard,
@@ -1242,7 +1243,12 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
   })
 
   it('single-level-range-control: numeric inputs in SolverPoolFiltersPanel and WeaponComparisonPanel hold raw draft text while focused (including cleared empty state) and clamp + commit on blur', () => {
-    let latestSettings = { ...DEFAULT_OPTIMIZER_SETTINGS, levelLow: 12, levelHigh: 20, minRv: 200 }
+    let latestSettings: OptimizerSettings = {
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      levelLow: 12,
+      levelHigh: 20,
+      minRv: 200,
+    }
     const renderFilters = () => {
       hookStore.active = true
       hookStore.beginRender()
@@ -1305,7 +1311,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
 
     // 2. WeaponComparisonPanel: weapon level input holds "" and intermediate "8" while typing without snapping to 1, and clamps on blur
     hookStore.reset()
-    let candidates = [
+    let candidates: WeaponCompareCandidate[] = [
       {
         weaponKey: 'FavoniusSword',
         level: 90,
@@ -1375,6 +1381,16 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       findByTestId(compareTree, 'weapon-compare-level-FavoniusSword')!.props
         .value
     ).toBe('1')
+
+    // weapon-compare-minimum: when only 1 weapon candidate is selected, WeaponComparisonPanel displays the minimum-2 notice and count
+    expect(
+      findByTestId(compareTree, 'weapon-compare-minimum-notice')
+    ).toBeDefined()
+    expect(
+      findByTestId(compareTree, 'weapon-compare-selected-count')?.children.join(
+        ''
+      )
+    ).toContain('1 selected (select at least 2 to compare)')
   })
 
   it('expands per-instance damage formula breakdown and core stat breakdown on Current and optimized builds with source attribution badges (formula-breakdown)', () => {

@@ -667,7 +667,7 @@ function OptimizeInner() {
     if (
       !record?.good ||
       !activePreset ||
-      activeCompareCandidates.length === 0
+      activeCompareCandidates.length < 2
     ) {
       return
     }
@@ -1669,7 +1669,12 @@ function OptimizeInner() {
                   disabled={
                     !record?.good ||
                     !activePreset ||
-                    activeCompareCandidates.length === 0
+                    activeCompareCandidates.length < 2
+                  }
+                  title={
+                    activeCompareCandidates.length < 2
+                      ? 'Select at least 2 weapons to run a comparison'
+                      : undefined
                   }
                   onClick={() => void startWeaponComparison()}
                 >
@@ -1776,9 +1781,18 @@ function OptimizeInner() {
                 className="gi-empty-card"
                 data-testid="weapon-compare-idle-card"
               >
-                Select weapons above and click{' '}
-                <strong>Compare Weapons</strong> to rank their best builds under
-                the current setup and stat constraints.
+                {activeCompareCandidates.length < 2 ? (
+                  <span data-testid="weapon-compare-min-reason">
+                    Select at least 2 weapons above to run a comparison
+                    (currently {activeCompareCandidates.length} selected).
+                  </span>
+                ) : (
+                  <>
+                    Select weapons above and click{' '}
+                    <strong>Compare Weapons</strong> to rank their best builds
+                    under the current setup and stat constraints.
+                  </>
+                )}
               </div>
             )}
 

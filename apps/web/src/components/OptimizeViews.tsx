@@ -1796,8 +1796,14 @@ export function WeaponComparisonPanel({
         <span
           className="opt-filter-panel-summary"
           data-testid="weapon-compare-selected-count"
+          style={{
+            color:
+              selectedCandidates.length >= 2 ? 'var(--ok)' : 'var(--warn)',
+          }}
         >
-          {selectedCandidates.length} selected
+          {selectedCandidates.length < 2
+            ? `${selectedCandidates.length} selected (select at least 2 to compare)`
+            : `${selectedCandidates.length} selected`}
         </span>
       </div>
 
@@ -1834,10 +1840,20 @@ export function WeaponComparisonPanel({
           your current constraints.
         </div>
       ) : (
-        <div
-          className="weapon-compare-config-list"
-          data-testid="weapon-compare-selected-list"
-        >
+        <>
+          {selectedCandidates.length < 2 && (
+            <div
+              className="constraint-empty-line"
+              data-testid="weapon-compare-minimum-notice"
+            >
+              Select at least one more weapon above — comparing requires at
+              least 2 weapons.
+            </div>
+          )}
+          <div
+            className="weapon-compare-config-list"
+            data-testid="weapon-compare-selected-list"
+          >
           {selectedCandidates.map((cand) => {
             const wMeta = getWeaponMeta(cand.weaponKey)
             const isLowRarity = wMeta.rarity <= 2
@@ -1969,7 +1985,8 @@ export function WeaponComparisonPanel({
               </div>
             )
           })}
-        </div>
+          </div>
+        </>
       )}
     </div>
   )

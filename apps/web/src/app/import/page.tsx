@@ -28,9 +28,9 @@ import { useMemo, useRef, useState } from 'react'
 
 type TabKey = 'characters' | 'weapons' | 'artifacts'
 
-export const IMPORT_TABLE_ROW_CAP = 300
+const IMPORT_TABLE_ROW_CAP = 300
 
-export function formatImportTableCount(
+function formatImportTableCount(
   shownCount: number,
   filteredCount: number,
   totalCount: number,

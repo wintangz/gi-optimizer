@@ -82,10 +82,7 @@ vi.mock('@/lib/storage/useGood', () => ({
   }),
 }))
 
-import ImportPage, {
-  formatImportTableCount,
-  IMPORT_TABLE_ROW_CAP,
-} from '../src/app/import/page'
+import ImportPage from '../src/app/import/page'
 
 interface VNode {
   type: string
@@ -157,12 +154,6 @@ describe('ImportPage (import-table-honesty)', () => {
   })
 
   it('import-table-honesty: states truncation explicitly when filtered rows exceed 300 and matches rendered tbody row count across characters, weapons, and artifacts', () => {
-    expect(IMPORT_TABLE_ROW_CAP).toBe(300)
-    expect(formatImportTableCount(300, 450, 450)).toBe(
-      'Showing first 300 of 450 — refine the filter to see more'
-    )
-    expect(formatImportTableCount(120, 120, 450)).toBe('Showing 120 of 450')
-
     const largeArtifacts = Array.from({ length: 350 }, (_, i) => ({
       id: `art_${i}`,
       setKey: i < 50 ? 'MarechausseeHunter' : 'GoldenTroupe',
@@ -309,7 +300,7 @@ describe('ImportPage (import-table-honesty)', () => {
     class MockFileReader {
       result: string | null = null
       onload: (() => void) | null = null
-      readAsText(_file: unknown) {
+      readAsText() {
         this.result = nextFileText
         if (this.onload) this.onload()
       }
