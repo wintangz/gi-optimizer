@@ -28,6 +28,20 @@ import { useMemo, useRef, useState } from 'react'
 
 type TabKey = 'characters' | 'weapons' | 'artifacts'
 
+export const IMPORT_TABLE_ROW_CAP = 300
+
+export function formatImportTableCount(
+  shownCount: number,
+  filteredCount: number,
+  totalCount: number,
+  cap: number = IMPORT_TABLE_ROW_CAP
+): string {
+  if (filteredCount > cap) {
+    return `Showing first ${shownCount} of ${filteredCount} — refine the filter to see more`
+  }
+  return `Showing ${shownCount} of ${totalCount}`
+}
+
 const SEVERITY_ORDER: IssueSeverity[] = ['fatal', 'error', 'warning', 'info']
 const SEVERITY_LABEL: Record<IssueSeverity, string> = {
   fatal: 'Fatal (Import Blocked)',
@@ -202,6 +216,19 @@ export default function ImportPage() {
     artMainStatFilter,
     artEquippedFilter,
   ])
+
+  const displayedChars = useMemo(
+    () => filteredChars.slice(0, IMPORT_TABLE_ROW_CAP),
+    [filteredChars]
+  )
+  const displayedWeapons = useMemo(
+    () => filteredWeapons.slice(0, IMPORT_TABLE_ROW_CAP),
+    [filteredWeapons]
+  )
+  const displayedArtifacts = useMemo(
+    () => filteredArtifacts.slice(0, IMPORT_TABLE_ROW_CAP),
+    [filteredArtifacts]
+  )
 
   const groupedIssues = useMemo(() => {
     if (!parseResult) return null
@@ -539,12 +566,27 @@ export default function ImportPage() {
                   onChange={(e) => setCharSearch(e.target.value)}
                   style={{ minWidth: '240px' }}
                 />
-                <span className="muted presets-count">
-                  Showing {filteredChars.length} of {good.characters.length}
+                <span
+                  className="muted presets-count"
+                  data-testid="import-characters-count"
+                  data-shown-count={displayedChars.length}
+                  data-filtered-count={filteredChars.length}
+                  data-total-count={good.characters.length}
+                  data-truncated={
+                    filteredChars.length > IMPORT_TABLE_ROW_CAP
+                      ? 'true'
+                      : 'false'
+                  }
+                >
+                  {formatImportTableCount(
+                    displayedChars.length,
+                    filteredChars.length,
+                    good.characters.length
+                  )}
                 </span>
               </div>
               <div className="gi-table-wrap">
-                <table className="gi-table">
+                <table className="gi-table" data-testid="import-characters-table">
                   <thead>
                     <tr>
                       <th>Character</th>
@@ -556,7 +598,7 @@ export default function ImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredChars.map((c: ICharacter) => {
+                    {displayedChars.map((c: ICharacter) => {
                       const wep = weaponByChar.get(c.key)
                       const sets = artSetsByChar.get(c.key) ?? {}
                       const activeSets = Object.entries(sets).filter(
@@ -621,15 +663,30 @@ export default function ImportPage() {
                   onChange={(e) => setWeaponSearch(e.target.value)}
                   style={{ minWidth: '260px' }}
                 />
-                <span className="muted presets-count">
-                  Showing {filteredWeapons.length} of {good.weapons.length}
+                <span
+                  className="muted presets-count"
+                  data-testid="import-weapons-count"
+                  data-shown-count={displayedWeapons.length}
+                  data-filtered-count={filteredWeapons.length}
+                  data-total-count={good.weapons.length}
+                  data-truncated={
+                    filteredWeapons.length > IMPORT_TABLE_ROW_CAP
+                      ? 'true'
+                      : 'false'
+                  }
+                >
+                  {formatImportTableCount(
+                    displayedWeapons.length,
+                    filteredWeapons.length,
+                    good.weapons.length
+                  )}
                 </span>
               </div>
               <div
                 className="gi-table-wrap"
                 style={{ maxHeight: '520px', overflowY: 'auto' }}
               >
-                <table className="gi-table">
+                <table className="gi-table" data-testid="import-weapons-table">
                   <thead>
                     <tr>
                       <th>Weapon</th>
@@ -640,7 +697,7 @@ export default function ImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredWeapons.map((w: IWeapon) => (
+                    {displayedWeapons.map((w: IWeapon) => (
                       <tr key={w.id}>
                         <td>
                           <WeaponBadge weaponKey={w.key} />
@@ -721,8 +778,23 @@ export default function ImportPage() {
                   ))}
                 </select>
 
-                <span className="muted presets-count">
-                  Showing {filteredArtifacts.length} of {good.artifacts.length}
+                <span
+                  className="muted presets-count"
+                  data-testid="import-artifacts-count"
+                  data-shown-count={displayedArtifacts.length}
+                  data-filtered-count={filteredArtifacts.length}
+                  data-total-count={good.artifacts.length}
+                  data-truncated={
+                    filteredArtifacts.length > IMPORT_TABLE_ROW_CAP
+                      ? 'true'
+                      : 'false'
+                  }
+                >
+                  {formatImportTableCount(
+                    displayedArtifacts.length,
+                    filteredArtifacts.length,
+                    good.artifacts.length
+                  )}
                 </span>
               </div>
 
@@ -730,7 +802,7 @@ export default function ImportPage() {
                 className="gi-table-wrap"
                 style={{ maxHeight: '520px', overflowY: 'auto' }}
               >
-                <table className="gi-table">
+                <table className="gi-table" data-testid="import-artifacts-table">
                   <thead>
                     <tr>
                       <th>Slot / Set</th>
@@ -743,7 +815,7 @@ export default function ImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredArtifacts.slice(0, 300).map((a: IArtifact) => {
+                    {displayedArtifacts.map((a: IArtifact) => {
                       const rvInfo = computeArtifactRollValue(a)
                       return (
                         <tr key={a.id}>
