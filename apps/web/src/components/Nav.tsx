@@ -14,7 +14,7 @@ export const NAV_LINKS = [
   { href: '/import', label: 'Import', icon: UploadIcon },
   { href: '/optimize', label: 'Optimize', icon: PlayIcon },
   { href: '/presets', label: 'Presets', icon: FunnelIcon },
-  { href: '/teams', label: 'Custom teams', icon: GearIcon },
+  { href: '/teams', label: 'Custom Teams', icon: GearIcon },
 ] as const
 
 export function Nav() {

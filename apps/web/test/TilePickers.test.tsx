@@ -46,9 +46,11 @@ vi.mock('react', async (importOriginal) => {
   }
 })
 
+import { getBundledPreset, listBundledPresets } from '@gi/presets'
 import {
   ArtifactSetTilePicker,
   CharacterTilePicker,
+  PresetTilePicker,
   WeaponTilePicker,
 } from '../src/components/TilePickers'
 
@@ -441,5 +443,45 @@ describe('Image-Led Tile Grid Pickers & Rarity Borders (image-led-pickers & rari
           el.type === 'svg' && el.props['data-gi-icon'] === 'SetEmblemIcon'
       )
     ).toHaveLength(1)
+
+    // naming-consistency: ArtifactSetTilePicker captions use full display name (e.g. "Crimson Witch of Flames", not "Crimson Witch")
+    const cwHtml = renderToStaticMarkup(
+      <ArtifactSetTilePicker
+        ariaLabel="Artifact Set"
+        setKeys={['CrimsonWitchOfFlames', 'EmblemOfSeveredFate']}
+        value="CrimsonWitchOfFlames"
+        onChange={onChange}
+      />
+    )
+    expect(cwHtml).toContain(
+      '<span class="tile-picker-caption">Crimson Witch of Flames</span>'
+    )
+    expect(cwHtml).toContain(
+      '<span class="tile-picker-caption">Emblem of Severed Fate</span>'
+    )
+  })
+
+  it('PresetTilePicker renders the preset-kind indicator (AKASHA/OFFICIAL) as a styled .tile-picker-kind-badge pill rather than a plain .tile-picker-subcaption (naming-consistency)', () => {
+    const officialPreset = getBundledPreset('official/furina-salon-subdps')!
+    const akashaPreset = listBundledPresets().find(
+      (p) => p.source === 'akasha'
+    )!
+    const html = renderToStaticMarkup(
+      <PresetTilePicker
+        ariaLabel="Preset"
+        presets={[officialPreset, akashaPreset]}
+        value={officialPreset.id}
+        onChange={() => {}}
+      />
+    )
+    expect(html).toContain(
+      `class="tile-picker-kind-badge is-official" data-testid="preset-picker-badge-${officialPreset.id}" data-badge-kind="official"`
+    )
+    expect(html).toContain('>OFFICIAL<')
+    expect(html).toContain(
+      `class="tile-picker-kind-badge is-akasha" data-testid="preset-picker-badge-${akashaPreset.id}" data-badge-kind="akasha"`
+    )
+    expect(html).toContain('>AKASHA<')
+    expect(html).not.toContain('class="tile-picker-subcaption"')
   })
 })

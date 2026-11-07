@@ -303,7 +303,7 @@ export function ArtifactSetFilter({
                     )}
                   </span>
                   <span className="tile-picker-caption">
-                    {meta.setShortName}
+                    {meta.setDisplayName}
                   </span>
                 </button>
 

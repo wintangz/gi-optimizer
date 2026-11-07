@@ -1798,6 +1798,38 @@ td {
   white-space: nowrap;
 }
 
+.tile-picker-kind-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.08rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  border: 1px solid rgba(122, 162, 255, 0.35);
+  background: rgba(122, 162, 255, 0.14);
+  color: var(--accent);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-picker-kind-badge.is-official {
+  border-color: rgba(76, 195, 138, 0.4);
+  background: rgba(76, 195, 138, 0.14);
+  color: var(--ok);
+}
+
+.tile-picker-kind-badge.is-user {
+  border-color: rgba(245, 185, 66, 0.45);
+  background: rgba(245, 185, 66, 0.14);
+  color: var(--warn);
+}
+
 .tile-picker-pieces {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

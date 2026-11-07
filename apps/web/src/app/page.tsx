@@ -28,7 +28,7 @@ export default function Home() {
           <Link href="/optimize">
             <button type="button" className="btn-secondary btn-icon">
               <PlayIcon size={15} />
-              <span>Open Optimizer</span>
+              <span>Optimize</span>
             </button>
           </Link>
           <Link href="/presets">
@@ -83,7 +83,7 @@ export default function Home() {
             <Link href="/teams">
               <button type="button" className="btn-secondary btn-icon">
                 <GearIcon size={15} />
-                <span>Custom Builder</span>
+                <span>Custom Teams</span>
               </button>
             </Link>
           </div>
@@ -105,7 +105,7 @@ export default function Home() {
             <Link href="/optimize">
               <button type="button" className="btn-primary btn-icon">
                 <PlayIcon size={15} />
-                <span>Optimize Builds</span>
+                <span>Optimize</span>
               </button>
             </Link>
           </div>

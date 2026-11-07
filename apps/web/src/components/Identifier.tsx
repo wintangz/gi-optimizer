@@ -458,7 +458,7 @@ export function ArtifactBadge({
         )}
       </span>
 
-      {/* Compact dark surface chip with rarity-coloured border and set short name (omitted when slotOnly) */}
+      {/* Compact dark surface chip with rarity-coloured border and full set display name (omitted when slotOnly) */}
       {!slotOnly && (
         <span
           data-testid="artifact-set-chip"
@@ -478,7 +478,7 @@ export function ArtifactBadge({
             whiteSpace: 'nowrap',
           }}
         >
-          <strong>{meta.setShortName}</strong>
+          <strong>{meta.setDisplayName}</strong>
         </span>
       )}
 

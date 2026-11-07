@@ -556,7 +556,7 @@ export function ArtifactSetTilePicker({
                   />
                 )}
               </span>
-              <span className="tile-picker-caption">{meta.setShortName}</span>
+              <span className="tile-picker-caption">{meta.setDisplayName}</span>
             </button>
           )
         })}
@@ -597,6 +597,12 @@ export function PresetTilePicker({
           const meta = getCharacterMeta(p.target)
           const rc = getRarityColor(meta.rarity)
           const badge = getPresetBadge(p)
+          const shortKindLabel =
+            badge.kind === 'akasha'
+              ? 'AKASHA'
+              : badge.kind === 'official'
+                ? 'OFFICIAL'
+                : 'CUSTOM'
           const isSelected = value === p.id
           const imageFailed = Boolean(failedKeys[p.target])
           const iconUrl = getCdnIconUrl(p.target)
@@ -663,7 +669,14 @@ export function PresetTilePicker({
                 )}
               </span>
               <span className="tile-picker-caption">{p.name}</span>
-              <span className="tile-picker-subcaption">{badge.label}</span>
+              <span
+                className={`tile-picker-kind-badge is-${badge.kind}`}
+                data-testid={`preset-picker-badge-${p.id}`}
+                data-badge-kind={badge.kind}
+                title={badge.label}
+              >
+                {shortKindLabel}
+              </span>
             </button>
           )
         })}

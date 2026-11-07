@@ -248,6 +248,7 @@ vi.mock('@/lib/engine/workerClient', () => ({
 
 import TeamsPage from '../src/app/teams/page'
 import PresetsPage from '../src/app/presets/page'
+import { NAV_LINKS } from '../src/components/Nav'
 
 interface VNode {
   type: string
@@ -407,8 +408,12 @@ describe('Deferred Engine Start on Custom Teams Page (teams-deferred-start)', ()
     expect(mockEvaluatePresetInWorker).not.toHaveBeenCalled()
 
     // Page shell & preset list are rendered immediately
-    expect(text).toContain('Custom Team & Preset Builder')
+    expect(text).toContain('Custom Teams')
     expect(text).toContain('Load or Fork Existing Preset:')
+    expect(NAV_LINKS.find((l) => l.href === '/teams')?.label).toBe(
+      'Custom Teams'
+    )
+    expect(NAV_LINKS.find((l) => l.href === '/optimize')?.label).toBe('Optimize')
 
     // Deferred Live Rotation Preview CTA is rendered instead of a spinner
     expect(text).toContain('Load Engine & Preview')

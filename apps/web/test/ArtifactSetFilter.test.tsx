@@ -105,6 +105,13 @@ describe('ArtifactSetFilter Component (artifact-set-filter, image-led-pickers & 
     expect(html).toContain(
       'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/GoldenTroupe-flower.png"'
     )
+    // naming-consistency: full display name in captions (not truncated 2-word short name)
+    expect(html).toContain(
+      '<span class="tile-picker-caption">Crimson Witch of Flames</span>'
+    )
+    expect(html).toContain(
+      '<span class="tile-picker-caption">Emblem of Severed Fate</span>'
+    )
     expect(html).not.toContain('type="checkbox"')
   })
 

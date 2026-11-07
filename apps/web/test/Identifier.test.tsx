@@ -454,7 +454,7 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     )
     expect(c).toContain('Hu Tao')
     expect(w).toContain('Staff of Homa')
-    expect(a).toContain('Crimson Witch of Flames')
+    expect(a).toContain('<strong>Crimson Witch of Flames</strong>')
   })
 
   it('keeps CharacterBadge completely exempt from rarity recolouring and SVG glyphs while rendering GO svgicons, StatChips, RarityStars, and BuildComparisonBars (visual-language-pass)', () => {

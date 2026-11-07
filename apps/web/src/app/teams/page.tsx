@@ -585,7 +585,7 @@ function TeamsInner() {
           >
             {badge.label}
           </div>
-          <h1 className="gi-page-title">Custom Team &amp; Preset Builder</h1>
+          <h1 className="gi-page-title">Custom Teams</h1>
           <p className="gi-page-subtitle">
             Configure your team members, GO conditional buffs, enemy resistances,
             and rotation hits. Save as a reusable custom preset or export as
