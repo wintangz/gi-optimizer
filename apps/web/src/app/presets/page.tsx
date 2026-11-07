@@ -97,6 +97,9 @@ export default function PresetsPage() {
   const [akashaWeaponChoices, setAkashaWeaponChoices] = useState<
     Record<string, { key: string; refinement: number }>
   >({})
+  const [confirmDeletePresetId, setConfirmDeletePresetId] = useState<
+    string | null
+  >(null)
 
   const allPresets = useMemo(() => {
     const bundled = registryMod?.bundled ?? []
@@ -457,14 +460,52 @@ export default function PresetsPage() {
                             <span>Edit</span>
                           </button>
                         </Link>
-                        <button
-                          type="button"
-                          onClick={() => void removeUserPreset(activePreset.id)}
-                          className="btn-danger btn-icon"
-                        >
-                          <TrashIcon size={15} />
-                          <span>Delete</span>
-                        </button>
+                        {confirmDeletePresetId !== activePreset.id ? (
+                          <button
+                            type="button"
+                            data-testid="delete-preset-btn"
+                            onClick={() =>
+                              setConfirmDeletePresetId(activePreset.id)
+                            }
+                            className="btn-danger btn-icon"
+                          >
+                            <TrashIcon size={15} />
+                            <span>Delete</span>
+                          </button>
+                        ) : (
+                          <div
+                            className="preset-gear-row"
+                            data-testid="delete-preset-confirm-bar"
+                            role="group"
+                            aria-label={`Confirm deleting preset ${activePreset.name}`}
+                          >
+                            <span
+                              className="warn"
+                              style={{ fontSize: '0.85rem' }}
+                            >
+                              Delete &ldquo;{activePreset.name}&rdquo;?
+                            </span>
+                            <button
+                              type="button"
+                              data-testid="confirm-delete-preset-btn"
+                              className="btn-danger"
+                              onClick={async () => {
+                                await removeUserPreset(activePreset.id)
+                                setConfirmDeletePresetId(null)
+                              }}
+                            >
+                              Confirm Delete
+                            </button>
+                            <button
+                              type="button"
+                              data-testid="cancel-delete-preset-btn"
+                              className="btn-secondary"
+                              onClick={() => setConfirmDeletePresetId(null)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>

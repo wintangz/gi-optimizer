@@ -130,6 +130,9 @@ function TeamsInner() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [importCollision, setImportCollision] = useState<Preset | null>(null)
+  const [confirmDeletePresetId, setConfirmDeletePresetId] = useState<
+    string | null
+  >(null)
   const [newMemberKey, setNewMemberKey] = useState<string>('KaedeharaKazuha')
   const [selectedCondByMember, setSelectedCondByMember] = useState<
     Record<number, string>
@@ -663,20 +666,50 @@ function TeamsInner() {
           </select>
         </div>
 
-        {userPresets.some((p) => p.id === draft.id) && (
-          <button
-            type="button"
-            className="btn-danger btn-icon"
-            onClick={async () => {
-              await removeUserPreset(draft.id)
-              setStatusMessage(`Deleted preset '${draft.name}'.`)
-              router.push('/presets')
-            }}
-          >
-            <TrashIcon size={15} />
-            <span>Delete Preset</span>
-          </button>
-        )}
+        {userPresets.some((p) => p.id === draft.id) &&
+          (confirmDeletePresetId !== draft.id ? (
+            <button
+              type="button"
+              data-testid="delete-preset-btn"
+              className="btn-danger btn-icon"
+              onClick={() => setConfirmDeletePresetId(draft.id)}
+            >
+              <TrashIcon size={15} />
+              <span>Delete Preset</span>
+            </button>
+          ) : (
+            <div
+              className="preset-gear-row"
+              data-testid="delete-preset-confirm-bar"
+              role="group"
+              aria-label={`Confirm deleting preset ${draft.name}`}
+            >
+              <span className="warn" style={{ fontSize: '0.85rem' }}>
+                Delete &ldquo;{draft.name}&rdquo;?
+              </span>
+              <button
+                type="button"
+                data-testid="confirm-delete-preset-btn"
+                className="btn-danger"
+                onClick={async () => {
+                  await removeUserPreset(draft.id)
+                  setConfirmDeletePresetId(null)
+                  setStatusMessage(`Deleted preset '${draft.name}'.`)
+                  router.push('/presets')
+                }}
+              >
+                Confirm Delete
+              </button>
+              <button
+                type="button"
+                data-testid="cancel-delete-preset-btn"
+                className="btn-secondary"
+                onClick={() => setConfirmDeletePresetId(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          ))}
       </div>
 
       {statusMessage && (

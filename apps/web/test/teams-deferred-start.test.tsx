@@ -199,6 +199,11 @@ vi.mock('@/lib/storage/useGood', () => ({
     record: mockGoodRecord,
     loading: false,
   }),
+  useOptimizerSettings: () => ({
+    settings: DEFAULT_OPTIMIZER_SETTINGS,
+    loading: false,
+    update: vi.fn(),
+  }),
   useUserPresets: () => ({
     presets: mockUserPresets,
     loading: false,
@@ -219,6 +224,7 @@ vi.mock('@/lib/engine/workerClient', () => ({
 }))
 
 import TeamsPage from '../src/app/teams/page'
+import PresetsPage from '../src/app/presets/page'
 
 interface VNode {
   type: string
@@ -775,5 +781,144 @@ describe('Deferred Engine Start on Custom Teams Page (teams-deferred-start)', ()
     expect(optLowRes.builds[0]!.total).toBeGreaterThan(
       optHighRes.builds[0]!.total
     )
+  })
+
+  it('delete-preset-confirm: requires explicit confirmation before deleting a user preset on both /teams and /presets, and only navigates away after confirmed delete', async () => {
+    const baseOfficial = listBundledPresets()[0]!
+    mockSearchParams = new URLSearchParams(`fork=${baseOfficial.id}`)
+    let tree = renderPass()
+    tree = renderPass()
+
+    // Save the forked preset so it exists in userPresets
+    const saveBtn = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'button' && collectText(el.children).trim() === 'Save'
+    )[0]!
+    await (saveBtn.props.onClick as () => Promise<void>)()
+    tree = renderPass()
+    expect(mockUserPresets).toHaveLength(1)
+    const savedId = mockUserPresets[0]!.id
+    mockPush.mockClear()
+
+    // 1. Teams editor: single click on "Delete Preset" does NOT delete or navigate
+    const deleteBtn = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'button' &&
+        el.props['data-testid'] === 'delete-preset-btn'
+    )[0]!
+    ;(deleteBtn.props.onClick as () => void)()
+    tree = renderPass()
+
+    expect(mockRemoveUserPreset).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(
+      findAllElements(
+        tree,
+        (el) => el.props['data-testid'] === 'delete-preset-confirm-bar'
+      )
+    ).toHaveLength(1)
+
+    // Cancel dismisses confirmation without deleting
+    const cancelBtn = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'button' &&
+        el.props['data-testid'] === 'cancel-delete-preset-btn'
+    )[0]!
+    ;(cancelBtn.props.onClick as () => void)()
+    tree = renderPass()
+    expect(
+      findAllElements(
+        tree,
+        (el) => el.props['data-testid'] === 'delete-preset-confirm-bar'
+      )
+    ).toHaveLength(0)
+    expect(mockUserPresets).toHaveLength(1)
+
+    // Click Delete Preset again, then Confirm Delete -> deletes and navigates to /presets
+    const deleteBtnAgain = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'button' &&
+        el.props['data-testid'] === 'delete-preset-btn'
+    )[0]!
+    ;(deleteBtnAgain.props.onClick as () => void)()
+    tree = renderPass()
+
+    const confirmBtn = findAllElements(
+      tree,
+      (el) =>
+        el.type === 'button' &&
+        el.props['data-testid'] === 'confirm-delete-preset-btn'
+    )[0]!
+    await (confirmBtn.props.onClick as () => Promise<void>)()
+
+    expect(mockRemoveUserPreset).toHaveBeenCalledWith(savedId)
+    expect(mockPush).toHaveBeenCalledWith('/presets')
+    expect(mockUserPresets).toHaveLength(0)
+
+    // 2. Presets page: re-add user preset and verify inline confirmation flow on /presets
+    const userPreset: Preset = {
+      ...baseOfficial,
+      id: 'user/test-confirm-delete',
+      name: 'Test Confirm Delete Preset',
+      source: 'user',
+    }
+    mockUserPresets = [userPreset]
+    mockRemoveUserPreset.mockClear()
+
+    hookStore.reset()
+    const renderPresetsPass = (): VNode[] => {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        const nodes = evaluateTree(React.createElement(PresetsPage))
+        hookStore.flushEffects()
+        return nodes.filter((n): n is VNode => typeof n !== 'string')
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    let presetsTree = renderPresetsPass()
+    await vi.runAllTimersAsync()
+    await Promise.resolve()
+    presetsTree = renderPresetsPass()
+
+    // Filter to Custom User Presets ('user')
+    const sourceSelect = findAllElements(
+      presetsTree,
+      (el) =>
+        el.type === 'select' &&
+        el.props['aria-label'] === 'Filter presets by source'
+    )[0]!
+    ;(
+      sourceSelect.props.onChange as (e: { target: { value: string } }) => void
+    )({ target: { value: 'user' } })
+    // Reset child hook slots after switching preset source view
+    hookStore.states.length = 9
+    presetsTree = renderPresetsPass()
+
+    // Click Delete once -> enters confirmation state, does not call removeUserPreset
+    const presetsDeleteBtn = findAllElements(
+      presetsTree,
+      (el) =>
+        el.type === 'button' &&
+        el.props['data-testid'] === 'delete-preset-btn'
+    )[0]!
+    ;(presetsDeleteBtn.props.onClick as () => void)()
+    presetsTree = renderPresetsPass()
+
+    expect(mockRemoveUserPreset).not.toHaveBeenCalled()
+    const presetsConfirmBtn = findAllElements(
+      presetsTree,
+      (el) =>
+        el.type === 'button' &&
+        el.props['data-testid'] === 'confirm-delete-preset-btn'
+    )[0]!
+    await (presetsConfirmBtn.props.onClick as () => Promise<void>)()
+    expect(mockRemoveUserPreset).toHaveBeenCalledWith('user/test-confirm-delete')
   })
 })
