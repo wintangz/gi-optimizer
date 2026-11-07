@@ -5,6 +5,7 @@ import {
   createSession,
   DEFAULT_OPTIMIZER_SETTINGS,
   resolveDefaultWeaponCompareCandidate,
+  WEAPON_COMPARE_TOP_N,
 } from '../src'
 
 describe('Weapon Comparison Mode (weapon-compare)', () => {
@@ -426,5 +427,100 @@ describe('Weapon Comparison Mode (weapon-compare)', () => {
     expect(cancelRes.rows[0]!.candidate.weaponKey).toBe('FavoniusSword')
     expect(cancelRes.rows[0]!.status).toBe('ok')
     expect(cancelRes.rows[0]!.rank).toBe(1)
+  })
+
+  it('(4) always fetches up to WEAPON_COMPARE_TOP_N (5) ranked builds per weapon in topBuilds regardless of settings.topN, and returns fewer when fewer are feasible (weapon-compare-followups)', async () => {
+    const preset = getBundledPreset('akasha/furina-salon-pjc-c0')!
+    const session = createSession(deterministicGood)
+
+    const candidates = [
+      {
+        weaponKey: 'SplendorOfTranquilWaters',
+        level: 90,
+        ascension: 6,
+        refinement: 1,
+        isOwned: false,
+        isEquippedBaseline: false,
+      },
+      {
+        weaponKey: 'FavoniusSword',
+        level: 90,
+        ascension: 6,
+        refinement: 5,
+        isOwned: true,
+        ownedWeaponId: 'w_fav_equipped',
+        isEquippedBaseline: true,
+      },
+    ]
+
+    // Pass topN: 1 in settings — compareWeapons must still fetch up to 5 builds per weapon
+    const singleTopNSettings: OptimizerSettings = {
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      constraints: [],
+      topN: 1,
+    }
+
+    const res = await session.compareWeapons(
+      preset,
+      singleTopNSettings,
+      candidates,
+      { maxWorkers: 1 }
+    )
+
+    expect(WEAPON_COMPARE_TOP_N).toBe(5)
+    expect(res.rows).toHaveLength(2)
+
+    for (const row of res.rows) {
+      expect(row.status).toBe('ok')
+      expect(row.topBuilds).toBeDefined()
+      // Inventory has 2 flowers * 2 plumes * 2 sands * 2 goblets * 1 circlet = 16 combinations -> 5 top builds returned
+      expect(row.topBuilds).toHaveLength(5)
+      expect(row.topBuilds![0]!.rank).toBe(1)
+      expect(row.topBuilds![0]!.selection).toEqual(row.bestBuild)
+      expect(row.topBuilds![0]!.evaluation.total).toBe(row.total)
+
+      for (let i = 0; i < row.topBuilds!.length; i++) {
+        const entry = row.topBuilds![i]!
+        expect(entry.rank).toBe(i + 1)
+        expect(entry.selection.total).toBe(entry.evaluation.total)
+        expect(Object.keys(entry.selection.artifactIds)).toHaveLength(5)
+        expect(entry.evaluation.stats.hp).toBeGreaterThan(0)
+        if (i > 0) {
+          expect(row.topBuilds![i - 1]!.evaluation.total).toBeGreaterThanOrEqual(
+            entry.evaluation.total
+          )
+        }
+      }
+    }
+
+    // Under ER >= 260%, FavoniusSword has only 2 feasible builds (er_flower_weak + er_plume_weak + er_sands_weak + either goblet + circlet = 267.1% ER)
+    // and SplendorOfTranquilWaters has 0 feasible builds ('unmet')
+    const strictErRes = await session.compareWeapons(
+      preset,
+      {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        constraints: [{ stat: 'enerRech_', min: 260 }],
+        topN: 1,
+      },
+      candidates,
+      { maxWorkers: 1 }
+    )
+
+    const favRow = strictErRes.rows.find(
+      (r) => r.candidate.weaponKey === 'FavoniusSword'
+    )!
+    expect(favRow.status).toBe('ok')
+    expect(favRow.topBuilds).toHaveLength(2)
+    expect(favRow.topBuilds![0]!.rank).toBe(1)
+    expect(favRow.topBuilds![1]!.rank).toBe(2)
+    expect(favRow.topBuilds![0]!.evaluation.total).toBeGreaterThanOrEqual(
+      favRow.topBuilds![1]!.evaluation.total
+    )
+
+    const splendorRow = strictErRes.rows.find(
+      (r) => r.candidate.weaponKey === 'SplendorOfTranquilWaters'
+    )!
+    expect(splendorRow.status).toBe('unmet')
+    expect(splendorRow.topBuilds).toEqual([])
   })
 })

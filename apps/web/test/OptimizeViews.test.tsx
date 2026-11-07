@@ -1650,4 +1650,126 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       'No rotation rows — kept current/simulated gear (solver skipped)'
     )
   })
+
+  it('styles Current Baseline as a pill badge (.comp-baseline-tag without .comp-best-tag) and renders up to 5 ranked top builds inside an expanded weapon row (weapon-compare-followups)', () => {
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+    const sampleFlower = {
+      id: 'art_f_1',
+      setKey: 'GoldenTroupe',
+      slotKey: 'flower' as const,
+      level: 20,
+      rarity: 5 as const,
+      mainStatKey: 'hp',
+      location: 'Furina',
+      lock: true,
+      substats: [
+        { key: 'critRate_', value: 10.5 },
+        { key: 'critDMG_', value: 21.0 },
+      ],
+    }
+    const artifactMap = new Map([[sampleFlower.id, sampleFlower]])
+
+    const baseStats = {
+      hp: 40000,
+      atk: 1200,
+      def: 850,
+      eleMas: 40,
+      enerRech_: 1.8,
+      critRate_: 0.85,
+      critDMG_: 1.9,
+    }
+
+    const fiveBuilds = [420000, 412000, 405000, 398000, 390000].map(
+      (tot, idx) => ({
+        rank: idx + 1,
+        selection: {
+          weaponOverride: {
+            key: 'FavoniusSword',
+            level: 90,
+            ascension: 6,
+            refinement: 5,
+          },
+          artifactIds: { flower: 'art_f_1' },
+          total: tot,
+        },
+        evaluation: {
+          total: tot,
+          stats: { ...baseStats, hp: 40000 - idx * 500 },
+          instances: [
+            {
+              label: 'Gentilhomme Usher DMG',
+              path: ['skill', 'usherDmg'],
+              count: 7,
+              perHit: tot / 7,
+              subtotal: tot,
+            },
+          ],
+        },
+      })
+    )
+
+    const ranked = rankWeaponComparisonRows([
+      {
+        candidate: {
+          weaponKey: 'FavoniusSword',
+          level: 90,
+          ascension: 6,
+          refinement: 5,
+          isOwned: true,
+          ownedWeaponId: 'w_fav',
+          isEquippedBaseline: true,
+        },
+        status: 'ok',
+        rank: null,
+        total: 420000,
+        percentBehindLeader: null,
+        bestBuild: fiveBuilds[0]!.selection,
+        evaluation: fiveBuilds[0]!.evaluation,
+        topBuilds: fiveBuilds,
+        tested: 120,
+        skipped: 30,
+        durationMs: 12,
+      },
+    ])
+
+    const html = renderToStaticMarkup(
+      <WeaponComparisonList
+        preset={preset}
+        result={ranked}
+        artifactById={artifactMap}
+      />
+    )
+
+    // 1. Pill badge styling: Current Baseline uses class="comp-baseline-tag" (not comp-best-tag)
+    expect(html).toContain(
+      'class="comp-baseline-tag" data-testid="weapon-compare-baseline-badge-FavoniusSword">Current Baseline<'
+    )
+    expect(html).not.toContain('comp-best-tag comp-baseline-tag')
+
+    // 2. Expanded weapon row renders all 5 ranked top builds (#1..#5) with pieces, final stats, and totals
+    expect(html).toContain('Top 5 Builds for Favonius Sword')
+    expect(html).toContain('data-testid="weapon-compare-top-builds-FavoniusSword"')
+
+    const expectedTotals = ['420,000', '412,000', '405,000', '398,000', '390,000']
+    for (let i = 0; i < 5; i++) {
+      expect(html).toContain(
+        `data-testid="weapon-compare-build-FavoniusSword-${i}" data-build-rank="${i + 1}"`
+      )
+      expect(html).toContain(
+        `data-testid="weapon-compare-build-rank-FavoniusSword-${i}">#${i + 1}<`
+      )
+      expect(html).toContain(
+        `data-testid="weapon-compare-build-total-FavoniusSword-${i}">${expectedTotals[i]}<`
+      )
+      expect(html).toContain(
+        `data-testid="weapon-compare-build-artifacts-FavoniusSword-${i}"`
+      )
+      expect(html).toContain(
+        `data-testid="weapon-compare-build-stats-FavoniusSword-${i}"`
+      )
+      expect(html).toContain(
+        `data-testid="weapon-compare-build-pieces-FavoniusSword-${i}"`
+      )
+    }
+  })
 })

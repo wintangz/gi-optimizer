@@ -44,23 +44,25 @@ import {
 } from './catalog'
 import { runSolver } from './solver'
 import { getTeamData, getTeamDataCalc } from './teamData'
-import type {
-  ArtifactSlot,
-  BuildSelection,
-  EngineSession,
-  InstanceResult,
-  OptimizeProgress,
-  OptimizeResult,
-  OptimizerSettings,
-  RotationResult,
-  SimulatedWeaponSpec,
-  TeamMemberOptimizeResult,
-  TeamOptimizeOptions,
-  TeamOptimizeResult,
-  WeaponCompareCandidate,
-  WeaponCompareProgress,
-  WeaponCompareResult,
-  WeaponCompareRowResult,
+import {
+  WEAPON_COMPARE_TOP_N,
+  type ArtifactSlot,
+  type BuildSelection,
+  type EngineSession,
+  type InstanceResult,
+  type OptimizeProgress,
+  type OptimizeResult,
+  type OptimizerSettings,
+  type RotationResult,
+  type SimulatedWeaponSpec,
+  type TeamMemberOptimizeResult,
+  type TeamOptimizeOptions,
+  type TeamOptimizeResult,
+  type WeaponCompareBuildEntry,
+  type WeaponCompareCandidate,
+  type WeaponCompareProgress,
+  type WeaponCompareResult,
+  type WeaponCompareRowResult,
 } from './types'
 
 export function normalizeTargetPath(
@@ -889,10 +891,28 @@ export function rankWeaponCompareRows(
           ? 0
           : Math.max(0, ((leaderTotal - rowTotal) / leaderTotal) * 100)
         : 0
+    const normalizedTopBuilds: WeaponCompareBuildEntry[] =
+      row.topBuilds && row.topBuilds.length > 0
+        ? row.topBuilds
+            .slice(0, WEAPON_COMPARE_TOP_N)
+            .map((entry, bIdx) => ({
+              ...entry,
+              rank: bIdx + 1,
+            }))
+        : row.bestBuild && row.evaluation
+          ? [
+              {
+                rank: 1,
+                selection: row.bestBuild,
+                evaluation: row.evaluation,
+              },
+            ]
+          : []
     return {
       ...row,
       rank: idx + 1,
       percentBehindLeader: pctBehind,
+      topBuilds: normalizedTopBuilds,
     }
   })
 
@@ -903,6 +923,7 @@ export function rankWeaponCompareRows(
     percentBehindLeader: null,
     bestBuild: null,
     evaluation: null,
+    topBuilds: [],
   }))
 
   return {
@@ -933,6 +954,11 @@ export async function compareWeapons(
   const effectiveMemberConditionals =
     opts?.memberConditionals ?? settings.memberConditionalOverrides?.[preset.id]
 
+  const compareSettings: OptimizerSettings = {
+    ...settings,
+    topN: WEAPON_COMPARE_TOP_N,
+  }
+
   for (let i = 0; i < candidates.length; i++) {
     if (opts?.signal?.aborted) {
       cancelled = true
@@ -949,7 +975,7 @@ export async function compareWeapons(
 
     let optRes: OptimizeResult
     try {
-      optRes = await session.optimize(preset, settings, {
+      optRes = await session.optimize(preset, compareSettings, {
         weaponOverride,
         memberBuildModes: effectiveMemberBuildModes,
         memberConditionals: effectiveMemberConditionals,
@@ -981,8 +1007,8 @@ export async function compareWeapons(
       break
     }
 
-    const best = optRes.builds[0]
-    if (!best) {
+    const candidateBuilds = optRes.builds.slice(0, WEAPON_COMPARE_TOP_N)
+    if (candidateBuilds.length === 0) {
       completedRows.push({
         candidate: { ...candidate },
         status: 'unmet',
@@ -991,6 +1017,7 @@ export async function compareWeapons(
         percentBehindLeader: null,
         bestBuild: null,
         evaluation: null,
+        topBuilds: [],
         tested: optRes.tested,
         skipped: optRes.skipped,
         durationMs: optRes.durationMs,
@@ -998,31 +1025,47 @@ export async function compareWeapons(
       continue
     }
 
-    const selectionForEval: BuildSelection = {
-      ...best,
-      weaponOverride,
-      ...(effectiveMemberBuildModes &&
-      Object.keys(effectiveMemberBuildModes).length > 0
-        ? { memberBuildModes: effectiveMemberBuildModes }
-        : {}),
-      ...(effectiveMemberConditionals &&
-      Object.keys(effectiveMemberConditionals).length > 0
-        ? { memberConditionals: effectiveMemberConditionals }
-        : {}),
-    }
-    const evaluation = session.evaluate(preset, selectionForEval)
+    const topBuilds: WeaponCompareBuildEntry[] = candidateBuilds
+      .map((b) => {
+        const selectionForEval: BuildSelection = {
+          ...b,
+          weaponOverride,
+          ...(effectiveMemberBuildModes &&
+          Object.keys(effectiveMemberBuildModes).length > 0
+            ? { memberBuildModes: effectiveMemberBuildModes }
+            : {}),
+          ...(effectiveMemberConditionals &&
+          Object.keys(effectiveMemberConditionals).length > 0
+            ? { memberConditionals: effectiveMemberConditionals }
+            : {}),
+        }
+        const evaluation = session.evaluate(preset, selectionForEval)
+        return {
+          rank: 0,
+          selection: {
+            ...selectionForEval,
+            total: evaluation.total,
+          },
+          evaluation,
+        }
+      })
+      .sort((a, b) => b.evaluation.total - a.evaluation.total)
+      .map((entry, idx) => ({
+        ...entry,
+        rank: idx + 1,
+      }))
+
+    const topEntry = topBuilds[0]!
 
     completedRows.push({
       candidate: { ...candidate },
       status: 'ok',
       rank: null,
-      total: evaluation.total,
+      total: topEntry.evaluation.total,
       percentBehindLeader: null,
-      bestBuild: {
-        ...selectionForEval,
-        total: evaluation.total,
-      },
-      evaluation,
+      bestBuild: topEntry.selection,
+      evaluation: topEntry.evaluation,
+      topBuilds,
       tested: optRes.tested,
       skipped: optRes.skipped,
       durationMs: optRes.durationMs,

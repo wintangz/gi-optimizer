@@ -67,6 +67,7 @@ export {
 export {
   DEFAULT_OPTIMIZER_SETTINGS,
   STAT_CONSTRAINT_KEYS,
+  WEAPON_COMPARE_TOP_N,
   getPresetConditionalOverrides,
   getPresetMemberBuildModes,
   hasMemberConditionalOverrides,
@@ -107,6 +108,7 @@ export {
   type TeamOptimizeOptions,
   type TeamOptimizeProgress,
   type TeamOptimizeResult,
+  type WeaponCompareBuildEntry,
   type WeaponCompareCandidate,
   type WeaponCompareProgress,
   type WeaponCompareResult,

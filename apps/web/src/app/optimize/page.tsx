@@ -42,17 +42,19 @@ import {
   useOptimizerSettings,
   useUserPresets,
 } from '@/lib/storage/useGood'
-import type {
-  BuildSelection,
-  OptimizeProgress,
-  OptimizeResult,
-  RotationResult,
-  SimulatedWeaponSpec,
-  TeamOptimizeProgress,
-  TeamOptimizeResult,
-  WeaponCompareCandidate,
-  WeaponCompareResult,
-  WeaponCompareRowResult,
+import {
+  WEAPON_COMPARE_TOP_N,
+  type BuildSelection,
+  type OptimizeProgress,
+  type OptimizeResult,
+  type RotationResult,
+  type SimulatedWeaponSpec,
+  type TeamOptimizeProgress,
+  type TeamOptimizeResult,
+  type WeaponCompareBuildEntry,
+  type WeaponCompareCandidate,
+  type WeaponCompareResult,
+  type WeaponCompareRowResult,
 } from '@gi/engine'
 import { type IArtifact } from '@gi/good'
 import {
@@ -575,13 +577,18 @@ function OptimizeInner() {
           solverProgress: { tested: 0, skipped: 0, total: 0 },
         })
 
+        const compareSettings = {
+          ...settings,
+          topN: WEAPON_COMPARE_TOP_N,
+        }
+
         let optRes: OptimizeResult
         try {
           optRes = await optimizePresetInWorker({
             datasetKey: record.importedAt,
             good: record.good,
             preset: activePreset,
-            settings,
+            settings: compareSettings,
             weaponOverride,
             onProgress: (p) => {
               setCompareProgress({
@@ -609,8 +616,8 @@ function OptimizeInner() {
           break
         }
 
-        const best = optRes.builds[0]
-        if (!best) {
+        const candidateBuilds = optRes.builds.slice(0, WEAPON_COMPARE_TOP_N)
+        if (candidateBuilds.length === 0) {
           completedRows.push({
             candidate: { ...cand },
             status: 'unmet',
@@ -619,39 +626,59 @@ function OptimizeInner() {
             percentBehindLeader: null,
             bestBuild: null,
             evaluation: null,
+            topBuilds: [],
             tested: optRes.tested,
             skipped: optRes.skipped,
             durationMs: optRes.durationMs,
           })
         } else {
-          const selectionForEval: BuildSelection = {
-            ...best,
-            weaponOverride,
-            ...(activePreset.source === 'official' &&
-            Object.keys(activeMemberBuildModes).length > 0
-              ? { memberBuildModes: activeMemberBuildModes }
-              : {}),
-            ...(hasActiveConditionalOverrides
-              ? { memberConditionals: activeMemberConditionals }
-              : {}),
-          }
-          const evalRes = await evaluatePresetInWorker({
-            datasetKey: record.importedAt,
-            good: record.good,
-            preset: activePreset,
-            selection: selectionForEval,
-          })
+          const goodSnapshot = record.good
+          const importedAtSnapshot = record.importedAt
+          const rawEntries = await Promise.all(
+            candidateBuilds.map(async (b) => {
+              const selectionForEval: BuildSelection = {
+                ...b,
+                weaponOverride,
+                ...(activePreset.source === 'official' &&
+                Object.keys(activeMemberBuildModes).length > 0
+                  ? { memberBuildModes: activeMemberBuildModes }
+                  : {}),
+                ...(hasActiveConditionalOverrides
+                  ? { memberConditionals: activeMemberConditionals }
+                  : {}),
+              }
+              const evalRes = await evaluatePresetInWorker({
+                datasetKey: importedAtSnapshot,
+                good: goodSnapshot,
+                preset: activePreset,
+                selection: selectionForEval,
+              })
+              return {
+                rank: 0,
+                selection: {
+                  ...selectionForEval,
+                  total: evalRes.result.total,
+                },
+                evaluation: evalRes.result,
+              }
+            })
+          )
+          const topBuilds: WeaponCompareBuildEntry[] = rawEntries
+            .sort((a, b) => b.evaluation.total - a.evaluation.total)
+            .map((entry, idx) => ({
+              ...entry,
+              rank: idx + 1,
+            }))
+          const topEntry = topBuilds[0]!
           completedRows.push({
             candidate: { ...cand },
             status: 'ok',
             rank: null,
-            total: evalRes.result.total,
+            total: topEntry.evaluation.total,
             percentBehindLeader: null,
-            bestBuild: {
-              ...selectionForEval,
-              total: evalRes.result.total,
-            },
-            evaluation: evalRes.result,
+            bestBuild: topEntry.selection,
+            evaluation: topEntry.evaluation,
+            topBuilds,
             tested: optRes.tested,
             skipped: optRes.skipped,
             durationMs: optRes.durationMs,

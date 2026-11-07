@@ -17,19 +17,21 @@ import {
   TrashIcon,
 } from '@/components/SvgIcons'
 import { shortStatLabel } from '@/lib/itemMeta'
-import type {
-  ArtifactSlot,
-  BreakdownContributor,
-  BreakdownSourceCategory,
-  BuildSelection,
-  DamageRowBreakdown,
-  OptimizerSettings,
-  RotationResult,
-  StatBreakdown,
-  TeamOptimizeResult,
-  WeaponCompareCandidate,
-  WeaponCompareResult,
-  WeaponCompareRowResult,
+import {
+  WEAPON_COMPARE_TOP_N,
+  type ArtifactSlot,
+  type BreakdownContributor,
+  type BreakdownSourceCategory,
+  type BuildSelection,
+  type DamageRowBreakdown,
+  type OptimizerSettings,
+  type RotationResult,
+  type StatBreakdown,
+  type TeamOptimizeResult,
+  type WeaponCompareBuildEntry,
+  type WeaponCompareCandidate,
+  type WeaponCompareResult,
+  type WeaponCompareRowResult,
 } from '@gi/engine'
 import {
   ALL_SUBSTAT_KEYS,
@@ -1502,10 +1504,28 @@ export function rankWeaponComparisonRows(
           ? 0
           : Math.max(0, ((leaderTotal - rowTotal) / leaderTotal) * 100)
         : 0
+    const normalizedTopBuilds: WeaponCompareBuildEntry[] =
+      row.topBuilds && row.topBuilds.length > 0
+        ? row.topBuilds
+            .slice(0, WEAPON_COMPARE_TOP_N)
+            .map((entry, bIdx) => ({
+              ...entry,
+              rank: bIdx + 1,
+            }))
+        : row.bestBuild && row.evaluation
+          ? [
+              {
+                rank: 1,
+                selection: row.bestBuild,
+                evaluation: row.evaluation,
+              },
+            ]
+          : []
     return {
       ...row,
       rank: idx + 1,
       percentBehindLeader: pctBehind,
+      topBuilds: normalizedTopBuilds,
     }
   })
 
@@ -1516,6 +1536,7 @@ export function rankWeaponComparisonRows(
     percentBehindLeader: null,
     bestBuild: null,
     evaluation: null,
+    topBuilds: [],
   }))
 
   return {
@@ -1681,7 +1702,7 @@ export function WeaponComparisonPanel({
                   />
                   {cand.isEquippedBaseline ? (
                     <span
-                      className="comp-best-tag comp-baseline-tag"
+                      className="comp-baseline-tag"
                       data-testid={`weapon-compare-config-baseline-${cand.weaponKey}`}
                     >
                       Current Baseline
@@ -1867,7 +1888,7 @@ export function WeaponComparisonList({
                     <WeaponBadge weaponKey={wKey} subtitle={specSubtitle} />
                     {isBaseline && (
                       <span
-                        className="comp-best-tag comp-baseline-tag"
+                        className="comp-baseline-tag"
                         data-testid={`weapon-compare-baseline-badge-${wKey}`}
                       >
                         Current Baseline
@@ -1900,6 +1921,18 @@ export function WeaponComparisonList({
         const behindAscii = isLeader ? '0.0%' : `-${pctBehind.toFixed(1)}%`
         const stats = row.evaluation?.stats
         const selection = row.bestBuild
+        const topBuilds: WeaponCompareBuildEntry[] =
+          row.topBuilds && row.topBuilds.length > 0
+            ? row.topBuilds
+            : row.bestBuild && row.evaluation
+              ? [
+                  {
+                    rank: 1,
+                    selection: row.bestBuild,
+                    evaluation: row.evaluation,
+                  },
+                ]
+              : []
 
         return (
           <div
@@ -1942,7 +1975,7 @@ export function WeaponComparisonList({
                   <WeaponBadge weaponKey={wKey} subtitle={specSubtitle} />
                   {isBaseline && (
                     <span
-                      className="comp-best-tag comp-baseline-tag"
+                      className="comp-baseline-tag"
                       data-testid={`weapon-compare-baseline-badge-${wKey}`}
                     >
                       Current Baseline
@@ -2071,170 +2104,356 @@ export function WeaponComparisonList({
               )}
             </div>
 
-            {isExpanded && row.evaluation && selection && (
+            {isExpanded && topBuilds.length > 0 && (
               <div
                 className="comp-row-details"
                 data-testid={`weapon-compare-details-${wKey}`}
               >
                 <div className="comp-details-header">
                   <strong>
-                    Per-Instance Rotation Breakdown (Repeat ×
-                    {preset.rotation.repeat ?? 1})
+                    Top {topBuilds.length} Build
+                    {topBuilds.length === 1 ? '' : 's'} for {displayName(wKey)}{' '}
+                    (Repeat ×{preset.rotation.repeat ?? 1})
                   </strong>
-                  {onExportGO && (
-                    <button
-                      type="button"
-                      className="btn-secondary btn-icon"
-                      onClick={() =>
-                        onExportGO(selection, `weapon-${wKey.toLowerCase()}`)
-                      }
-                    >
-                      <DownloadIcon size={14} />
-                      <span>Verify GO (.json)</span>
-                    </button>
-                  )}
                 </div>
 
-                <div className="gi-table-wrap">
-                  <table className="gi-table">
-                    <thead>
-                      <tr>
-                        <th>Damage Instance</th>
-                        <th>Reaction</th>
-                        <th>Hit Mode</th>
-                        <th>Hits</th>
-                        <th>Per-Hit DMG</th>
-                        <th>Subtotal DMG</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {row.evaluation.instances.map((inst, idx) => {
-                        const targetSpec = preset.rotation.targets[idx]
-                        const instanceKey = `${wKey}:${idx}`
-                        const isInstExpanded =
-                          expandedInstanceKey === instanceKey
-                        return (
-                          <Fragment key={idx}>
-                            <tr
-                              data-testid={`weapon-compare-instance-row-${wKey}-${idx}`}
-                              className={
-                                inst.breakdown
-                                  ? 'comp-expandable-tr'
-                                  : undefined
-                              }
-                              onClick={
-                                inst.breakdown
-                                  ? () =>
-                                      setExpandedInstanceKey((prev) =>
-                                        prev === instanceKey
-                                          ? null
-                                          : instanceKey
-                                      )
-                                  : undefined
+                <div
+                  className="weapon-compare-top-builds"
+                  data-testid={`weapon-compare-top-builds-${wKey}`}
+                  role="list"
+                  aria-label={`Top builds for ${displayName(wKey)}`}
+                >
+                  {topBuilds.map((buildEntry, bIdx) => {
+                    const buildRank = buildEntry.rank || bIdx + 1
+                    const buildSelection = buildEntry.selection
+                    const buildEval = buildEntry.evaluation
+                    const buildTotal = buildEval.total
+                    const buildStats = buildEval.stats
+                    const isTopWeaponBuild = bIdx === 0
+                    const buildRowKey = isTopWeaponBuild
+                      ? wKey
+                      : `${wKey}-b${bIdx}`
+                    const buildPctBehindBest =
+                      total > 0 && !isTopWeaponBuild
+                        ? Math.max(0, ((total - buildTotal) / total) * 100)
+                        : 0
+                    const buildIsLeader =
+                      isTopWeaponBuild || buildPctBehindBest < 0.05
+                    const buildBehindText = buildIsLeader
+                      ? '0.0%'
+                      : `−${buildPctBehindBest.toFixed(1)}%`
+                    const buildBehindAscii = buildIsLeader
+                      ? '0.0%'
+                      : `-${buildPctBehindBest.toFixed(1)}%`
+                    const buildBarPct = Math.max(
+                      4,
+                      Math.min(100, (buildTotal / Math.max(total, 1)) * 100)
+                    )
+
+                    return (
+                      <div
+                        key={bIdx}
+                        role="listitem"
+                        className={`weapon-compare-build-card${
+                          isTopWeaponBuild ? ' is-best-build' : ''
+                        }`}
+                        data-testid={`weapon-compare-build-${wKey}-${bIdx}`}
+                        data-build-rank={String(buildRank)}
+                      >
+                        <div className="comp-row-main">
+                          <div className="comp-row-rank-group">
+                            <span
+                              className={`comp-rank-pill${
+                                isTopWeaponBuild ? ' comp-rank-best' : ''
+                              }`}
+                              data-testid={`weapon-compare-build-rank-${wKey}-${bIdx}`}
+                            >
+                              #{buildRank}
+                            </span>
+                            {isTopWeaponBuild && (
+                              <span
+                                className="comp-best-tag"
+                                data-testid={`weapon-compare-build-best-${wKey}`}
+                              >
+                                Best
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="comp-row-bar-wrap">
+                            <div
+                              className="comp-row-bar-track"
+                              title={`${formatNum(buildTotal)} Total Rotation DMG (${buildBarPct.toFixed(1)}% of weapon best)`}
+                            >
+                              <div
+                                className={`comp-row-bar-fill${
+                                  isTopWeaponBuild ? ' is-best' : ''
+                                }`}
+                                style={{ width: `${buildBarPct.toFixed(1)}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="comp-row-metrics">
+                            <strong
+                              className={`comp-row-total${
+                                isTopWeaponBuild ? ' ok' : ''
+                              }`}
+                              data-testid={`weapon-compare-build-total-${wKey}-${bIdx}`}
+                            >
+                              {formatNum(buildTotal)}
+                            </strong>
+                            <span
+                              className={`comp-row-delta ${
+                                buildIsLeader ? 'ok' : 'error'
+                              }`}
+                              data-testid={`weapon-compare-build-delta-${wKey}-${bIdx}`}
+                              data-delta-ascii={buildBehindAscii}
+                            >
+                              {buildBehindText}
+                            </span>
+                          </div>
+
+                          {onExportGO && (
+                            <button
+                              type="button"
+                              className="btn-secondary btn-icon"
+                              onClick={() =>
+                                onExportGO(
+                                  buildSelection,
+                                  isTopWeaponBuild
+                                    ? `weapon-${wKey.toLowerCase()}`
+                                    : `weapon-${wKey.toLowerCase()}-rank-${buildRank}`
+                                )
                               }
                             >
-                              <td>
-                                <span className="comp-stat-label-cell">
-                                  <strong>{inst.label}</strong>
-                                  {inst.breakdown && (
-                                    <button
-                                      type="button"
-                                      className="comp-inline-breakdown-btn"
-                                      data-testid={`weapon-compare-instance-toggle-${wKey}-${idx}`}
-                                      aria-expanded={isInstExpanded}
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setExpandedInstanceKey((prev) =>
-                                          prev === instanceKey
-                                            ? null
-                                            : instanceKey
-                                        )
-                                      }}
-                                    >
-                                      {isInstExpanded ? 'Formula ▲' : 'Formula ▼'}
-                                    </button>
-                                  )}
-                                </span>
-                              </td>
-                              <td>
-                                <RotationReactionBadge
-                                  reaction={targetSpec?.reaction}
+                              <DownloadIcon size={14} />
+                              <span>Verify GO (.json)</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="comp-row-meta">
+                          <div
+                            className="comp-row-artifacts"
+                            data-testid={`weapon-compare-build-artifacts-${wKey}-${bIdx}`}
+                            aria-label="Equipped artifacts"
+                          >
+                            {OPTIMIZE_SLOTS.map((slot) => {
+                              const artId = buildSelection.artifactIds[slot]
+                              const art = artId
+                                ? artifactById.get(artId)
+                                : undefined
+                              if (!art) {
+                                return (
+                                  <span
+                                    key={slot}
+                                    className="comp-empty-slot"
+                                    title={`No ${slot} equipped`}
+                                  >
+                                    <ArtifactBadge
+                                      setKey=""
+                                      slotKey={slot as IdentifierSlotKey}
+                                      rarity={1}
+                                      slotOnly
+                                      compact
+                                    />
+                                  </span>
+                                )
+                              }
+                              return (
+                                <ArtifactBadge
+                                  key={slot}
+                                  setKey={art.setKey}
+                                  slotKey={slot as IdentifierSlotKey}
+                                  rarity={art.rarity}
                                   compact
                                 />
-                              </td>
-                              <td>
-                                <RotationHitModeBadge
-                                  hitMode={targetSpec?.hitMode}
-                                  compact
-                                />
-                              </td>
-                              <td>×{inst.count}</td>
-                              <td>{formatNum(inst.perHit)}</td>
-                              <td>
-                                <strong>{formatNum(inst.subtotal)}</strong>
-                              </td>
-                            </tr>
-                            {isInstExpanded && inst.breakdown && (
-                              <tr
-                                className="comp-breakdown-tr"
-                                data-testid={`weapon-compare-instance-breakdown-row-${wKey}-${idx}`}
-                              >
-                                <td colSpan={6}>
-                                  <DamageRowBreakdownView
-                                    breakdown={inst.breakdown}
-                                    rowKey={wKey}
-                                    idx={idx}
+                              )
+                            })}
+                          </div>
+
+                          {buildStats && (
+                            <div
+                              className="comp-row-stats"
+                              data-testid={`weapon-compare-build-stats-${wKey}-${bIdx}`}
+                              aria-label="Final character stats"
+                            >
+                              {CORE_RESULT_STAT_KEYS.map((statKey) => {
+                                const rawVal = buildStats[statKey] ?? 0
+                                const isPct = statKey.endsWith('_')
+                                const chipVal = isPct
+                                  ? rawVal * 100
+                                  : Math.round(rawVal).toLocaleString()
+                                return (
+                                  <StatChip
+                                    key={statKey}
+                                    statKey={statKey}
+                                    value={chipVal}
+                                    compact
                                   />
-                                </td>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        <div
+                          className="comp-details-pieces"
+                          data-testid={`weapon-compare-build-pieces-${wKey}-${bIdx}`}
+                        >
+                          {OPTIMIZE_SLOTS.map((slot) => {
+                            const artId = buildSelection.artifactIds[slot]
+                            const art = artId
+                              ? artifactById.get(artId)
+                              : undefined
+                            if (!art) return null
+                            return (
+                              <ArtifactPieceRow
+                                key={slot}
+                                setKey={art.setKey}
+                                slotKey={art.slotKey as IdentifierSlotKey}
+                                rarity={art.rarity}
+                                level={art.level}
+                                mainStatKey={art.mainStatKey}
+                                substats={art.substats}
+                                location={art.location}
+                                lock={art.lock}
+                                compact
+                              />
+                            )
+                          })}
+                        </div>
+
+                        <div className="gi-table-wrap">
+                          <table className="gi-table">
+                            <thead>
+                              <tr>
+                                <th>Damage Instance</th>
+                                <th>Reaction</th>
+                                <th>Hit Mode</th>
+                                <th>Hits</th>
+                                <th>Per-Hit DMG</th>
+                                <th>Subtotal DMG</th>
                               </tr>
-                            )}
-                          </Fragment>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            </thead>
+                            <tbody>
+                              {buildEval.instances.map((inst, idx) => {
+                                const targetSpec = preset.rotation.targets[idx]
+                                const instanceKey = `${buildRowKey}:${idx}`
+                                const isInstExpanded =
+                                  expandedInstanceKey === instanceKey
+                                return (
+                                  <Fragment key={idx}>
+                                    <tr
+                                      data-testid={`weapon-compare-instance-row-${buildRowKey}-${idx}`}
+                                      className={
+                                        inst.breakdown
+                                          ? 'comp-expandable-tr'
+                                          : undefined
+                                      }
+                                      onClick={
+                                        inst.breakdown
+                                          ? () =>
+                                              setExpandedInstanceKey((prev) =>
+                                                prev === instanceKey
+                                                  ? null
+                                                  : instanceKey
+                                              )
+                                          : undefined
+                                      }
+                                    >
+                                      <td>
+                                        <span className="comp-stat-label-cell">
+                                          <strong>{inst.label}</strong>
+                                          {inst.breakdown && (
+                                            <button
+                                              type="button"
+                                              className="comp-inline-breakdown-btn"
+                                              data-testid={`weapon-compare-instance-toggle-${buildRowKey}-${idx}`}
+                                              aria-expanded={isInstExpanded}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                setExpandedInstanceKey((prev) =>
+                                                  prev === instanceKey
+                                                    ? null
+                                                    : instanceKey
+                                                )
+                                              }}
+                                            >
+                                              {isInstExpanded
+                                                ? 'Formula ▲'
+                                                : 'Formula ▼'}
+                                            </button>
+                                          )}
+                                        </span>
+                                      </td>
+                                      <td>
+                                        <RotationReactionBadge
+                                          reaction={targetSpec?.reaction}
+                                          compact
+                                        />
+                                      </td>
+                                      <td>
+                                        <RotationHitModeBadge
+                                          hitMode={targetSpec?.hitMode}
+                                          compact
+                                        />
+                                      </td>
+                                      <td>×{inst.count}</td>
+                                      <td>{formatNum(inst.perHit)}</td>
+                                      <td>
+                                        <strong>
+                                          {formatNum(inst.subtotal)}
+                                        </strong>
+                                      </td>
+                                    </tr>
+                                    {isInstExpanded && inst.breakdown && (
+                                      <tr
+                                        className="comp-breakdown-tr"
+                                        data-testid={`weapon-compare-instance-breakdown-row-${buildRowKey}-${idx}`}
+                                      >
+                                        <td colSpan={6}>
+                                          <DamageRowBreakdownView
+                                            breakdown={inst.breakdown}
+                                            rowKey={buildRowKey}
+                                            idx={idx}
+                                          />
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </Fragment>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
 
-                {row.evaluation.stats && (
-                  <BuildStatComparisonSection
-                    rowKey={wKey}
-                    stats={row.evaluation.stats}
-                    statBreakdowns={row.evaluation.statBreakdowns}
-                    baselineStats={effectiveBaselineStats}
-                    isCurrentBuild={
-                      currentBuild !== undefined
-                        ? Boolean(
-                            currentBuild &&
-                              (row.evaluation === currentBuild.evaluation ||
-                                row.bestBuild === currentBuild.selection)
-                          )
-                        : isBaseline
-                    }
-                    expandedStatKey={expandedStatKey}
-                    onToggleStatKey={(key) =>
-                      setExpandedStatKey((prev) => (prev === key ? null : key))
-                    }
-                  />
-                )}
-
-                <div className="comp-details-pieces">
-                  {OPTIMIZE_SLOTS.map((slot) => {
-                    const artId = selection.artifactIds[slot]
-                    const art = artId ? artifactById.get(artId) : undefined
-                    if (!art) return null
-                    return (
-                      <ArtifactPieceRow
-                        key={slot}
-                        setKey={art.setKey}
-                        slotKey={art.slotKey as IdentifierSlotKey}
-                        rarity={art.rarity}
-                        level={art.level}
-                        mainStatKey={art.mainStatKey}
-                        substats={art.substats}
-                        location={art.location}
-                        lock={art.lock}
-                        compact
-                      />
+                        {buildStats && (
+                          <BuildStatComparisonSection
+                            rowKey={buildRowKey}
+                            stats={buildStats}
+                            statBreakdowns={buildEval.statBreakdowns}
+                            baselineStats={effectiveBaselineStats}
+                            isCurrentBuild={
+                              currentBuild !== undefined
+                                ? Boolean(
+                                    currentBuild &&
+                                      (buildEval === currentBuild.evaluation ||
+                                        buildSelection ===
+                                          currentBuild.selection)
+                                  )
+                                : isBaseline && isTopWeaponBuild
+                            }
+                            expandedStatKey={expandedStatKey}
+                            onToggleStatKey={(key) =>
+                              setExpandedStatKey((prev) =>
+                                prev === key ? null : key
+                              )
+                            }
+                          />
+                        )}
+                      </div>
                     )
                   })}
                 </div>

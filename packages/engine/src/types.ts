@@ -188,6 +188,17 @@ export interface WeaponCompareCandidate {
   isEquippedBaseline?: boolean
 }
 
+export const WEAPON_COMPARE_TOP_N = 5
+
+export interface WeaponCompareBuildEntry {
+  /** 1-based rank of this build for the weapon (1..5) */
+  rank: number
+  /** Build selection (including weaponOverride and artifactIds) with total rotation damage */
+  selection: BuildSelection & { total: number }
+  /** Full rotation evaluation (instances + final stats) for this build */
+  evaluation: RotationResult
+}
+
 export interface WeaponCompareRowResult {
   /** Candidate weapon specification used for this run */
   candidate: WeaponCompareCandidate
@@ -203,6 +214,8 @@ export interface WeaponCompareRowResult {
   bestBuild: (BuildSelection & { total: number }) | null
   /** Full rotation evaluation (instances + final stats) for the best build, or null if 'unmet' */
   evaluation: RotationResult | null
+  /** Ranked top builds (up to WEAPON_COMPARE_TOP_N = 5) for this weapon, or [] if 'unmet' */
+  topBuilds?: WeaponCompareBuildEntry[]
   /** Number of builds tested for this weapon */
   tested: number
   /** Number of builds pruned/skipped for this weapon */
