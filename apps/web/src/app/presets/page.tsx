@@ -9,6 +9,10 @@ import {
   WeaponBadge,
 } from '@/components/Identifier'
 import {
+  CharacterTilePicker,
+  WeaponTilePicker,
+} from '@/components/TilePickers'
+import {
   CopyIcon,
   GearIcon,
   PlayIcon,
@@ -27,7 +31,6 @@ import {
   matchAccount,
 } from '@gi/presets/src/match'
 import {
-  formatRarityStars,
   getCharacterMeta,
   getWeaponMeta,
   listWeaponsForType,
@@ -182,44 +185,47 @@ export default function PresetsPage() {
       )}
 
       {/* Filter Bar */}
-      <div className="panel presets-filter-bar">
-        <label className="presets-filter-label">
-          <span className="muted">Source:</span>
-          <select
-            aria-label="Filter presets by source"
-            value={sourceFilter}
-            onChange={(e) =>
-              setSourceFilter(e.target.value as 'all' | PresetSource)
-            }
-          >
-            <option value="all">All Sources ({allPresets.length})</option>
-            <option value="akasha">Akasha Leaderboard Presets</option>
-            <option value="official">Official Meta Presets</option>
-            <option value="user">
-              Custom User Presets ({userPresets.length})
-            </option>
-          </select>
-        </label>
-
-        <label className="presets-filter-label">
-          <span className="muted">Target Character:</span>
-          <select
-            aria-label="Filter presets by target character"
-            value={targetFilter}
-            onChange={(e) => setTargetFilter(e.target.value)}
-          >
-            <option value="">All Characters</option>
-            {availableTargets.map((ck) => (
-              <option key={ck} value={ck}>
-                {displayName(ck)}
+      <div className="panel presets-filter-bar" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <label className="presets-filter-label">
+            <span className="muted">Source:</span>
+            <select
+              aria-label="Filter presets by source"
+              value={sourceFilter}
+              onChange={(e) =>
+                setSourceFilter(e.target.value as 'all' | PresetSource)
+              }
+            >
+              <option value="all">All Sources ({allPresets.length})</option>
+              <option value="akasha">Akasha Leaderboard Presets</option>
+              <option value="official">Official Meta Presets</option>
+              <option value="user">
+                Custom User Presets ({userPresets.length})
               </option>
-            ))}
-          </select>
-        </label>
+            </select>
+          </label>
 
-        <span className="muted presets-count">
-          Showing {filteredPresets.length} presets
-        </span>
+          <span className="muted presets-count">
+            Showing {filteredPresets.length} presets
+          </span>
+        </div>
+
+        <div className="gi-field-label">
+          <span className="muted">Target Character:</span>
+          <CharacterTilePicker
+            ariaLabel="Filter presets by target character"
+            value={targetFilter}
+            searchable={false}
+            options={[
+              { key: '', label: 'All Characters' },
+              ...availableTargets.map((ck) => ({
+                key: ck,
+                label: displayName(ck),
+              })),
+            ]}
+            onChange={(nextKey) => setTargetFilter(nextKey)}
+          />
+        </div>
       </div>
 
       {/* Master-Detail Split */}
@@ -473,33 +479,6 @@ export default function PresetsPage() {
                   />
 
                   <label className="presets-filter-label-sm">
-                    <span className="muted">Simulated Weapon:</span>
-                    <select
-                      aria-label="Akasha Simulated Weapon"
-                      value={activeAkashaChoice.key}
-                      onChange={(e) => {
-                        const nextKey = e.target.value
-                        const meta = getWeaponMeta(nextKey)
-                        const nextRef =
-                          meta.rarity <= 2 ? 1 : activeAkashaChoice.refinement
-                        setAkashaWeaponChoices((prev) => ({
-                          ...prev,
-                          [activePreset.id]: {
-                            key: nextKey,
-                            refinement: nextRef,
-                          },
-                        }))
-                      }}
-                    >
-                      {availableAkashaWeapons.map((w) => (
-                        <option key={w.key} value={w.key}>
-                          {w.displayName} {formatRarityStars(w.rarity)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="presets-filter-label-sm">
                     <span className="muted">Refinement:</span>
                     <select
                       aria-label="Akasha Weapon Refinement"
@@ -523,6 +502,28 @@ export default function PresetsPage() {
                     </select>
                   </label>
                 </div>
+
+                <WeaponTilePicker
+                  ariaLabel="Akasha Simulated Weapon"
+                  value={activeAkashaChoice.key}
+                  options={availableAkashaWeapons.map((w) => ({
+                    id: w.key,
+                    weaponKey: w.key,
+                    label: w.displayName,
+                  }))}
+                  onChange={(nextKey) => {
+                    const meta = getWeaponMeta(nextKey)
+                    const nextRef =
+                      meta.rarity <= 2 ? 1 : activeAkashaChoice.refinement
+                    setAkashaWeaponChoices((prev) => ({
+                      ...prev,
+                      [activePreset.id]: {
+                        key: nextKey,
+                        refinement: nextRef,
+                      },
+                    }))
+                  }}
+                />
               </div>
             ) : (
               <div className="preset-match-box">
@@ -553,33 +554,37 @@ export default function PresetsPage() {
                           {part.part === 'weapon' &&
                             part.candidates &&
                             part.candidates.length > 0 && (
-                              <div className="preset-match-candidates">
+                              <div
+                                className="preset-match-candidates"
+                                style={{ marginTop: '0.4rem', width: '100%' }}
+                              >
                                 <span className="muted">
                                   Qualifying copy in your inventory:
                                 </span>
-                                <select
-                                  aria-label="Qualifying weapon copy in your inventory"
-                                  value={activeWeaponOverride ?? ''}
-                                  onChange={(e) =>
+                                <WeaponTilePicker
+                                  ariaLabel="Qualifying weapon copy in your inventory"
+                                  value={
+                                    activeWeaponOverride ||
+                                    activeMatch.selectedWeaponId ||
+                                    part.candidates[0]!.id
+                                  }
+                                  options={part.candidates.map((cand) => ({
+                                    id: cand.id,
+                                    weaponKey: cand.key,
+                                    label: displayName(cand.key),
+                                    subcaption: `R${cand.refinement} Lv.${cand.level} ${
+                                      cand.location
+                                        ? `(${displayName(cand.location)})`
+                                        : '(in inventory)'
+                                    }`,
+                                  }))}
+                                  onChange={(nextId) =>
                                     setSelectedWeapons((prev) => ({
                                       ...prev,
-                                      [activePreset.id]: e.target.value,
+                                      [activePreset.id]: nextId,
                                     }))
                                   }
-                                >
-                                  <option value="">
-                                    — Select owned weapon copy —
-                                  </option>
-                                  {part.candidates.map((cand) => (
-                                    <option key={cand.id} value={cand.id}>
-                                      {displayName(cand.key)} R{cand.refinement}{' '}
-                                      Lv.{cand.level}{' '}
-                                      {cand.location
-                                        ? `(on ${displayName(cand.location)})`
-                                        : '(in inventory)'}
-                                    </option>
-                                  ))}
-                                </select>
+                                />
                               </div>
                             )}
                         </li>

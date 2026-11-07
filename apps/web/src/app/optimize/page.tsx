@@ -10,6 +10,11 @@ import {
   type ComparisonBuildEntry,
 } from '@/components/OptimizeViews'
 import {
+  CharacterTilePicker,
+  PresetTilePicker,
+  WeaponTilePicker,
+} from '@/components/TilePickers'
+import {
   DownloadIcon,
   GearIcon,
   PlayIcon,
@@ -38,9 +43,7 @@ import type {
 import { type IArtifact } from '@gi/good'
 import {
   displayName,
-  formatRarityStars,
   getCharacterMeta,
-  getPresetBadge,
   getWeaponMeta,
   listBundledPresets,
   listWeaponsForType,
@@ -94,7 +97,6 @@ function OptimizeInner() {
     }
     return {}
   })
-  const [excludeCharInput, setExcludeCharInput] = useState<string>('')
 
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState<OptimizeProgress | null>(null)
@@ -522,28 +524,20 @@ function OptimizeInner() {
 
         {/* Preset Selector & Team Roster */}
         <div className="gi-setup-grid">
-          <label className="gi-field-label" style={{ gridColumn: '1 / -1' }}>
+          <div className="gi-field-label" style={{ gridColumn: '1 / -1' }}>
             <span className="muted">Rotation Preset</span>
-            <select
-              aria-label="Preset"
+            <PresetTilePicker
+              presets={allPresets}
               value={activePreset?.id ?? ''}
-              onChange={(e) => {
-                setSelectedPresetId(e.target.value)
+              ariaLabel="Preset"
+              onChange={(nextId) => {
+                setSelectedPresetId(nextId)
                 setSelectedWeaponId('')
                 setOptResult(null)
                 setOptimisedEvals([])
               }}
-            >
-              {allPresets.map((p) => {
-                const b = getPresetBadge(p)
-                return (
-                  <option key={p.id} value={p.id}>
-                    [{b.label}] {p.name} (Target: {displayName(p.target)})
-                  </option>
-                )
-              })}
-            </select>
-          </label>
+            />
+          </div>
         </div>
 
         {activePreset && (
@@ -599,35 +593,6 @@ function OptimizeInner() {
                 />
 
                 <label className="presets-filter-label-sm">
-                  <span className="muted">Weapon:</span>
-                  <select
-                    aria-label="Simulated Weapon"
-                    value={akashaWeaponSpec.key}
-                    onChange={(e) => {
-                      const nextKey = e.target.value
-                      const meta = getWeaponMeta(nextKey)
-                      const nextRef =
-                        meta.rarity <= 2 ? 1 : akashaWeaponSpec.refinement
-                      setAkashaWeaponByPreset((prev) => ({
-                        ...prev,
-                        [activePreset.id]: {
-                          key: nextKey,
-                          refinement: nextRef,
-                        },
-                      }))
-                      setOptResult(null)
-                      setOptimisedEvals([])
-                    }}
-                  >
-                    {availableAkashaWeapons.map((w) => (
-                      <option key={w.key} value={w.key}>
-                        {w.displayName} {formatRarityStars(w.rarity)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="presets-filter-label-sm">
                   <span className="muted">Refinement:</span>
                   <select
                     aria-label="Weapon Refinement"
@@ -654,6 +619,30 @@ function OptimizeInner() {
                   </select>
                 </label>
               </div>
+
+              <WeaponTilePicker
+                ariaLabel="Simulated Weapon"
+                value={akashaWeaponSpec.key}
+                options={availableAkashaWeapons.map((w) => ({
+                  id: w.key,
+                  weaponKey: w.key,
+                  label: w.displayName,
+                }))}
+                onChange={(nextKey) => {
+                  const meta = getWeaponMeta(nextKey)
+                  const nextRef =
+                    meta.rarity <= 2 ? 1 : akashaWeaponSpec.refinement
+                  setAkashaWeaponByPreset((prev) => ({
+                    ...prev,
+                    [activePreset.id]: {
+                      key: nextKey,
+                      refinement: nextRef,
+                    },
+                  }))
+                  setOptResult(null)
+                  setOptimisedEvals([])
+                }}
+              />
             </div>
           )}
 
@@ -683,30 +672,30 @@ function OptimizeInner() {
                   {pt.part === 'weapon' &&
                     pt.candidates &&
                     pt.candidates.length > 0 && (
-                      <span className="preset-match-candidates">
-                        <WeaponBadge
-                          weaponKey={pt.candidates[0]!.key}
-                          compact
+                      <div
+                        className="preset-match-candidates"
+                        style={{ marginTop: '0.4rem', width: '100%' }}
+                      >
+                        <WeaponTilePicker
+                          ariaLabel="Qualifying Weapon Copy"
+                          value={
+                            selectedWeaponId ||
+                            matchReport.selectedWeaponId ||
+                            pt.candidates[0]!.id
+                          }
+                          options={pt.candidates.map((cand) => ({
+                            id: cand.id,
+                            weaponKey: cand.key,
+                            label: displayName(cand.key),
+                            subcaption: `R${cand.refinement} Lv.${cand.level} ${
+                              cand.location
+                                ? `(${displayName(cand.location)})`
+                                : '(Inventory)'
+                            }`,
+                          }))}
+                          onChange={(nextId) => setSelectedWeaponId(nextId)}
                         />
-                        <select
-                          aria-label="Qualifying Weapon Copy"
-                          value={selectedWeaponId}
-                          onChange={(e) => setSelectedWeaponId(e.target.value)}
-                        >
-                          <option value="">
-                            — Select qualifying copy from inventory —
-                          </option>
-                          {pt.candidates.map((cand) => (
-                            <option key={cand.id} value={cand.id}>
-                              {displayName(cand.key)} R{cand.refinement} Lv.
-                              {cand.level}{' '}
-                              {cand.location
-                                ? `(on ${displayName(cand.location)})`
-                                : '(Inventory)'}
-                            </option>
-                          ))}
-                        </select>
-                      </span>
+                      </div>
                     )}
                 </li>
               ))}
@@ -847,81 +836,33 @@ function OptimizeInner() {
               className="muted"
               style={{ fontSize: '0.84rem', marginBottom: '0.4rem' }}
             >
-              Protected Characters (keep their equipped artifacts):
+              Protected Characters (click a tile to keep/release their equipped
+              artifacts):
             </div>
-            <div className="preset-gear-row">
-              <select
-                aria-label="Protect character"
-                value={excludeCharInput}
-                onChange={(e) => setExcludeCharInput(e.target.value)}
-              >
-                <option value="">— Add character to protect —</option>
-                {(record?.good.characters ?? []).map((c) => (
-                  <option key={c.key} value={c.key}>
-                    {displayName(c.key)}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={!excludeCharInput}
-                onClick={() => {
-                  if (
-                    excludeCharInput &&
-                    !settings.excludedCharacters.includes(excludeCharInput)
-                  ) {
-                    void updateSettings({
-                      ...settings,
-                      excludedCharacters: [
-                        ...settings.excludedCharacters,
-                        excludeCharInput,
-                      ],
-                    })
-                    setExcludeCharInput('')
-                  }
+            {(record?.good.characters ?? []).length > 0 ? (
+              <CharacterTilePicker
+                ariaLabel="Protect character"
+                selectedKeys={settings.excludedCharacters}
+                options={(record?.good.characters ?? []).map((c) => ({
+                  key: c.key,
+                  label: displayName(c.key),
+                  subcaption: settings.excludedCharacters.includes(c.key)
+                    ? 'Protected'
+                    : `Lv.${c.level} C${c.constellation}`,
+                }))}
+                onChange={(ck) => {
+                  const isProtected = settings.excludedCharacters.includes(ck)
+                  void updateSettings({
+                    ...settings,
+                    excludedCharacters: isProtected
+                      ? settings.excludedCharacters.filter((x) => x !== ck)
+                      : [...settings.excludedCharacters, ck],
+                  })
                 }}
-              >
-                Protect
-              </button>
-            </div>
-            {settings.excludedCharacters.length > 0 && (
-              <div
-                className="preset-gear-row"
-                style={{ marginTop: '0.5rem' }}
-              >
-                {settings.excludedCharacters.map((ck) => (
-                  <span
-                    key={ck}
-                    style={{
-                      background: '#232838',
-                      border: '1px solid var(--border)',
-                      padding: '0.18rem 0.45rem',
-                      borderRadius: '6px',
-                      fontSize: '0.82rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                    }}
-                  >
-                    <CharacterBadge characterKey={ck} compact />
-                    <button
-                      type="button"
-                      className="btn-ghost-sm"
-                      aria-label={`Unprotect ${displayName(ck)}`}
-                      onClick={() =>
-                        void updateSettings({
-                          ...settings,
-                          excludedCharacters:
-                            settings.excludedCharacters.filter((x) => x !== ck),
-                        })
-                      }
-                      style={{ padding: '0 0.25rem' }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
+              />
+            ) : (
+              <div className="muted" style={{ fontSize: '0.82rem' }}>
+                Import a GOOD file to select characters to protect.
               </div>
             )}
           </div>

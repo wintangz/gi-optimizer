@@ -7,6 +7,11 @@ import {
   ElementBadge,
   WeaponBadge,
 } from '@/components/Identifier'
+import {
+  ArtifactSetTilePicker,
+  CharacterTilePicker,
+  WeaponTilePicker,
+} from '@/components/TilePickers'
 import { SkeletonBlock, Spinner } from '@/components/Loading'
 import {
   CopyIcon,
@@ -38,7 +43,6 @@ import {
   defaultTcBuildForCharacter,
   displayName,
   forkPresetToUser,
-  formatRarityStars,
   generateUserPresetId,
   getBundledPreset,
   getPresetBadge,
@@ -818,16 +822,6 @@ function TeamsInner() {
           {draft.team.length < 4 && (
             <div className="preset-gear-row-md">
               <CharacterBadge characterKey={newMemberKey} compact />
-              <select
-                value={newMemberKey}
-                onChange={(e) => setNewMemberKey(e.target.value)}
-              >
-                {ALL_CHARACTER_KEYS.map((ck) => (
-                  <option key={ck} value={ck}>
-                    {displayName(ck)}
-                  </option>
-                ))}
-              </select>
               <button
                 type="button"
                 className="btn-secondary"
@@ -838,6 +832,24 @@ function TeamsInner() {
             </div>
           )}
         </div>
+
+        {draft.team.length < 4 && (
+          <div className="gi-field-label">
+            <span className="muted">
+              Select a character tile to add as a simulated teammate:
+            </span>
+            <CharacterTilePicker
+              ariaLabel="Teammate character"
+              value={newMemberKey}
+              options={ALL_CHARACTER_KEYS.map((ck) => ({
+                key: ck,
+                label: displayName(ck),
+                disabled: draft.team.some((m) => m.key === ck),
+              }))}
+              onChange={(nextKey) => setNewMemberKey(nextKey)}
+            />
+          </div>
+        )}
 
         <div className="gi-team-grid">
           {draft.team.map((member, idx) => {
@@ -891,7 +903,7 @@ function TeamsInner() {
                 />
 
                 {isTarget ? (
-                  <label
+                  <div
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -901,17 +913,16 @@ function TeamsInner() {
                     <span className="muted" style={{ fontSize: '0.82rem' }}>
                       Change Target Character
                     </span>
-                    <select
+                    <CharacterTilePicker
+                      ariaLabel="Target character"
                       value={member.key}
-                      onChange={(e) => void handleTargetChange(e.target.value)}
-                    >
-                      {ALL_CHARACTER_KEYS.map((ck) => (
-                        <option key={ck} value={ck}>
-                          {displayName(ck)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      options={ALL_CHARACTER_KEYS.map((ck) => ({
+                        key: ck,
+                        label: displayName(ck),
+                      }))}
+                      onChange={(nextKey) => void handleTargetChange(nextKey)}
+                    />
+                  </div>
                 ) : (
                   <div>
                     <div style={{ marginTop: '0.15rem' }}>
@@ -1003,24 +1014,23 @@ function TeamsInner() {
                         compact
                         subtitle={`R${member.build.tc.weapon.refinement}`}
                       />
-                      <select
+                      <WeaponTilePicker
+                        ariaLabel="Assumed Weapon"
                         value={member.build.tc.weapon.key}
-                        onChange={(e) =>
+                        options={ALL_WEAPON_KEYS.map((wk) => {
+                          const wm = getWeaponMeta(wk)
+                          return {
+                            id: wk,
+                            weaponKey: wk,
+                            label: wm.displayName,
+                          }
+                        })}
+                        onChange={(nextKey) =>
                           updateTcMember(idx, (tc) => {
-                            tc.weapon.key = e.target.value as never
+                            tc.weapon.key = nextKey as never
                           })
                         }
-                        style={{ width: '100%' }}
-                      >
-                        {ALL_WEAPON_KEYS.map((wk) => {
-                          const wm = getWeaponMeta(wk)
-                          return (
-                            <option key={wk} value={wk}>
-                              {wm.displayName} {formatRarityStars(wm.rarity)}
-                            </option>
-                          )
-                        })}
-                      </select>
+                      />
                     </div>
 
                     <div
@@ -1042,26 +1052,21 @@ function TeamsInner() {
                           subtitle="(4p)"
                         />
                       )}
-                      <select
+                      <ArtifactSetTilePicker
+                        ariaLabel="Assumed 4-Piece Artifact Set"
+                        setKeys={ALL_ARTIFACT_SET_KEYS}
+                        allowNone
                         value={
                           Object.keys(member.build.tc.artifact.sets)[0] ?? ''
                         }
-                        onChange={(e) =>
+                        onChange={(nextSetKey) =>
                           updateTcMember(idx, (tc) => {
-                            tc.artifact.sets = e.target.value
-                              ? { [e.target.value]: 4 }
+                            tc.artifact.sets = nextSetKey
+                              ? { [nextSetKey]: 4 }
                               : {}
                           })
                         }
-                        style={{ width: '100%' }}
-                      >
-                        <option value="">— No 4p Set —</option>
-                        {ALL_ARTIFACT_SET_KEYS.map((sk) => (
-                          <option key={sk} value={sk}>
-                            {displayName(sk)} (4p)
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
                   </div>
                 )}

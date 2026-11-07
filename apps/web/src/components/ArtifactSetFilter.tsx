@@ -1,7 +1,11 @@
 'use client'
 
-import { ArtifactBadge } from '@/components/Identifier'
-import { FunnelIcon } from '@/components/SvgIcons'
+import { FunnelIcon, SetEmblemIcon } from '@/components/SvgIcons'
+import {
+  getArtifactMeta,
+  getCdnArtifactIconUrl,
+  getRarityColor,
+} from '@/lib/itemMeta'
 import {
   ALL_ARTIFACT_SET_KEYS,
   clearSets,
@@ -59,6 +63,9 @@ export function ArtifactSetFilter({
   allSetKeys = ALL_ARTIFACT_SET_KEYS,
 }: ArtifactSetFilterProps) {
   const [search, setSearch] = useState('')
+  const [failedKeys, setFailedKeys] = useState<Record<string, boolean>>({})
+  const rc5 = getRarityColor(5)
+  const imageSize = 56
 
   const { mode, selection } = useMemo(
     () => resolveEffectiveSetFilter(settings),
@@ -257,26 +264,21 @@ export function ArtifactSetFilter({
         </div>
       </div>
 
-      {/* Searchable Checkbox Grid */}
+      {/* Image-Led Artifact Set Tile Grid (flower piece icon on 5★ rarity background) */}
       <div
         role="group"
         aria-label="Artifact sets"
-        style={{
-          maxHeight: '240px',
-          overflowY: 'auto',
-          border: '1px solid var(--border)',
-          borderRadius: 6,
-          padding: '0.4rem',
-          background: '#151822',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.3rem',
-        }}
+        className="tile-picker-grid"
       >
         {filteredSetKeys.length === 0 ? (
           <div
             className="muted"
-            style={{ fontSize: '0.8rem', padding: '0.4rem', textAlign: 'center' }}
+            style={{
+              gridColumn: '1 / -1',
+              fontSize: '0.8rem',
+              padding: '0.4rem',
+              textAlign: 'center',
+            }}
           >
             No artifact sets match &ldquo;{search}&rdquo;.
           </div>
@@ -285,48 +287,68 @@ export function ArtifactSetFilter({
             const pieces = normalizePieceCounts(selection[sk])
             const checked = pieces.length > 0
             const activePieceKey = checked ? piecesToOptionKey(pieces) : 'both'
+            const meta = getArtifactMeta({
+              setKey: sk,
+              slotKey: 'flower',
+              rarity: 5,
+            })
+            const imageFailed = Boolean(failedKeys[sk])
+            const iconUrl = getCdnArtifactIconUrl(sk, 'flower')
+
             return (
-              <div
-                key={sk}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '0.4rem',
-                  padding: '0.25rem 0.4rem',
-                  borderRadius: 5,
-                  border: checked
-                    ? '1px solid rgba(122, 162, 255, 0.4)'
-                    : '1px solid transparent',
-                  background: checked
-                    ? 'rgba(122, 162, 255, 0.08)'
-                    : 'transparent',
-                }}
-              >
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.45rem',
-                    cursor: 'pointer',
-                    minWidth: 0,
-                    flex: 1,
-                  }}
+              <div key={sk} className="tile-picker-cell">
+                <button
+                  type="button"
+                  data-testid={`artifact-set-tile-${sk}`}
+                  data-artifact-set={sk}
+                  data-selected={checked ? 'true' : 'false'}
+                  aria-pressed={checked}
+                  aria-label={displayName(sk)}
+                  title={meta.setDisplayName}
+                  className={`tile-picker-item${checked ? ' is-selected' : ''}`}
+                  onClick={() => handleToggleSet(sk)}
                 >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    aria-label={displayName(sk)}
-                    onChange={() => handleToggleSet(sk)}
-                  />
-                  <ArtifactBadge setKey={sk} compact />
-                </label>
+                  <span
+                    className="tile-picker-frame"
+                    style={{
+                      width: `${imageSize}px`,
+                      height: `${imageSize}px`,
+                      background: rc5.bg,
+                      color: rc5.fg,
+                      border: `1px solid ${rc5.border}`,
+                    }}
+                  >
+                    {imageFailed ? (
+                      <SetEmblemIcon size={26} />
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={iconUrl}
+                        alt={meta.setDisplayName}
+                        width={imageSize}
+                        height={imageSize}
+                        loading="lazy"
+                        decoding="async"
+                        onError={() =>
+                          setFailedKeys((prev) => ({
+                            ...prev,
+                            [sk]: true,
+                          }))
+                        }
+                        className="tile-picker-img"
+                      />
+                    )}
+                  </span>
+                  <span className="tile-picker-caption">
+                    {meta.setShortName}
+                  </span>
+                </button>
 
                 {checked && (
                   <div
                     role="group"
                     aria-label={`${displayName(sk)} piece count`}
-                    style={{ display: 'inline-flex', gap: '0.2rem', flexShrink: 0 }}
+                    className="tile-picker-pieces"
                   >
                     {PIECE_OPTIONS.map((pOpt) => {
                       const isPieceActive = activePieceKey === pOpt.key
@@ -336,10 +358,8 @@ export function ArtifactSetFilter({
                           type="button"
                           aria-pressed={isPieceActive}
                           onClick={() => handlePieceChange(sk, pOpt.pieces)}
+                          className="tile-picker-piece-btn"
                           style={{
-                            fontSize: '0.68rem',
-                            padding: '0.12rem 0.35rem',
-                            borderRadius: 4,
                             fontWeight: isPieceActive ? 700 : 500,
                             borderColor: isPieceActive
                               ? 'var(--accent)'
@@ -366,4 +386,3 @@ export function ArtifactSetFilter({
     </div>
   )
 }
-

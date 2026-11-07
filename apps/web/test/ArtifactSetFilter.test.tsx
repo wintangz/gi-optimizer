@@ -3,8 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { ArtifactSetFilter } from '../src/components/ArtifactSetFilter'
 
-describe('ArtifactSetFilter Component (artifact-set-filter)', () => {
-  it('renders mode switcher, search, bulk actions, checkbox grid, and summary line in "all" mode', () => {
+describe('ArtifactSetFilter Component (artifact-set-filter & image-led-pickers)', () => {
+  it('renders mode switcher, search, bulk actions, image-led flower-icon tile grid, and summary line in "all" mode', () => {
     const html = renderToStaticMarkup(
       <ArtifactSetFilter
         settings={DEFAULT_OPTIMIZER_SETTINGS}
@@ -23,9 +23,14 @@ describe('ArtifactSetFilter Component (artifact-set-filter)', () => {
     expect(html).toContain('>Clear<')
     expect(html).toContain('>Invert<')
     expect(html).toContain('aria-label="Artifact sets"')
+    expect(html).toContain('class="tile-picker-grid"')
+    expect(html).toContain(
+      'src="https://res.cloudinary.com/ddietgxw8/image/upload/f_auto,q_auto/Genshin/GoldenTroupe-flower.png"'
+    )
+    expect(html).not.toContain('type="checkbox"')
   })
 
-  it('renders checked sets with 2pc/4pc/Both piece-count controls in "exclude" mode', () => {
+  it('renders checked sets with selected tile ring and 2pc/4pc/Both piece-count controls in "exclude" mode', () => {
     const html = renderToStaticMarkup(
       <ArtifactSetFilter
         settings={{
