@@ -227,7 +227,7 @@ describe('Stat Constraints Settings & Normalization (stat-constraints)', () => {
     expect(
       normalizeStatConstraintValue(
         'enerRech_',
-        migratedDecimal.constraints[0]?.min
+        migratedDecimal.constraints?.[0]?.min
       )
     ).toBeCloseTo(1.6)
 
@@ -243,7 +243,7 @@ describe('Stat Constraints Settings & Normalization (stat-constraints)', () => {
     expect(
       normalizeStatConstraintValue(
         'enerRech_',
-        migratedDisplay.constraints[0]?.min
+        migratedDisplay.constraints?.[0]?.min
       )
     ).toBeCloseTo(1.6)
 

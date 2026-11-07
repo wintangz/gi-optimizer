@@ -155,13 +155,37 @@ function OptimizeInner() {
         refinement: wMeta.rarity <= 2 ? 1 : chosen.refinement,
       }
     }
+    if (record?.good) {
+      const charExists = record.good.characters.some(
+        (c) => c.key === activePreset.target
+      )
+      if (charExists) {
+        const targetWeaponType = getCharacterMeta(
+          activePreset.target
+        ).weaponType
+        const equipped = record.good.weapons.find(
+          (w) =>
+            w.location === activePreset.target &&
+            getWeaponMeta(w.key).weaponType === targetWeaponType
+        )
+        if (equipped) {
+          const wMeta = getWeaponMeta(equipped.key)
+          return {
+            key: equipped.key,
+            level: wMeta.rarity <= 2 ? 70 : 90,
+            ascension: wMeta.rarity <= 2 ? 4 : 6,
+            refinement: wMeta.rarity <= 2 ? 1 : equipped.refinement,
+          }
+        }
+      }
+    }
     return {
       key: defaultW.key,
       level: defaultW.level,
       ascension: defaultW.ascension,
       refinement: defaultW.refinement,
     }
-  }, [activePreset, akashaWeaponByPreset])
+  }, [activePreset, akashaWeaponByPreset, record])
 
   const availableAkashaWeapons = useMemo(() => {
     if (!activePreset || !isAkashaPreset) return []

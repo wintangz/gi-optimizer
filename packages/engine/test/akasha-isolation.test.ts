@@ -375,4 +375,113 @@ describe('Akasha Artifact-Only Mode & Teammate Isolation (akasha-artifact-only-m
     expect(optB.tested).toBe(optA.tested)
     expect(optB.skipped).toBe(optA.skipped)
   })
+
+  it('(5) seeds currentBuild(preset) weaponOverride from the target character’s equipped weapon in GOOD when present, falls back to the Akasha case weapon when absent, and honours explicit weaponOverride (akasha-default-weapon)', async () => {
+    const preset = getBundledPreset('akasha/furina-salon-pjc-c0')!
+    const targetKey = preset.target // 'Furina' (case weapon: PrimordialJadeCutter R1)
+
+    // (a) Target character exists in GOOD and wears a non-case weapon (SplendorOfTranquilWaters R3 at Lv. 50)
+    const goodWithEquippedNonCaseWeapon = {
+      format: 'GOOD',
+      version: 3,
+      source: 'EquippedNonCaseWeaponTest',
+      characters: [
+        {
+          key: targetKey,
+          level: 80,
+          ascension: 5,
+          constellation: 1,
+          talent: { auto: 6, skill: 9, burst: 9 },
+        },
+      ],
+      weapons: [
+        {
+          id: 'w_splendor_r3',
+          key: 'SplendorOfTranquilWaters',
+          level: 50,
+          ascension: 2,
+          refinement: 3,
+          location: targetKey,
+          lock: true,
+        },
+      ],
+      artifacts: structuredClone(baseArtifacts),
+    }
+
+    const sessionEquipped = createSession(goodWithEquippedNonCaseWeapon)
+    const cbEquipped = sessionEquipped.currentBuild(preset)
+    expect(cbEquipped.weaponOverride).toEqual({
+      key: 'SplendorOfTranquilWaters',
+      refinement: 3,
+      level: 90,
+      ascension: 6,
+    })
+
+    // Evaluating with currentBuild uses SplendorOfTranquilWaters R3
+    const evalDefaultCurrent = sessionEquipped.evaluate(preset, cbEquipped)
+    const evalExplicitSplendorR3 = sessionEquipped.evaluate(preset, {
+      artifactIds: cbEquipped.artifactIds,
+      weaponOverride: { key: 'SplendorOfTranquilWaters', refinement: 3 },
+    })
+    expect(evalDefaultCurrent.total).toBe(evalExplicitSplendorR3.total)
+    expect(evalDefaultCurrent.stats).toEqual(evalExplicitSplendorR3.stats)
+
+    // (b) Target character is absent from GOOD -> currentBuild defaults to the preset's Akasha case weapon (PrimordialJadeCutter R1)
+    const goodTargetAbsent = {
+      format: 'GOOD',
+      version: 3,
+      source: 'TargetAbsentTest',
+      characters: [],
+      weapons: [
+        {
+          id: 'w_splendor_inv',
+          key: 'SplendorOfTranquilWaters',
+          level: 90,
+          ascension: 6,
+          refinement: 5,
+          location: '',
+          lock: true,
+        },
+      ],
+      artifacts: structuredClone(baseArtifacts),
+    }
+    const sessionAbsent = createSession(goodTargetAbsent)
+    const cbAbsent = sessionAbsent.currentBuild(preset)
+    expect(cbAbsent.weaponOverride).toEqual({
+      key: 'PrimordialJadeCutter',
+      refinement: 1,
+      level: 90,
+      ascension: 6,
+    })
+
+    // (c) Explicit weaponOverride overrides the new default in both evaluate and optimize
+    const explicitHarbinger = { key: 'HarbingerOfDawn', refinement: 5 }
+    const evalExplicitOverride = sessionEquipped.evaluate(preset, {
+      artifactIds: cbEquipped.artifactIds,
+      weaponOverride: explicitHarbinger,
+    })
+    expect(evalExplicitOverride.total).not.toBe(evalDefaultCurrent.total)
+
+    const optDefaultEquipped = await sessionEquipped.optimize(
+      preset,
+      {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        includeEquippedOnOthers: false,
+        topN: 2,
+      },
+      { weaponOverride: cbEquipped.weaponOverride }
+    )
+    const optExplicitOverride = await sessionEquipped.optimize(
+      preset,
+      {
+        ...DEFAULT_OPTIMIZER_SETTINGS,
+        includeEquippedOnOthers: false,
+        topN: 2,
+      },
+      { weaponOverride: explicitHarbinger }
+    )
+    expect(optExplicitOverride.builds[0]!.total).not.toBe(
+      optDefaultEquipped.builds[0]!.total
+    )
+  })
 })

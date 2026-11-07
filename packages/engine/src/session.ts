@@ -494,7 +494,26 @@ export function hydrateTeamIntoDb(
 
 export function createSession(good: unknown): EngineSession {
   const goodObj =
-    typeof good === 'object' && good !== null ? (good as object) : {}
+    typeof good === 'object' && good !== null
+      ? (good as {
+          characters?: Array<{ key?: string }>
+          weapons?: Array<{ key?: string; location?: string }>
+        })
+      : {}
+  const goodCharKeys = new Set<string>(
+    Array.isArray(goodObj.characters)
+      ? goodObj.characters
+          .map((c) => c?.key)
+          .filter((k): k is string => Boolean(k))
+      : []
+  )
+  const goodEquippedWeaponByChar = new Set<string>(
+    Array.isArray(goodObj.weapons)
+      ? goodObj.weapons
+          .map((w) => w?.location)
+          .filter((loc): loc is string => Boolean(loc))
+      : []
+  )
   const baseDb = new ArtCharDatabase(1, new SandboxStorage())
   baseDb.importGOOD(goodObj as never, false, false, false)
 
@@ -514,6 +533,28 @@ export function createSession(good: unknown): EngineSession {
 
       const targetMember = preset.team[0]
       if (targetMember?.build.type === 'fixed') {
+        const hasExplicitGoodWeapon =
+          goodCharKeys.has(targetKey) && goodEquippedWeaponByChar.has(targetKey)
+        const equippedId = hasExplicitGoodWeapon
+          ? char?.equippedWeapon
+          : undefined
+        const equippedWeapon = equippedId
+          ? baseDb.weapons.get(equippedId)
+          : undefined
+        if (equippedWeapon) {
+          const rarity =
+            getWeaponStat(equippedWeapon.key as WeaponKey)?.rarity ?? 5
+          const isLowRarity = rarity <= 2
+          return {
+            weaponOverride: {
+              key: equippedWeapon.key,
+              level: isLowRarity ? 70 : 90,
+              ascension: isLowRarity ? 4 : 6,
+              refinement: isLowRarity ? 1 : equippedWeapon.refinement,
+            },
+            artifactIds,
+          }
+        }
         return {
           weaponOverride: {
             key: targetMember.build.weapon.key,
