@@ -25,6 +25,11 @@ import {
   type IdentifierElement,
   type IdentifierSlotKey,
 } from '@/lib/itemMeta'
+import {
+  computeArtifactRollValue,
+  type ArtifactRollValueResult,
+  type SubstatRollBreakdown,
+} from '@gi/good'
 import { useState, type ReactNode } from 'react'
 
 export {
@@ -497,6 +502,85 @@ export interface StatChipProps {
   /** Emphasises main-stat chips over substat chips. */
   isMain?: boolean
   compact?: boolean
+  /** Optional GO substat roll breakdown for substat chips. */
+  substatBreakdown?: SubstatRollBreakdown
+}
+
+export function formatSubstatRollBreakdownLine(
+  sub: SubstatRollBreakdown
+): string {
+  const label = shortStatLabel(sub.key)
+  const isPct = sub.key.endsWith('_')
+  const unit = isPct ? '%' : ''
+  const valStr = `${
+    isPct ? sub.value.toFixed(1).replace(/\.0$/, '') : Math.round(sub.value)
+  }${unit}`
+  const maxStr = `${
+    isPct ? sub.maxRoll.toFixed(2).replace(/\.?0+$/, '') : sub.maxRoll
+  }${unit}`
+  const rollsStr = sub.rolls
+    .map((r) => (isPct ? r.toFixed(2).replace(/\.?0+$/, '') : String(r)))
+    .join(' + ')
+  return `${label} ${valStr}: ${sub.rollCount} roll${
+    sub.rollCount === 1 ? '' : 's'
+  } (${rollsStr} / max ${maxStr}) = ${Math.round(sub.rv)}% RV`
+}
+
+export function ArtifactRvBadge({
+  rv,
+  compact = false,
+}: {
+  rv: ArtifactRollValueResult
+  compact?: boolean
+}) {
+  const breakdownLines = rv.substats.map(formatSubstatRollBreakdownLine)
+  const tooltip = [
+    `Roll Value: ${rv.totalRvRounded}% (${rv.totalRv.toFixed(1)}% · ${rv.totalRolls} rolls)`,
+    ...breakdownLines,
+  ].join('\n')
+
+  return (
+    <span
+      data-testid="artifact-rv-badge"
+      data-rv={rv.totalRv.toFixed(1)}
+      data-rv-rounded={String(rv.totalRvRounded)}
+      data-total-rolls={String(rv.totalRolls)}
+      title={tooltip}
+      aria-label={`Roll Value ${rv.totalRvRounded}%`}
+      className="gi-rv-badge"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.2rem',
+        padding: compact ? '0.06rem 0.34rem' : '0.1rem 0.42rem',
+        borderRadius: '4px',
+        fontSize: compact ? '0.72rem' : '0.76rem',
+        fontWeight: 700,
+        background:
+          rv.totalRv >= 600
+            ? 'rgba(76, 195, 138, 0.16)'
+            : rv.totalRv >= 450
+              ? 'rgba(122, 162, 255, 0.16)'
+              : '#232736',
+        color:
+          rv.totalRv >= 600
+            ? 'var(--ok)'
+            : rv.totalRv >= 450
+              ? 'var(--accent)'
+              : 'var(--fg)',
+        border:
+          rv.totalRv >= 600
+            ? '1px solid rgba(76, 195, 138, 0.45)'
+            : rv.totalRv >= 450
+              ? '1px solid rgba(122, 162, 255, 0.45)'
+              : '1px solid var(--border)',
+        whiteSpace: 'nowrap',
+        fontVariantNumeric: 'tabular-nums',
+      }}
+    >
+      <span>{rv.totalRvRounded}% RV</span>
+    </span>
+  )
 }
 
 export function StatChip({
@@ -505,6 +589,7 @@ export function StatChip({
   showLabel = false,
   isMain = false,
   compact = false,
+  substatBreakdown,
 }: StatChipProps) {
   const hasGlyph = hasStatIcon(statKey)
   const ele = resolveStatElement(statKey)
@@ -526,12 +611,24 @@ export function StatChip({
 
   // If no numeric value is provided (e.g., main stat chip where only mainStatKey is known) or no glyph exists, show short label
   const mustShowTextLabel = showLabel || !hasGlyph || !formattedVal
+  const chipTitle = substatBreakdown
+    ? formatSubstatRollBreakdownLine(substatBreakdown)
+    : formattedVal
+      ? `${label} ${formattedVal}`
+      : label
 
   return (
     <span
       data-testid="stat-chip"
       data-stat-key={statKey}
-      title={formattedVal ? `${label} ${formattedVal}` : label}
+      {...(substatBreakdown
+        ? {
+            'data-roll-count': String(substatBreakdown.rollCount),
+            'data-substat-rv': substatBreakdown.rv.toFixed(1),
+            'data-max-roll': String(substatBreakdown.maxRoll),
+          }
+        : {})}
+      title={chipTitle}
       className="gi-stat-chip"
       style={{
         display: 'inline-flex',
@@ -743,6 +840,12 @@ export function ArtifactPieceRow({
   lock,
   compact = false,
 }: ArtifactPieceRowProps) {
+  const rvInfo = computeArtifactRollValue({
+    rarity,
+    level,
+    substats,
+  })
+
   return (
     <div
       data-testid="artifact-piece-row"
@@ -771,12 +874,17 @@ export function ArtifactPieceRow({
       >
         +{level}
       </span>
+      <ArtifactRvBadge rv={rvInfo} compact={compact} />
       <StatChip statKey={mainStatKey} isMain compact />
-      {substats
-        .filter((s) => s.key)
-        .map((s, idx) => (
-          <StatChip key={`${s.key}-${idx}`} statKey={s.key} value={s.value} compact />
-        ))}
+      {rvInfo.substats.map((s, idx) => (
+        <StatChip
+          key={`${s.key}-${idx}`}
+          statKey={s.key}
+          value={s.value}
+          substatBreakdown={s}
+          compact
+        />
+      ))}
       {location && <CharacterBadge characterKey={location} compact />}
       {lock && <span title="Locked">🔒</span>}
     </div>

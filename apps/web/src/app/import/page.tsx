@@ -3,6 +3,7 @@
 import ImportLoading from './loading'
 import {
   ArtifactBadge,
+  ArtifactRvBadge,
   CharacterBadge,
   StatChip,
   WeaponBadge,
@@ -11,6 +12,7 @@ import { Spinner } from '@/components/Loading'
 import { FunnelIcon, TrashIcon, UploadIcon } from '@/components/SvgIcons'
 import { useGoodStorage } from '@/lib/storage/useGood'
 import {
+  computeArtifactRollValue,
   humanizeKey,
   type IArtifact,
   type ICharacter,
@@ -733,6 +735,7 @@ export default function ImportPage() {
                     <tr>
                       <th>Slot / Set</th>
                       <th>Lv</th>
+                      <th>RV</th>
                       <th>Main</th>
                       <th>Substats</th>
                       <th>Equipped</th>
@@ -740,50 +743,58 @@ export default function ImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredArtifacts.slice(0, 300).map((a: IArtifact) => (
-                      <tr key={a.id}>
-                        <td>
-                          <ArtifactBadge
-                            setKey={a.setKey}
-                            slotKey={a.slotKey as IdentifierSlotKey}
-                            rarity={a.rarity}
-                            compact
-                          />
-                        </td>
-                        <td>
-                          <span className="gi-level-pill">+{a.level}</span>
-                        </td>
-                        <td>
-                          <StatChip
-                            statKey={a.mainStatKey}
-                            isMain
-                            compact
-                          />
-                        </td>
-                        <td>
-                          <div className="preset-gear-row">
-                            {a.substats
-                              .filter((s) => s.key)
-                              .map((s, sIdx) => (
+                    {filteredArtifacts.slice(0, 300).map((a: IArtifact) => {
+                      const rvInfo = computeArtifactRollValue(a)
+                      return (
+                        <tr key={a.id}>
+                          <td>
+                            <ArtifactBadge
+                              setKey={a.setKey}
+                              slotKey={a.slotKey as IdentifierSlotKey}
+                              rarity={a.rarity}
+                              compact
+                            />
+                          </td>
+                          <td>
+                            <span className="gi-level-pill">+{a.level}</span>
+                          </td>
+                          <td>
+                            <ArtifactRvBadge rv={rvInfo} compact />
+                          </td>
+                          <td>
+                            <StatChip
+                              statKey={a.mainStatKey}
+                              isMain
+                              compact
+                            />
+                          </td>
+                          <td>
+                            <div className="preset-gear-row">
+                              {rvInfo.substats.map((s, sIdx) => (
                                 <StatChip
                                   key={`${s.key}-${sIdx}`}
                                   statKey={s.key}
                                   value={s.value}
+                                  substatBreakdown={s}
                                   compact
                                 />
                               ))}
-                          </div>
-                        </td>
-                        <td>
-                          {a.location ? (
-                            <CharacterBadge characterKey={a.location} compact />
-                          ) : (
-                            <span className="muted">—</span>
-                          )}
-                        </td>
-                        <td>{a.lock ? '🔒' : ''}</td>
-                      </tr>
-                    ))}
+                            </div>
+                          </td>
+                          <td>
+                            {a.location ? (
+                              <CharacterBadge
+                                characterKey={a.location}
+                                compact
+                              />
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                          <td>{a.lock ? '🔒' : ''}</td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

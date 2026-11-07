@@ -1,3 +1,7 @@
+import {
+  computeArtifactRollValue,
+  getSubstatMaxRoll,
+} from '@gi/good'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -545,5 +549,63 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(iconsHtml).toContain('data-gi-icon="GearIcon"')
     expect(iconsHtml).toContain('data-gi-icon="BackArrowIcon"')
     expect(iconsHtml).not.toContain('<img')
+  })
+
+  it('computes GO-aligned Roll Value (RV) from vendored roll tables and renders ArtifactRvBadge + per-substat roll breakdown details in ArtifactPieceRow (artifact-quality-tooling)', () => {
+    expect(getSubstatMaxRoll('critRate_', 5)).toBe(3.89)
+    expect(getSubstatMaxRoll('critDMG_', 5)).toBe(7.77)
+    expect(getSubstatMaxRoll('hp_', 5)).toBe(5.83)
+    expect(getSubstatMaxRoll('enerRech_', 5)).toBe(6.48)
+
+    // 1 max roll of CR (3.9 -> 3.89) + 2 max rolls of CD (15.5 -> 7.77 + 7.77 = 15.54) = 300% RV
+    const rvResult = computeArtifactRollValue({
+      rarity: 5,
+      level: 20,
+      substats: [
+        { key: 'critRate_', value: 3.9 },
+        { key: 'critDMG_', value: 15.5 },
+        { key: 'hp_', value: 5.8 },
+        { key: 'enerRech_', value: 6.5 },
+      ],
+    })
+    expect(rvResult.substats).toHaveLength(4)
+    expect(rvResult.substats[0]!.rollCount).toBe(1)
+    expect(rvResult.substats[0]!.rolls).toEqual([3.89])
+    expect(rvResult.substats[0]!.rv).toBeCloseTo(100, 2)
+    expect(rvResult.substats[1]!.rollCount).toBe(2)
+    expect(rvResult.substats[1]!.rolls).toEqual([7.77, 7.77])
+    expect(rvResult.substats[1]!.rv).toBeCloseTo(200, 2)
+    expect(rvResult.totalRolls).toBe(5)
+    expect(rvResult.totalRvRounded).toBe(500)
+
+    const pieceHtml = renderToStaticMarkup(
+      <ArtifactPieceRow
+        setKey="GoldenTroupe"
+        slotKey="flower"
+        rarity={5}
+        level={20}
+        mainStatKey="hp"
+        substats={[
+          { key: 'critRate_', value: 3.9 },
+          { key: 'critDMG_', value: 15.5 },
+          { key: 'hp_', value: 5.8 },
+          { key: 'enerRech_', value: 6.5 },
+        ]}
+        location="Furina"
+        compact
+      />
+    )
+    expect(pieceHtml).toContain('data-testid="artifact-rv-badge"')
+    expect(pieceHtml).toContain('data-rv="500.0"')
+    expect(pieceHtml).toContain('data-rv-rounded="500"')
+    expect(pieceHtml).toContain('data-total-rolls="5"')
+    expect(pieceHtml).toContain('>500% RV<')
+    // Per-substat roll breakdown in tooltip & data attributes
+    expect(pieceHtml).toContain('data-roll-count="2"')
+    expect(pieceHtml).toContain('data-substat-rv="200.0"')
+    expect(pieceHtml).toContain('data-max-roll="7.77"')
+    expect(pieceHtml).toContain(
+      'CD% 15.5%: 2 rolls (7.77 + 7.77 / max 7.77%) = 200% RV'
+    )
   })
 })

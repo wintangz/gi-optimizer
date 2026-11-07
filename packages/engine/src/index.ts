@@ -1,4 +1,19 @@
 export {
+  ART_SUBSTAT_ROLL_DATA,
+  ART_SUBSTAT_ROLL_TABLE,
+  clampArtifactRarity,
+  computeArtifactRollValue,
+  formatSubstatLookupValue,
+  getSubstatMaxRoll,
+  getSubstatRolls,
+  isSubstatKey,
+  type ArtifactRarity,
+  type ArtifactRollValueResult,
+  type ComputeArtifactRollValueInput,
+  type SubstatKey,
+  type SubstatRollBreakdown,
+} from '@gi/good'
+export {
   getDefaultTargetArtifactSetConditionals,
   listConditionalsForCharacter,
   listTargetsForCharacter,
