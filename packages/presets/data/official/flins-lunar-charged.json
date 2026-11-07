@@ -1,0 +1,147 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "official/flins-lunar-charged",
+  "name": "Flins — Lunar-Charged (Ineffa · Columbina · Sucrose)",
+  "description": "Official meta preset for Flins Lunar-Charged with Ineffa (A4 EM share + Fractured Halo +40% Lunar-Charged DMG + Silken Moon's Serenade 4p), Columbina (Lunar Domain Lunar-Charged DMG% + Ascendant Gleam + Tenacity 4p), and Sucrose (A1/A4 EM share + VV 4p + TTDS).",
+  "source": "official",
+  "author": "gi-optimizer",
+  "target": "Flins",
+  "team": [
+    {
+      "key": "Flins",
+      "build": { "type": "owned" },
+      "requirement": {},
+      "conditional": {
+        "NightOfTheSkysUnveiling": {
+          "4GleamingMoon": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Ineffa",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "FracturedHalo", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "SilkenMoonsSerenade": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Ineffa": {
+          "a4AfterBurst": "on"
+        },
+        "FracturedHalo": {
+          "afterSkillBurst": "on",
+          "afterShield": "on"
+        },
+        "SilkenMoonsSerenade": {
+          "4GleamingMoon": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Columbina",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "NocturnesCurtainCall", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "TenacityOfTheMillelith": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Columbina": {
+          "burstDomain": "on",
+          "a1Stacks": "3"
+        },
+        "NocturnesCurtainCall": {
+          "passive": "on"
+        },
+        "TenacityOfTheMillelith": {
+          "skill": "cast"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Sucrose",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "ThrillingTalesOfDragonSlayers", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 44.0 } },
+            "sets": { "ViridescentVenerer": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Sucrose": {
+          "swirlelectro": "electro",
+          "skillHit": "hit"
+        },
+        "ViridescentVenerer": {
+          "swirlelectro": "electro"
+        },
+        "ThrillingTalesOfDragonSlayers": {
+          "Heritage": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "E -> 2× (Northland Spearstorm + Thunderous Symphony + N5)",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "spearDmg"], "count": 2, "label": "Northland Spearstorm (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "thunderDmg"], "count": 2, "label": "Thunderous Symphony Lunar-Charged (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "thunderAddlDmg"], "count": 2, "label": "Thunderous Symphony Additional Lunar-Charged (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "na1"], "count": 2, "label": "Manifest Flame 1-Hit (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "na2"], "count": 2, "label": "Manifest Flame 2-Hit (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "na3"], "count": 2, "label": "Manifest Flame 3-Hit (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "na4"], "count": 4, "label": "Manifest Flame 4-Hit (2×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "na5"], "count": 2, "label": "Manifest Flame 5-Hit (×2)", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  }
+}

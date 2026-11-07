@@ -7,7 +7,7 @@ describe('Official Presets (official-presets)', () => {
   const officialPresets = listBundledPresets({ source: 'official' })
 
   it('includes all bundled official presets', () => {
-    expect(officialPresets).toHaveLength(9)
+    expect(officialPresets).toHaveLength(10)
     const ids = officialPresets.map((p) => p.id)
     expect(ids).toEqual(
       expect.arrayContaining([
@@ -20,6 +20,7 @@ describe('Official Presets (official-presets)', () => {
         'official/mavuika-overload',
         'official/skirk-freeze',
         'official/nefer-lunar-bloom',
+        'official/flins-lunar-charged',
       ])
     )
   })

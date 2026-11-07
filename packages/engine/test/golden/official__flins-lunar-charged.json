@@ -1,0 +1,105 @@
+{
+  "presetId": "official/flins-lunar-charged",
+  "target": "Flins",
+  "total": 66021.43354110087,
+  "instances": [
+    {
+      "label": "Northland Spearstorm (×2)",
+      "path": [
+        "skill",
+        "spearDmg"
+      ],
+      "count": 2,
+      "perHit": 1252.729761404654,
+      "subtotal": 2505.459522809308
+    },
+    {
+      "label": "Thunderous Symphony Lunar-Charged (×2)",
+      "path": [
+        "burst",
+        "thunderDmg"
+      ],
+      "count": 2,
+      "perHit": 11870.399186085697,
+      "subtotal": 23740.798372171394
+    },
+    {
+      "label": "Thunderous Symphony Additional Lunar-Charged (×2)",
+      "path": [
+        "burst",
+        "thunderAddlDmg"
+      ],
+      "count": 2,
+      "perHit": 17266.035179761016,
+      "subtotal": 34532.07035952203
+    },
+    {
+      "label": "Manifest Flame 1-Hit (×2)",
+      "path": [
+        "skill",
+        "na1"
+      ],
+      "count": 2,
+      "perHit": 409.0190759097438,
+      "subtotal": 818.0381518194876
+    },
+    {
+      "label": "Manifest Flame 2-Hit (×2)",
+      "path": [
+        "skill",
+        "na2"
+      ],
+      "count": 2,
+      "perHit": 412.878299782338,
+      "subtotal": 825.756599564676
+    },
+    {
+      "label": "Manifest Flame 3-Hit (×2)",
+      "path": [
+        "skill",
+        "na3"
+      ],
+      "count": 2,
+      "perHit": 511.38330590893264,
+      "subtotal": 1022.7666118178653
+    },
+    {
+      "label": "Manifest Flame 4-Hit (2×2)",
+      "path": [
+        "skill",
+        "na4"
+      ],
+      "count": 4,
+      "perHit": 292.99534957716975,
+      "subtotal": 1171.981398308679
+    },
+    {
+      "label": "Manifest Flame 5-Hit (×2)",
+      "path": [
+        "skill",
+        "na5"
+      ],
+      "count": 2,
+      "perHit": 702.2812625437151,
+      "subtotal": 1404.5625250874302
+    }
+  ],
+  "stats": {
+    "hp": 12490.8290496,
+    "atk": 902.1908777279999,
+    "def": 808.51919724,
+    "eleMas": 361.069131460584,
+    "critRate_": 0.05,
+    "critDMG_": 0.884,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}
