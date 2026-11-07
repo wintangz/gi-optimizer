@@ -48,8 +48,10 @@ import {
   getPresetBadge,
   getWeaponMeta,
   listBundledPresets,
+  normalizeEnemyOverrides,
   parsePresetJson,
   serializePresetJson,
+  shortStatLabel,
   validatePreset,
   type Preset,
   type RotationTarget,
@@ -80,6 +82,15 @@ const ELEMENT_RES_KEYS = [
   'physical_enemyRes_',
 ] as const
 
+function normalizeDraftEnemy(preset: Preset): Preset {
+  const cloned = structuredClone(preset)
+  cloned.enemy = {
+    level: cloned.enemy?.level ?? 100,
+    overrides: normalizeEnemyOverrides(cloned.enemy?.overrides),
+  }
+  return cloned
+}
+
 function TeamsInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -94,12 +105,25 @@ function TeamsInner() {
     remove: removeUserPreset,
   } = useUserPresets()
 
-  const [draft, setDraft] = useState<Preset>(() =>
-    createBlankUserPreset('Furina', 'Furina Custom Setup', [
+  const [draft, setDraft] = useState<Preset>(() => {
+    if (forkParam) {
+      const src =
+        getBundledPreset(forkParam) ??
+        userPresets.find((p) => p.id === forkParam)
+      if (src) {
+        return normalizeDraftEnemy(forkPresetToUser(src))
+      }
+    } else if (editParam) {
+      const existing = userPresets.find((p) => p.id === editParam)
+      if (existing) {
+        return normalizeDraftEnemy(existing)
+      }
+    }
+    return createBlankUserPreset('Furina', 'Furina Custom Setup', [
       'skill',
       'usherDmg',
     ])
-  )
+  })
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [importCollision, setImportCollision] = useState<Preset | null>(null)
@@ -126,6 +150,7 @@ function TeamsInner() {
   )
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const appliedQueryKeyRef = useRef<string | null>(null)
 
   function startEngine() {
     setEngineStarted(true)
@@ -138,13 +163,26 @@ function TeamsInner() {
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    const queryKey = forkParam
+      ? `fork:${forkParam}`
+      : editParam
+        ? `edit:${editParam}`
+        : null
+    if (!queryKey) {
+      appliedQueryKeyRef.current = null
+      return
+    }
+    if (appliedQueryKeyRef.current === queryKey) {
+      return
+    }
     if (forkParam) {
       setEngineStarted(true)
       const src =
         getBundledPreset(forkParam) ??
         userPresets.find((p) => p.id === forkParam)
       if (src) {
-        setDraft(forkPresetToUser(src))
+        appliedQueryKeyRef.current = queryKey
+        setDraft(normalizeDraftEnemy(forkPresetToUser(src)))
         setStatusMessage(
           `Duplicated '${src.name}' as an independent custom preset. Supporting teammates retain their simulated assumed builds.`
         )
@@ -153,7 +191,8 @@ function TeamsInner() {
       setEngineStarted(true)
       const existing = userPresets.find((p) => p.id === editParam)
       if (existing) {
-        setDraft(structuredClone(existing))
+        appliedQueryKeyRef.current = queryKey
+        setDraft(normalizeDraftEnemy(existing))
         setStatusMessage(`Editing saved user preset '${existing.name}'.`)
       }
     }
@@ -602,10 +641,10 @@ function TeamsInner() {
               if (!found) return
               startEngine()
               if (found.source === 'user') {
-                setDraft(structuredClone(found))
+                setDraft(normalizeDraftEnemy(found))
                 setStatusMessage(`Loaded user preset '${found.name}'.`)
               } else {
-                setDraft(forkPresetToUser(found))
+                setDraft(normalizeDraftEnemy(forkPresetToUser(found)))
                 setStatusMessage(
                   `Forked '${found.name}' into a new custom preset. Teammates retain their simulated assumed builds.`
                 )
@@ -719,7 +758,9 @@ function TeamsInner() {
             <input
               type="text"
               value={draft.name}
-              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...prev, name: e.target.value }))
+              }
             />
           </label>
           <label
@@ -732,7 +773,7 @@ function TeamsInner() {
               rows={2}
               value={draft.description}
               onChange={(e) =>
-                setDraft({ ...draft, description: e.target.value })
+                setDraft((prev) => ({ ...prev, description: e.target.value }))
               }
             />
           </label>
@@ -759,18 +800,25 @@ function TeamsInner() {
               </span>
               <input
                 type="number"
+                aria-label="Enemy Level"
+                data-testid="enemy-level-input"
                 min={1}
                 max={200}
                 value={draft.enemy.level}
                 onChange={(e) => {
                   startEngine()
-                  setDraft({
-                    ...draft,
+                  const raw = String(e.target.value).trim()
+                  const parsed = Number(raw)
+                  setDraft((prev) => ({
+                    ...prev,
                     enemy: {
-                      ...draft.enemy,
-                      level: Math.max(1, Number(e.target.value) || 100),
+                      ...prev.enemy,
+                      level:
+                        raw !== '' && Number.isFinite(parsed) && parsed >= 1
+                          ? Math.min(200, Math.round(parsed))
+                          : 100,
                     },
-                  })
+                  }))
                 }}
                 style={{ width: '90px' }}
               />
@@ -790,19 +838,26 @@ function TeamsInner() {
                   <ElementBadge element={eleKey} label="RES%" compact />
                   <input
                     type="number"
+                    aria-label={shortStatLabel(rk)}
+                    data-testid={`enemy-res-input-${rk}`}
+                    data-enemy-res-key={rk}
                     value={draft.enemy.overrides[rk] ?? 10}
                     onChange={(e) => {
                       startEngine()
-                      setDraft({
-                        ...draft,
+                      const raw = String(e.target.value).trim()
+                      if (raw === '' || raw === '-') return
+                      const parsed = Number(raw)
+                      if (!Number.isFinite(parsed)) return
+                      setDraft((prev) => ({
+                        ...prev,
                         enemy: {
-                          ...draft.enemy,
+                          ...prev.enemy,
                           overrides: {
-                            ...draft.enemy.overrides,
-                            [rk]: Number(e.target.value),
+                            ...prev.enemy.overrides,
+                            [rk]: parsed,
                           },
                         },
-                      })
+                      }))
                     }}
                     style={{ width: '68px' }}
                   />
@@ -1195,10 +1250,10 @@ function TeamsInner() {
               type="text"
               value={draft.rotation.name}
               onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  rotation: { ...draft.rotation, name: e.target.value },
-                })
+                setDraft((prev) => ({
+                  ...prev,
+                  rotation: { ...prev.rotation, name: e.target.value },
+                }))
               }
               placeholder="Rotation Name"
               style={{ width: '240px' }}
@@ -1212,13 +1267,13 @@ function TeamsInner() {
                 value={draft.rotation.repeat}
                 onChange={(e) => {
                   startEngine()
-                  setDraft({
-                    ...draft,
+                  setDraft((prev) => ({
+                    ...prev,
                     rotation: {
-                      ...draft.rotation,
+                      ...prev.rotation,
                       repeat: Math.max(1, Number(e.target.value) || 1),
                     },
-                  })
+                  }))
                 }}
                 style={{ width: '65px' }}
               />

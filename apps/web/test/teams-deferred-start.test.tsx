@@ -1,5 +1,6 @@
+import { createSession } from '@gi/engine'
 import type { IGOOD } from '@gi/good'
-import { listBundledPresets } from '@gi/presets'
+import { DEFAULT_OPTIMIZER_SETTINGS, listBundledPresets, type Preset } from '@gi/presets'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -175,8 +176,23 @@ let mockGoodRecord: { importedAt: string; good: IGOOD } | null = {
   good: SAMPLE_GOOD,
 }
 
-const mockSaveUserPreset = vi.fn(async () => {})
-const mockRemoveUserPreset = vi.fn(async () => {})
+let mockUserPresets: Preset[] = []
+
+const mockSaveUserPreset = vi.fn(async (preset: Preset) => {
+  const existingIdx = mockUserPresets.findIndex((p) => p.id === preset.id)
+  if (existingIdx >= 0) {
+    mockUserPresets = [
+      ...mockUserPresets.slice(0, existingIdx),
+      preset,
+      ...mockUserPresets.slice(existingIdx + 1),
+    ]
+  } else {
+    mockUserPresets = [...mockUserPresets, preset]
+  }
+})
+const mockRemoveUserPreset = vi.fn(async (id: string) => {
+  mockUserPresets = mockUserPresets.filter((p) => p.id !== id)
+})
 
 vi.mock('@/lib/storage/useGood', () => ({
   useGoodStorage: () => ({
@@ -184,7 +200,7 @@ vi.mock('@/lib/storage/useGood', () => ({
     loading: false,
   }),
   useUserPresets: () => ({
-    presets: [],
+    presets: mockUserPresets,
     loading: false,
     save: mockSaveUserPreset,
     remove: mockRemoveUserPreset,
@@ -281,6 +297,9 @@ describe('Deferred Engine Start on Custom Teams Page (teams-deferred-start)', ()
     vi.useFakeTimers()
     hookStore.reset()
     mockSearchParams = new URLSearchParams()
+    mockUserPresets = []
+    mockSaveUserPreset.mockClear()
+    mockRemoveUserPreset.mockClear()
     mockGoodRecord = {
       importedAt: '2026-11-05T00:00:00.000Z',
       good: SAMPLE_GOOD,
@@ -515,5 +534,246 @@ describe('Deferred Engine Start on Custom Teams Page (teams-deferred-start)', ()
     tree = renderPass()
     expect(mockEvaluatePresetInWorker).toHaveBeenCalled()
     expect(collectText(tree)).toContain('Total: 42,500 DMG')
+  })
+
+  it('custom-team-enemy-edit regression: create custom team with non-default enemy RES, save, reopen, change RES, save again, verify reopened editor and engine evaluation reflect new RES', async () => {
+    // 1. Create a custom team (starting from a forked preset to also verify ?fork= does not clobber on save)
+    const baseOfficial = listBundledPresets().find(
+      (p) => p.id === 'official/furina-salon-subdps'
+    )!
+    expect(baseOfficial.enemy).toEqual({ level: 100, overrides: {} })
+
+    mockSearchParams = new URLSearchParams(`fork=${baseOfficial.id}`)
+    let tree = renderPass()
+    tree = renderPass()
+
+    const getHydroResInput = (nodes: VNode[]) =>
+      findAllElements(
+        nodes,
+        (el) =>
+          el.type === 'input' &&
+          el.props['data-testid'] === 'enemy-res-input-hydro_enemyRes_'
+      )[0]!
+
+    const getEnemyLevelInput = (nodes: VNode[]) =>
+      findAllElements(
+        nodes,
+        (el) =>
+          el.type === 'input' &&
+          el.props['data-testid'] === 'enemy-level-input'
+      )[0]!
+
+    const getSaveButton = (nodes: VNode[]) =>
+      findAllElements(
+        nodes,
+        (el) =>
+          el.type === 'button' && collectText(el.children).trim() === 'Save'
+      )[0]!
+
+    // Initial forked preset starts with default 10% Hydro RES and enemy level 100
+    expect(getHydroResInput(tree).props.value).toBe(10)
+    expect(getEnemyLevelInput(tree).props.value).toBe(100)
+
+    // Set non-default enemy RES (50%) and enemy level (95)
+    ;(
+      getHydroResInput(tree).props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '50' } })
+    ;(
+      getEnemyLevelInput(tree).props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '95' } })
+
+    tree = renderPass()
+    expect(getHydroResInput(tree).props.value).toBe(50)
+    expect(getEnemyLevelInput(tree).props.value).toBe(95)
+
+    // Save the custom team
+    await (getSaveButton(tree).props.onClick as () => Promise<void>)()
+    tree = renderPass()
+
+    expect(mockSaveUserPreset).toHaveBeenCalledTimes(1)
+    expect(mockUserPresets).toHaveLength(1)
+    const firstSavedPreset = structuredClone(mockUserPresets[0]!)
+    expect(firstSavedPreset.source).toBe('user')
+    expect(firstSavedPreset.enemy.level).toBe(95)
+    expect(firstSavedPreset.enemy.overrides.hydro_enemyRes_).toBe(50)
+
+    // Editor must NOT reset back to defaults after saving while ?fork= was in the URL
+    expect(getHydroResInput(tree).props.value).toBe(50)
+    expect(getEnemyLevelInput(tree).props.value).toBe(95)
+
+    // Bundled preset remains untouched
+    expect(baseOfficial.enemy).toEqual({ level: 100, overrides: {} })
+
+    // 2. Reopen the saved custom team in the team editor via ?edit=<savedId>
+    hookStore.reset()
+    mockSearchParams = new URLSearchParams(`edit=${firstSavedPreset.id}`)
+    tree = renderPass()
+    tree = renderPass()
+
+    // Reopened editor must show saved enemy level (95) and Hydro RES (50), not defaults (100 / 10)
+    expect(getHydroResInput(tree).props.value).toBe(50)
+    expect(getEnemyLevelInput(tree).props.value).toBe(95)
+
+    // 3. Change the enemy RES to -20% (and enemy level to 85) and save again
+    ;(
+      getHydroResInput(tree).props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '-20' } })
+    ;(
+      getEnemyLevelInput(tree).props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '85' } })
+
+    tree = renderPass()
+    expect(getHydroResInput(tree).props.value).toBe(-20)
+    expect(getEnemyLevelInput(tree).props.value).toBe(85)
+
+    await (getSaveButton(tree).props.onClick as () => Promise<void>)()
+    tree = renderPass()
+
+    expect(mockSaveUserPreset).toHaveBeenCalledTimes(2)
+    expect(mockUserPresets).toHaveLength(1)
+    const secondSavedPreset = structuredClone(mockUserPresets[0]!)
+    expect(secondSavedPreset.id).toBe(firstSavedPreset.id)
+    expect(secondSavedPreset.enemy.level).toBe(85)
+    expect(secondSavedPreset.enemy.overrides.hydro_enemyRes_).toBe(-20)
+
+    // 4. Reopen the edited custom team again and assert the reopened editor shows the new values
+    hookStore.reset()
+    mockSearchParams = new URLSearchParams(`edit=${secondSavedPreset.id}`)
+    tree = renderPass()
+    tree = renderPass()
+
+    expect(getHydroResInput(tree).props.value).toBe(-20)
+    expect(getEnemyLevelInput(tree).props.value).toBe(85)
+
+    // 5. Evaluate and optimize with the real engine session and verify the edited enemy RES/level is reflected in the total
+    const sessionGood: IGOOD = {
+      format: 'GOOD',
+      version: 2,
+      source: 'test',
+      characters: [
+        {
+          key: 'Furina',
+          level: 90,
+          constellation: 0,
+          ascension: 6,
+          talent: { auto: 1, skill: 10, burst: 10 },
+        },
+      ],
+      weapons: [
+        {
+          id: 'w1',
+          key: 'SplendorOfTranquilWaters',
+          level: 90,
+          ascension: 6,
+          refinement: 1,
+          location: 'Furina',
+          lock: true,
+        },
+      ],
+      artifacts: [
+        {
+          id: 'a1',
+          setKey: 'GoldenTroupe',
+          slotKey: 'flower',
+          level: 20,
+          rarity: 5,
+          mainStatKey: 'hp',
+          location: 'Furina',
+          lock: true,
+          substats: [
+            { key: 'critRate_', value: 10 },
+            { key: 'critDMG_', value: 20 },
+          ],
+        },
+        {
+          id: 'a2',
+          setKey: 'GoldenTroupe',
+          slotKey: 'plume',
+          level: 20,
+          rarity: 5,
+          mainStatKey: 'atk',
+          location: 'Furina',
+          lock: true,
+          substats: [
+            { key: 'critRate_', value: 10 },
+            { key: 'critDMG_', value: 20 },
+          ],
+        },
+        {
+          id: 'a3',
+          setKey: 'GoldenTroupe',
+          slotKey: 'sands',
+          level: 20,
+          rarity: 5,
+          mainStatKey: 'hp_',
+          location: 'Furina',
+          lock: true,
+          substats: [
+            { key: 'critRate_', value: 10 },
+            { key: 'critDMG_', value: 20 },
+          ],
+        },
+        {
+          id: 'a4',
+          setKey: 'GoldenTroupe',
+          slotKey: 'goblet',
+          level: 20,
+          rarity: 5,
+          mainStatKey: 'hydro_dmg_',
+          location: 'Furina',
+          lock: true,
+          substats: [
+            { key: 'critRate_', value: 10 },
+            { key: 'critDMG_', value: 20 },
+          ],
+        },
+        {
+          id: 'a5',
+          setKey: 'GoldenTroupe',
+          slotKey: 'circlet',
+          level: 20,
+          rarity: 5,
+          mainStatKey: 'critRate_',
+          location: 'Furina',
+          lock: true,
+          substats: [
+            { key: 'hp_', value: 10 },
+            { key: 'critDMG_', value: 20 },
+          ],
+        },
+      ],
+    }
+
+    vi.useRealTimers()
+    const session = createSession(sessionGood)
+    const evalHighRes = session.evaluate(firstSavedPreset)
+    const evalLowRes = session.evaluate(secondSavedPreset)
+
+    expect(evalHighRes.total).toBeGreaterThan(0)
+    expect(evalLowRes.total).toBeGreaterThan(evalHighRes.total)
+
+    const optHighRes = await session.optimize(
+      firstSavedPreset,
+      DEFAULT_OPTIMIZER_SETTINGS,
+      { maxWorkers: 1 }
+    )
+    const optLowRes = await session.optimize(
+      secondSavedPreset,
+      DEFAULT_OPTIMIZER_SETTINGS,
+      { maxWorkers: 1 }
+    )
+    expect(optHighRes.builds[0]!.total).toBeCloseTo(evalHighRes.total, 2)
+    expect(optLowRes.builds[0]!.total).toBeCloseTo(evalLowRes.total, 2)
+    expect(optLowRes.builds[0]!.total).toBeGreaterThan(
+      optHighRes.builds[0]!.total
+    )
   })
 })

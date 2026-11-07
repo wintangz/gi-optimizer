@@ -291,4 +291,24 @@ describe('presetSchema (zero-dependency validator)', () => {
     // Throw on .parse() when invalid
     expect(() => presetSchema.parse({ ...minimal, target: 'Neuvillette' })).toThrow()
   })
+
+  it('preserves enemy level and canonicalizes *_res_ override keys to *_enemyRes_', () => {
+    const parsed = presetSchema.parse({
+      ...minimal,
+      enemy: {
+        level: 95,
+        overrides: {
+          hydro_res_: 50,
+          pyro_enemyRes_: -20,
+        },
+      },
+    })
+    expect(parsed.enemy).toEqual({
+      level: 95,
+      overrides: {
+        hydro_enemyRes_: 50,
+        pyro_enemyRes_: -20,
+      },
+    })
+  })
 })

@@ -1096,6 +1096,24 @@ function isValidUrl(s: string): boolean {
   }
 }
 
+export function normalizeEnemyOverrides(
+  overrides: Record<string, number> | undefined
+): Record<string, number> {
+  if (!overrides) return {}
+  const normalized: Record<string, number> = {}
+  for (const [k, v] of Object.entries(overrides)) {
+    if (k.endsWith('_res_') && !k.endsWith('_enemyRes_')) {
+      const ele = k.slice(0, -5)
+      if (normalized[`${ele}_enemyRes_`] === undefined) {
+        normalized[`${ele}_enemyRes_`] = v
+      }
+    } else {
+      normalized[k] = v
+    }
+  }
+  return normalized
+}
+
 function parsePreset(
   input: unknown,
   path: Array<string | number>,
@@ -1317,7 +1335,10 @@ function parsePreset(
               issues
             )
       if (eLevel !== undefined && eOverrides !== undefined) {
-        enemy = { level: eLevel, overrides: eOverrides }
+        enemy = {
+          level: eLevel,
+          overrides: normalizeEnemyOverrides(eOverrides),
+        }
       } else {
         enemy = undefined
       }

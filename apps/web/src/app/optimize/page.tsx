@@ -770,7 +770,11 @@ function OptimizeInner() {
           {activePreset && (
             <div className="preset-detail-actions">
               <Link
-                href={`/teams?fork=${encodeURIComponent(activePreset.id)}`}
+                href={
+                  activePreset.source === 'user'
+                    ? `/teams?edit=${encodeURIComponent(activePreset.id)}`
+                    : `/teams?fork=${encodeURIComponent(activePreset.id)}`
+                }
               >
                 <button type="button" className="btn-secondary btn-icon">
                   <GearIcon size={15} />
