@@ -39,11 +39,11 @@
           "c2Overstack": "350"
         },
         "SplendorOfTranquilWaters": {
-          "hpChanges": "3",
-          "otherHpChanges": "2"
+          "selfHpChange": "3",
+          "teamHpChange": "2"
         },
         "GoldenTroupe": {
-          "offField": "on"
+          "set4": "on"
         }
       },
       "bonusStats": {},
@@ -76,7 +76,7 @@
     }
   ],
   "enemy": { "level": 100, "overrides": {} },
-  "teamConditional": { "resonance": { "Hydro": "on" }, "reaction": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
   "rotation": {
     "name": "20s Salon Solitaire C2 Rotation",
     "repeat": 1,

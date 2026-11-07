@@ -274,25 +274,25 @@ describe('Conditional Toggle Panel Engine & Settings (conditional-toggle-panel)'
       optDefault.builds[0]!.total
     )
 
-    // Flipping target's own set conditional (GoldenTroupe.set4 = 'on') raises solver score,
-    // and flipping target's burstFanfare off lowers solver score
-    const settingsGoldenTroupeOn = setMemberConditionalOverride(
+    // Flipping target's own set conditional (GoldenTroupe.set4 = 'off') lowers solver score,
+    // and flipping target's burstFanfare off also lowers solver score
+    const settingsGoldenTroupeOff = setMemberConditionalOverride(
       DEFAULT_OPTIMIZER_SETTINGS,
       furinaOfficial.id,
       'Furina',
       'GoldenTroupe',
       'set4',
-      'on'
+      'off'
     )
-    const optGoldenTroupeOn = await smallSession.optimize(
+    const optGoldenTroupeOff = await smallSession.optimize(
       furinaOfficial,
       {
-        ...settingsGoldenTroupeOn,
+        ...settingsGoldenTroupeOff,
         topN: 1,
       },
       { weaponOverride: splendorSpec }
     )
-    expect(optGoldenTroupeOn.builds[0]!.total).toBeGreaterThan(
+    expect(optGoldenTroupeOff.builds[0]!.total).toBeLessThan(
       optDefault.builds[0]!.total
     )
 

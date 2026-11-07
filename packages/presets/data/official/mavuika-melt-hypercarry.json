@@ -18,8 +18,8 @@
           "a4TimeSinceBurst": "0"
         },
         "ObsidianCodex": {
-          "set2": "on",
-          "set4": "on"
+          "2NightsoulBlessing": "on",
+          "4NightsoulConsume": "on"
         }
       },
       "bonusStats": {},
@@ -48,7 +48,7 @@
       "requirement": {},
       "conditional": {
         "Citlali": { "a1NsFreezeMelt": "on" },
-        "ScrollOfTheHeroOfCinderCity": { "nsReact": "on", "afterReact": "on" },
+        "ScrollOfTheHeroOfCinderCity": { "react_pyro": "pyro", "nightsoul_pyro": "pyro" },
         "ThrillingTalesOfDragonSlayers": { "Heritage": "on" }
       },
       "bonusStats": {},
@@ -77,7 +77,7 @@
       "requirement": {},
       "conditional": {
         "Xilonen": { "sourceActive": "on" },
-        "ArchaicPetra": { "ele": "pyro", "element": "pyro" }
+        "ArchaicPetra": { "element": "pyro" }
       },
       "bonusStats": {},
       "hitMode": "avgHit"
@@ -104,7 +104,7 @@
       },
       "requirement": {},
       "conditional": {
-        "Bennett": { "activeInArea": "active" },
+        "Bennett": { "activeInArea": "activeInArea" },
         "NoblesseOblige": { "set4": "on" }
       },
       "bonusStats": {},
@@ -112,7 +112,7 @@
     }
   ],
   "enemy": { "level": 100, "overrides": {} },
-  "teamConditional": { "resonance": { "Pyro": "on" }, "reaction": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
   "rotation": {
     "name": "Q Sunfell Slice Melt + 8× Flamestrider Charged",
     "repeat": 1,

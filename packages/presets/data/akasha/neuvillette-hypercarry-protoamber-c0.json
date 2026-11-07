@@ -35,10 +35,10 @@
       "conditional": {
         "Neuvillette": {
           "a1Stacks": "3",
-          "a4Hp": "80"
+          "a4Hp": "50"
         },
         "MarechausseeHunter": {
-          "stacks": "3"
+          "set4": "3"
         }
       },
       "bonusStats": {},
@@ -122,14 +122,14 @@
       "requirement": {},
       "conditional": {
         "Zhongli": { "skill": "on" },
-        "ArchaicPetra": { "ele": "hydro" }
+        "ArchaicPetra": { "element": "hydro" }
       },
       "bonusStats": {},
       "hitMode": "avgHit"
     }
   ],
   "enemy": { "level": 100, "overrides": {} },
-  "teamConditional": { "resonance": { "Hydro": "on" }, "reaction": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
   "rotation": {
     "name": "E -> Q -> 3CA Hypercarry Rotation",
     "repeat": 1,

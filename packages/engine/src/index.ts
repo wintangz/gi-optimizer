@@ -3,6 +3,8 @@ export {
   listConditionalsForCharacter,
   listTargetsForCharacter,
   listWeaponConditionals,
+  validatePresetConditionalsAgainstGO,
+  type PresetConditionalIssue,
 } from './catalog'
 export {
   applyMemberConditionalOverrides,

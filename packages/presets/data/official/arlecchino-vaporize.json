@@ -71,7 +71,7 @@
       },
       "requirement": {},
       "conditional": {
-        "Bennett": { "activeInArea": "active" },
+        "Bennett": { "activeInArea": "activeInArea" },
         "NoblesseOblige": { "set4": "on" }
       },
       "bonusStats": {},
@@ -100,14 +100,14 @@
       "requirement": {},
       "conditional": {
         "Zhongli": { "skill": "on" },
-        "TenacityOfTheMillelith": { "set4": "on" }
+        "TenacityOfTheMillelith": { "skill": "cast" }
       },
       "bonusStats": {},
       "hitMode": "avgHit"
     }
   ],
   "enemy": { "level": 100, "overrides": {} },
-  "teamConditional": { "resonance": { "Pyro": "on" }, "reaction": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
   "rotation": {
     "name": "E -> 3× N5D Masque of the Red Death Vaporize",
     "repeat": 1,

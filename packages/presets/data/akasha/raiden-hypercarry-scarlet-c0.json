@@ -34,7 +34,7 @@
       "requirement": {},
       "conditional": {
         "RaidenShogun": {
-          "skillEye": "on",
+          "skillEye": "skillEye",
           "burstResolve": "60"
         },
         "StaffOfTheScarletSands": {
@@ -67,8 +67,8 @@
       "requirement": {},
       "conditional": {
         "KujouSara": {
-          "TenguJuuraiAmbush": "on",
-          "c6": "on"
+          "TenguJuuraiAmbush": "TenguJuuraiAmbush",
+          "c6": "c6"
         }
       },
       "bonusStats": {},
@@ -124,7 +124,7 @@
       },
       "requirement": {},
       "conditional": {
-        "Bennett": { "activeInArea": "active" },
+        "Bennett": { "activeInArea": "activeInArea" },
         "NoblesseOblige": { "set4": "on" }
       },
       "bonusStats": {},

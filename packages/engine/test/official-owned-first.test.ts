@@ -13,12 +13,12 @@ import { captureAllGoldenFixtures } from '../scripts/capture-golden'
 import { createSession, DEFAULT_OPTIMIZER_SETTINGS } from '../src'
 
 const LEGACY_TC_OFFICIAL_TOTALS: Record<string, number> = {
-  'official/furina-salon-subdps': 674788.7013106729,
-  'official/mavuika-melt-hypercarry': 89389.76243736036,
-  'official/neuvillette-hypercarry': 147822.0678736625,
-  'official/hutao-double-hydro-vape': 601177.9653805431,
-  'official/raiden-hypercarry': 343546.6488808773,
-  'official/arlecchino-vaporize': 942880.1234255427,
+  'official/furina-salon-subdps': 729116.1377099456,
+  'official/mavuika-melt-hypercarry': 266512.077201277,
+  'official/neuvillette-hypercarry': 197288.8842440706,
+  'official/hutao-double-hydro-vape': 620690.2286762865,
+  'official/raiden-hypercarry': 989461.6171055227,
+  'official/arlecchino-vaporize': 1504225.1495718248,
 }
 
 describe('Official Presets Owned-First Teammate Resolution (official-presets-owned-first)', () => {

@@ -1,7 +1,7 @@
 {
   "presetId": "official/furina-salon-subdps",
   "target": "Furina",
-  "total": 374658.0840257308,
+  "total": 413773.83823320706,
   "instances": [
     {
       "label": "Ousia Bubble DMG",
@@ -10,8 +10,8 @@
         "bubbleDmg"
       ],
       "count": 1,
-      "perHit": 14154.30693174825,
-      "subtotal": 14154.30693174825
+      "perHit": 15901.752231964081,
+      "subtotal": 15901.752231964081
     },
     {
       "label": "Gentilhomme Usher DMG (×7)",
@@ -20,8 +20,8 @@
         "usherDmg"
       ],
       "count": 7,
-      "perHit": 17094.850286585504,
-      "subtotal": 119663.95200609852
+      "perHit": 18948.955523742283,
+      "subtotal": 132642.688666196
     },
     {
       "label": "Surintendante Chevalmarin DMG (×14)",
@@ -30,8 +30,8 @@
         "chevalDmg"
       ],
       "count": 14,
-      "perHit": 9270.22753796046,
-      "subtotal": 129783.18553144643
+      "perHit": 10275.675210190444,
+      "subtotal": 143859.45294266622
     },
     {
       "label": "Mademoiselle Crabaletta DMG (×4)",
@@ -40,8 +40,8 @@
         "crabDmg"
       ],
       "count": 4,
-      "perHit": 23772.1676468491,
-      "subtotal": 95088.6705873964
+      "perHit": 26350.4938558349,
+      "subtotal": 105401.9754233396
     },
     {
       "label": "Let the People Rejoice Burst DMG",

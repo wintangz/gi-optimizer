@@ -124,14 +124,14 @@
       "requirement": {},
       "conditional": {
         "Zhongli": { "skill": "on" },
-        "TenacityOfTheMillelith": { "set4": "on" }
+        "TenacityOfTheMillelith": { "skill": "cast" }
       },
       "bonusStats": {},
       "hitMode": "avgHit"
     }
   ],
   "enemy": { "level": 100, "overrides": {} },
-  "teamConditional": { "resonance": { "Hydro": "on" }, "reaction": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
   "rotation": {
     "name": "8× N1C Vaporize + 2× Blood Blossom",
     "repeat": 1,

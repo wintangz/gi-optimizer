@@ -1,7 +1,7 @@
 {
   "presetId": "official/raiden-hypercarry",
   "target": "RaidenShogun",
-  "total": 237689.77840911562,
+  "total": 264207.2970579823,
   "instances": [
     {
       "label": "Musou no Hitotachi Base DMG",
@@ -10,8 +10,8 @@
         "dmg"
       ],
       "count": 1,
-      "perHit": 52498.089166657235,
-      "subtotal": 52498.089166657235
+      "perHit": 58354.963062641764,
+      "subtotal": 58354.963062641764
     },
     {
       "label": "Musou Isshin 1-Hit (×4)",
@@ -20,8 +20,8 @@
         "hit1"
       ],
       "count": 4,
-      "perHit": 7278.600383831188,
-      "subtotal": 29114.401535324752
+      "perHit": 8090.626978780841,
+      "subtotal": 32362.507915123362
     },
     {
       "label": "Musou Isshin 2-Hit (×3)",
@@ -30,8 +30,8 @@
         "hit2"
       ],
       "count": 3,
-      "perHit": 7214.471746088183,
-      "subtotal": 21643.415238264548
+      "perHit": 8019.34392169907,
+      "subtotal": 24058.03176509721
     },
     {
       "label": "Musou Isshin 3-Hit (×3)",
@@ -40,8 +40,8 @@
         "hit3"
       ],
       "count": 3,
-      "perHit": 8024.073949147983,
-      "subtotal": 24072.221847443947
+      "perHit": 8919.26823142031,
+      "subtotal": 26757.80469426093
     },
     {
       "label": "Musou Isshin 4-Hit A (×3)",
@@ -50,8 +50,8 @@
         "hit41"
       ],
       "count": 3,
-      "perHit": 6142.081038399676,
-      "subtotal": 18426.243115199028
+      "perHit": 6827.313485367901,
+      "subtotal": 20481.940456103704
     },
     {
       "label": "Musou Isshin 4-Hit B (×3)",
@@ -60,8 +60,8 @@
         "hit42"
       ],
       "count": 3,
-      "perHit": 6149.302524646738,
-      "subtotal": 18447.907573940214
+      "perHit": 6835.340626353296,
+      "subtotal": 20506.02187905989
     },
     {
       "label": "Musou Isshin Charged 1 (×4)",
@@ -70,8 +70,8 @@
         "charged1"
       ],
       "count": 4,
-      "perHit": 8662.379738623842,
-      "subtotal": 34649.51895449537
+      "perHit": 9628.785689270782,
+      "subtotal": 38515.14275708313
     },
     {
       "label": "Musou Isshin Charged 2 (×4)",
@@ -80,8 +80,8 @@
         "charged2"
       ],
       "count": 4,
-      "perHit": 9709.495244447637,
-      "subtotal": 38837.98097779055
+      "perHit": 10792.72113215307,
+      "subtotal": 43170.88452861228
     }
   ],
   "stats": {

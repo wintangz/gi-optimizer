@@ -297,14 +297,10 @@ export function computeDefaultMemberConditionals(opts: {
       }
     }
 
-    // Bridge ArchaicPetra `ele` -> GO's `element` conditional key when authored
-    // as `ele` (except on legacy bundled presets whose golden fixtures predate this fix).
+    // Bridge legacy ArchaicPetra `ele` -> GO's `element` conditional key when authored as `ele`.
     if (
       memberConditional.ArchaicPetra?.ele &&
-      !memberConditional.ArchaicPetra.element &&
-      preset.id !== 'akasha/furina-salon-pjc-c0' &&
-      preset.id !== 'akasha/neuvillette-hypercarry-protoamber-c0' &&
-      preset.id !== 'official/neuvillette-hypercarry'
+      !memberConditional.ArchaicPetra.element
     ) {
       memberConditional = {
         ...memberConditional,

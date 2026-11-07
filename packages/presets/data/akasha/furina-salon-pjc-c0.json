@@ -38,7 +38,7 @@
           "burstFanfare": "200"
         },
         "GoldenTroupe": {
-          "offField": "on"
+          "set4": "on"
         }
       },
       "bonusStats": {},
@@ -120,14 +120,14 @@
       "requirement": {},
       "conditional": {
         "Zhongli": { "skill": "on" },
-        "ArchaicPetra": { "ele": "hydro" }
+        "ArchaicPetra": { "element": "hydro" }
       },
       "bonusStats": {},
       "hitMode": "avgHit"
     }
   ],
   "enemy": { "level": 100, "overrides": {} },
-  "teamConditional": { "resonance": { "Hydro": "on" }, "reaction": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
   "rotation": {
     "name": "20s Salon Solitaire Rotation",
     "repeat": 1,

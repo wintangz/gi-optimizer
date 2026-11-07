@@ -16,7 +16,8 @@ import {
 } from '@genshin-optimizer/gi/sheets'
 import { getCharStat, getWeaponStat } from '@genshin-optimizer/gi/stats'
 import { uiDataForTeam, type UIData } from '@genshin-optimizer/gi/uidata'
-import { displayName } from '@gi/presets'
+import { input } from '@genshin-optimizer/gi/wr'
+import { displayName, type Preset } from '@gi/presets'
 import { getTeamData } from './teamData'
 import type {
   ConditionalDescriptor,
@@ -24,6 +25,11 @@ import type {
   ConditionalStateDescriptor,
   TargetDescriptor,
 } from './types'
+
+export interface PresetConditionalIssue {
+  path: string
+  message: string
+}
 
 const DISPLAY_SECTIONS = [
   'normal',
@@ -326,11 +332,38 @@ interface GlobalConditionalBuckets {
 
 let globalBuckets: GlobalConditionalBuckets | null = null
 
+function createArtifactCatalogUiData(baseUiData: UIData): UIData {
+  return new Proxy(baseUiData, {
+    get(target, prop, receiver) {
+      if (prop === 'get') {
+        return (node: unknown) => {
+          if (node === input.charEle) {
+            return { value: '' }
+          }
+          const res = target.get(node as never)
+          if (res && res.value !== undefined) return res
+          const nodeObj = node as { path?: readonly string[] } | undefined
+          if (
+            nodeObj?.path &&
+            nodeObj.path[0] === 'conditional' &&
+            nodeObj.path[1] === 'ScrollOfTheHeroOfCinderCity'
+          ) {
+            return { ...res, value: 'on' }
+          }
+          return res
+        }
+      }
+      return Reflect.get(target, prop, receiver)
+    },
+  })
+}
+
 function getGlobalConditionalBuckets(uiData: UIData): GlobalConditionalBuckets {
   if (globalBuckets) return globalBuckets
 
   const artifactConditionals: ConditionalDescriptor[] = []
   const artSeen = new Set<string>()
+  const artUiData = createArtifactCatalogUiData(uiData)
   for (const setKey of allArtifactSetKeys as readonly ArtifactSetKey[]) {
     const artSheet = getArtSheet(setKey)
     if (!artSheet?.setEffects) continue
@@ -340,7 +373,7 @@ function getGlobalConditionalBuckets(uiData: UIData): GlobalConditionalBuckets {
       if (entry?.document) {
         collectConditionalsFromSections(
           entry.document,
-          uiData,
+          artUiData,
           artSeen,
           artifactConditionals,
           { defaultCategory: 'artifact', section: `set${setNum}` }
@@ -490,7 +523,7 @@ export function getDefaultTargetArtifactSetConditionals(): Record<
   for (const cond of artifactConditionals) {
     if (
       cond.sheet === 'ScrollOfTheHeroOfCinderCity' &&
-      cond.key.startsWith('react_')
+      (cond.key.startsWith('react_') || cond.key.startsWith('nightsoul_'))
     ) {
       continue
     }
@@ -503,6 +536,114 @@ export function getDefaultTargetArtifactSetConditionals(): Record<
   }
   defaultTargetArtSetCondsCache = out
   return out
+}
+
+export function validatePresetConditionalsAgainstGO(
+  preset: Preset
+): PresetConditionalIssue[] {
+  const issues: PresetConditionalIssue[] = []
+  const uiData = getScratchUiData('Furina' as CharacterKey)
+  if (!uiData) return issues
+  const buckets = getGlobalConditionalBuckets(uiData)
+
+  for (let i = 0; i < preset.team.length; i++) {
+    const member = preset.team[i]!
+    const charConds = listConditionalsForCharacter(member.key)
+    const bySheet = new Map<string, Map<string, ConditionalDescriptor>>()
+    for (const c of [...charConds, ...buckets.allWeapons]) {
+      let sheetMap = bySheet.get(c.sheet)
+      if (!sheetMap) {
+        sheetMap = new Map()
+        bySheet.set(c.sheet, sheetMap)
+      }
+      sheetMap.set(c.key, c)
+    }
+
+    for (const [sheetKey, authoredConds] of Object.entries(
+      member.conditional ?? {}
+    )) {
+      const sheetMap = bySheet.get(sheetKey)
+      if (!sheetMap) {
+        issues.push({
+          path: `team.${i}.conditional.${sheetKey}`,
+          message: `Unknown GO conditional sheet '${sheetKey}' on member '${member.key}'.`,
+        })
+        continue
+      }
+      for (const [condKey, condVal] of Object.entries(authoredConds ?? {})) {
+        const desc = sheetMap.get(condKey)
+        if (!desc) {
+          const validKeys = [...sheetMap.keys()].join(', ')
+          issues.push({
+            path: `team.${i}.conditional.${sheetKey}.${condKey}`,
+            message: `Unknown GO conditional key '${condKey}' in sheet '${sheetKey}' on member '${member.key}' (valid keys: ${validKeys}).`,
+          })
+          continue
+        }
+        const validVals = desc.states.map((s) => s.key)
+        if (!validVals.includes(condVal)) {
+          issues.push({
+            path: `team.${i}.conditional.${sheetKey}.${condKey}`,
+            message: `Invalid GO conditional state value '${condVal}' for '${sheetKey}.${condKey}' on member '${member.key}' (valid values: ${validVals.join(', ')}).`,
+          })
+        }
+      }
+    }
+  }
+
+  const resonanceMap = new Map<string, ConditionalDescriptor>()
+  const reactionMap = new Map<string, ConditionalDescriptor>()
+  for (const c of buckets.resonanceAndReaction) {
+    if (c.sheet === 'resonance') {
+      resonanceMap.set(c.key, c)
+    } else if (c.sheet === 'reaction') {
+      reactionMap.set(c.key, c)
+    }
+  }
+
+  for (const [resKey, resVal] of Object.entries(
+    preset.teamConditional?.resonance ?? {}
+  )) {
+    const desc = resonanceMap.get(resKey)
+    if (!desc) {
+      const validKeys = [...resonanceMap.keys()].join(', ')
+      issues.push({
+        path: `teamConditional.resonance.${resKey}`,
+        message: `Unknown GO resonance conditional key '${resKey}' (valid keys: ${validKeys}).`,
+      })
+      continue
+    }
+    const validVals = desc.states.map((s) => s.key)
+    if (!validVals.includes(resVal)) {
+      issues.push({
+        path: `teamConditional.resonance.${resKey}`,
+        message: `Invalid GO resonance conditional state value '${resVal}' for 'resonance.${resKey}' (valid values: ${validVals.join(', ')}).`,
+      })
+    }
+  }
+
+  for (const [reactKey, reactVal] of Object.entries(
+    preset.teamConditional?.reaction ?? {}
+  )) {
+    const desc = reactionMap.get(reactKey)
+    if (!desc) {
+      const validKeys = [...reactionMap.keys()].join(', ')
+      issues.push({
+        path: `teamConditional.reaction.${reactKey}`,
+        message: `Unknown GO reaction conditional key '${reactKey}' (valid keys: ${validKeys}).`,
+      })
+      continue
+    }
+    const validVals = desc.states.map((s) => s.key)
+    if (!validVals.includes(reactVal)) {
+      issues.push({
+        path: `teamConditional.reaction.${reactKey}`,
+        message: `Invalid GO reaction conditional state value '${reactVal}' for 'reaction.${reactKey}' (valid values: ${validVals.join(', ')}).`,
+      })
+    }
+  }
+
+  return issues
 }
 
 export function listWeaponConditionals(
