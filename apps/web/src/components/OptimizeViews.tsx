@@ -1673,6 +1673,7 @@ export function WeaponComparisonPanel({
   selectedCandidates,
   onChangeCandidates,
 }: WeaponComparisonPanelProps) {
+  const [draftLevels, setDraftLevels] = useState<Record<string, string>>({})
   const charMeta = getCharacterMeta(targetCharacterKey)
   const allWeaponsForType = listWeaponsForType(charMeta.weaponType)
   const selectedKeys = selectedCandidates.map((c) => c.weaponKey)
@@ -1680,6 +1681,12 @@ export function WeaponComparisonPanel({
   function handleToggleWeapon(weaponKey: string) {
     const exists = selectedCandidates.some((c) => c.weaponKey === weaponKey)
     if (exists) {
+      setDraftLevels((prev) => {
+        if (!(weaponKey in prev)) return prev
+        const next = { ...prev }
+        delete next[weaponKey]
+        return next
+      })
       onChangeCandidates(
         selectedCandidates.filter((c) => c.weaponKey !== weaponKey)
       )
@@ -1728,6 +1735,44 @@ export function WeaponComparisonPanel({
         }
       })
     )
+  }
+
+  function handleFocusLevel(weaponKey: string, currentLevel: number) {
+    setDraftLevels((prev) => {
+      if (weaponKey in prev) return prev
+      return {
+        ...prev,
+        [weaponKey]: String(currentLevel),
+      }
+    })
+  }
+
+  function handleChangeLevel(weaponKey: string, rawValue: string) {
+    setDraftLevels((prev) => ({
+      ...prev,
+      [weaponKey]: rawValue,
+    }))
+  }
+
+  function handleBlurLevel(
+    weaponKey: string,
+    fallbackLevel: number,
+    maxLvl: number
+  ) {
+    const raw = draftLevels[weaponKey]
+    setDraftLevels((prev) => {
+      if (!(weaponKey in prev)) return prev
+      const next = { ...prev }
+      delete next[weaponKey]
+      return next
+    })
+    if (raw === undefined) return
+    const trimmed = raw.trim()
+    const parsed = trimmed !== '' ? Number(trimmed) : Number.NaN
+    const clamped = Number.isFinite(parsed)
+      ? Math.max(1, Math.min(maxLvl, Math.round(parsed)))
+      : Math.max(1, Math.min(maxLvl, Math.round(fallbackLevel)))
+    handleUpdateCandidate(weaponKey, { level: clamped })
   }
 
   return (
@@ -1842,17 +1887,29 @@ export function WeaponComparisonPanel({
                   <label className="presets-filter-label-sm">
                     <span className="muted">Lv.</span>
                     <input
-                      type="number"
-                      min={1}
-                      max={maxLvl}
+                      type="text"
+                      inputMode="numeric"
                       aria-label={`${wMeta.displayName} Level`}
                       data-testid={`weapon-compare-level-${cand.weaponKey}`}
-                      value={cand.level}
-                      onChange={(e) =>
-                        handleUpdateCandidate(cand.weaponKey, {
-                          level: Number(e.target.value),
-                        })
+                      value={
+                        cand.weaponKey in draftLevels
+                          ? draftLevels[cand.weaponKey]!
+                          : String(cand.level)
                       }
+                      onFocus={() =>
+                        handleFocusLevel(cand.weaponKey, cand.level)
+                      }
+                      onChange={(e) =>
+                        handleChangeLevel(cand.weaponKey, e.target.value)
+                      }
+                      onBlur={() =>
+                        handleBlurLevel(cand.weaponKey, cand.level, maxLvl)
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur()
+                        }
+                      }}
                       style={{ width: '64px' }}
                     />
                   </label>
@@ -2707,6 +2764,9 @@ export function SolverPoolFiltersPanel({
   settings,
   onChange,
 }: SolverPoolFiltersPanelProps) {
+  const [draftValues, setDraftValues] = useState<
+    Partial<Record<'levelLow' | 'levelHigh' | 'minRv', string>>
+  >({})
   const summary = summarizeSolverPoolFilters(settings)
   const mainStatKeys: MainStatAllowlistMap = settings.mainStatKeys ?? {}
   const requiredSubstats: string[] = settings.requiredSubstats ?? []
@@ -2714,6 +2774,68 @@ export function SolverPoolFiltersPanel({
     settings.requiredSubstatsMode === 'any' ? 'any' : 'all'
   const minRarity = settings.minRarity ?? 1
   const minRv = settings.minRv ?? 0
+
+  function handleFocusNumericField(
+    field: 'levelLow' | 'levelHigh' | 'minRv',
+    currentVal: number
+  ) {
+    setDraftValues((prev) => {
+      if (field in prev) return prev
+      return {
+        ...prev,
+        [field]: String(currentVal),
+      }
+    })
+  }
+
+  function handleChangeNumericField(
+    field: 'levelLow' | 'levelHigh' | 'minRv',
+    rawValue: string
+  ) {
+    setDraftValues((prev) => ({
+      ...prev,
+      [field]: rawValue,
+    }))
+  }
+
+  function handleBlurNumericField(field: 'levelLow' | 'levelHigh' | 'minRv') {
+    const raw = draftValues[field]
+    setDraftValues((prev) => {
+      if (!(field in prev)) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+    if (raw === undefined) return
+    const trimmed = raw.trim()
+    const parsed = trimmed !== '' ? Number(trimmed) : Number.NaN
+    if (field === 'levelLow') {
+      const nextLow = Number.isFinite(parsed)
+        ? Math.max(0, Math.min(20, Math.round(parsed)))
+        : 0
+      onChange({
+        ...settings,
+        levelLow: nextLow,
+      })
+    } else if (field === 'levelHigh') {
+      const nextHigh = Number.isFinite(parsed)
+        ? Math.max(0, Math.min(20, Math.round(parsed)))
+        : 20
+      onChange({
+        ...settings,
+        levelHigh: nextHigh,
+      })
+    } else if (field === 'minRv') {
+      const nextRv =
+        Number.isFinite(parsed) && parsed > 0
+          ? Math.min(900, Math.max(0, parsed))
+          : 0
+      onChange({
+        ...settings,
+        minRv: nextRv,
+      })
+    }
+  }
 
   function toggleSlotMainStat(slot: VariableMainStatSlotKey, statKey: string) {
     const existing = mainStatKeys[slot] ?? []
@@ -2778,7 +2900,10 @@ export function SolverPoolFiltersPanel({
               data-testid="solver-pool-filters-reset"
               className="secondary"
               style={{ padding: '0.18rem 0.55rem', fontSize: '0.75rem' }}
-              onClick={() => onChange(resetSolverPoolFilters(settings))}
+              onClick={() => {
+                setDraftValues({})
+                onChange(resetSolverPoolFilters(settings))
+              }}
             >
               Reset Pool Filters
             </button>
@@ -2950,40 +3075,52 @@ export function SolverPoolFiltersPanel({
           </span>
           <div className="preset-gear-row">
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               data-testid="pool-filter-level-low"
               aria-label="Pool Filter Level Min"
-              min={0}
-              max={20}
-              value={settings.levelLow}
-              onChange={(e) =>
-                onChange({
-                  ...settings,
-                  levelLow: Math.max(
-                    0,
-                    Math.min(20, Number(e.target.value) || 0)
-                  ),
-                })
+              value={
+                'levelLow' in draftValues
+                  ? draftValues.levelLow!
+                  : String(settings.levelLow)
               }
+              onFocus={() =>
+                handleFocusNumericField('levelLow', settings.levelLow)
+              }
+              onChange={(e) =>
+                handleChangeNumericField('levelLow', e.target.value)
+              }
+              onBlur={() => handleBlurNumericField('levelLow')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur()
+                }
+              }}
               style={{ width: '68px' }}
             />
             <span className="muted">to</span>
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               data-testid="pool-filter-level-high"
               aria-label="Pool Filter Level Max"
-              min={0}
-              max={20}
-              value={settings.levelHigh}
-              onChange={(e) =>
-                onChange({
-                  ...settings,
-                  levelHigh: Math.max(
-                    0,
-                    Math.min(20, Number(e.target.value) || 0)
-                  ),
-                })
+              value={
+                'levelHigh' in draftValues
+                  ? draftValues.levelHigh!
+                  : String(settings.levelHigh)
               }
+              onFocus={() =>
+                handleFocusNumericField('levelHigh', settings.levelHigh)
+              }
+              onChange={(e) =>
+                handleChangeNumericField('levelHigh', e.target.value)
+              }
+              onBlur={() => handleBlurNumericField('levelHigh')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur()
+                }
+              }}
               style={{ width: '68px' }}
             />
           </div>
@@ -3023,22 +3160,18 @@ export function SolverPoolFiltersPanel({
           </span>
           <div className="preset-gear-row">
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               data-testid="pool-filter-min-rv"
               aria-label="Minimum Artifact RV (%)"
-              min={0}
-              max={900}
-              step={10}
-              value={minRv}
-              onChange={(e) => {
-                const raw = Number(e.target.value)
-                onChange({
-                  ...settings,
-                  minRv:
-                    Number.isFinite(raw) && raw > 0
-                      ? Math.min(900, Math.max(0, raw))
-                      : 0,
-                })
+              value={'minRv' in draftValues ? draftValues.minRv! : String(minRv)}
+              onFocus={() => handleFocusNumericField('minRv', minRv)}
+              onChange={(e) => handleChangeNumericField('minRv', e.target.value)}
+              onBlur={() => handleBlurNumericField('minRv')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur()
+                }
               }}
               style={{ width: '84px' }}
             />

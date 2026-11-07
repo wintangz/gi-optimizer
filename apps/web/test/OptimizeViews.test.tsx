@@ -43,6 +43,12 @@ vi.mock('react', async (importOriginal) => {
       }
       return [hookStore.states[idx] as T, setState] as const
     },
+    useMemo<T>(factory: () => T, deps?: readonly unknown[]) {
+      if (!hookStore.active) {
+        return actual.useMemo(factory, deps ?? [])
+      }
+      return factory()
+    },
   }
 })
 
@@ -1168,15 +1174,22 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
 
   it('renders SolverPoolFiltersPanel and updates mainStatKeys, requiredSubstats, requiredSubstatsMode, minRarity, and minRv (solver-filters-deep)', () => {
     let latestSettings = { ...DEFAULT_OPTIMIZER_SETTINGS }
-    const renderTree = () =>
-      evaluateTree(
-        <SolverPoolFiltersPanel
-          settings={latestSettings}
-          onChange={(next) => {
-            latestSettings = next
-          }}
-        />
-      )
+    const renderTree = () => {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        return evaluateTree(
+          <SolverPoolFiltersPanel
+            settings={latestSettings}
+            onChange={(next) => {
+              latestSettings = next
+            }}
+          />
+        )
+      } finally {
+        hookStore.active = false
+      }
+    }
 
     let tree = renderTree()
     const summaryNode = findByTestId(tree, 'solver-pool-filters-summary')
@@ -1206,13 +1219,15 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     ;(rarity5Btn!.props.onClick as () => void)()
     expect(latestSettings.minRarity).toBe(5)
 
-    // Minimum RV input
+    // Minimum RV input (draft-text pattern: commits on blur)
     tree = renderTree()
     const rvInput = findByTestId(tree, 'pool-filter-min-rv')
     expect(rvInput).toBeDefined()
     ;(
       rvInput!.props.onChange as (e: { target: { value: string } }) => void
     )({ target: { value: '450' } })
+    tree = renderTree()
+    ;(findByTestId(tree, 'pool-filter-min-rv')!.props.onBlur as () => void)()
     expect(latestSettings.minRv).toBe(450)
 
     // Reset Pool Filters button restores unrestricted defaults
@@ -1224,6 +1239,142 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(latestSettings.requiredSubstats).toEqual([])
     expect(latestSettings.minRarity).toBe(1)
     expect(latestSettings.minRv).toBe(0)
+  })
+
+  it('single-level-range-control: numeric inputs in SolverPoolFiltersPanel and WeaponComparisonPanel hold raw draft text while focused (including cleared empty state) and clamp + commit on blur', () => {
+    let latestSettings = { ...DEFAULT_OPTIMIZER_SETTINGS, levelLow: 12, levelHigh: 20, minRv: 200 }
+    const renderFilters = () => {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        return evaluateTree(
+          <SolverPoolFiltersPanel
+            settings={latestSettings}
+            onChange={(next) => {
+              latestSettings = next
+            }}
+          />
+        )
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    // 1. SolverPoolFiltersPanel: clear levelLow to "" while editing -> stays "" without snapping to 0, then type "16" and blur -> commits 16
+    let filterTree = renderFilters()
+    const lowInput = findByTestId(filterTree, 'pool-filter-level-low')!
+    expect(lowInput.props.value).toBe('12')
+    ;(lowInput.props.onFocus as () => void)()
+    filterTree = renderFilters()
+    ;(
+      findByTestId(filterTree, 'pool-filter-level-low')!.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '' } })
+    filterTree = renderFilters()
+    expect(findByTestId(filterTree, 'pool-filter-level-low')!.props.value).toBe('')
+    expect(latestSettings.levelLow).toBe(12)
+
+    // Out-of-range "99" stays "99" while focused, clamps to 20 on blur
+    ;(
+      findByTestId(filterTree, 'pool-filter-level-low')!.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '99' } })
+    filterTree = renderFilters()
+    expect(findByTestId(filterTree, 'pool-filter-level-low')!.props.value).toBe('99')
+    expect(latestSettings.levelLow).toBe(12)
+    ;(findByTestId(filterTree, 'pool-filter-level-low')!.props.onBlur as () => void)()
+    filterTree = renderFilters()
+    expect(latestSettings.levelLow).toBe(20)
+    expect(findByTestId(filterTree, 'pool-filter-level-low')!.props.value).toBe('20')
+
+    // Clearing levelHigh to "" and blurring restores default 20
+    ;(findByTestId(filterTree, 'pool-filter-level-high')!.props.onFocus as () => void)()
+    filterTree = renderFilters()
+    ;(
+      findByTestId(filterTree, 'pool-filter-level-high')!.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '' } })
+    filterTree = renderFilters()
+    expect(findByTestId(filterTree, 'pool-filter-level-high')!.props.value).toBe('')
+    ;(findByTestId(filterTree, 'pool-filter-level-high')!.props.onBlur as () => void)()
+    filterTree = renderFilters()
+    expect(latestSettings.levelHigh).toBe(20)
+
+    // 2. WeaponComparisonPanel: weapon level input holds "" and intermediate "8" while typing without snapping to 1, and clamps on blur
+    hookStore.reset()
+    let candidates = [
+      {
+        weaponKey: 'FavoniusSword',
+        level: 90,
+        ascension: 6,
+        refinement: 5,
+        isOwned: true,
+        ownedWeaponId: 'w_fav',
+        isEquippedBaseline: true,
+      },
+    ]
+    const renderComparePanel = () => {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        return evaluateTree(
+          <WeaponComparisonPanel
+            targetCharacterKey="Furina"
+            good={null}
+            selectedCandidates={candidates}
+            onChangeCandidates={(next) => {
+              candidates = next
+            }}
+          />
+        )
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    let compareTree = renderComparePanel()
+    const wepLvlInput = findByTestId(
+      compareTree,
+      'weapon-compare-level-FavoniusSword'
+    )!
+    expect(wepLvlInput.props.value).toBe('90')
+    ;(wepLvlInput.props.onFocus as () => void)()
+    compareTree = renderComparePanel()
+    ;(
+      findByTestId(compareTree, 'weapon-compare-level-FavoniusSword')!.props
+        .onChange as (e: { target: { value: string } }) => void
+    )({ target: { value: '' } })
+    compareTree = renderComparePanel()
+    // Field stays empty while editing (never snaps to "1")
+    expect(
+      findByTestId(compareTree, 'weapon-compare-level-FavoniusSword')!.props
+        .value
+    ).toBe('')
+    expect(candidates[0]!.level).toBe(90)
+
+    // Type "0" while focused -> stays "0" until blur clamps it to 1
+    ;(
+      findByTestId(compareTree, 'weapon-compare-level-FavoniusSword')!.props
+        .onChange as (e: { target: { value: string } }) => void
+    )({ target: { value: '0' } })
+    compareTree = renderComparePanel()
+    expect(
+      findByTestId(compareTree, 'weapon-compare-level-FavoniusSword')!.props
+        .value
+    ).toBe('0')
+    ;(
+      findByTestId(compareTree, 'weapon-compare-level-FavoniusSword')!.props
+        .onBlur as () => void
+    )()
+    compareTree = renderComparePanel()
+    expect(candidates[0]!.level).toBe(1)
+    expect(
+      findByTestId(compareTree, 'weapon-compare-level-FavoniusSword')!.props
+        .value
+    ).toBe('1')
   })
 
   it('expands per-instance damage formula breakdown and core stat breakdown on Current and optimized builds with source attribution badges (formula-breakdown)', () => {

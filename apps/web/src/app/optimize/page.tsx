@@ -1463,47 +1463,6 @@ function OptimizeInner() {
           </label>
 
           <label className="gi-field-label">
-            <span className="muted">Artifact Level Range (Min / Max)</span>
-            <div className="preset-gear-row">
-              <input
-                type="number"
-                aria-label="Artifact Level Min"
-                min={0}
-                max={20}
-                value={settings.levelLow}
-                onChange={(e) =>
-                  void updateSettings({
-                    ...settings,
-                    levelLow: Math.max(
-                      0,
-                      Math.min(20, Number(e.target.value))
-                    ),
-                  })
-                }
-                style={{ width: '74px' }}
-              />
-              <span className="muted">to</span>
-              <input
-                type="number"
-                aria-label="Artifact Level Max"
-                min={0}
-                max={20}
-                value={settings.levelHigh}
-                onChange={(e) =>
-                  void updateSettings({
-                    ...settings,
-                    levelHigh: Math.max(
-                      0,
-                      Math.min(20, Number(e.target.value))
-                    ),
-                  })
-                }
-                style={{ width: '74px' }}
-              />
-            </div>
-          </label>
-
-          <label className="gi-field-label">
             <span className="muted">Top N Builds to Return</span>
             <select
               aria-label="Top N Builds to Return"

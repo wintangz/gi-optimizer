@@ -557,5 +557,15 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(idxConstraintsCard).toBeGreaterThan(idxFilterPair)
     expect(idxResultsCard).toBeGreaterThan(idxConstraintsCard)
     expect(idxRunOptimizeBtn).toBeGreaterThan(idxResultsCard)
+
+    // single-level-range-control: Artifact Level Range exists only in SolverPoolFiltersPanel, not duplicated in the Setup grid
+    expect(findByTestId(tree, 'pool-filter-level-low')).toBeDefined()
+    expect(findByTestId(tree, 'pool-filter-level-high')).toBeDefined()
+    expect(
+      findAll(tree, (n) => n.props['aria-label'] === 'Artifact Level Min')
+    ).toHaveLength(0)
+    expect(
+      findAll(tree, (n) => n.props['aria-label'] === 'Artifact Level Max')
+    ).toHaveLength(0)
   })
 })
