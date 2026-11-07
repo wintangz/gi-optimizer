@@ -217,6 +217,28 @@ const SAMPLE_CATALOG: Record<string, ConditionalDescriptor[]> = {
       section: 'weapon',
     },
     {
+      sheet: 'GoldenTroupe',
+      key: 'set4',
+      name: 'Golden Troupe — Not on the Field',
+      states: [{ key: 'on', name: 'Active (On)' }],
+      canShow: true,
+      category: 'artifact',
+      section: 'set4',
+    },
+    {
+      sheet: 'MarechausseeHunter',
+      key: 'set4',
+      name: 'Marechaussee Hunter — HP Change Stacks',
+      states: [
+        { key: '1', name: '1 Stack' },
+        { key: '2', name: '2 Stacks' },
+        { key: '3', name: '3 Stacks' },
+      ],
+      canShow: true,
+      category: 'artifact',
+      section: 'set4',
+    },
+    {
       sheet: 'NoblesseOblige',
       key: 'set4',
       name: 'Noblesse Oblige — Elemental Burst Used',
@@ -432,10 +454,21 @@ const SAMPLE_GOOD: IGOOD = {
       lock: true,
       substats: [],
     },
+    {
+      id: 'a5_1pc_offpiece',
+      setKey: 'MarechausseeHunter',
+      slotKey: 'circlet',
+      level: 20,
+      rarity: 5,
+      mainStatKey: 'critDMG_',
+      location: 'Furina',
+      lock: true,
+      substats: [],
+    },
   ],
 }
 
-describe('ConditionalTogglePanel Component (conditional-toggle-panel)', () => {
+describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-panel-member-tabs)', () => {
   beforeEach(() => {
     hookStore.reset()
   })
@@ -444,7 +477,7 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel)', () => {
     hookStore.reset()
   })
 
-  it('renders a Buffs & Passives panel for every team member grouped by weapon, artifact, character, and constellation, and supports toggling and reset', () => {
+  it('renders a top member tab switcher showing ONE member at a time, hides unworn (0pc) and single-piece (1pc) artifact sets while showing 2pc/4pc sets, and preserves overrides across tab switches', () => {
     const preset = getBundledPreset('official/furina-salon-subdps')!
     let currentSettings: OptimizerSettings = structuredClone(
       DEFAULT_OPTIMIZER_SETTINGS
@@ -477,58 +510,62 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel)', () => {
     const root = findByTestId(tree1, 'conditional-toggle-panel')
     expect(root).toBeDefined()
 
-    // Every team member (Furina, Neuvillette, KaedeharaKazuha, Zhongli) has its own member buffs panel
+    // 1. Top member switcher tabs exist for all 4 team members
+    const tablist = findByTestId(tree1, 'buff-panel-member-tabs')
+    expect(tablist).toBeDefined()
     for (const member of preset.team) {
-      const memberPanel = findByTestId(tree1, `member-buffs-panel-${member.key}`)
-      expect(memberPanel).toBeDefined()
-      expect(findByTestId(tree1, `buff-group-weapon-${member.key}`)).toBeDefined()
-      expect(
-        findByTestId(tree1, `buff-group-artifact-${member.key}`)
-      ).toBeDefined()
-      expect(
-        findByTestId(tree1, `buff-group-character-${member.key}`)
-      ).toBeDefined()
-      expect(
-        findByTestId(tree1, `buff-group-constellation-${member.key}`)
-      ).toBeDefined()
+      const tab = findByTestId(tree1, `member-buffs-tab-${member.key}`)
+      expect(tab).toBeDefined()
+      expect(tab!.props['aria-selected']).toBe(member.key === 'Furina')
     }
 
-    // Default state: Furina's SplendorOfTranquilWaters.hpIncrease is '2', NoblesseOblige.set4 is 'on' (via target boolean set defaults), Furina.burstFanfare is '250'
-    const allArtToggle = findByTestId(tree1, 'toggle-all-art-conds-Furina')!
-    ;(allArtToggle.props.onClick as () => void)()
-    const tree1Expanded = renderPanel()
+    // 2. Only ONE member's buffs panel (Furina, slot 0) is rendered initially
+    expect(findByTestId(tree1, 'member-buffs-panel-Furina')).toBeDefined()
+    expect(findByTestId(tree1, 'member-buffs-panel-Neuvillette')).toBeUndefined()
+    expect(
+      findByTestId(tree1, 'member-buffs-panel-KaedeharaKazuha')
+    ).toBeUndefined()
+    expect(findByTestId(tree1, 'member-buffs-panel-Zhongli')).toBeUndefined()
 
+    // Furina's 4 groups are rendered
+    expect(findByTestId(tree1, 'buff-group-weapon-Furina')).toBeDefined()
+    expect(findByTestId(tree1, 'buff-group-artifact-Furina')).toBeDefined()
+    expect(findByTestId(tree1, 'buff-group-character-Furina')).toBeDefined()
+    expect(findByTestId(tree1, 'buff-group-constellation-Furina')).toBeDefined()
+
+    // 3. Artifact set filtering:
+    // - GoldenTroupe (4pc worn on Furina) IS shown and active ('on')
+    const gtToggle = findByTestId(
+      tree1,
+      'cond-toggle-Furina-GoldenTroupe-set4'
+    )!
+    expect(gtToggle).toBeDefined()
+    expect(gtToggle.props['aria-checked']).toBe(true)
+    expect(gtToggle.props['data-state-value']).toBe('on')
+
+    // - MarechausseeHunter (1pc off-piece worn on Furina) MUST NOT appear at all
+    expect(
+      findByTestId(tree1, 'cond-row-Furina-MarechausseeHunter-set4')
+    ).toBeUndefined()
+
+    // - NoblesseOblige (0pc unworn on Furina) MUST NOT appear at all
+    expect(
+      findByTestId(tree1, 'cond-row-Furina-NoblesseOblige-set4')
+    ).toBeUndefined()
+
+    // Default state: Furina's SplendorOfTranquilWaters.hpIncrease is '2', Furina.burstFanfare is '250'
     const splendorToggle = findByTestId(
-      tree1Expanded,
+      tree1,
       'cond-toggle-Furina-SplendorOfTranquilWaters-hpIncrease'
     )!
     expect(splendorToggle.props['aria-checked']).toBe(true)
     expect(splendorToggle.props['data-state-value']).toBe('2')
 
-    const noToggle = findByTestId(
-      tree1Expanded,
-      'cond-toggle-Furina-NoblesseOblige-set4'
-    )!
-    expect(noToggle.props['aria-checked']).toBe(true)
-    expect(noToggle.props['data-state-value']).toBe('on')
-
     const qDmgSelect = findByTestId(
-      tree1Expanded,
+      tree1,
       'cond-select-Furina-Furina-burstFanfare'
     )!
     expect(qDmgSelect.props.value).toBe('250')
-
-    // Zhongli (not in SAMPLE_GOOD -> runs as simulated 'tc') has ArchaicPetra.element = 'hydro' and Zhongli.skill = 'on'
-    const zhongliPetraSelect = findByTestId(
-      tree1,
-      'cond-select-Zhongli-ArchaicPetra-element'
-    )!
-    expect(zhongliPetraSelect.props.value).toBe('hydro')
-    const zhongliShieldToggle = findByTestId(
-      tree1,
-      'cond-toggle-Zhongli-Zhongli-skill'
-    )!
-    expect(zhongliShieldToggle.props['aria-checked']).toBe(true)
 
     // Flip Furina's SplendorOfTranquilWaters.hpIncrease off via the switch
     const onFlipSplendor = splendorToggle.props.onClick as () => void
@@ -545,7 +582,37 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel)', () => {
       },
     })
 
-    // Re-render and verify switch is now OFF and Reset button is enabled
+    // 4. Switch to Zhongli tab -> shows ONLY Zhongli's panel while preserving Furina's override
+    const zhongliTab = findByTestId(tree1, 'member-buffs-tab-Zhongli')!
+    ;(zhongliTab.props.onClick as () => void)()
+
+    const treeZhongli = renderPanel()
+    expect(
+      findByTestId(treeZhongli, 'member-buffs-panel-Furina')
+    ).toBeUndefined()
+    expect(
+      findByTestId(treeZhongli, 'member-buffs-panel-Zhongli')
+    ).toBeDefined()
+    expect(
+      findByTestId(treeZhongli, 'member-tab-modified-Furina')
+    ).toBeDefined()
+
+    // Zhongli (not in SAMPLE_GOOD -> runs as simulated 'tc' with 4pc ArchaicPetra) has ArchaicPetra.element = 'hydro' and Zhongli.skill = 'on'
+    const zhongliPetraSelect = findByTestId(
+      treeZhongli,
+      'cond-select-Zhongli-ArchaicPetra-element'
+    )!
+    expect(zhongliPetraSelect.props.value).toBe('hydro')
+    const zhongliShieldToggle = findByTestId(
+      treeZhongli,
+      'cond-toggle-Zhongli-Zhongli-skill'
+    )!
+    expect(zhongliShieldToggle.props['aria-checked']).toBe(true)
+
+    // Switch back to Furina tab -> Furina's override is still active and Reset button works
+    const furinaTab = findByTestId(treeZhongli, 'member-buffs-tab-Furina')!
+    ;(furinaTab.props.onClick as () => void)()
+
     const tree2 = renderPanel()
     const splendorToggleAfter = findByTestId(
       tree2,

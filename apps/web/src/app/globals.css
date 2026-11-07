@@ -1506,11 +1506,47 @@ td {
   text-align: center;
 }
 
-/* Conditional Toggle Panel (conditional-toggle-panel) */
-.gi-buffs-member-grid {
+/* Conditional Toggle Panel (conditional-toggle-panel & buff-panel-member-tabs) */
+.gi-buffs-member-tabs {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+  gap: 0.55rem;
+}
+
+.gi-buffs-member-tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.68rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.gi-buffs-member-tab:hover {
+  border-color: #3e455c;
+  background: #1b202d;
+}
+
+.gi-buffs-member-tab.is-selected {
+  border-color: var(--accent);
+  background: rgba(122, 162, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(122, 162, 255, 0.35);
+}
+
+.gi-buffs-member-tab-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  flex-shrink: 0;
 }
 
 .gi-buffs-member-card {
