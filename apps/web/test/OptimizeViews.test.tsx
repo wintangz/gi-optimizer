@@ -51,6 +51,7 @@ import {
   ConstraintsCard,
   formatCoreStatComparison,
   formatRelativeDelta,
+  formatRotationRowLabel,
   PresetRotationSummary,
   rankWeaponComparisonRows,
   resolveWeaponCompareCandidate,
@@ -1456,15 +1457,20 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(findByTestId(tree, 'damage-breakdown-opt-0-0')).toBeUndefined()
     expect(findByTestId(tree, 'stat-breakdown-opt-0-atk')).toBeUndefined()
 
-    // Click damage row formula toggle
-    const instToggle = findByTestId(tree, 'comp-instance-toggle-opt-0-0')
-    expect(instToggle).toBeDefined()
-    ;(instToggle!.props.onClick as (e: { stopPropagation: () => void }) => void)(
-      { stopPropagation: () => {} }
-    )
+    // Click damage row to expand its formula breakdown; chevron is a plain span, not a button
+    const instChevron = findByTestId(tree, 'comp-instance-toggle-opt-0-0')
+    expect(instChevron).toBeDefined()
+    expect(instChevron!.type).toBe('span')
+    expect(instChevron!.props.className).toBe('comp-row-chevron')
+    const instRow = findByTestId(tree, 'comp-instance-row-opt-0-0')!
+    expect(instRow.props['aria-expanded']).toBe(false)
+    ;(instRow.props.onClick as () => void)()
 
     tree = renderList()
     expect(findByTestId(tree, 'damage-breakdown-opt-0-0')).toBeDefined()
+    expect(
+      findByTestId(tree, 'comp-instance-toggle-opt-0-0')!.props.className
+    ).toBe('comp-row-chevron is-expanded')
     expect(
       findByTestId(tree, 'damage-factor-opt-0-0-baseDamage')
     ).toBeDefined()
@@ -1474,15 +1480,20 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(findByTestId(tree, 'damage-factor-opt-0-0-enemyDef')).toBeDefined()
     expect(findByTestId(tree, 'damage-factor-opt-0-0-enemyRes')).toBeDefined()
 
-    // Click ATK stat row toggle
-    const atkToggle = findByTestId(tree, 'comp-stat-toggle-opt-0-atk')
-    expect(atkToggle).toBeDefined()
-    ;(atkToggle!.props.onClick as (e: { stopPropagation: () => void }) => void)(
-      { stopPropagation: () => {} }
-    )
+    // Click ATK stat row to expand its breakdown; chevron is a plain span, not a button
+    const atkChevron = findByTestId(tree, 'comp-stat-toggle-opt-0-atk')
+    expect(atkChevron).toBeDefined()
+    expect(atkChevron!.type).toBe('span')
+    expect(atkChevron!.props.className).toBe('comp-row-chevron')
+    const atkRow = findByTestId(tree, 'comp-stat-row-opt-0-atk')!
+    expect(atkRow.props['aria-expanded']).toBe(false)
+    ;(atkRow.props.onClick as () => void)()
 
     tree = renderList()
     expect(findByTestId(tree, 'stat-breakdown-opt-0-atk')).toBeDefined()
+    expect(
+      findByTestId(tree, 'comp-stat-toggle-opt-0-atk')!.props.className
+    ).toBe('comp-row-chevron is-expanded')
     const resonanceContrib = findByTestId(
       tree,
       'stat-contributor-opt-0-atk-2'
@@ -1859,5 +1870,108 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(html).toContain(
       'data-testid="artifact-piece-lock" title="Locked in imported GOOD data"'
     )
+  })
+
+  it('strips redundant trailing reaction and hit-count parentheticals from rotation row labels and uses plain rotating chevrons instead of buttons on expandable rows (build-details-dedupe)', () => {
+    expect(
+      formatRotationRowLabel('Hour of Burning Skies: Sunfell Slice (Melt)')
+    ).toBe('Hour of Burning Skies: Sunfell Slice')
+    expect(
+      formatRotationRowLabel('Flamestrider Charged Cyclic (Melt ×4)')
+    ).toBe('Flamestrider Charged Cyclic')
+    expect(
+      formatRotationRowLabel('Flamestrider Charged Cyclic (No Reaction ×4)')
+    ).toBe('Flamestrider Charged Cyclic')
+    expect(formatRotationRowLabel('Masque 1-Hit (Vaporize ×3)')).toBe(
+      'Masque 1-Hit'
+    )
+    expect(
+      formatRotationRowLabel('Masque 4-Hit (Vaporize ×3, Normal ×3)')
+    ).toBe('Masque 4-Hit')
+    expect(formatRotationRowLabel('Gentilhomme Usher DMG (×7)')).toBe(
+      'Gentilhomme Usher DMG'
+    )
+    expect(formatRotationRowLabel('Equitable Judgment Ticks (3×8)')).toBe(
+      'Equitable Judgment Ticks'
+    )
+    // Non-redundant ability-part parentheticals stay untouched
+    expect(formatRotationRowLabel('O Tears, I Shall Repay (Skill)')).toBe(
+      'O Tears, I Shall Repay (Skill)'
+    )
+    expect(
+      formatRotationRowLabel('O Tides, I Have Returned (Burst Initial)')
+    ).toBe('O Tides, I Have Returned (Burst Initial)')
+
+    const mavuikaPreset = getBundledPreset('official/mavuika-melt-hypercarry')!
+    // Preset JSON data itself remains untouched
+    expect(mavuikaPreset.rotation.targets[0]!.label).toBe(
+      'Hour of Burning Skies: Sunfell Slice (Melt)'
+    )
+
+    const summaryHtml = renderToStaticMarkup(
+      <PresetRotationSummary preset={mavuikaPreset} />
+    )
+    expect(summaryHtml).toContain('>Hour of Burning Skies: Sunfell Slice<')
+    expect(summaryHtml).toContain('>Flamestrider Charged Cyclic<')
+    expect(summaryHtml).not.toContain('(Melt)')
+    expect(summaryHtml).not.toContain('(Melt ×4)')
+    expect(summaryHtml).not.toContain('(No Reaction ×4)')
+
+    const detailsHtml = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={mavuikaPreset}
+        artifactById={new Map()}
+        initialExpandedRowId="opt-0"
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: {
+            total: 900000,
+            stats: { hp: 18000, atk: 2400 },
+            instances: [
+              {
+                label: 'Hour of Burning Skies: Sunfell Slice (Melt)',
+                path: ['burst', 'skillDmg'],
+                count: 1,
+                perHit: 500000,
+                subtotal: 500000,
+              },
+            ],
+          },
+        }}
+        optimizedBuilds={[
+          {
+            selection: { weaponId: 'w1', artifactIds: {} },
+            total: 950000,
+            evaluation: {
+              total: 950000,
+              stats: { hp: 18000, atk: 2500 },
+              statBreakdowns: {
+                atk: {
+                  statKey: 'atk',
+                  label: 'ATK',
+                  unit: '',
+                  finalValue: 2500,
+                  reconciledValue: 2500,
+                  contributors: [],
+                },
+              },
+              instances: [
+                {
+                  label: 'Hour of Burning Skies: Sunfell Slice (Melt)',
+                  path: ['burst', 'skillDmg'],
+                  count: 1,
+                  perHit: 530000,
+                  subtotal: 530000,
+                },
+              ],
+            },
+          },
+        ]}
+      />
+    )
+    expect(detailsHtml).toContain('>Hour of Burning Skies: Sunfell Slice<')
+    expect(detailsHtml).not.toContain('(Melt)')
+    expect(detailsHtml).not.toContain('comp-inline-breakdown-btn')
+    expect(detailsHtml).toContain('class="comp-row-chevron"')
   })
 })

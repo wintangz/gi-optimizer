@@ -235,6 +235,29 @@ function formatNum(n: number): string {
   return Math.round(n).toLocaleString()
 }
 
+const REDUNDANT_ROTATION_PAREN_CLAUSE_RE =
+  /^(?:(?:melt|vaporize|vape|spread|aggravate|overloaded|overload|electro[-\s]?charged|superconduct|swirl|shattered|crystallize|burgeon|hyperbloom|lunar[-\s]?(?:charged|bloom|crystallize)|no[-\s]?reaction|raw|unreacted)(?:\s+(?:[×x]\s*\d+|\d+\s*[×x]\s*\d+|\d+\s*hits?))?|(?:normal\s+)?(?:[×x]\s*\d+|\d+\s*[×x]\s*\d+|\d+\s*hits?))$/i
+
+export function formatRotationRowLabel(label: string): string {
+  const trimmed = label.trim()
+  const match = trimmed.match(/^(.*?)\s*\(([^()]+)\)\s*$/)
+  if (!match) return trimmed
+  const base = match[1]!.trim()
+  const inner = match[2]!.trim()
+  if (!base || !inner) return trimmed
+  const clauses = inner
+    .split(/\s*[,/;·]\s*/)
+    .map((c) => c.trim())
+    .filter(Boolean)
+  if (
+    clauses.length > 0 &&
+    clauses.every((clause) => REDUNDANT_ROTATION_PAREN_CLAUSE_RE.test(clause))
+  ) {
+    return base
+  }
+  return trimmed
+}
+
 function formatDisplayBoundValue(val: number | undefined): string {
   if (typeof val !== 'number' || !Number.isFinite(val)) return ''
   return String(val)
@@ -904,6 +927,7 @@ function BuildStatComparisonSection({
                   <tr
                     data-testid={`comp-stat-row-${rowKey}-${statKey}`}
                     data-stat-key={statKey}
+                    aria-expanded={sb ? isStatExpanded : undefined}
                     className={sb ? 'comp-expandable-tr' : undefined}
                     onClick={
                       sb && onToggleStatKey
@@ -913,22 +937,19 @@ function BuildStatComparisonSection({
                   >
                     <td>
                       <span className="comp-stat-label-cell">
+                        {sb && (
+                          <span
+                            className={`comp-row-chevron${
+                              isStatExpanded ? ' is-expanded' : ''
+                            }`}
+                            data-testid={`comp-stat-toggle-${rowKey}-${statKey}`}
+                            aria-hidden="true"
+                          >
+                            ▸
+                          </span>
+                        )}
                         <StatIcon statKey={statKey} iconProps={{ size: 13 }} />
                         <strong>{label}</strong>
-                        {sb && (
-                          <button
-                            type="button"
-                            className="comp-inline-breakdown-btn"
-                            data-testid={`comp-stat-toggle-${rowKey}-${statKey}`}
-                            aria-expanded={isStatExpanded}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onToggleStatKey?.(`${rowKey}:${statKey}`)
-                            }}
-                          >
-                            {isStatExpanded ? '▲' : '▼'}
-                          </button>
-                        )}
                       </span>
                     </td>
                     {showDiff ? (
@@ -1314,6 +1335,9 @@ export function BuildComparisonList({
                           <Fragment key={idx}>
                             <tr
                               data-testid={`comp-instance-row-${row.id}-${idx}`}
+                              aria-expanded={
+                                inst.breakdown ? isInstExpanded : undefined
+                              }
                               className={
                                 inst.breakdown
                                   ? 'comp-expandable-tr'
@@ -1332,25 +1356,20 @@ export function BuildComparisonList({
                             >
                               <td className="comp-dmg-col-name">
                                 <span className="comp-stat-label-cell">
-                                  <strong>{inst.label}</strong>
                                   {inst.breakdown && (
-                                    <button
-                                      type="button"
-                                      className="comp-inline-breakdown-btn"
+                                    <span
+                                      className={`comp-row-chevron${
+                                        isInstExpanded ? ' is-expanded' : ''
+                                      }`}
                                       data-testid={`comp-instance-toggle-${row.id}-${idx}`}
-                                      aria-expanded={isInstExpanded}
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setExpandedInstanceKey((prev) =>
-                                          prev === instanceKey
-                                            ? null
-                                            : instanceKey
-                                        )
-                                      }}
+                                      aria-hidden="true"
                                     >
-                                      {isInstExpanded ? 'Formula ▲' : 'Formula ▼'}
-                                    </button>
+                                      ▸
+                                    </span>
                                   )}
+                                  <strong>
+                                    {formatRotationRowLabel(inst.label)}
+                                  </strong>
                                 </span>
                               </td>
                               <td className="comp-dmg-col-compact">
@@ -2401,6 +2420,11 @@ export function WeaponComparisonList({
                                   <Fragment key={idx}>
                                     <tr
                                       data-testid={`weapon-compare-instance-row-${buildRowKey}-${idx}`}
+                                      aria-expanded={
+                                        inst.breakdown
+                                          ? isInstExpanded
+                                          : undefined
+                                      }
                                       className={
                                         inst.breakdown
                                           ? 'comp-expandable-tr'
@@ -2419,27 +2443,22 @@ export function WeaponComparisonList({
                                     >
                                       <td className="comp-dmg-col-name">
                                         <span className="comp-stat-label-cell">
-                                          <strong>{inst.label}</strong>
                                           {inst.breakdown && (
-                                            <button
-                                              type="button"
-                                              className="comp-inline-breakdown-btn"
+                                            <span
+                                              className={`comp-row-chevron${
+                                                isInstExpanded
+                                                  ? ' is-expanded'
+                                                  : ''
+                                              }`}
                                               data-testid={`weapon-compare-instance-toggle-${buildRowKey}-${idx}`}
-                                              aria-expanded={isInstExpanded}
-                                              onClick={(e) => {
-                                                e.stopPropagation()
-                                                setExpandedInstanceKey((prev) =>
-                                                  prev === instanceKey
-                                                    ? null
-                                                    : instanceKey
-                                                )
-                                              }}
+                                              aria-hidden="true"
                                             >
-                                              {isInstExpanded
-                                                ? 'Formula ▲'
-                                                : 'Formula ▼'}
-                                            </button>
+                                              ▸
+                                            </span>
                                           )}
+                                          <strong>
+                                            {formatRotationRowLabel(inst.label)}
+                                          </strong>
                                         </span>
                                       </td>
                                       <td className="comp-dmg-col-compact">
@@ -2580,7 +2599,9 @@ export function PresetRotationSummary({
                           <CharacterBadge characterKey={memberKey} compact />
                         </span>
                       )}
-                      <strong>{rt.label || rt.path.join('.')}</strong>
+                      <strong>
+                        {formatRotationRowLabel(rt.label || rt.path.join('.'))}
+                      </strong>
                     </span>
                   </td>
                   {showFormulaPath && (
@@ -3225,6 +3246,9 @@ export function TeamOptimizationList({
                           <Fragment key={idx}>
                             <tr
                               data-testid={`team-opt-instance-row-${mKey}-${idx}`}
+                              aria-expanded={
+                                inst.breakdown ? isInstExpanded : undefined
+                              }
                               className={
                                 inst.breakdown
                                   ? 'comp-expandable-tr'
@@ -3243,27 +3267,20 @@ export function TeamOptimizationList({
                             >
                               <td className="comp-dmg-col-name">
                                 <span className="comp-stat-label-cell">
-                                  <strong>{inst.label}</strong>
                                   {inst.breakdown && (
-                                    <button
-                                      type="button"
-                                      className="comp-inline-breakdown-btn"
+                                    <span
+                                      className={`comp-row-chevron${
+                                        isInstExpanded ? ' is-expanded' : ''
+                                      }`}
                                       data-testid={`team-opt-instance-toggle-${mKey}-${idx}`}
-                                      aria-expanded={isInstExpanded}
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setExpandedInstanceKey((prev) =>
-                                          prev === instanceKey
-                                            ? null
-                                            : instanceKey
-                                        )
-                                      }}
+                                      aria-hidden="true"
                                     >
-                                      {isInstExpanded
-                                        ? 'Formula ▲'
-                                        : 'Formula ▼'}
-                                    </button>
+                                      ▸
+                                    </span>
                                   )}
+                                  <strong>
+                                    {formatRotationRowLabel(inst.label)}
+                                  </strong>
                                 </span>
                               </td>
                               <td className="comp-dmg-col-compact">
