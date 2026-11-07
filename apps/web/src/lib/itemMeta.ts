@@ -1,5 +1,8 @@
 export {
+  ELEMENT_COLORS,
+  formatRarityStars,
   getArtifactMeta,
+  getArtifactSetShortName,
   getCharacterInitials,
   getCharacterMeta,
   getElementColor,
@@ -7,6 +10,8 @@ export {
   getSetHue,
   getWeaponMeta,
   listWeaponsForType,
+  RARITY_COLORS,
+  shortStatLabel,
   type ArtifactMeta,
   type CharacterMeta,
   type ColorTokens,

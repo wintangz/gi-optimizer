@@ -1,11 +1,25 @@
 'use client'
 
 import {
+  ElementIcon,
+  hasStatIcon,
+  resolveStatElement,
+  SetEmblemIcon,
+  SlotIcon,
+  StatIcon,
+  WeaponTypeIcon,
+  type GiElementWithPhyKey,
+} from '@/components/SvgIcons'
+import {
+  formatRarityStars,
   getArtifactMeta,
   getCharacterMeta,
+  getElementColor,
+  getRarityColor,
   getWeaponMeta,
+  shortStatLabel,
+  type IdentifierElement,
   type IdentifierSlotKey,
-  type IdentifierWeaponType,
 } from '@/lib/itemMeta'
 import type { ReactNode } from 'react'
 
@@ -44,7 +58,7 @@ export interface ArtifactBadgeProps {
   slotKey?: IdentifierSlotKey
   rarity?: number
   compact?: boolean
-  /** When true, displays only the slot label as primary text (for slot-only cells) while keeping set/rarity styling. */
+  /** When true, displays only the rarity-backed slot glyph strip without set chip text. */
   slotOnly?: boolean
   /** Optional level, main stat, substats, or location metadata. */
   subtitle?: ReactNode
@@ -54,56 +68,6 @@ export type ItemIdentifierProps =
   | ({ kind: 'character' } & CharacterBadgeProps)
   | ({ kind: 'weapon' } & WeaponBadgeProps)
   | ({ kind: 'artifact' } & ArtifactBadgeProps)
-
-function WeaponGlyphSvg({
-  weaponType,
-  glyph,
-  size,
-}: {
-  weaponType: IdentifierWeaponType
-  glyph: string
-  size: number
-}) {
-  return (
-    <span
-      aria-label={weaponType}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: `${Math.round(size * 0.52)}px`,
-        lineHeight: 1,
-      }}
-    >
-      {glyph}
-    </span>
-  )
-}
-
-function ArtifactGlyphSvg({
-  slotKey,
-  glyph,
-  size,
-}: {
-  slotKey?: IdentifierSlotKey
-  glyph: string
-  size: number
-}) {
-  return (
-    <span
-      aria-label={slotKey ?? 'artifact-set'}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: `${Math.round(size * 0.52)}px`,
-        lineHeight: 1,
-      }}
-    >
-      {glyph}
-    </span>
-  )
-}
 
 export function CharacterBadge({
   characterKey,
@@ -252,6 +216,38 @@ export function CharacterBadge({
   )
 }
 
+export function RarityStars({
+  rarity,
+  compact = false,
+}: {
+  rarity: number
+  compact?: boolean
+}) {
+  const clamped = Math.max(1, Math.min(5, Math.round(rarity || 4)))
+  const rc = getRarityColor(clamped)
+  const starsText = formatRarityStars(clamped)
+
+  return (
+    <span
+      data-testid="rarity-stars"
+      data-rarity={String(clamped)}
+      aria-label={`${clamped} out of 5`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        fontSize: compact ? '0.72rem' : '0.78rem',
+        lineHeight: 1,
+        letterSpacing: '0.04em',
+        color: rc.border,
+        fontWeight: 700,
+        userSelect: 'none',
+      }}
+    >
+      {starsText}
+    </span>
+  )
+}
+
 export function WeaponBadge({
   weaponKey,
   rarityOverride,
@@ -259,7 +255,8 @@ export function WeaponBadge({
   subtitle,
 }: WeaponBadgeProps) {
   const meta = getWeaponMeta(weaponKey, rarityOverride)
-  const size = compact ? 22 : 28
+  const iconSize = compact ? 14 : 16
+  const starsText = formatRarityStars(meta.rarity)
 
   return (
     <span
@@ -269,59 +266,46 @@ export function WeaponBadge({
       data-rarity={String(meta.rarity)}
       style={{
         display: 'inline-flex',
+        flexWrap: 'wrap',
         alignItems: 'center',
-        gap: compact ? '0.38rem' : '0.5rem',
+        gap: compact ? '0.35rem' : '0.45rem',
         verticalAlign: 'middle',
       }}
     >
+      {/* Flat Genshin rarity-coloured weapon badge with readable foreground text */}
       <span
-        title={`${meta.displayName} (${meta.rarity}★ ${meta.weaponTypeLabel})`}
+        title={`${meta.displayName} (${starsText} ${meta.weaponTypeLabel})`}
         style={{
-          width: `${size}px`,
-          height: `${size}px`,
-          minWidth: `${size}px`,
-          borderRadius: '999px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.32rem',
+          padding: compact ? '0.14rem 0.48rem' : '0.2rem 0.58rem',
+          borderRadius: '6px',
           background: meta.rarityColor.bg,
           color: meta.rarityColor.fg,
-          border: `2px solid ${meta.rarityColor.border}`,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          userSelect: 'none',
+          border: `1px solid ${meta.rarityColor.border}`,
+          fontWeight: 700,
+          fontSize: compact ? '0.8rem' : '0.86rem',
+          lineHeight: 1.2,
         }}
       >
-        <WeaponGlyphSvg
+        <WeaponTypeIcon
           weaponType={meta.weaponType}
-          glyph={meta.glyph}
-          size={size}
+          iconProps={{ size: iconSize }}
         />
+        <strong>{meta.displayName}</strong>
       </span>
 
-      <span
-        style={{
-          display: 'inline-flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: '0.35rem',
-        }}
-      >
-        <strong
-          style={{
-            fontSize: compact ? '0.85rem' : '0.92rem',
-            fontWeight: 600,
-          }}
+      <RarityStars rarity={meta.rarity} compact={compact} />
+
+      {subtitle && (
+        <span
+          className="muted"
+          style={{ fontSize: compact ? '0.76rem' : '0.82rem' }}
         >
-          {meta.displayName}
-        </strong>
-        {subtitle && (
-          <span
-            className="muted"
-            style={{ fontSize: compact ? '0.78rem' : '0.84rem' }}
-          >
-            {subtitle}
-          </span>
-        )}
-      </span>
+          {subtitle}
+        </span>
+      )}
     </span>
   )
 }
@@ -335,8 +319,9 @@ export function ArtifactBadge({
   subtitle,
 }: ArtifactBadgeProps) {
   const meta = getArtifactMeta({ setKey, slotKey, rarity })
-  const size = compact ? 22 : 28
-  const primaryLabel = slotOnly && slotKey ? meta.slotDisplayName : meta.setDisplayName
+  const stripSize = compact ? 22 : 26
+  const iconSize = compact ? 14 : 16
+  const starsText = formatRarityStars(meta.rarity)
 
   return (
     <span
@@ -348,61 +333,396 @@ export function ArtifactBadge({
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: compact ? '0.38rem' : '0.5rem',
+        gap: compact ? '0.32rem' : '0.42rem',
         verticalAlign: 'middle',
       }}
     >
+      {/* Rarity-coloured strip/background behind the slot SVG glyph */}
       <span
+        data-testid="artifact-slot-strip"
         title={`${meta.setDisplayName}${
           slotKey ? ` · ${meta.slotDisplayName}` : ''
-        } (${meta.rarity}★)`}
+        } (${starsText})`}
         style={{
-          width: `${size}px`,
-          height: `${size}px`,
-          minWidth: `${size}px`,
-          borderRadius: '999px',
-          background: meta.setColor.bg,
-          color: meta.setColor.fg,
-          border: `2px solid ${meta.setColor.border}`,
+          width: `${stripSize}px`,
+          height: `${stripSize}px`,
+          minWidth: `${stripSize}px`,
+          borderRadius: '5px',
+          background: meta.rarityColor.bg,
+          color: meta.rarityColor.fg,
+          border: `1px solid ${meta.rarityColor.border}`,
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
           userSelect: 'none',
         }}
       >
-        <ArtifactGlyphSvg
-          slotKey={slotKey}
-          glyph={meta.glyph}
-          size={size}
-        />
-      </span>
-
-      <span
-        style={{
-          display: 'inline-flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: '0.35rem',
-        }}
-      >
-        <strong
-          style={{
-            fontSize: compact ? '0.85rem' : '0.92rem',
-            fontWeight: 600,
-          }}
-        >
-          {primaryLabel}
-        </strong>
-        {subtitle && (
-          <span
-            className="muted"
-            style={{ fontSize: compact ? '0.78rem' : '0.84rem' }}
-          >
-            {subtitle}
-          </span>
+        {slotKey ? (
+          <SlotIcon slotKey={slotKey} iconProps={{ size: iconSize }} />
+        ) : (
+          <SetEmblemIcon size={iconSize} />
         )}
       </span>
+
+      {/* Compact set-coloured chip with the set's short name (omitted when slotOnly) */}
+      {!slotOnly && (
+        <span
+          data-testid="artifact-set-chip"
+          title={meta.setDisplayName}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.28rem',
+            padding: compact ? '0.1rem 0.42rem' : '0.15rem 0.5rem',
+            borderRadius: '999px',
+            background: meta.setColor.bg,
+            color: meta.setColor.fg,
+            border: `1px solid ${meta.setColor.border}`,
+            fontSize: compact ? '0.76rem' : '0.82rem',
+            fontWeight: 600,
+            lineHeight: 1.2,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <strong>{meta.setShortName}</strong>
+        </span>
+      )}
+
+      {subtitle && (
+        <span
+          className="muted"
+          style={{ fontSize: compact ? '0.76rem' : '0.82rem' }}
+        >
+          {subtitle}
+        </span>
+      )}
     </span>
+  )
+}
+
+export interface StatChipProps {
+  statKey: string
+  value?: number | string
+  /** When true, includes the short stat label alongside the glyph and value. */
+  showLabel?: boolean
+  /** Emphasises main-stat chips over substat chips. */
+  isMain?: boolean
+  compact?: boolean
+}
+
+export function StatChip({
+  statKey,
+  value,
+  showLabel = false,
+  isMain = false,
+  compact = false,
+}: StatChipProps) {
+  const hasGlyph = hasStatIcon(statKey)
+  const ele = resolveStatElement(statKey)
+  const eleColor =
+    ele && ele !== 'physical'
+      ? getElementColor(ele as IdentifierElement).fg
+      : undefined
+  const label = shortStatLabel(statKey)
+
+  let formattedVal = ''
+  if (value !== undefined && value !== '') {
+    if (typeof value === 'number') {
+      const isPct = statKey.endsWith('_')
+      formattedVal = `${ isPct ? value.toFixed(1).replace(/\.0$/, '') : Math.round(value) }${isPct ? '%' : ''}`
+    } else {
+      formattedVal = String(value)
+    }
+  }
+
+  // If no numeric value is provided (e.g., main stat chip where only mainStatKey is known) or no glyph exists, show short label
+  const mustShowTextLabel = showLabel || !hasGlyph || !formattedVal
+
+  return (
+    <span
+      data-testid="stat-chip"
+      data-stat-key={statKey}
+      title={formattedVal ? `${label} ${formattedVal}` : label}
+      className="gi-stat-chip"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.24rem',
+        padding: compact ? '0.08rem 0.34rem' : '0.12rem 0.42rem',
+        borderRadius: '5px',
+        background: isMain ? 'rgba(122, 162, 255, 0.16)' : '#1d2130',
+        border: isMain
+          ? '1px solid rgba(122, 162, 255, 0.45)'
+          : '1px solid var(--border)',
+        fontSize: compact ? '0.74rem' : '0.8rem',
+        fontWeight: isMain ? 700 : 500,
+        lineHeight: 1.2,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {hasGlyph && (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            color: eleColor ?? (isMain ? 'var(--accent)' : 'var(--muted)'),
+          }}
+        >
+          <StatIcon
+            statKey={statKey}
+            iconProps={{ size: compact ? 12 : 14 }}
+          />
+        </span>
+      )}
+      {mustShowTextLabel && (
+        <span style={{ color: eleColor ?? 'var(--fg)' }}>{label}</span>
+      )}
+      {formattedVal && <span>{formattedVal}</span>}
+    </span>
+  )
+}
+
+export function ElementBadge({
+  element,
+  label,
+  compact = false,
+}: {
+  element: GiElementWithPhyKey
+  label?: string
+  compact?: boolean
+}) {
+  const color =
+    element !== 'physical'
+      ? getElementColor(element as IdentifierElement).fg
+      : '#cfd5e6'
+
+  return (
+    <span
+      data-testid="element-badge"
+      data-element={element}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.25rem',
+        color,
+        fontWeight: 600,
+        fontSize: compact ? '0.76rem' : '0.82rem',
+      }}
+    >
+      <ElementIcon ele={element} iconProps={{ size: compact ? 13 : 15 }} />
+      {label !== undefined ? <span>{label}</span> : null}
+    </span>
+  )
+}
+
+export interface ArtifactPieceRowProps {
+  setKey: string
+  slotKey: IdentifierSlotKey
+  rarity: number
+  level: number
+  mainStatKey: string
+  substats: ReadonlyArray<{ key: string; value: number }>
+  location?: string
+  lock?: boolean
+  compact?: boolean
+}
+
+export function ArtifactPieceRow({
+  setKey,
+  slotKey,
+  rarity,
+  level,
+  mainStatKey,
+  substats,
+  location,
+  lock,
+  compact = false,
+}: ArtifactPieceRowProps) {
+  return (
+    <div
+      data-testid="artifact-piece-row"
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: compact ? '0.32rem' : '0.4rem',
+      }}
+    >
+      <ArtifactBadge
+        setKey={setKey}
+        slotKey={slotKey}
+        rarity={rarity}
+        compact
+      />
+      <span
+        style={{
+          fontSize: '0.73rem',
+          fontWeight: 700,
+          padding: '0.06rem 0.3rem',
+          borderRadius: '4px',
+          background: '#232736',
+          color: 'var(--fg)',
+        }}
+      >
+        +{level}
+      </span>
+      <StatChip statKey={mainStatKey} isMain compact />
+      {substats
+        .filter((s) => s.key)
+        .map((s, idx) => (
+          <StatChip key={`${s.key}-${idx}`} statKey={s.key} value={s.value} compact />
+        ))}
+      {location && <CharacterBadge characterKey={location} compact />}
+      {lock && <span title="Locked">🔒</span>}
+    </div>
+  )
+}
+
+export interface BuildComparisonBarsProps {
+  currentTotal?: number
+  optimisedTotal?: number
+  rank?: number
+}
+
+export function BuildComparisonBars({
+  currentTotal,
+  optimisedTotal,
+  rank = 1,
+}: BuildComparisonBarsProps) {
+  const hasCurrent = currentTotal !== undefined && currentTotal > 0
+  const hasOpt = optimisedTotal !== undefined && optimisedTotal > 0
+  const maxVal = Math.max(currentTotal ?? 0, optimisedTotal ?? 0, 1)
+  const currPct = hasCurrent
+    ? Math.max(4, Math.min(100, ((currentTotal ?? 0) / maxVal) * 100))
+    : 0
+  const optPct = hasOpt
+    ? Math.max(4, Math.min(100, ((optimisedTotal ?? 0) / maxVal) * 100))
+    : 0
+
+  const diff =
+    hasCurrent && hasOpt ? (optimisedTotal ?? 0) - (currentTotal ?? 0) : null
+  const diffPct =
+    diff !== null && (currentTotal ?? 0) > 0
+      ? (diff / (currentTotal ?? 1)) * 100
+      : null
+
+  return (
+    <div
+      data-testid="build-comparison-bars"
+      className="gi-comp-bars"
+      style={{
+        background: '#151821',
+        border: '1px solid var(--border)',
+        borderRadius: '6px',
+        padding: '0.75rem 0.9rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.55rem',
+      }}
+    >
+      {hasCurrent && (
+        <div
+          data-testid="comparison-bar-current"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '110px 1fr auto',
+            alignItems: 'center',
+            gap: '0.65rem',
+          }}
+        >
+          <span className="muted" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+            Current Build
+          </span>
+          <div
+            style={{
+              height: '16px',
+              background: '#0e1017',
+              borderRadius: '999px',
+              overflow: 'hidden',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <div
+              data-testid="comparison-bar-current-fill"
+              style={{
+                width: `${currPct.toFixed(1)}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #4b5578, #7aa2ff)',
+                borderRadius: '999px',
+              }}
+            />
+          </div>
+          <strong style={{ fontSize: '1.25rem', minWidth: '105px', textAlign: 'right' }}>
+            {Math.round(currentTotal ?? 0).toLocaleString()}
+          </strong>
+        </div>
+      )}
+
+      {hasOpt && (
+        <div
+          data-testid="comparison-bar-optimised"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '110px 1fr auto',
+            alignItems: 'center',
+            gap: '0.65rem',
+          }}
+        >
+          <span className="ok" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+            Optimised #{rank}
+          </span>
+          <div
+            style={{
+              height: '16px',
+              background: '#0e1017',
+              borderRadius: '999px',
+              overflow: 'hidden',
+              border: '1px solid rgba(76, 195, 138, 0.45)',
+            }}
+          >
+            <div
+              data-testid="comparison-bar-optimised-fill"
+              style={{
+                width: `${optPct.toFixed(1)}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #2b8a62, #4cc38a)',
+                borderRadius: '999px',
+              }}
+            />
+          </div>
+          <strong
+            className="ok"
+            style={{ fontSize: '1.25rem', minWidth: '105px', textAlign: 'right' }}
+          >
+            {Math.round(optimisedTotal ?? 0).toLocaleString()}
+          </strong>
+        </div>
+      )}
+
+      {diff !== null && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '0.8rem',
+            paddingTop: '0.15rem',
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          <span className="muted">
+            Proportional rotation total (100% = larger build)
+          </span>
+          <strong className={diff >= 0 ? 'ok' : 'error'}>
+            {diff >= 0 ? '+' : ''}
+            {Math.round(diff).toLocaleString()}
+            {diffPct !== null
+              ? ` (${diff >= 0 ? '+' : ''}${diffPct.toFixed(2)}%)`
+              : ''}
+          </strong>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -437,4 +757,3 @@ export function ItemIdentifier(props: ItemIdentifierProps) {
     />
   )
 }
-

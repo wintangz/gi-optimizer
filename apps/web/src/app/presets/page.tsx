@@ -4,8 +4,21 @@ import PresetsLoading from './loading'
 import {
   ArtifactBadge,
   CharacterBadge,
+  ElementBadge,
+  StatChip,
   WeaponBadge,
 } from '@/components/Identifier'
+import {
+  CopyIcon,
+  GearIcon,
+  PlayIcon,
+  PlusIcon,
+  SlotIcon,
+  TrashIcon,
+  UploadIcon,
+   type GiElementWithPhyKey,
+  type GiSlotKey,
+} from '@/components/SvgIcons'
 import { useGoodStorage, useUserPresets } from '@/lib/storage/useGood'
 import { humanizeKey } from '@gi/good/src/suggest'
 import {
@@ -14,6 +27,7 @@ import {
   matchAccount,
 } from '@gi/presets/src/match'
 import {
+  formatRarityStars,
   getCharacterMeta,
   getWeaponMeta,
   listWeaponsForType,
@@ -23,6 +37,13 @@ import type { PresetBadge } from '@gi/presets/src/registry'
 import type { Preset, PresetSource } from '@gi/presets/src/schema'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+
+const REACTION_ELEMENT: Record<string, GiElementWithPhyKey> = {
+  vaporize: 'hydro',
+  melt: 'cryo',
+  aggravate: 'electro',
+  spread: 'dendro',
+}
 
 export default function PresetsPage() {
   const { record, loading: goodLoading } = useGoodStorage()
@@ -55,6 +76,8 @@ export default function PresetsPage() {
   const [sourceFilter, setSourceFilter] = useState<'all' | PresetSource>('all')
   const [targetFilter, setTargetFilter] = useState<string>('')
   const [selectedPresetId, setSelectedPresetId] = useState<string>('')
+  const [expandedCardIds, setExpandedCardIds] = useState<Record<string, boolean>>({})
+  const [expandedDetailAssumptions, setExpandedDetailAssumptions] = useState(false)
   const [selectedWeapons, setSelectedWeapons] = useState<
     Record<string, string>
   >({})
@@ -133,14 +156,13 @@ export default function PresetsPage() {
         <div>
           <h1 className="presets-title">Presets Library</h1>
           <p className="muted presets-subtitle">
-            Browse Akasha leaderboard setups (artifact-only mode with fixed
-            target &amp; free weapon choice), Official meta team presets, and
-            your own Custom presets.
+            Akasha leaderboards, Official meta setups, and Custom team presets.
           </p>
         </div>
         <Link href="/teams">
-          <button type="button" className="btn-primary">
-            + Create Custom Team / Preset
+          <button type="button" className="btn-primary btn-icon">
+            <PlusIcon size={15} />
+            <span>New Preset</span>
           </button>
         </Link>
       </div>
@@ -148,11 +170,13 @@ export default function PresetsPage() {
       {!record && (
         <div className="panel presets-warn-banner">
           <span className="warn">
-            No GOOD account data imported yet. Import your scanner file to
-            optimise your artifacts against any preset.
+            Import a GOOD scanner file to evaluate your artifacts.
           </span>
           <Link href="/import">
-            <button type="button">Go to Import →</button>
+            <button type="button" className="btn-icon">
+              <UploadIcon size={15} />
+              <span>Import</span>
+            </button>
           </Link>
         </div>
       )}
@@ -205,18 +229,29 @@ export default function PresetsPage() {
           {filteredPresets.map((p) => {
             const badge = getPresetBadge(p)
             const isSelected = activePreset?.id === p.id
+            const isExpanded = Boolean(expandedCardIds[p.id])
             const isAkasha = p.source === 'akasha'
+            const targetMeta = getCharacterMeta(p.target)
             const quickMatch =
               !isAkasha && record?.good
                 ? matchAccount(p, record.good, {
                     selectedWeaponId: selectedWeapons[p.id],
                   })
                 : null
+            const oneLineSummary =
+              p.description ||
+              `${p.rotation.name} (${p.rotation.targets.length} hits ×${p.rotation.repeat})`
 
             return (
               <div
                 key={p.id}
-                onClick={() => setSelectedPresetId(p.id)}
+                onClick={() => {
+                  setSelectedPresetId(p.id)
+                  setExpandedCardIds((prev) => ({
+                    ...prev,
+                    [p.id]: !prev[p.id],
+                  }))
+                }}
                 className={`panel preset-card${isSelected ? ' preset-card-selected' : ''}`}
               >
                 <div className="preset-card-top">
@@ -230,8 +265,13 @@ export default function PresetsPage() {
                     }`}
                   >
                     {badge.label}
-                    {badge.verified ? ' · Verified' : ''}
+                    {badge.verified ? ' · ✓' : ''}
                   </span>
+                  <ElementBadge
+                    element={targetMeta.element}
+                    label={`◎ ${targetMeta.displayName}`}
+                    compact
+                  />
                   {isAkasha ? (
                     <span className="ok">Artifact-Only</span>
                   ) : (
@@ -256,6 +296,18 @@ export default function PresetsPage() {
                     />
                   ))}
                 </div>
+                <div className="preset-card-summary-line">
+                  {oneLineSummary}
+                </div>
+                {isExpanded && (
+                  <div className="preset-card-expanded-desc">
+                    <div>{p.description}</div>
+                    <div style={{ marginTop: '0.2rem' }}>
+                      Rotation: <strong>{p.rotation.name}</strong> ·{' '}
+                      {p.rotation.targets.length} instance(s) ×{p.rotation.repeat}
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })}
@@ -318,16 +370,20 @@ export default function PresetsPage() {
                       <button
                         type="button"
                         disabled={!canOptimize}
-                        className="btn-primary"
+                        className="btn-primary btn-icon"
                       >
-                        Optimize with this Preset →
+                        <PlayIcon size={15} />
+                        <span>Optimize</span>
                       </button>
                     </Link>
 
                     <Link
                       href={`/teams?fork=${encodeURIComponent(activePreset.id)}`}
                     >
-                      <button type="button">Duplicate &amp; Edit</button>
+                      <button type="button" className="btn-icon">
+                        <CopyIcon size={15} />
+                        <span>Fork</span>
+                      </button>
                     </Link>
 
                     {activePreset.source === 'user' && (
@@ -337,14 +393,18 @@ export default function PresetsPage() {
                             activePreset.id
                           )}`}
                         >
-                          <button type="button">Edit</button>
+                          <button type="button" className="btn-icon">
+                            <GearIcon size={15} />
+                            <span>Edit</span>
+                          </button>
                         </Link>
                         <button
                           type="button"
                           onClick={() => void removeUserPreset(activePreset.id)}
-                          className="btn-danger"
+                          className="btn-danger btn-icon"
                         >
-                          Delete
+                          <TrashIcon size={15} />
+                          <span>Delete</span>
                         </button>
                       </>
                     )}
@@ -378,33 +438,35 @@ export default function PresetsPage() {
               <div className="preset-akasha-box">
                 <div className="preset-akasha-top">
                   <strong>
-                    Akasha Artifact-Only Mode — Fixed Target &amp; Free Weapon
-                    Selection
+                    Akasha Artifact-Only —{' '}
+                    <code>
+                      Lv.{activePreset.team[0].build.character.level} C
+                      {activePreset.team[0].build.character.constellation} (
+                      {activePreset.team[0].build.character.talent.auto}/
+                      {activePreset.team[0].build.character.talent.skill}/
+                      {activePreset.team[0].build.character.talent.burst})
+                    </code>
                   </strong>
-                  <span className="ok preset-detail-badge">
-                    ✓ No Account Character / Weapon Gate
-                  </span>
+                  <button
+                    type="button"
+                    className="preset-collapse-toggle"
+                    onClick={() => setExpandedDetailAssumptions((v) => !v)}
+                  >
+                    {expandedDetailAssumptions ? 'Hide details ▴' : 'Details ▾'}
+                  </button>
                 </div>
-                <div className="muted preset-akasha-desc">
-                  This Akasha leaderboard preset evaluates{' '}
-                  <strong>{displayName(activePreset.target)}</strong> using the
-                  preset&apos;s fixed simulated character spec (
-                  <code>
-                    Lv.{activePreset.team[0].build.character.level} · C
-                    {activePreset.team[0].build.character.constellation} ·
-                    Talents{' '}
-                    {activePreset.team[0].build.character.talent.auto}/
-                    {activePreset.team[0].build.character.talent.skill}/
-                    {activePreset.team[0].build.character.talent.burst}
-                  </code>
-                  ) and any weapon of your choice. Only your imported GOOD
-                  artifacts enter the calculation.
-                </div>
+                {expandedDetailAssumptions && (
+                  <div className="muted preset-akasha-desc">
+                    Evaluates <strong>{displayName(activePreset.target)}</strong>{' '}
+                    with fixed character stats and any chosen weapon; only your
+                    imported GOOD artifacts are used.
+                  </div>
+                )}
 
                 <div className="preset-akasha-controls">
                   <WeaponBadge
                     weaponKey={activeAkashaChoice.key}
-                    subtitle={`R${activeAkashaChoice.refinement} · Lv.90 Simulated`}
+                    subtitle={`R${activeAkashaChoice.refinement} · Lv.90`}
                   />
 
                   <label className="presets-filter-label-sm">
@@ -428,7 +490,7 @@ export default function PresetsPage() {
                     >
                       {availableAkashaWeapons.map((w) => (
                         <option key={w.key} value={w.key}>
-                          {w.displayName} ({w.rarity}★)
+                          {w.displayName} {formatRarityStars(w.rarity)}
                         </option>
                       ))}
                     </select>
@@ -671,6 +733,31 @@ export default function PresetsPage() {
                                   />
                                 )
                               )}
+                              {(['sands', 'goblet', 'circlet'] as const).map(
+                                (sk: GiSlotKey) => {
+                                  const mk =
+                                    m.build.type === 'tc'
+                                      ? m.build.tc.artifact.slots[sk]?.statKey
+                                      : undefined
+                                  if (!mk) return null
+                                  return (
+                                    <span
+                                      key={sk}
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.18rem',
+                                      }}
+                                    >
+                                      <SlotIcon
+                                        slotKey={sk}
+                                        iconProps={{ size: 13 }}
+                                      />
+                                      <StatChip statKey={mk} compact />
+                                    </span>
+                                  )
+                                }
+                              )}
                             </div>
                           )}
                         </td>
@@ -717,7 +804,15 @@ export default function PresetsPage() {
                       <td>{humanizeKey(rt.hitMode)}</td>
                       <td>
                         {rt.reaction ? (
-                          humanizeKey(rt.reaction)
+                          REACTION_ELEMENT[rt.reaction] ? (
+                            <ElementBadge
+                              element={REACTION_ELEMENT[rt.reaction]!}
+                              label={humanizeKey(rt.reaction)}
+                              compact
+                            />
+                          ) : (
+                            humanizeKey(rt.reaction)
+                          )
                         ) : (
                           <span className="muted">—</span>
                         )}

@@ -61,6 +61,7 @@ export interface WeaponMeta {
 export interface ArtifactMeta {
   setKey: string
   setDisplayName: string
+  setShortName: string
   slotKey?: IdentifierSlotKey
   slotDisplayName: string
   /** Concise Unicode symbol fallback for the artifact slot or set emblem. */
@@ -73,7 +74,7 @@ export interface ArtifactMeta {
   setColor: ColorTokens
 }
 
-const ELEMENT_COLORS: Record<IdentifierElement, ColorTokens> = {
+export const ELEMENT_COLORS: Record<IdentifierElement, ColorTokens> = {
   pyro: { fg: '#ef7938', bg: '#3b2016', border: '#ef7938' },
   hydro: { fg: '#3b9dff', bg: '#142a42', border: '#3b9dff' },
   electro: { fg: '#b57cff', bg: '#2b1d42', border: '#b57cff' },
@@ -83,12 +84,111 @@ const ELEMENT_COLORS: Record<IdentifierElement, ColorTokens> = {
   dendro: { fg: '#88d64c', bg: '#203515', border: '#88d64c' },
 }
 
-const RARITY_COLORS: Record<IdentifierRarity, ColorTokens> = {
-  5: { fg: '#f3b755', bg: '#382914', border: '#e8ad4f' },
-  4: { fg: '#c297ff', bg: '#291c3d', border: '#b485f2' },
-  3: { fg: '#6cc0ff', bg: '#162b3d', border: '#66b5f0' },
-  2: { fg: '#68dfa4', bg: '#153024', border: '#5ecf98' },
-  1: { fg: '#aeb5c7', bg: '#232630', border: '#a0a7ba' },
+export const RARITY_COLORS: Record<IdentifierRarity, ColorTokens> = {
+  5: { fg: '#1a1206', bg: '#d89c3a', border: '#f0be5b' },
+  4: { fg: '#ffffff', bg: '#7b52ab', border: '#a375db' },
+  3: { fg: '#ffffff', bg: '#4180c4', border: '#6ca6e8' },
+  2: { fg: '#0d1f15', bg: '#4ea876', border: '#72cca0' },
+  1: { fg: '#ffffff', bg: '#78808c', border: '#9aa2b0' },
+}
+
+const SET_SHORT_NAMES: Record<string, string> = {
+  ArchaicPetra: 'Archaic Petra',
+  BlizzardStrayer: 'Blizzard',
+  BloodstainedChivalry: 'Bloodstained',
+  CrimsonWitchOfFlames: 'Crimson Witch',
+  DeepwoodMemories: 'Deepwood',
+  DesertPavilionChronicle: 'Desert Pavilion',
+  EchoesOfAnOffering: 'Echoes',
+  EmblemOfSeveredFate: 'Emblem',
+  FinaleOfTheDeepGalleries: 'Deep Galleries',
+  FlowerOfParadiseLost: 'Paradise Lost',
+  FragmentOfHarmonicWhimsy: 'Harmonic Whimsy',
+  GildedDreams: 'Gilded Dreams',
+  GladiatorsFinale: 'Gladiator',
+  GoldenTroupe: 'Golden Troupe',
+  HeartOfDepth: 'Heart of Depth',
+  HuskOfOpulentDreams: 'Husk',
+  Instrutor: 'Instructor',
+  Lavawalker: 'Lavawalker',
+  LongNightsOath: "Night's Oath",
+  MaidenBeloved: 'Maiden',
+  MarechausseeHunter: 'Marechaussee',
+  NighttimeWhispersInTheEchoingWoods: 'Nighttime Whispers',
+  NoblesseOblige: 'Noblesse',
+  NymphsDream: "Nymph's Dream",
+  ObsidianCodex: 'Obsidian Codex',
+  OceanHuedClam: 'Ocean-Hued Clam',
+  PaleFlame: 'Pale Flame',
+  RetracingBolide: 'Bolide',
+  ScrollOfTheHeroOfCinderCity: 'Cinder City',
+  ShimenawasReminiscence: 'Shimenawa',
+  SongOfDaysPast: 'Days Past',
+  TenacityOfTheMillelith: 'Tenacity',
+  ThunderingFury: 'Thundering Fury',
+  Thundersoother: 'Thundersoother',
+  UnfinishedReverie: 'Reverie',
+  VermillionHereafter: 'Vermillion',
+  ViridescentVenerer: 'Viridescent',
+  VourukashasGlow: 'Vourukasha',
+  WanderersTroupe: "Wanderer's",
+}
+
+const SHORT_STAT_LABELS: Record<string, string> = {
+  hp: 'HP',
+  hp_: 'HP%',
+  base_hp: 'Base HP',
+  atk: 'ATK',
+  atk_: 'ATK%',
+  base_atk: 'Base ATK',
+  def: 'DEF',
+  def_: 'DEF%',
+  base_def: 'Base DEF',
+  eleMas: 'EM',
+  enerRech_: 'ER%',
+  critRate_: 'CR%',
+  critDMG_: 'CD%',
+  heal_: 'Heal%',
+  incHeal_: 'Inc Heal%',
+  cdRed_: 'CD Red%',
+  shield_: 'Shield%',
+  stamina: 'Stamina',
+  pyro_dmg_: 'Pyro%',
+  hydro_dmg_: 'Hydro%',
+  electro_dmg_: 'Electro%',
+  cryo_dmg_: 'Cryo%',
+  anemo_dmg_: 'Anemo%',
+  geo_dmg_: 'Geo%',
+  dendro_dmg_: 'Dendro%',
+  physical_dmg_: 'Phys%',
+  pyro_enemyRes_: 'Pyro RES%',
+  hydro_enemyRes_: 'Hydro RES%',
+  electro_enemyRes_: 'Electro RES%',
+  cryo_enemyRes_: 'Cryo RES%',
+  anemo_enemyRes_: 'Anemo RES%',
+  geo_enemyRes_: 'Geo RES%',
+  dendro_enemyRes_: 'Dendro RES%',
+  physical_enemyRes_: 'Phys RES%',
+}
+
+export function formatRarityStars(rarity: number): string {
+  const clamped = Math.max(1, Math.min(5, Math.round(rarity || 4)))
+  return '★'.repeat(clamped) + '☆'.repeat(5 - clamped)
+}
+
+export function getArtifactSetShortName(setKey: string): string {
+  if (SET_SHORT_NAMES[setKey]) return SET_SHORT_NAMES[setKey]!
+  const full = displayName(setKey) || setKey || 'Set'
+  if (full.length <= 16) return full
+  const words = full
+    .split(/\s+/)
+    .filter((w) => !['of', 'the', 'in', 'a', 'an'].includes(w.toLowerCase()))
+  return words.slice(0, 2).join(' ') || full.slice(0, 16)
+}
+
+export function shortStatLabel(statKey: string): string {
+  if (SHORT_STAT_LABELS[statKey]) return SHORT_STAT_LABELS[statKey]!
+  return displayName(statKey) || statKey
 }
 
 const WEAPON_TYPE_GLYPHS: Record<IdentifierWeaponType, string> = {
@@ -294,6 +394,7 @@ export function getArtifactMeta(opts: {
   return {
     setKey,
     setDisplayName,
+    setShortName: getArtifactSetShortName(setKey),
     slotKey,
     slotDisplayName,
     glyph,

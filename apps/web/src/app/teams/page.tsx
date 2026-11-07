@@ -4,9 +4,18 @@ import TeamsLoading from './loading'
 import {
   ArtifactBadge,
   CharacterBadge,
+  ElementBadge,
   WeaponBadge,
 } from '@/components/Identifier'
 import { SkeletonBlock, Spinner } from '@/components/Loading'
+import {
+  CopyIcon,
+  DownloadIcon,
+  PlayIcon,
+  TrashIcon,
+  UploadIcon,
+  type GiElementWithPhyKey,
+} from '@/components/SvgIcons'
 import {
   evaluatePresetInWorker,
   getCatalogInWorker,
@@ -27,9 +36,11 @@ import {
   defaultTcBuildForCharacter,
   displayName,
   forkPresetToUser,
+  formatRarityStars,
   generateUserPresetId,
   getBundledPreset,
   getPresetBadge,
+  getWeaponMeta,
   listBundledPresets,
   parsePresetJson,
   serializePresetJson,
@@ -542,6 +553,7 @@ function TeamsInner() {
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
             type="button"
+            className="btn-icon"
             onClick={() => void handleSavePreset(false)}
             style={{
               background: 'var(--ok)',
@@ -549,13 +561,24 @@ function TeamsInner() {
               fontWeight: 700,
             }}
           >
-            Save Custom Preset
+            <DownloadIcon size={15} />
+            <span>Save</span>
           </button>
-          <button type="button" onClick={() => void handleSavePreset(true)}>
-            Save as New Copy
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={() => void handleSavePreset(true)}
+          >
+            <CopyIcon size={15} />
+            <span>Save Copy</span>
           </button>
-          <button type="button" onClick={handleExportJson}>
-            Export Preset JSON
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={handleExportJson}
+          >
+            <DownloadIcon size={15} />
+            <span>Export JSON</span>
           </button>
           <input
             ref={fileInputRef}
@@ -566,20 +589,24 @@ function TeamsInner() {
           />
           <button
             type="button"
+            className="btn-icon"
             onClick={() => fileInputRef.current?.click()}
           >
-            Import Preset JSON…
+            <UploadIcon size={15} />
+            <span>Import JSON…</span>
           </button>
           <Link href={`/optimize?preset=${encodeURIComponent(draft.id)}`}>
             <button
               type="button"
+              className="btn-icon"
               style={{
                 background: 'var(--accent)',
                 color: '#0b0d12',
                 fontWeight: 600,
               }}
             >
-              Optimize This Setup →
+              <PlayIcon size={15} />
+              <span>Optimize</span>
             </button>
           </Link>
         </div>
@@ -636,6 +663,7 @@ function TeamsInner() {
         {userPresets.some((p) => p.id === draft.id) && (
           <button
             type="button"
+            className="btn-icon"
             onClick={async () => {
               await removeUserPreset(draft.id)
               setStatusMessage(`Deleted preset '${draft.name}'.`)
@@ -643,7 +671,8 @@ function TeamsInner() {
             }}
             style={{ borderColor: 'var(--err)', color: 'var(--err)' }}
           >
-            Delete Current User Preset
+            <TrashIcon size={15} />
+            <span>Delete Preset</span>
           </button>
         )}
       </div>
@@ -787,38 +816,39 @@ function TeamsInner() {
               />
             </label>
 
-            {ELEMENT_RES_KEYS.slice(0, 4).map((rk) => (
-              <label
-                key={rk}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.2rem',
-                }}
-              >
-                <span className="muted" style={{ fontSize: '0.8rem' }}>
-                  {rk.replace('_enemyRes_', '').toUpperCase()} RES %
-                </span>
-                <input
-                  type="number"
-                  value={draft.enemy.overrides[rk] ?? 10}
-                  onChange={(e) => {
-                    startEngine()
-                    setDraft({
-                      ...draft,
-                      enemy: {
-                        ...draft.enemy,
-                        overrides: {
-                          ...draft.enemy.overrides,
-                          [rk]: Number(e.target.value),
-                        },
-                      },
-                    })
+            {ELEMENT_RES_KEYS.map((rk) => {
+              const eleKey = rk.replace('_enemyRes_', '') as GiElementWithPhyKey
+              return (
+                <label
+                  key={rk}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.2rem',
                   }}
-                  style={{ width: '75px' }}
-                />
-              </label>
-            ))}
+                >
+                  <ElementBadge element={eleKey} label="RES%" compact />
+                  <input
+                    type="number"
+                    value={draft.enemy.overrides[rk] ?? 10}
+                    onChange={(e) => {
+                      startEngine()
+                      setDraft({
+                        ...draft,
+                        enemy: {
+                          ...draft.enemy,
+                          overrides: {
+                            ...draft.enemy.overrides,
+                            [rk]: Number(e.target.value),
+                          },
+                        },
+                      })
+                    }}
+                    style={{ width: '68px' }}
+                  />
+                </label>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -1052,11 +1082,14 @@ function TeamsInner() {
                         }
                         style={{ width: '100%' }}
                       >
-                        {ALL_WEAPON_KEYS.map((wk) => (
-                          <option key={wk} value={wk}>
-                            {displayName(wk)}
-                          </option>
-                        ))}
+                        {ALL_WEAPON_KEYS.map((wk) => {
+                          const wm = getWeaponMeta(wk)
+                          return (
+                            <option key={wk} value={wk}>
+                              {wm.displayName} {formatRarityStars(wm.rarity)}
+                            </option>
+                          )
+                        })}
                       </select>
                     </div>
 

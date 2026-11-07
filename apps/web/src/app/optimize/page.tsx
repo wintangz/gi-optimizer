@@ -4,10 +4,20 @@ import OptimizeLoading from './loading'
 import { ArtifactSetFilter } from '@/components/ArtifactSetFilter'
 import {
   ArtifactBadge,
+  ArtifactPieceRow,
+  BuildComparisonBars,
   CharacterBadge,
+  StatChip,
   WeaponBadge,
 } from '@/components/Identifier'
 import { ProgressBar, ResultsSkeleton, Spinner } from '@/components/Loading'
+import {
+  DownloadIcon,
+  GearIcon,
+  PlayIcon,
+  StopIcon,
+  UploadIcon,
+} from '@/components/SvgIcons'
 import {
   cancelOptimizationInWorker,
   evaluatePresetInWorker,
@@ -28,9 +38,10 @@ import type {
   RotationResult,
   SimulatedWeaponSpec,
 } from '@gi/engine'
-import { humanizeKey, type IArtifact } from '@gi/good'
+import { type IArtifact } from '@gi/good'
 import {
   displayName,
+  formatRarityStars,
   getCharacterMeta,
   getPresetBadge,
   getWeaponMeta,
@@ -455,38 +466,19 @@ function OptimizeInner() {
     if (!id) return <span className="muted">None</span>
     const a = artifactById.get(id)
     if (!a) return <code>{id}</code>
-    const subs = a.substats
-      .filter((s) => s.key)
-      .map(
-        (s) =>
-          `${humanizeKey(s.key)} ${s.value}${s.key.endsWith('_') ? '%' : ''}`
-      )
-      .join(', ')
 
     return (
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: '0.45rem',
-        }}
-      >
-        <ArtifactBadge
-          setKey={a.setKey}
-          slotKey={a.slotKey as IdentifierSlotKey}
-          rarity={a.rarity}
-          compact
-          subtitle={`+${a.level} (${humanizeKey(a.mainStatKey)}) — ${subs}`}
-        />
-        {a.location && (
-          <CharacterBadge
-            characterKey={a.location}
-            compact
-            subtitle="(equipped)"
-          />
-        )}
-      </div>
+      <ArtifactPieceRow
+        setKey={a.setKey}
+        slotKey={a.slotKey as IdentifierSlotKey}
+        rarity={a.rarity}
+        level={a.level}
+        mainStatKey={a.mainStatKey}
+        substats={a.substats}
+        location={a.location}
+        lock={a.lock}
+        compact
+      />
     )
   }
 
@@ -504,10 +496,7 @@ function OptimizeInner() {
       <div>
         <h1 style={{ margin: 0 }}>Single-Character Rotation Optimizer</h1>
         <p className="muted" style={{ margin: '0.25rem 0 0' }}>
-          Search your imported artifacts for the build that maximises your
-          target character&apos;s total damage over the preset rotation (GO
-          formula engine). Energy Recharge is never weighted in the objective —
-          use the ER Floor constraint below if needed.
+          Maximise target rotation damage across your imported artifacts (ER excluded from objective; use ER floor below).
         </p>
       </div>
 
@@ -523,11 +512,13 @@ function OptimizeInner() {
           }}
         >
           <span className="warn">
-            Import your GOOD JSON on the Import page to evaluate and optimise
-            your artifacts against this preset.
+            Import your GOOD JSON to evaluate and optimise artifacts.
           </span>
           <Link href="/import">
-            <button type="button">Import GOOD File →</button>
+            <button type="button" className="btn-icon">
+              <UploadIcon size={15} />
+              <span>Import GOOD</span>
+            </button>
           </Link>
         </div>
       )}
@@ -580,15 +571,20 @@ function OptimizeInner() {
               <Link
                 href={`/teams?fork=${encodeURIComponent(activePreset.id)}`}
               >
-                <button type="button">Customize Preset / Team</button>
+                <button type="button" className="btn-icon">
+                  <GearIcon size={15} />
+                  <span>Customize</span>
+                </button>
               </Link>
               <button
                 type="button"
+                className="btn-icon"
                 disabled={!canRunPreset}
                 onClick={() => void handleExportGO(currentSelection, 'current')}
                 title="Export a Genshin Optimizer database with this preset team & Custom Multi-Target pre-loaded"
               >
-                Verify Current in GO (.json)
+                <DownloadIcon size={15} />
+                <span>Verify GO (.json)</span>
               </button>
             </div>
           )}
@@ -662,11 +658,8 @@ function OptimizeInner() {
                 </span>
               </div>
 
-              <div className="muted" style={{ fontSize: '0.82rem' }}>
-                Your scanned character level, constellation, talents, and weapon
-                inventory are ignored. Select any compatible weapon and
-                refinement below; only your imported GOOD artifacts are
-                evaluated and optimised.
+              <div className="muted" style={{ fontSize: '0.8rem' }}>
+                Artifact-only mode: fixed character stats &amp; simulated weapon; only your imported GOOD artifacts are used.
               </div>
 
               <div
@@ -679,7 +672,7 @@ function OptimizeInner() {
               >
                 <WeaponBadge
                   weaponKey={akashaWeaponSpec.key}
-                  subtitle={`R${akashaWeaponSpec.refinement} · Lv.${akashaWeaponSpec.level ?? 90} Simulated`}
+                  subtitle={`R${akashaWeaponSpec.refinement} · Lv.${akashaWeaponSpec.level ?? 90}`}
                 />
 
                 <label
@@ -711,7 +704,7 @@ function OptimizeInner() {
                   >
                     {availableAkashaWeapons.map((w) => (
                       <option key={w.key} value={w.key}>
-                        {w.displayName} ({w.rarity}★)
+                        {w.displayName} {formatRarityStars(w.rarity)}
                       </option>
                     ))}
                   </select>
@@ -1137,6 +1130,7 @@ function OptimizeInner() {
             {!running ? (
               <button
                 type="button"
+                className="btn-icon"
                 disabled={!canRunPreset}
                 onClick={() => void startOptimization()}
                 style={{
@@ -1146,11 +1140,13 @@ function OptimizeInner() {
                   padding: '0.55rem 1.25rem',
                 }}
               >
-                Run Rotation Optimizer
+                <PlayIcon size={16} />
+                <span>Optimize</span>
               </button>
             ) : (
               <button
                 type="button"
+                className="btn-icon"
                 onClick={cancelOptimization}
                 style={{
                   background: 'var(--err)',
@@ -1159,7 +1155,8 @@ function OptimizeInner() {
                   padding: '0.55rem 1.25rem',
                 }}
               >
-                Cancel Optimization
+                <StopIcon size={16} />
+                <span>Cancel</span>
               </button>
             )}
 
@@ -1219,28 +1216,19 @@ function OptimizeInner() {
               background: 'rgba(122, 162, 255, 0.06)',
             }}
           >
-            <strong>
-              No current build equipped on {displayName(activePreset!.target)} in
-              your GOOD file.
-            </strong>
-            <p className="muted" style={{ margin: '0.3rem 0 0' }}>
-              Because Akasha presets run in artifact-only mode, you do not need{' '}
-              {displayName(activePreset!.target)} or their weapon in your
-              account. Click <strong>Run Rotation Optimizer</strong> above to
-              find the best artifact build from your imported artifact pool.
-            </p>
+            <span className="muted">
+              No artifacts equipped on{' '}
+              <strong>{displayName(activePreset!.target)}</strong> — click{' '}
+              <strong>Optimize</strong> to search your artifact pool.
+            </span>
           </div>
         )}
 
       {optResult && optResult.builds.length === 0 && !running && (
         <div className="panel" style={{ borderColor: 'var(--err)' }}>
-          <strong className="error">
-            No artifact combination satisfied your constraints.
-          </strong>
-          <p className="muted" style={{ margin: '0.35rem 0 0' }}>
-            Try lowering the Minimum Energy Recharge floor, enabling artifacts
-            equipped on other characters, or widening the artifact set filter.
-          </p>
+          <span className="error">
+            No build met constraints — lower ER floor, include equipped artifacts, or widen set filter.
+          </span>
         </div>
       )}
 
@@ -1303,6 +1291,7 @@ function OptimizeInner() {
                 </select>
                 <button
                   type="button"
+                  className="btn-icon"
                   onClick={() =>
                     void handleExportGO(
                       activeOptBuild,
@@ -1310,85 +1299,19 @@ function OptimizeInner() {
                     )
                   }
                 >
-                  Verify Optimised in GO (.json)
+                  <DownloadIcon size={15} />
+                  <span>Verify GO (.json)</span>
                 </button>
               </div>
             )}
           </div>
 
-          {/* Total Rotation Summary Banner */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '0.85rem',
-            }}
-          >
-            {showCurrentComparison && currentEval && (
-              <div
-                style={{
-                  background: '#151821',
-                  padding: '0.85rem',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <div className="muted" style={{ fontSize: '0.85rem' }}>
-                  Current Build Rotation Total
-                </div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-                  {formatNum(currentEval.total)}
-                </div>
-              </div>
-            )}
-
-            {optimisedEval && (
-              <div
-                style={{
-                  background: '#151821',
-                  padding: '0.85rem',
-                  borderRadius: '6px',
-                  border: '1px solid var(--accent)',
-                }}
-              >
-                <div className="muted" style={{ fontSize: '0.85rem' }}>
-                  Optimised Build Rotation Total (#{selectedBuildIdx + 1})
-                </div>
-                <div
-                  className="ok"
-                  style={{ fontSize: '1.5rem', fontWeight: 700 }}
-                >
-                  {formatNum(optimisedEval.total)}
-                </div>
-              </div>
-            )}
-
-            {showCurrentComparison && currentEval && optimisedEval && (
-              <div
-                style={{
-                  background: '#151821',
-                  padding: '0.85rem',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <div className="muted" style={{ fontSize: '0.85rem' }}>
-                  Rotation Damage Difference
-                </div>
-                {(() => {
-                  const d = formatDiff(currentEval.total, optimisedEval.total)
-                  return (
-                    <div
-                      className={d.cls}
-                      style={{ fontSize: '1.5rem', fontWeight: 700 }}
-                    >
-                      {d.text}
-                    </div>
-                  )
-                })()}
-              </div>
-            )}
-          </div>
+          {/* Proportional Horizontal Build Comparison Bars */}
+          <BuildComparisonBars
+            currentTotal={showCurrentComparison ? currentEval?.total : undefined}
+            optimisedTotal={optimisedEval?.total}
+            rank={selectedBuildIdx + 1}
+          />
 
           {/* Per-Instance Rotation Damage Table */}
           <div>
@@ -1551,7 +1474,9 @@ function OptimizeInner() {
                       : null
                   return (
                     <tr key={st.key}>
-                      <td>{st.label}</td>
+                      <td>
+                        <StatChip statKey={st.key} showLabel />
+                      </td>
                       {showCurrentComparison && currentEval && (
                         <td>{formatStat(cVal, st.isPercent)}</td>
                       )}

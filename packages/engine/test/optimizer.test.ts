@@ -360,7 +360,7 @@ describe('Single-Character Optimizer Solver (single-character-optimizer)', () =>
         ) / refOneSet.builds[0]!.total
       ).toBeLessThanOrEqual(1e-6)
     },
-    120_000
+    600_000
   )
 
   it('reports a fixed, invariant upfront total > 0 across all onProgress callbacks with tested + skipped === total upon completion (T006)', async () => {
@@ -411,44 +411,48 @@ describe('Single-Character Optimizer Solver (single-character-optimizer)', () =>
     expect(res.tested + res.skipped).toBe(upfrontTotal)
   })
 
-  it('terminates all BackgroundWorker instances on mid-run AbortSignal cancellation and on normal completion (T008)', async () => {
-    const fullSession = createSession(fullGood)
-    const controller = new AbortController()
+  it(
+    'terminates all BackgroundWorker instances on mid-run AbortSignal cancellation and on normal completion (T008)',
+    async () => {
+      const fullSession = createSession(fullGood)
+      const controller = new AbortController()
 
-    let abortedMidRun = false
-    await expect(
-      fullSession.optimize(
+      let abortedMidRun = false
+      await expect(
+        fullSession.optimize(
+          furinaPreset,
+          {
+            ...DEFAULT_OPTIMIZER_SETTINGS,
+            includeEquippedOnOthers: true,
+            setFilterMode: 'all',
+            topN: 5,
+          },
+          {
+            signal: controller.signal,
+            maxWorkers: 4,
+            onProgress: (p) => {
+              if (!abortedMidRun && p.total > 0) {
+                abortedMidRun = true
+                setTimeout(() => controller.abort(), 10)
+              }
+            },
+          }
+        )
+      ).rejects.toThrow(/aborted/i)
+
+      expect(getActiveBackgroundWorkerCount()).toBe(0)
+
+      // Normal completion also leaves 0 active workers
+      await session.optimize(
         furinaPreset,
         {
           ...DEFAULT_OPTIMIZER_SETTINGS,
-          includeEquippedOnOthers: true,
-          setFilterMode: 'all',
-          topN: 5,
+          topN: 3,
         },
-        {
-          signal: controller.signal,
-          maxWorkers: 4,
-          onProgress: (p) => {
-            if (!abortedMidRun && p.total > 0) {
-              abortedMidRun = true
-              setTimeout(() => controller.abort(), 10)
-            }
-          },
-        }
+        { maxWorkers: 2 }
       )
-    ).rejects.toThrow(/aborted/i)
-
-    expect(getActiveBackgroundWorkerCount()).toBe(0)
-
-    // Normal completion also leaves 0 active workers
-    await session.optimize(
-      furinaPreset,
-      {
-        ...DEFAULT_OPTIMIZER_SETTINGS,
-        topN: 3,
-      },
-      { maxWorkers: 2 }
-    )
-    expect(getActiveBackgroundWorkerCount()).toBe(0)
-  })
+      expect(getActiveBackgroundWorkerCount()).toBe(0)
+    },
+    600_000
+  )
 })

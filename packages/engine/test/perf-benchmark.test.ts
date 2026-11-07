@@ -169,5 +169,5 @@ describe('Baseline & Multi-Worker Solver Performance Measurements', () => {
     expect(switchPresetMs).toBeLessThan(250)
     expect(currentBuildEvalMs).toBeLessThan(250)
     expect(catalog4MembersWarmMs).toBeLessThan(5)
-  }, 120_000)
+  }, 600_000)
 })

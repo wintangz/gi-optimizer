@@ -4,9 +4,11 @@ import ImportLoading from './loading'
 import {
   ArtifactBadge,
   CharacterBadge,
+  StatChip,
   WeaponBadge,
 } from '@/components/Identifier'
 import { Spinner } from '@/components/Loading'
+import { FunnelIcon, TrashIcon, UploadIcon } from '@/components/SvgIcons'
 import { useGoodStorage } from '@/lib/storage/useGood'
 import {
   humanizeKey,
@@ -245,9 +247,7 @@ export default function ImportPage() {
         <div>
           <h1 style={{ margin: 0 }}>Import Account Data (GOOD Format)</h1>
           <p className="muted" style={{ margin: '0.25rem 0 0' }}>
-            Load a Genshin Open Object Description (GOOD v1–v3) JSON file from
-            your scanner (e.g. Irminsul, Inventory Kamera, Artiscan). Stored
-            locally in IndexedDB — never uploaded.
+            Import GOOD v1–v3 scanner JSON locally into IndexedDB.
           </p>
         </div>
         {record && (
@@ -255,22 +255,26 @@ export default function ImportPage() {
             <Link href="/presets">
               <button
                 type="button"
+                className="btn-icon"
                 style={{
                   background: 'var(--accent)',
                   color: '#0b0d12',
                   fontWeight: 600,
                 }}
               >
-                Browse Presets →
+                <FunnelIcon size={15} />
+                <span>Presets</span>
               </button>
             </Link>
             {!confirmClear ? (
               <button
                 type="button"
+                className="btn-icon"
                 onClick={() => setConfirmClear(true)}
                 style={{ borderColor: 'var(--err)', color: 'var(--err)' }}
               >
-                Clear Stored Data
+                <TrashIcon size={15} />
+                <span>Clear</span>
               </button>
             ) : (
               <div
@@ -337,6 +341,7 @@ export default function ImportPage() {
           />
           <button
             type="button"
+            className="btn-icon"
             onClick={() => fileInputRef.current?.click()}
             style={{
               background: 'var(--accent)',
@@ -344,7 +349,8 @@ export default function ImportPage() {
               fontWeight: 600,
             }}
           >
-            Choose GOOD JSON File…
+            <UploadIcon size={15} />
+            <span>Import JSON…</span>
           </button>
         </div>
 
@@ -363,11 +369,12 @@ export default function ImportPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             {pasteText && (
               <button type="button" onClick={() => setPasteText('')}>
-                Clear Text
+                Clear
               </button>
             )}
             <button
               type="button"
+              className="btn-icon"
               disabled={!pasteText.trim()}
               onClick={() => void handleRawInput(pasteText, 'Pasted JSON')}
               style={{
@@ -376,7 +383,8 @@ export default function ImportPage() {
                 fontWeight: 600,
               }}
             >
-              Parse &amp; Import Pasted JSON
+              <UploadIcon size={15} />
+              <span>Import Pasted</span>
             </button>
           </div>
         </div>
@@ -784,13 +792,12 @@ export default function ImportPage() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Set</th>
-                      <th>Slot</th>
-                      <th>Rarity / Lv</th>
-                      <th>Main Stat</th>
+                      <th>Slot / Set</th>
+                      <th>Lv</th>
+                      <th>Main</th>
                       <th>Substats</th>
-                      <th>Location</th>
-                      <th>Lock</th>
+                      <th>Equipped</th>
+                      <th>🔒</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -805,34 +812,51 @@ export default function ImportPage() {
                           />
                         </td>
                         <td>
-                          <ArtifactBadge
-                            setKey={a.setKey}
-                            slotKey={a.slotKey as IdentifierSlotKey}
-                            rarity={a.rarity}
-                            slotOnly
+                          <span
+                            style={{
+                              fontSize: '0.76rem',
+                              fontWeight: 700,
+                              padding: '0.08rem 0.34rem',
+                              borderRadius: '4px',
+                              background: '#232736',
+                            }}
+                          >
+                            +{a.level}
+                          </span>
+                        </td>
+                        <td>
+                          <StatChip
+                            statKey={a.mainStatKey}
+                            isMain
                             compact
                           />
                         </td>
                         <td>
-                          {a.rarity}★ +{a.level}
-                        </td>
-                        <td>{humanizeKey(a.mainStatKey)}</td>
-                        <td style={{ fontSize: '0.85rem' }}>
-                          {a.substats
-                            .filter((s) => s.key)
-                            .map(
-                              (s) =>
-                                `${humanizeKey(s.key)}: ${s.value}${
-                                  s.key.endsWith('_') ? '%' : ''
-                                }`
-                            )
-                            .join(' · ')}
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: '0.28rem',
+                              alignItems: 'center',
+                            }}
+                          >
+                            {a.substats
+                              .filter((s) => s.key)
+                              .map((s, sIdx) => (
+                                <StatChip
+                                  key={`${s.key}-${sIdx}`}
+                                  statKey={s.key}
+                                  value={s.value}
+                                  compact
+                                />
+                              ))}
+                          </div>
                         </td>
                         <td>
                           {a.location ? (
                             <CharacterBadge characterKey={a.location} compact />
                           ) : (
-                            <span className="muted">Unequipped</span>
+                            <span className="muted">—</span>
                           )}
                         </td>
                         <td>{a.lock ? '🔒' : ''}</td>

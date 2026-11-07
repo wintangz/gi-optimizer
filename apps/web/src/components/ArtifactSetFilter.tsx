@@ -1,6 +1,7 @@
 'use client'
 
 import { ArtifactBadge } from '@/components/Identifier'
+import { FunnelIcon } from '@/components/SvgIcons'
 import {
   ALL_ARTIFACT_SET_KEYS,
   clearSets,
@@ -145,7 +146,16 @@ export function ArtifactSetFilter({
           flexWrap: 'wrap',
         }}
       >
-        <span className="muted" style={{ fontSize: '0.85rem' }}>
+        <span
+          className="muted"
+          style={{
+            fontSize: '0.85rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+          }}
+        >
+          <FunnelIcon size={14} />
           Artifact Set Filter
         </span>
         <span

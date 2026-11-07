@@ -37,12 +37,17 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  formatRarityStars,
   getArtifactMeta,
+  getArtifactSetShortName,
   getCharacterInitials,
   getCharacterMeta,
+  getRarityColor,
   getSetHue,
   getWeaponMeta,
   listWeaponsForType,
+  RARITY_COLORS,
+  shortStatLabel,
   type IdentifierSlotKey,
 } from '../src/index'
 
@@ -215,5 +220,33 @@ describe('Visual Identifier & Static Metadata Lookup (visual-identifiers, loadin
       expect(slotMeta.glyph.length).toBeGreaterThan(0)
       expect(slotMeta.rarity).toBe(5)
     }
+  })
+
+  it('defines flat Genshin rarity colors with readable foreground contrast, star rows, and compact set/stat labels (visual-language-pass)', () => {
+    // 5★ gold and 2★ green use dark foreground text; 4★ purple, 3★ blue, 1★ grey use white foreground text
+    expect(RARITY_COLORS[5].bg).toBe('#d89c3a')
+    expect(RARITY_COLORS[5].fg).toBe('#1a1206')
+    expect(RARITY_COLORS[4].bg).toBe('#7b52ab')
+    expect(RARITY_COLORS[4].fg).toBe('#ffffff')
+    expect(RARITY_COLORS[3].bg).toBe('#4180c4')
+    expect(RARITY_COLORS[3].fg).toBe('#ffffff')
+    expect(RARITY_COLORS[2].bg).toBe('#4ea876')
+    expect(RARITY_COLORS[2].fg).toBe('#0d1f15')
+    expect(RARITY_COLORS[1].bg).toBe('#78808c')
+    expect(RARITY_COLORS[1].fg).toBe('#ffffff')
+    expect(getRarityColor(5)).toEqual(RARITY_COLORS[5])
+
+    expect(formatRarityStars(5)).toBe('★★★★★')
+    expect(formatRarityStars(4)).toBe('★★★★☆')
+    expect(formatRarityStars(3)).toBe('★★★☆☆')
+    expect(formatRarityStars(2)).toBe('★★☆☆☆')
+    expect(formatRarityStars(1)).toBe('★☆☆☆☆')
+
+    expect(getArtifactSetShortName('CrimsonWitchOfFlames')).toBe('Crimson Witch')
+    expect(getArtifactSetShortName('GoldenTroupe')).toBe('Golden Troupe')
+    expect(shortStatLabel('critRate_')).toBe('CR%')
+    expect(shortStatLabel('critDMG_')).toBe('CD%')
+    expect(shortStatLabel('enerRech_')).toBe('ER%')
+    expect(shortStatLabel('eleMas')).toBe('EM')
   })
 })

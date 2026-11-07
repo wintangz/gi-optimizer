@@ -471,3 +471,36 @@ td {
 .mb-sm {
   margin-bottom: 0.5rem;
 }
+
+/* Visual language pass utilities */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+}
+
+.preset-card-summary-line {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-card-expanded-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+  padding-top: 0.3rem;
+  border-top: 1px dashed var(--border);
+}
+
+.preset-collapse-toggle {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  padding: 0.1rem 0.3rem;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
