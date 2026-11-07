@@ -12,11 +12,12 @@ interface EffectEntry {
 
 const hookStore = {
   active: false,
-  states: [] as unknown[],
+  compStack: [] as Array<{ key: string; stateIdx: number }>,
+  statesByComp: new Map<string, unknown[]>(),
+  compCounts: new Map<string, number>(),
   refs: [] as { current: unknown }[],
   effects: [] as EffectEntry[],
   pendingEffects: [] as Array<{ idx: number; fn: () => (() => void) | void }>,
-  stateIdx: 0,
   refIdx: 0,
   effectIdx: 0,
   reset() {
@@ -25,19 +26,30 @@ const hookStore = {
         eff.cleanup()
       }
     }
-    this.states = []
+    this.compStack = []
+    this.statesByComp.clear()
+    this.compCounts.clear()
     this.refs = []
     this.effects = []
     this.pendingEffects = []
-    this.stateIdx = 0
     this.refIdx = 0
     this.effectIdx = 0
   },
   beginRender() {
-    this.stateIdx = 0
+    this.compStack = []
+    this.compCounts.clear()
     this.refIdx = 0
     this.effectIdx = 0
     this.pendingEffects = []
+  },
+  enterComp(fn: { name?: string }) {
+    const name = fn.name || 'Component'
+    const count = this.compCounts.get(name) ?? 0
+    this.compCounts.set(name, count + 1)
+    this.compStack.push({ key: `${name}#${count}`, stateIdx: 0 })
+  },
+  leaveComp() {
+    this.compStack.pop()
   },
   flushEffects() {
     const queue = [...this.pendingEffects]
@@ -75,19 +87,30 @@ vi.mock('react', async (importOriginal) => {
       if (!hookStore.active) {
         return actual.useState(initial)
       }
-      const idx = hookStore.stateIdx++
-      if (idx >= hookStore.states.length) {
-        hookStore.states.push(
+      const top = hookStore.compStack[hookStore.compStack.length - 1] ?? {
+        key: 'Root#0',
+        stateIdx: 0,
+      }
+      const compKey = top.key
+      const idx = top.stateIdx++
+      let arr = hookStore.statesByComp.get(compKey)
+      if (!arr) {
+        arr = []
+        hookStore.statesByComp.set(compKey, arr)
+      }
+      if (idx >= arr.length) {
+        arr.push(
           typeof initial === 'function' ? (initial as () => T)() : initial
         )
       }
       const setState = (next: T | ((prev: T) => T)) => {
-        const prevVal = hookStore.states[idx] as T
+        const list = hookStore.statesByComp.get(compKey)!
+        const prevVal = list[idx] as T
         const nextVal =
           typeof next === 'function' ? (next as (prev: T) => T)(prevVal) : next
-        hookStore.states[idx] = nextVal
+        list[idx] = nextVal
       }
-      return [hookStore.states[idx] as T, setState] as const
+      return [arr[idx] as T, setState] as const
     },
     useRef<T>(initial: T) {
       if (!hookStore.active) {
@@ -249,10 +272,16 @@ function evaluateTree(node: unknown): Array<VNode | string> {
     }
     const props = el.props ?? {}
     if (typeof el.type === 'function') {
-      const rendered = (el.type as (p: Record<string, unknown>) => unknown)(
-        props
-      )
-      return evaluateTree(rendered)
+      const fn = el.type as ((p: Record<string, unknown>) => unknown) & {
+        name?: string
+      }
+      hookStore.enterComp(fn)
+      try {
+        const rendered = fn(props)
+        return evaluateTree(rendered)
+      } finally {
+        hookStore.leaveComp()
+      }
     }
     if (typeof el.type === 'string') {
       const children = evaluateTree(props.children)
@@ -897,8 +926,6 @@ describe('Deferred Engine Start on Custom Teams Page (teams-deferred-start)', ()
     ;(
       sourceSelect.props.onChange as (e: { target: { value: string } }) => void
     )({ target: { value: 'user' } })
-    // Reset child hook slots after switching preset source view
-    hookStore.states.length = 9
     presetsTree = renderPresetsPass()
 
     // Click Delete once -> enters confirmation state, does not call removeUserPreset
@@ -994,5 +1021,91 @@ describe('Deferred Engine Start on Custom Teams Page (teams-deferred-start)', ()
       expect(collectText(akashaLink.children)).toBe('Akasha leaderboard case')
       expect(akashaLink.props.href).toBe(akashaPreset.akasha!.leaderboardUrl)
     }
+  })
+
+  it('collapsible-panels: collapses full-roster teammate and target character grids on /teams behind Add/Change controls and selects preset cards on /presets without in-card expansion', async () => {
+    // 1. Teams editor: both full-roster CharacterTilePicker grids start collapsed
+    let teamsTree = renderPass()
+    expect(
+      findAllElements(
+        teamsTree,
+        (el) => el.props['data-testid'] === 'add-teammate-picker-panel'
+      )
+    ).toHaveLength(0)
+    expect(
+      findAllElements(
+        teamsTree,
+        (el) => el.props['data-testid'] === 'change-target-picker-panel'
+      )
+    ).toHaveLength(0)
+
+    const toggleTeammateBtn = findAllElements(
+      teamsTree,
+      (el) => el.props['data-testid'] === 'toggle-add-teammate-picker-btn'
+    )[0]!
+    expect(toggleTeammateBtn.props['aria-expanded']).toBe(false)
+    ;(toggleTeammateBtn.props.onClick as () => void)()
+    teamsTree = renderPass()
+    expect(
+      findAllElements(
+        teamsTree,
+        (el) => el.props['data-testid'] === 'add-teammate-picker-panel'
+      )
+    ).toHaveLength(1)
+
+    const toggleTargetBtn = findAllElements(
+      teamsTree,
+      (el) => el.props['data-testid'] === 'toggle-change-target-btn'
+    )[0]!
+    expect(toggleTargetBtn.props['aria-expanded']).toBe(false)
+    ;(toggleTargetBtn.props.onClick as () => void)()
+    teamsTree = renderPass()
+    expect(
+      findAllElements(
+        teamsTree,
+        (el) => el.props['data-testid'] === 'change-target-picker-panel'
+      )
+    ).toHaveLength(1)
+
+    // 2. Presets page: clicking a preset card selects it without rendering any in-card expanded section
+    hookStore.reset()
+    const renderPresetsPass = (): VNode[] => {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        const nodes = evaluateTree(React.createElement(PresetsPage))
+        hookStore.flushEffects()
+        return nodes.filter((n): n is VNode => typeof n !== 'string')
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    let presetsTree = renderPresetsPass()
+    await vi.runAllTimersAsync()
+    await Promise.resolve()
+    presetsTree = renderPresetsPass()
+
+    const secondPreset = listBundledPresets()[1]!
+    const secondCard = findAllElements(
+      presetsTree,
+      (el) => el.props['data-testid'] === `preset-card-${secondPreset.id}`
+    )[0]!
+    ;(secondCard.props.onClick as () => void)()
+    presetsTree = renderPresetsPass()
+
+    const updatedSecondCard = findAllElements(
+      presetsTree,
+      (el) => el.props['data-testid'] === `preset-card-${secondPreset.id}`
+    )[0]!
+    expect(String(updatedSecondCard.props.className)).toContain(
+      'preset-card-selected'
+    )
+    expect(
+      findAllElements(
+        presetsTree,
+        (el) => el.props.className === 'preset-card-expanded-desc'
+      )
+    ).toHaveLength(0)
   })
 })

@@ -156,6 +156,8 @@ function TeamsInner() {
   const [engineStarted, setEngineStarted] = useState<boolean>(() =>
     Boolean(forkParam || editParam)
   )
+  const [showTeammatePicker, setShowTeammatePicker] = useState(false)
+  const [showTargetPicker, setShowTargetPicker] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const appliedQueryKeyRef = useRef<string | null>(null)
@@ -922,6 +924,15 @@ function TeamsInner() {
               <button
                 type="button"
                 className="btn-secondary"
+                data-testid="toggle-add-teammate-picker-btn"
+                aria-expanded={showTeammatePicker}
+                onClick={() => setShowTeammatePicker((prev) => !prev)}
+              >
+                {showTeammatePicker ? 'Hide Roster' : 'Choose Teammate…'}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
                 onClick={addTeammate}
               >
                 + Add Simulated Teammate
@@ -930,8 +941,8 @@ function TeamsInner() {
           )}
         </div>
 
-        {draft.team.length < 4 && (
-          <div className="gi-field-label">
+        {draft.team.length < 4 && showTeammatePicker && (
+          <div className="gi-field-label" data-testid="add-teammate-picker-panel">
             <span className="muted">
               Select a character tile to add as a simulated teammate:
             </span>
@@ -1004,21 +1015,37 @@ function TeamsInner() {
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '0.2rem',
+                      gap: '0.35rem',
                     }}
                   >
-                    <span className="muted" style={{ fontSize: '0.82rem' }}>
-                      Change Target Character
-                    </span>
-                    <CharacterTilePicker
-                      ariaLabel="Target character"
-                      value={member.key}
-                      options={ALL_CHARACTER_KEYS.map((ck) => ({
-                        key: ck,
-                        label: displayName(ck),
-                      }))}
-                      onChange={(nextKey) => void handleTargetChange(nextKey)}
-                    />
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      data-testid="toggle-change-target-btn"
+                      aria-expanded={showTargetPicker}
+                      onClick={() => setShowTargetPicker((prev) => !prev)}
+                      style={{ alignSelf: 'flex-start', fontSize: '0.82rem' }}
+                    >
+                      {showTargetPicker
+                        ? 'Hide Target Roster'
+                        : 'Change Target Character'}
+                    </button>
+                    {showTargetPicker && (
+                      <div data-testid="change-target-picker-panel">
+                        <CharacterTilePicker
+                          ariaLabel="Target character"
+                          value={member.key}
+                          options={ALL_CHARACTER_KEYS.map((ck) => ({
+                            key: ck,
+                            label: displayName(ck),
+                          }))}
+                          onChange={(nextKey) => {
+                            void handleTargetChange(nextKey)
+                            setShowTargetPicker(false)
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>

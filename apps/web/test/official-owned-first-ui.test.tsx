@@ -269,6 +269,7 @@ vi.mock('@/lib/engine/workerClient', () => ({
 }))
 
 import OptimizePage from '../src/app/optimize/page'
+import { resetSolverPoolFiltersExpandedSession } from '../src/components/OptimizeViews'
 
 interface VNode {
   type: string
@@ -586,15 +587,22 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(idxResultsCard).toBeGreaterThan(idxConstraintsCard)
     expect(idxRunOptimizeBtn).toBeGreaterThan(idxResultsCard)
 
-    // single-level-range-control: Artifact Level Range exists only in SolverPoolFiltersPanel, not duplicated in the Setup grid
-    expect(findByTestId(tree, 'pool-filter-level-low')).toBeDefined()
-    expect(findByTestId(tree, 'pool-filter-level-high')).toBeDefined()
+    // single-level-range-control & collapsible-panels: SolverPoolFiltersPanel starts collapsed when unrestricted with summary visible; expanding it exposes Artifact Level Range
+    expect(findByTestId(tree, 'solver-pool-filters-summary')).toBeDefined()
+    expect(findByTestId(tree, 'pool-filter-level-low')).toBeUndefined()
+    const poolToggle = findByTestId(tree, 'solver-pool-filters-toggle')!
+    expect(poolToggle.props['aria-expanded']).toBe(false)
+    ;(poolToggle.props.onClick as () => void)()
+    const expandedTree = renderPass()
+    expect(findByTestId(expandedTree, 'pool-filter-level-low')).toBeDefined()
+    expect(findByTestId(expandedTree, 'pool-filter-level-high')).toBeDefined()
     expect(
-      findAll(tree, (n) => n.props['aria-label'] === 'Artifact Level Min')
+      findAll(expandedTree, (n) => n.props['aria-label'] === 'Artifact Level Min')
     ).toHaveLength(0)
     expect(
-      findAll(tree, (n) => n.props['aria-label'] === 'Artifact Level Max')
+      findAll(expandedTree, (n) => n.props['aria-label'] === 'Artifact Level Max')
     ).toHaveLength(0)
+    resetSolverPoolFiltersExpandedSession()
   })
 
   it('weapon-compare-minimum: requires at least 2 weapon candidates to enable Compare Weapons button, shows visible reason below 2, and enables at 2+', async () => {

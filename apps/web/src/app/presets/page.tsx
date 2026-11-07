@@ -93,7 +93,6 @@ export default function PresetsPage() {
   const [sourceFilter, setSourceFilter] = useState<'all' | PresetSource>('all')
   const [targetFilter, setTargetFilter] = useState<string>('')
   const [selectedPresetId, setSelectedPresetId] = useState<string>('')
-  const [expandedCardIds, setExpandedCardIds] = useState<Record<string, boolean>>({})
   const [expandedDetailAssumptions, setExpandedDetailAssumptions] = useState(false)
   const [selectedWeapons, setSelectedWeapons] = useState<
     Record<string, string>
@@ -252,7 +251,6 @@ export default function PresetsPage() {
           {filteredPresets.map((p) => {
             const badge = getPresetBadge(p)
             const isSelected = activePreset?.id === p.id
-            const isExpanded = Boolean(expandedCardIds[p.id])
             const isAkasha = p.source === 'akasha'
             const targetMeta = getCharacterMeta(p.target)
             const quickMatch =
@@ -268,12 +266,17 @@ export default function PresetsPage() {
             return (
               <div
                 key={p.id}
+                role="button"
+                tabIndex={0}
+                data-testid={`preset-card-${p.id}`}
                 onClick={() => {
                   setSelectedPresetId(p.id)
-                  setExpandedCardIds((prev) => ({
-                    ...prev,
-                    [p.id]: !prev[p.id],
-                  }))
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setSelectedPresetId(p.id)
+                  }
                 }}
                 className={`panel preset-card${isSelected ? ' preset-card-selected' : ''}`}
               >
@@ -336,41 +339,6 @@ export default function PresetsPage() {
                 <div className="preset-card-summary-line">
                   {oneLineSummary}
                 </div>
-                {isExpanded && (
-                  <div className="preset-card-expanded-desc">
-                    <div>{p.description}</div>
-                    <div style={{ marginTop: '0.2rem' }}>
-                      Rotation: <strong>{p.rotation.name}</strong> ·{' '}
-                      {p.rotation.targets.length} instance(s) ×{p.rotation.repeat}
-                    </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.22rem',
-                        marginTop: '0.3rem',
-                      }}
-                    >
-                      {p.rotation.targets.map((rt, rIdx) => (
-                        <div
-                          key={rIdx}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            flexWrap: 'wrap',
-                            fontSize: '0.78rem',
-                          }}
-                        >
-                          <span>{rt.label || rt.path.join('.')}</span>
-                          <span className="muted">×{rt.count}</span>
-                          <RotationReactionBadge reaction={rt.reaction} compact />
-                          <RotationHitModeBadge hitMode={rt.hitMode} compact />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )
           })}

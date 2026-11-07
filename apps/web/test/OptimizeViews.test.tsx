@@ -64,6 +64,7 @@ import {
   humanizeFormulaPath,
   PresetRotationSummary,
   rankWeaponComparisonRows,
+  resetSolverPoolFiltersExpandedSession,
   resolveWeaponCompareCandidate,
   SolverPoolFiltersPanel,
   TeamOptimizationList,
@@ -124,6 +125,7 @@ function findByTestId(
 describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
   afterEach(() => {
     hookStore.reset()
+    resetSolverPoolFiltersExpandedSession()
   })
   it('renders ConstraintsCard empty state and stat picker with already-added stats disabled', () => {
     const emptyHtml = renderToStaticMarkup(
@@ -1199,6 +1201,19 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     let tree = renderTree()
     const summaryNode = findByTestId(tree, 'solver-pool-filters-summary')
     expect(summaryNode?.children).toContain('All pieces allowed')
+
+    // collapsible-panels: starts collapsed by default when unrestricted, keeping summary visible
+    const toggleBtn = findByTestId(tree, 'solver-pool-filters-toggle')!
+    expect(toggleBtn).toBeDefined()
+    expect(toggleBtn.props['aria-expanded']).toBe(false)
+    expect(findByTestId(tree, 'mainstat-chip-sands-enerRech_')).toBeUndefined()
+
+    // Click toggle button to expand -> persists in session
+    ;(toggleBtn.props.onClick as () => void)()
+    tree = renderTree()
+    expect(
+      findByTestId(tree, 'solver-pool-filters-toggle')!.props['aria-expanded']
+    ).toBe(true)
 
     // Click ER main stat chip on Sands
     const sandsErChip = findByTestId(tree, 'mainstat-chip-sands-enerRech_')
@@ -2833,5 +2848,52 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(teamHtml).not.toContain('Disjoint 5pc Assignment')
     expect(teamHtml).toContain('data-testid="team-opt-rank-Furina">Furina<')
     expect(teamHtml).not.toContain('>SLOT 1<')
+  })
+
+  it('collapses SolverPoolFiltersPanel by default when unrestricted, keeps summary visible, and persists expanded state per session (collapsible-panels)', () => {
+    resetSolverPoolFiltersExpandedSession()
+    const renderTree = (settings: OptimizerSettings) => {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        return evaluateTree(
+          <SolverPoolFiltersPanel settings={settings} onChange={() => {}} />
+        )
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    // 1. Fresh session + unrestricted -> starts collapsed, summary visible
+    let tree = renderTree(DEFAULT_OPTIMIZER_SETTINGS)
+    expect(
+      findByTestId(tree, 'solver-pool-filters-summary')?.children
+    ).toContain('All pieces allowed')
+    expect(
+      findByTestId(tree, 'solver-pool-filters-toggle')?.props['aria-expanded']
+    ).toBe(false)
+    expect(findByTestId(tree, 'solver-pool-filters-body')).toBeUndefined()
+
+    // 2. Expand in session -> body is rendered
+    ;(
+      findByTestId(tree, 'solver-pool-filters-toggle')!.props.onClick as () => void
+    )()
+    tree = renderTree(DEFAULT_OPTIMIZER_SETTINGS)
+    expect(
+      findByTestId(tree, 'solver-pool-filters-toggle')?.props['aria-expanded']
+    ).toBe(true)
+    expect(findByTestId(tree, 'solver-pool-filters-body')).toBeDefined()
+
+    // 3. Re-mount component in the same session (hookStore reset simulates unmounting & remounting) -> stays expanded
+    hookStore.reset()
+    const remountedTree = renderTree(DEFAULT_OPTIMIZER_SETTINGS)
+    expect(
+      findByTestId(remountedTree, 'solver-pool-filters-toggle')?.props[
+        'aria-expanded'
+      ]
+    ).toBe(true)
+    expect(
+      findByTestId(remountedTree, 'solver-pool-filters-body')
+    ).toBeDefined()
   })
 })
