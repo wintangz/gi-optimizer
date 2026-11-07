@@ -8,6 +8,7 @@ import furinaSubdps from '../data/official/furina-salon-subdps.json'
 import hutaoVape from '../data/official/hutao-double-hydro-vape.json'
 import mavuikaMelt from '../data/official/mavuika-melt-hypercarry.json'
 import mavuikaOverload from '../data/official/mavuika-overload.json'
+import neferLunarBloom from '../data/official/nefer-lunar-bloom.json'
 import neuvHyper from '../data/official/neuvillette-hypercarry.json'
 import raidenHyper from '../data/official/raiden-hypercarry.json'
 import skirkFreeze from '../data/official/skirk-freeze.json'
@@ -27,6 +28,7 @@ const RAW_BUNDLED: unknown[] = [
   mavuikaMelt,
   mavuikaOverload,
   skirkFreeze,
+  neferLunarBloom,
 ]
 
 let cachedPresets: Preset[] | null = null
@@ -57,6 +59,7 @@ export const VERIFIED_PRESET_IDS: ReadonlySet<string> = /*#__PURE__*/ new Set([
   'official/mavuika-melt-hypercarry',
   'official/mavuika-overload',
   'official/skirk-freeze',
+  'official/nefer-lunar-bloom',
 ])
 
 export interface PresetBadge {

@@ -1,0 +1,150 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "official/nefer-lunar-bloom",
+  "name": "Nefer — Lunar-Bloom (Lauma · Columbina · Nahida)",
+  "description": "Official meta preset for Nefer Lunar-Bloom with Lauma (Dendro/Hydro RES shred + Pale Hymn Lunar-Bloom flat DMG + Silken Moon's Serenade 4p), Columbina (Lunar Domain Lunar-Bloom DMG% + Ascendant Gleam + Aubade 4p), and Nahida (Shrine of Maya EM share + Deepwood 4p).",
+  "source": "official",
+  "author": "gi-optimizer",
+  "target": "Nefer",
+  "team": [
+    {
+      "key": "Nefer",
+      "build": { "type": "owned" },
+      "requirement": {},
+      "conditional": {
+        "Nefer": {
+          "a1VeilStacks": "3",
+          "burstVeilsAbsorbed": "3"
+        },
+        "NightOfTheSkysUnveiling": {
+          "4GleamingMoon": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Lauma",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 10 } },
+          "weapon": { "key": "NightweaversLookingGlass", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 44.0 } },
+            "sets": { "SilkenMoonsSerenade": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Lauma": {
+          "skillAfterHit": "on",
+          "burstPaleHymn": "on",
+          "a1AfterSkill": "on"
+        },
+        "NightweaversLookingGlass": {
+          "afterHydroOrDendro": "on",
+          "afterLunarBloom": "on"
+        },
+        "SilkenMoonsSerenade": {
+          "4GleamingMoon": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Columbina",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "NocturnesCurtainCall", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "AubadeOfMorningstarAndMoon": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Columbina": {
+          "burstDomain": "on",
+          "a1Stacks": "3"
+        },
+        "NocturnesCurtainCall": {
+          "passive": "on"
+        },
+        "AubadeOfMorningstarAndMoon": {
+          "set4": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Nahida",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 6, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "AThousandFloatingDreams", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 33.0 } },
+            "sets": { "DeepwoodMemories": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Nahida": {
+          "partyInBurst": "on",
+          "condA1ActiveInBurst": "on"
+        },
+        "DeepwoodMemories": {
+          "set4": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "2× E -> 6× Phantasm Performance + Burst",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "skillDmg"], "count": 2, "label": "Senet Strategy Skill Cast (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "nefer1Dmg"], "count": 6, "label": "Phantasm Performance 1-Hit Nefer (×6)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "nefer2Dmg"], "count": 6, "label": "Phantasm Performance 2-Hit Nefer (×6)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "shade1Dmg"], "count": 6, "label": "Phantasm Performance 1-Hit Shades Lunar-Bloom (×6)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "shade2Dmg"], "count": 6, "label": "Phantasm Performance 2-Hit Shades Lunar-Bloom (×6)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "shade3Dmg"], "count": 6, "label": "Phantasm Performance 3-Hit Shades Lunar-Bloom (×6)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "hit1"], "count": 1, "label": "Sacred Vow Burst 1-Hit", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "hit2"], "count": 1, "label": "Sacred Vow Burst 2-Hit", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  }
+}
