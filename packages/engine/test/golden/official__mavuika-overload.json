@@ -1,0 +1,65 @@
+{
+  "presetId": "official/mavuika-overload",
+  "target": "Mavuika",
+  "total": 25403.107820333513,
+  "instances": [
+    {
+      "label": "The Named Moment Skill Cast",
+      "path": [
+        "skill",
+        "skillDmg"
+      ],
+      "count": 1,
+      "perHit": 641.816273432937,
+      "subtotal": 641.816273432937
+    },
+    {
+      "label": "Hour of Burning Skies: Sunfell Slice",
+      "path": [
+        "burst",
+        "skillDmg"
+      ],
+      "count": 1,
+      "perHit": 7163.1034043845575,
+      "subtotal": 7163.1034043845575
+    },
+    {
+      "label": "Flamestrider Charged Cyclic (×8)",
+      "path": [
+        "skill",
+        "chargedCyclicDmg"
+      ],
+      "count": 8,
+      "perHit": 1914.6176914311409,
+      "subtotal": 15316.941531449127
+    },
+    {
+      "label": "Flamestrider Charged Final DMG",
+      "path": [
+        "skill",
+        "chargedFinalDmg"
+      ],
+      "count": 1,
+      "perHit": 2281.246611066891,
+      "subtotal": 2281.246611066891
+    }
+  ],
+  "stats": {
+    "hp": 12552.058567,
+    "atk": 747.6908328999999,
+    "def": 791.6110011000001,
+    "eleMas": 0,
+    "critRate_": 0.05,
+    "critDMG_": 0.884,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}

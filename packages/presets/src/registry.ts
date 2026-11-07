@@ -7,6 +7,7 @@ import arlecchinoVape from '../data/official/arlecchino-vaporize.json'
 import furinaSubdps from '../data/official/furina-salon-subdps.json'
 import hutaoVape from '../data/official/hutao-double-hydro-vape.json'
 import mavuikaMelt from '../data/official/mavuika-melt-hypercarry.json'
+import mavuikaOverload from '../data/official/mavuika-overload.json'
 import neuvHyper from '../data/official/neuvillette-hypercarry.json'
 import raidenHyper from '../data/official/raiden-hypercarry.json'
 import { presetSchema, type Preset } from './schema'
@@ -23,6 +24,7 @@ const RAW_BUNDLED: unknown[] = [
   raidenHyper,
   arlecchinoVape,
   mavuikaMelt,
+  mavuikaOverload,
 ]
 
 let cachedPresets: Preset[] | null = null
@@ -51,6 +53,7 @@ export const VERIFIED_PRESET_IDS: ReadonlySet<string> = /*#__PURE__*/ new Set([
   'official/raiden-hypercarry',
   'official/arlecchino-vaporize',
   'official/mavuika-melt-hypercarry',
+  'official/mavuika-overload',
 ])
 
 export interface PresetBadge {

@@ -136,11 +136,29 @@ describe('matchAccount & bundled presets', () => {
     )
   })
 
-  it('passes all 6 Official presets against the sample GOOD file regardless of equipped weapon', () => {
+  it('passes all Official presets against the sample GOOD file regardless of equipped weapon', () => {
     const officials = listBundledPresets({ source: 'official' })
-    expect(officials).toHaveLength(6)
+    expect(officials).toHaveLength(7)
     for (const p of officials) {
-      const report = matchAccount(p, sampleGood)
+      const hasTargetInSample = sampleGood.characters.some(
+        (c: { key: string }) => c.key === p.target
+      )
+      const account = hasTargetInSample
+        ? sampleGood
+        : {
+            ...sampleGood,
+            characters: [
+              ...sampleGood.characters,
+              {
+                key: p.target,
+                level: 90,
+                ascension: 6,
+                constellation: 0,
+                talent: { auto: 9, skill: 9, burst: 9 },
+              },
+            ],
+          }
+      const report = matchAccount(p, account)
       expect(report.canRun, p.id).toBe(true)
       const badge = getPresetBadge(p)
       expect(badge.kind).toBe('official')
