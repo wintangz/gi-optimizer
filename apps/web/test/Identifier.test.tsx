@@ -536,6 +536,16 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(negBarsHtml).toContain('class="muted">-5,000 (-0.50%)<')
     expect(negBarsHtml).not.toContain('class="error"')
 
+    const smallBarsHtml = renderToStaticMarkup(
+      <BuildComparisonBars
+        currentTotal={5_000}
+        optimisedTotal={1_000_000}
+        rank={1}
+      />
+    )
+    expect(smallBarsHtml).toContain('width:0.5%')
+    expect(smallBarsHtml).not.toContain('width:4.0%')
+
     const iconsHtml = renderToStaticMarkup(
       <div>
         <SlotIcon slotKey="goblet" />

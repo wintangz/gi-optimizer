@@ -2469,4 +2469,118 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       'class="comp-row-delta muted" data-testid="team-opt-member-delta-KaedeharaKazuha" data-delta-sign="0">0.0%<'
     )
   })
+
+  it('renders result bar widths as true proportions of the leader without a 4% floor (proportional-result-bars)', () => {
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+
+    // 1. BuildComparisonList: 5,000 vs 1,000,000 is 0.5% (not 4.0%)
+    const buildHtml = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: { total: 5000, stats: {}, instances: [] },
+        }}
+        optimizedBuilds={[
+          {
+            selection: { weaponId: 'w1', artifactIds: {} },
+            total: 1000000,
+            evaluation: { total: 1000000, stats: {}, instances: [] },
+          },
+          {
+            selection: { weaponId: 'w1', artifactIds: {} },
+            total: 15000,
+            evaluation: { total: 15000, stats: {}, instances: [] },
+          },
+        ]}
+      />
+    )
+    expect(buildHtml).toContain(
+      'data-testid="comp-bar-fill-opt-0" style="width:100.0%"'
+    )
+    expect(buildHtml).toContain(
+      'data-testid="comp-bar-fill-opt-1" style="width:1.5%"'
+    )
+    expect(buildHtml).toContain(
+      'data-testid="comp-bar-fill-current" style="width:0.5%"'
+    )
+    expect(buildHtml).toContain('title="5,000 Total Rotation DMG (0.5% of best)"')
+    expect(buildHtml).not.toContain('width:4.0%')
+
+    // 2. WeaponComparisonList: weapon row and top-build card at 0.5% and 2.0%
+    const rankedWeapons = rankWeaponComparisonRows([
+      {
+        candidate: {
+          weaponKey: 'FavoniusSword',
+          level: 90,
+          ascension: 6,
+          refinement: 5,
+          isOwned: true,
+          isEquippedBaseline: true,
+        },
+        status: 'ok',
+        rank: null,
+        total: 1000000,
+        percentBehindLeader: null,
+        bestBuild: { artifactIds: {} },
+        evaluation: { total: 1000000, stats: {}, instances: [] },
+        topBuilds: [
+          {
+            rank: 1,
+            selection: { artifactIds: {} },
+            evaluation: { total: 1000000, stats: {}, instances: [] },
+          },
+          {
+            rank: 2,
+            selection: { artifactIds: {} },
+            evaluation: { total: 20000, stats: {}, instances: [] },
+          },
+        ],
+        tested: 10,
+        skipped: 0,
+        durationMs: 1,
+      },
+      {
+        candidate: {
+          weaponKey: 'FleuveCendreFerryman',
+          level: 90,
+          ascension: 6,
+          refinement: 5,
+          isOwned: false,
+          isEquippedBaseline: false,
+        },
+        status: 'ok',
+        rank: null,
+        total: 5000,
+        percentBehindLeader: null,
+        bestBuild: { artifactIds: {} },
+        evaluation: { total: 5000, stats: {}, instances: [] },
+        tested: 10,
+        skipped: 0,
+        durationMs: 1,
+      },
+    ])
+
+    const weaponHtml = renderToStaticMarkup(
+      <WeaponComparisonList
+        preset={preset}
+        result={rankedWeapons}
+        artifactById={new Map()}
+      />
+    )
+    expect(weaponHtml).toContain(
+      'data-testid="weapon-compare-bar-FavoniusSword" style="width:100.0%"'
+    )
+    expect(weaponHtml).toContain(
+      'data-testid="weapon-compare-bar-FleuveCendreFerryman" style="width:0.5%"'
+    )
+    expect(weaponHtml).toContain(
+      'title="5,000 Total Rotation DMG (0.5% of leader)"'
+    )
+    expect(weaponHtml).toContain(
+      'title="20,000 Total Rotation DMG (2.0% of weapon best)"'
+    )
+    expect(weaponHtml).not.toContain('width:4.0%')
+  })
 })

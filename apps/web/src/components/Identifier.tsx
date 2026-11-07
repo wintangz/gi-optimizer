@@ -959,10 +959,10 @@ export function BuildComparisonBars({
   const hasOpt = optimisedTotal !== undefined && optimisedTotal > 0
   const maxVal = Math.max(currentTotal ?? 0, optimisedTotal ?? 0, 1)
   const currPct = hasCurrent
-    ? Math.max(4, Math.min(100, ((currentTotal ?? 0) / maxVal) * 100))
+    ? Math.max(0, Math.min(100, ((currentTotal ?? 0) / maxVal) * 100))
     : 0
   const optPct = hasOpt
-    ? Math.max(4, Math.min(100, ((optimisedTotal ?? 0) / maxVal) * 100))
+    ? Math.max(0, Math.min(100, ((optimisedTotal ?? 0) / maxVal) * 100))
     : 0
 
   const diff =

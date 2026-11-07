@@ -1150,7 +1150,7 @@ export function BuildComparisonList({
       aria-label="Build comparison results"
     >
       {rows.map((row) => {
-        const barPct = Math.max(4, Math.min(100, (row.total / maxTotal) * 100))
+        const barPct = Math.max(0, Math.min(100, (row.total / maxTotal) * 100))
         const isExpanded = expandedRowId === row.id
         const delta =
           row.kind === 'current'
@@ -2101,7 +2101,7 @@ export function WeaponComparisonList({
 
         const isBest = row.rank === 1
         const total = row.total ?? 0
-        const barPct = Math.max(4, Math.min(100, (total / maxTotal) * 100))
+        const barPct = Math.max(0, Math.min(100, (total / maxTotal) * 100))
         const isExpanded = expandedKey === wKey
         const pctBehind = row.percentBehindLeader ?? 0
         const isLeader = isBest || pctBehind < 0.05
@@ -2334,7 +2334,7 @@ export function WeaponComparisonList({
                       ? '0.0%'
                       : `-${buildPctBehindBest.toFixed(1)}%`
                     const buildBarPct = Math.max(
-                      4,
+                      0,
                       Math.min(100, (buildTotal / Math.max(total, 1)) * 100)
                     )
 
