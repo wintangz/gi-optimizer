@@ -1,0 +1,95 @@
+{
+  "presetId": "akasha/wriothesley-melt-cashflow-c0",
+  "target": "Wriothesley",
+  "total": 368817.08938828134,
+  "instances": [
+    {
+      "label": "Chilling Penalty 1-Hit (Melt ×3)",
+      "path": [
+        "skill",
+        "enhanced_0"
+      ],
+      "count": 3,
+      "perHit": 17837.51353127019,
+      "subtotal": 53512.54059381057
+    },
+    {
+      "label": "Chilling Penalty 2-Hit (×3)",
+      "path": [
+        "skill",
+        "enhanced_1"
+      ],
+      "count": 3,
+      "perHit": 11675.079622755304,
+      "subtotal": 35025.23886826591
+    },
+    {
+      "label": "Chilling Penalty 3-Hit (×3)",
+      "path": [
+        "skill",
+        "enhanced_2"
+      ],
+      "count": 3,
+      "perHit": 13815.38288525533,
+      "subtotal": 41446.148655765995
+    },
+    {
+      "label": "Chilling Penalty 4-Hit (Melt ×3)",
+      "path": [
+        "skill",
+        "enhanced_3"
+      ],
+      "count": 3,
+      "perHit": 14620.519689721654,
+      "subtotal": 43861.55906916496
+    },
+    {
+      "label": "Chilling Penalty 4-Hit (No Reaction ×3)",
+      "path": [
+        "skill",
+        "enhanced_3"
+      ],
+      "count": 3,
+      "perHit": 9747.013126481103,
+      "subtotal": 29241.039379443308
+    },
+    {
+      "label": "Chilling Penalty 5-Hit (Melt ×3)",
+      "path": [
+        "skill",
+        "enhanced_4"
+      ],
+      "count": 3,
+      "perHit": 25618.503401441758,
+      "subtotal": 76855.51020432527
+    },
+    {
+      "label": "Rebuke: Vaulting Fist (Melt ×3)",
+      "path": [
+        "charged",
+        "rebukeDmg"
+      ],
+      "count": 3,
+      "perHit": 29625.017539168435,
+      "subtotal": 88875.05261750531
+    }
+  ],
+  "stats": {
+    "hp": 13592.9609628,
+    "atk": 3380.4727385319993,
+    "def": 763.17448941,
+    "eleMas": 0,
+    "critRate_": 0.420512,
+    "critDMG_": 0.884,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0.15,
+    "cryo_dmg_": 0.15,
+    "dendro_dmg_": 0
+  }
+}
