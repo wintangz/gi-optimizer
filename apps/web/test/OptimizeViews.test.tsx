@@ -825,7 +825,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(optExpandedHtml).toContain(
       'data-testid="comp-stat-diffs-opt-0" data-mode="diff"'
     )
-    expect(optExpandedHtml).toContain('Core Stat Comparison vs. Current')
+    expect(optExpandedHtml).toContain('Stat Comparison vs. Current')
     // All 7 core stats present with current -> build -> signed diff
     for (const statKey of [
       'hp',
@@ -891,7 +891,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(currentExpandedHtml).toContain(
       'data-testid="comp-stat-diffs-current" data-mode="plain"'
     )
-    expect(currentExpandedHtml).toContain('Core Build Stats')
+    expect(currentExpandedHtml).toContain('Build Stats')
     expect(currentExpandedHtml).not.toContain(
       'data-testid="comp-stat-diff-current-hp"'
     )
@@ -3417,7 +3417,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     ).toBeUndefined()
   })
 
-  it('extended-stat-display: renders "Additional Bonuses" group with non-zero elemental and talent-type DMG% bonuses, omits zero entries, and shows vs. Current diffs in the established format', () => {
+  it('full-stat-display: renders GO-style grouped real-stat table (Core / DMG% / RES% / Other) with DMG% folded into real stats and diffs Additional Buffs with source attribution', () => {
     const preset = getBundledPreset('official/furina-salon-subdps')!
 
     const currentStats = {
@@ -3435,6 +3435,9 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       plunging_dmg_: 0,
       skill_dmg_: 0.7,
       burst_dmg_: 0,
+      hydro_res_: 0.15,
+      heal_: 0.1,
+      hydro_critDMG_: 0.2,
     }
 
     const shimenawaBuildStats = {
@@ -3453,6 +3456,31 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       plunging_dmg_: 0.5, // +50.0% vs Current (Shimenawa 4pc)
       skill_dmg_: 0.55, // -15.0% vs Current (0.70 -> 0.55)
       burst_dmg_: 0, // zero -> omitted
+      hydro_res_: 0.15, // RES% real stat group
+      heal_: 0.25, // Other real stat group (+15.0%)
+      hydro_critDMG_: 0.4, // Hit-scoped Additional Buff (+20.0%)
+    }
+
+    const buildStatBreakdowns = {
+      hydro_critDMG_: {
+        statKey: 'hydro_critDMG_',
+        total: 0.4,
+        reconciledTotal: 0.4,
+        unit: '%' as const,
+        base: 0,
+        baseContributors: [],
+        percentContributors: [],
+        flatContributors: [],
+        contributors: [
+          {
+            label: 'Furina',
+            sourceKey: 'Furina',
+            category: 'character' as const,
+            value: 0.4,
+            unit: '%' as const,
+          },
+        ],
+      },
     }
 
     // 1. Comparison mode (opt-0 expanded vs Current)
@@ -3476,6 +3504,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
             evaluation: {
               total: 380000,
               stats: shimenawaBuildStats,
+              statBreakdowns: buildStatBreakdowns,
               instances: [],
             },
           },
@@ -3483,13 +3512,15 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       />
     )
 
-    expect(diffHtml).toContain('data-testid="comp-additional-bonuses-opt-0"')
-    expect(diffHtml).toContain(
-      'data-testid="comp-additional-bonuses-header-opt-0"'
-    )
-    expect(diffHtml).toContain('>Additional Bonuses<')
+    // Misnamed "Additional Bonuses" section is gone; DMG%, RES%, and Other are real-stat table groups
+    expect(diffHtml).not.toContain('data-testid="comp-additional-bonuses-opt-0"')
+    expect(diffHtml).not.toContain('>Additional Bonuses<')
+    expect(diffHtml).toContain('data-testid="comp-stat-group-core-opt-0"')
+    expect(diffHtml).toContain('data-testid="comp-stat-group-dmg-opt-0"')
+    expect(diffHtml).toContain('data-testid="comp-stat-group-res-opt-0"')
+    expect(diffHtml).toContain('data-testid="comp-stat-group-other-opt-0"')
 
-    // Non-zero elemental & talent-type bonuses are rendered with labels, values, and diffs
+    // Non-zero elemental & talent-type DMG% bonuses are rendered in the real-stat table with labels, values, and diffs
     expect(diffHtml).toContain('data-testid="comp-stat-row-opt-0-hydro_dmg_"')
     expect(diffHtml).toContain('>Hydro DMG Bonus<')
     expect(diffHtml).toContain(
@@ -3527,6 +3558,33 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       'class="comp-stat-num comp-stat-diff-delta muted" data-testid="comp-stat-diff-opt-0-skill_dmg_" data-diff-sign="-" data-diff-ascii="-15.0%">−15.0%<'
     )
 
+    // RES% and Other rows in real-stat table
+    expect(diffHtml).toContain('data-testid="comp-stat-row-opt-0-hydro_res_"')
+    expect(diffHtml).toContain('>Hydro RES<')
+    expect(diffHtml).toContain('data-testid="comp-stat-row-opt-0-heal_"')
+    expect(diffHtml).toContain('>Healing Bonus<')
+
+    // Hit-scoped "Additional Buffs" section diffs like stats do and shows source attribution
+    expect(diffHtml).toContain('data-testid="comp-additional-buffs-opt-0"')
+    expect(diffHtml).toContain(
+      'data-testid="comp-additional-buffs-header-opt-0">Additional Buffs<'
+    )
+    expect(diffHtml).toContain(
+      'data-testid="comp-stat-row-opt-0-hydro_critDMG_"'
+    )
+    expect(diffHtml).toContain(
+      'data-testid="comp-stat-current-opt-0-hydro_critDMG_">20.0%<'
+    )
+    expect(diffHtml).toContain(
+      'data-testid="comp-stat-value-opt-0-hydro_critDMG_"><strong>40.0%</strong><'
+    )
+    expect(diffHtml).toContain(
+      'data-testid="comp-stat-diff-opt-0-hydro_critDMG_" data-diff-sign="+" data-diff-ascii="+20.0%">+20.0%<'
+    )
+    expect(diffHtml).toContain(
+      'data-testid="comp-buff-source-opt-0-hydro_critDMG_"> — Furina<'
+    )
+
     // Zero entries are omitted
     expect(diffHtml).not.toContain('data-testid="comp-stat-row-opt-0-pyro_dmg_"')
     expect(diffHtml).not.toContain(
@@ -3553,18 +3611,19 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         optimizedBuilds={[]}
       />
     )
-    expect(plainHtml).toContain('data-testid="comp-additional-bonuses-current"')
+    expect(plainHtml).toContain('data-testid="comp-stat-group-dmg-current"')
     expect(plainHtml).toContain(
       'data-testid="comp-stat-value-current-hydro_dmg_"><strong>46.6%</strong><'
     )
     expect(plainHtml).toContain(
       'data-testid="comp-stat-value-current-skill_dmg_"><strong>70.0%</strong><'
     )
+    expect(plainHtml).toContain('data-testid="comp-additional-buffs-current"')
     expect(plainHtml).not.toContain(
       'data-testid="comp-stat-row-current-normal_dmg_"'
     )
 
-    // 3. When all extended bonuses are zero, the Additional Bonuses group is omitted
+    // 3. When all non-core real stats and hit-scoped buffs are zero, only the Core group is rendered and Additional Buffs is omitted
     const zeroBonusesHtml = renderToStaticMarkup(
       <BuildComparisonList
         preset={preset}
@@ -3589,8 +3648,18 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         optimizedBuilds={[]}
       />
     )
+    expect(zeroBonusesHtml).toContain('data-testid="comp-stat-group-core-current"')
     expect(zeroBonusesHtml).not.toContain(
-      'data-testid="comp-additional-bonuses-current"'
+      'data-testid="comp-stat-group-dmg-current"'
+    )
+    expect(zeroBonusesHtml).not.toContain(
+      'data-testid="comp-stat-group-res-current"'
+    )
+    expect(zeroBonusesHtml).not.toContain(
+      'data-testid="comp-stat-group-other-current"'
+    )
+    expect(zeroBonusesHtml).not.toContain(
+      'data-testid="comp-additional-buffs-current"'
     )
   })
 

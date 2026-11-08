@@ -27,7 +27,14 @@ import {
 import { getCatalogInWorker } from '@/lib/engine/workerClient'
 import { shortStatLabel } from '@/lib/itemMeta'
 import {
+  ALL_ADDITIONAL_BUFF_KEYS,
+  CORE_REAL_STAT_KEYS,
+  DMG_REAL_STAT_KEYS,
+  OTHER_REAL_STAT_KEYS,
+  RES_REAL_STAT_KEYS,
   WEAPON_COMPARE_TOP_N,
+  formatBuffSourceAttribution,
+  getStatLabel,
   type ArtifactSlot,
   type BreakdownContributor,
   type BreakdownSourceCategory,
@@ -1325,6 +1332,7 @@ interface BuildStatComparisonSectionProps {
   stats: Record<string, number>
   statBreakdowns?: Record<string, StatBreakdown>
   baselineStats?: Record<string, number>
+  baselineStatBreakdowns?: Record<string, StatBreakdown>
   isCurrentBuild?: boolean
   expandedStatKey?: string | null
   onToggleStatKey?: (statKey: string) => void
@@ -1335,6 +1343,7 @@ function BuildStatComparisonSection({
   stats,
   statBreakdowns,
   baselineStats,
+  baselineStatBreakdowns,
   isCurrentBuild = false,
   expandedStatKey = null,
   onToggleStatKey,
@@ -1342,15 +1351,33 @@ function BuildStatComparisonSection({
   const showDiff = Boolean(baselineStats && !isCurrentBuild)
   const colSpan = showDiff ? 5 : 2
 
-  const nonZeroBonusKeys = EXTENDED_BONUS_STAT_KEYS.filter(
-    (statKey) => Math.abs(stats[statKey] ?? 0) > 1e-6
+  const isNonZeroInComparison = (statKey: string) =>
+    Math.abs(stats[statKey] ?? 0) > 1e-6 ||
+    (showDiff && Math.abs(baselineStats?.[statKey] ?? 0) > 1e-6)
+
+  const nonZeroDmgKeys = DMG_REAL_STAT_KEYS.filter(isNonZeroInComparison)
+  const nonZeroResKeys = RES_REAL_STAT_KEYS.filter(isNonZeroInComparison)
+  const nonZeroOtherKeys = OTHER_REAL_STAT_KEYS.filter(isNonZeroInComparison)
+  const activeAdditionalBuffKeys = ALL_ADDITIONAL_BUFF_KEYS.filter(
+    isNonZeroInComparison
   )
 
-  function renderStatRow(statKey: string, label: string) {
+  function renderStatRow(
+    statKey: string,
+    label: string,
+    sourceAttribution?: string
+  ) {
     const buildRaw = stats[statKey] ?? 0
     const currentRaw = showDiff ? (baselineStats?.[statKey] ?? 0) : undefined
     const formatted = formatCoreStatComparison(statKey, buildRaw, currentRaw)
-    const sb = statBreakdowns?.[statKey]
+    const primarySb = statBreakdowns?.[statKey]
+    const fallbackSb = baselineStatBreakdowns?.[statKey]
+    const sb =
+      primarySb && primarySb.contributors.length > 0
+        ? primarySb
+        : fallbackSb && fallbackSb.contributors.length > 0
+          ? fallbackSb
+          : primarySb ?? fallbackSb
     const isStatExpanded = expandedStatKey === `${rowKey}:${statKey}`
 
     return (
@@ -1358,6 +1385,7 @@ function BuildStatComparisonSection({
         <tr
           data-testid={`comp-stat-row-${rowKey}-${statKey}`}
           data-stat-key={statKey}
+          data-buff-source={sourceAttribution || undefined}
           aria-expanded={sb ? isStatExpanded : undefined}
           className={sb ? 'comp-expandable-tr' : undefined}
           onClick={
@@ -1384,6 +1412,15 @@ function BuildStatComparisonSection({
               )}
               <StatIcon statKey={statKey} iconProps={{ size: 13 }} />
               <strong>{label}</strong>
+              {sourceAttribution && (
+                <span
+                  className="comp-stat-buff-source muted"
+                  data-testid={`comp-buff-source-${rowKey}-${statKey}`}
+                >
+                  {' '}
+                  — {sourceAttribution}
+                </span>
+              )}
             </span>
           </td>
           {showDiff ? (
@@ -1451,7 +1488,7 @@ function BuildStatComparisonSection({
     >
       <div className="comp-details-subheader">
         <strong>
-          {showDiff ? 'Core Stat Comparison vs. Current' : 'Core Build Stats'}
+          {showDiff ? 'Stat Comparison vs. Current' : 'Build Stats'}
         </strong>
         {statBreakdowns && (
           <span
@@ -1466,10 +1503,11 @@ function BuildStatComparisonSection({
       <div className="gi-table-wrap">
         <table
           className="gi-table comp-stat-diff-table"
+          data-testid={`comp-real-stats-table-${rowKey}`}
           aria-label={
             showDiff
-              ? 'Core stat comparison against Current build'
-              : 'Core build stats'
+              ? 'Stat comparison against Current build'
+              : 'Build stats'
           }
         >
           <thead>
@@ -1487,36 +1525,164 @@ function BuildStatComparisonSection({
               )}
             </tr>
           </thead>
-          <tbody>
-            {CORE_RESULT_STAT_KEYS.map((statKey) =>
-              renderStatRow(statKey, CORE_STAT_DIFF_LABELS[statKey])
+
+          {/* Real Stat Group 1: Core (always shown) */}
+          <tbody
+            className="comp-stat-group comp-stat-group-core"
+            data-testid={`comp-stat-group-core-${rowKey}`}
+            aria-label="Core"
+          >
+            <tr
+              className="comp-stat-group-header-row"
+              data-testid={`comp-stat-group-header-core-${rowKey}`}
+            >
+              <th
+                colSpan={colSpan}
+                scope="colgroup"
+                className="comp-stat-group-header"
+              >
+                Core
+              </th>
+            </tr>
+            {CORE_REAL_STAT_KEYS.map((statKey) =>
+              renderStatRow(
+                statKey,
+                CORE_STAT_DIFF_LABELS[
+                  statKey as keyof typeof CORE_STAT_DIFF_LABELS
+                ] ?? getStatLabel(statKey)
+              )
             )}
           </tbody>
-          {nonZeroBonusKeys.length > 0 && (
+
+          {/* Real Stat Group 2: DMG% (shown when non-zero) */}
+          {nonZeroDmgKeys.length > 0 && (
             <tbody
-              className="comp-stat-bonus-group"
-              data-testid={`comp-additional-bonuses-${rowKey}`}
-              aria-label="Additional Bonuses"
+              className="comp-stat-group comp-stat-group-dmg"
+              data-testid={`comp-stat-group-dmg-${rowKey}`}
+              aria-label="DMG%"
             >
               <tr
                 className="comp-stat-group-header-row"
-                data-testid={`comp-additional-bonuses-header-${rowKey}`}
+                data-testid={`comp-stat-group-header-dmg-${rowKey}`}
               >
                 <th
                   colSpan={colSpan}
                   scope="colgroup"
                   className="comp-stat-group-header"
                 >
-                  Additional Bonuses
+                  DMG%
                 </th>
               </tr>
-              {nonZeroBonusKeys.map((statKey) =>
-                renderStatRow(statKey, EXTENDED_BONUS_STAT_LABELS[statKey])
+              {nonZeroDmgKeys.map((statKey) =>
+                renderStatRow(statKey, getStatLabel(statKey))
+              )}
+            </tbody>
+          )}
+
+          {/* Real Stat Group 3: RES% (shown when non-zero) */}
+          {nonZeroResKeys.length > 0 && (
+            <tbody
+              className="comp-stat-group comp-stat-group-res"
+              data-testid={`comp-stat-group-res-${rowKey}`}
+              aria-label="RES%"
+            >
+              <tr
+                className="comp-stat-group-header-row"
+                data-testid={`comp-stat-group-header-res-${rowKey}`}
+              >
+                <th
+                  colSpan={colSpan}
+                  scope="colgroup"
+                  className="comp-stat-group-header"
+                >
+                  RES%
+                </th>
+              </tr>
+              {nonZeroResKeys.map((statKey) =>
+                renderStatRow(statKey, getStatLabel(statKey))
+              )}
+            </tbody>
+          )}
+
+          {/* Real Stat Group 4: Other (shown when non-zero) */}
+          {nonZeroOtherKeys.length > 0 && (
+            <tbody
+              className="comp-stat-group comp-stat-group-other"
+              data-testid={`comp-stat-group-other-${rowKey}`}
+              aria-label="Other"
+            >
+              <tr
+                className="comp-stat-group-header-row"
+                data-testid={`comp-stat-group-header-other-${rowKey}`}
+              >
+                <th
+                  colSpan={colSpan}
+                  scope="colgroup"
+                  className="comp-stat-group-header"
+                >
+                  Other
+                </th>
+              </tr>
+              {nonZeroOtherKeys.map((statKey) =>
+                renderStatRow(statKey, getStatLabel(statKey))
               )}
             </tbody>
           )}
         </table>
       </div>
+
+      {/* Additional Buffs: Hit-Scoped Modifiers (diffs like stats do) */}
+      {activeAdditionalBuffKeys.length > 0 && (
+        <div
+          className="comp-additional-buffs-section"
+          data-testid={`comp-additional-buffs-${rowKey}`}
+        >
+          <div className="comp-details-subheader">
+            <strong data-testid={`comp-additional-buffs-header-${rowKey}`}>
+              Additional Buffs
+            </strong>
+            <span className="muted comp-details-subhint">
+              Active hit-scoped modifiers
+            </span>
+          </div>
+          <div className="gi-table-wrap">
+            <table
+              className="gi-table comp-stat-diff-table comp-additional-buffs-table"
+              aria-label="Additional Buffs"
+            >
+              <thead>
+                <tr>
+                  <th className="comp-stat-col-label">Buff</th>
+                  {showDiff ? (
+                    <>
+                      <th className="comp-stat-num">Current</th>
+                      <th aria-hidden="true" className="comp-stat-arrow-col" />
+                      <th className="comp-stat-num">This Build</th>
+                      <th className="comp-stat-num">Diff</th>
+                    </>
+                  ) : (
+                    <th className="comp-stat-num">Value</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {activeAdditionalBuffKeys.map((buffKey) => {
+                  const primaryBd = statBreakdowns?.[buffKey]
+                  const fallbackBd = baselineStatBreakdowns?.[buffKey]
+                  const src =
+                    formatBuffSourceAttribution(primaryBd) ||
+                    formatBuffSourceAttribution(fallbackBd)
+                  return renderStatRow(
+                    buffKey,
+                    getStatLabel(buffKey),
+                    src || undefined
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1966,6 +2132,9 @@ export function BuildComparisonList({
                     stats={row.evaluation.stats}
                     statBreakdowns={row.evaluation.statBreakdowns}
                     baselineStats={currentBuild?.evaluation?.stats}
+                    baselineStatBreakdowns={
+                      currentBuild?.evaluation?.statBreakdowns
+                    }
                     isCurrentBuild={row.kind === 'current'}
                     expandedStatKey={expandedStatKey}
                     onToggleStatKey={(key) =>
@@ -3132,6 +3301,10 @@ export function WeaponComparisonList({
     currentBuild !== undefined
       ? currentBuild?.evaluation?.stats
       : equippedBaselineRow?.evaluation?.stats
+  const effectiveBaselineStatBreakdowns =
+    currentBuild !== undefined
+      ? currentBuild?.evaluation?.statBreakdowns
+      : equippedBaselineRow?.evaluation?.statBreakdowns
 
   return (
     <div
@@ -3783,6 +3956,9 @@ export function WeaponComparisonList({
                             stats={buildStats}
                             statBreakdowns={buildEval.statBreakdowns}
                             baselineStats={effectiveBaselineStats}
+                            baselineStatBreakdowns={
+                              effectiveBaselineStatBreakdowns
+                            }
                             isCurrentBuild={
                               currentBuild !== undefined
                                 ? Boolean(
@@ -5044,6 +5220,9 @@ export function TeamOptimizationList({
                     stats={memberRes.evaluation.stats}
                     statBreakdowns={memberRes.evaluation.statBreakdowns}
                     baselineStats={memberRes.currentEvaluation?.stats}
+                    baselineStatBreakdowns={
+                      memberRes.currentEvaluation?.statBreakdowns
+                    }
                     isCurrentBuild={false}
                     expandedStatKey={expandedStatKey}
                     onToggleStatKey={(key) =>

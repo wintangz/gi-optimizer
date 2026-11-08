@@ -17,9 +17,34 @@ export {
   resolveRotationTargetOwner,
 } from '@gi/presets'
 export {
+  STAT_BREAKDOWN_KEYS,
   extractDamageRowBreakdown,
   extractStatBreakdowns,
+  type StatBreakdownKey,
 } from './breakdown'
+export {
+  ALL_ADDITIONAL_BUFF_KEYS,
+  ALL_EXTRACTED_STAT_KEYS,
+  ALL_REAL_STAT_KEYS,
+  CORE_REAL_STAT_KEYS,
+  DMG_REAL_STAT_KEYS,
+  EXCLUDED_GO_STAT_KEYS,
+  OTHER_REAL_STAT_KEYS,
+  REAL_STAT_GROUPS,
+  REAL_STAT_KEYS_BY_GROUP,
+  RES_REAL_STAT_KEYS,
+  STAT_LABELS,
+  formatBuffSourceAttribution,
+  formatSignedBuffValue,
+  getStatLabel,
+  isEnemyResStatKey,
+  isPercentStatKey,
+  type AdditionalBuffStatKey,
+  type ExtractedStatKey,
+  type RealStatGroupDescriptor,
+  type RealStatGroupKey,
+  type RealStatKey,
+} from './stats'
 export {
   getDefaultTargetArtifactSetConditionals,
   listConditionalsForCharacter,

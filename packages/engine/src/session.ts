@@ -16,8 +16,8 @@ import {
   type LoadoutDatum,
 } from '@genshin-optimizer/gi/db'
 import { getCharStat, getWeaponStat } from '@genshin-optimizer/gi/stats'
-import { uiDataForTeam } from '@genshin-optimizer/gi/uidata'
-import { input } from '@genshin-optimizer/gi/wr'
+import { uiDataForTeam, type UIData } from '@genshin-optimizer/gi/uidata'
+import { input, type NumNode } from '@genshin-optimizer/gi/wr'
 import {
   applyMemberConditionalOverrides,
   getPresetResonanceEffects,
@@ -52,6 +52,7 @@ import {
   listWeaponConditionals,
 } from './catalog'
 import { runSolver } from './solver'
+import { ALL_EXTRACTED_STAT_KEYS, isEnemyResStatKey } from './stats'
 import { getTeamData, getTeamDataCalc, setDbFastMode } from './teamData'
 import {
   WEAPON_COMPARE_TOP_N,
@@ -1673,30 +1674,29 @@ export function createSession(good: unknown): EngineSession {
         ? customTotalNode.value * repeat
         : instances.reduce((acc, inst) => acc + inst.subtotal, 0)
 
-      const stats: Record<string, number> = {
-        hp: targetUiData.get(input.total.hp).value,
-        atk: targetUiData.get(input.total.atk).value,
-        def: targetUiData.get(input.total.def).value,
-        eleMas: targetUiData.get(input.total.eleMas).value,
-        critRate_: targetUiData.get(input.total.critRate_).value,
-        critDMG_: targetUiData.get(input.total.critDMG_).value,
-        enerRech_: targetUiData.get(input.total.enerRech_).value,
-        heal_: targetUiData.get(input.total.heal_).value,
+      const extractFinalStatMap = (ui: UIData): Record<string, number> => {
+        const out: Record<string, number> = {}
+        const totalMap = input.total as Record<string, NumNode>
+        const enemyMap = input.enemy as Record<string, NumNode>
+        for (const k of ALL_EXTRACTED_STAT_KEYS) {
+          const readNode = totalMap[k]
+          if (!readNode) continue
+          const rawVal = ui.get(readNode).value
+          if (isEnemyResStatKey(k)) {
+            const ele = k.replace(/_enemyRes_$/, '')
+            const enemyBaseNode = enemyMap[`${ele}_res_`]
+            const enemyBaseVal = enemyBaseNode
+              ? ui.get(enemyBaseNode).value
+              : 0
+            out[k] = rawVal - enemyBaseVal
+          } else {
+            out[k] = rawVal
+          }
+        }
+        return out
       }
-      for (const ele of allElementWithPhyKeys) {
-        const k = `${ele}_dmg_` as const
-        stats[k] = targetUiData.get(input.total[k]).value
-      }
-      for (const move of [
-        'normal',
-        'charged',
-        'plunging',
-        'skill',
-        'burst',
-      ] as const) {
-        const k = `${move}_dmg_` as const
-        stats[k] = targetUiData.get(input.total[k]).value
-      }
+
+      const stats = extractFinalStatMap(targetUiData)
 
       const statBreakdowns = extractStatBreakdowns(
         targetUiData,
@@ -1732,30 +1732,27 @@ export function createSession(good: unknown): EngineSession {
               : 0
           base[k] = premodVal - artVal - tbVal
         }
-        const final: Record<string, number> = {
-          hp: memberUi.get(input.total.hp).value,
-          atk: memberUi.get(input.total.atk).value,
-          def: memberUi.get(input.total.def).value,
-          eleMas: memberUi.get(input.total.eleMas).value,
-          enerRech_: memberUi.get(input.total.enerRech_).value,
-          critRate_: memberUi.get(input.total.critRate_).value,
-          critDMG_: memberUi.get(input.total.critDMG_).value,
+        const final =
+          mKey === targetKey ? { ...stats } : extractFinalStatMap(memberUi)
+        const memberWeaponKey =
+          mKey === targetKey
+            ? resolvedTargetWeaponKey
+            : bundle.teamBundle[mKey]?.weapon?.key
+        const memberBreakdowns =
+          mKey === targetKey
+            ? statBreakdowns
+            : extractStatBreakdowns(
+                memberUi,
+                calc,
+                mKey,
+                teamKeys,
+                memberWeaponKey
+              )
+        memberStats[mKey] = {
+          base,
+          final,
+          statBreakdowns: memberBreakdowns,
         }
-        for (const ele of allElementWithPhyKeys) {
-          const k = `${ele}_dmg_` as const
-          final[k] = memberUi.get(input.total[k]).value
-        }
-        for (const move of [
-          'normal',
-          'charged',
-          'plunging',
-          'skill',
-          'burst',
-        ] as const) {
-          const k = `${move}_dmg_` as const
-          final[k] = memberUi.get(input.total[k]).value
-        }
-        memberStats[mKey] = { base, final }
       }
 
       return {

@@ -18,6 +18,13 @@ import {
   type Preset,
   type RotationTarget,
 } from '@gi/presets'
+import {
+  ALL_EXTRACTED_STAT_KEYS,
+  ALL_REAL_STAT_KEYS,
+  isEnemyResStatKey,
+  isPercentStatKey,
+  type ExtractedStatKey,
+} from './stats'
 import type {
   BreakdownContributor,
   BreakdownSourceCategory,
@@ -353,22 +360,10 @@ function mergeContributors(
   return Array.from(map.values()).filter((c) => Math.abs(c.value) >= 1e-9)
 }
 
-const STAT_BREAKDOWN_KEYS = [
-  'hp',
-  'atk',
-  'def',
-  'eleMas',
-  'enerRech_',
-  'critRate_',
-  'critDMG_',
-  'heal_',
-  ...allElementWithPhyKeys.map((ele) => `${ele}_dmg_` as const),
-  'normal_dmg_',
-  'charged_dmg_',
-  'plunging_dmg_',
-  'skill_dmg_',
-  'burst_dmg_',
-] as const
+export const STAT_BREAKDOWN_KEYS = ALL_EXTRACTED_STAT_KEYS
+export type StatBreakdownKey = ExtractedStatKey
+
+const REAL_STAT_KEY_SET = new Set<string>(ALL_REAL_STAT_KEYS)
 
 export function extractStatBreakdowns(
   targetUiData: UIData,
@@ -391,7 +386,18 @@ export function extractStatBreakdowns(
     const totalRead = (input.total as Record<string, NumNode>)[statKey]
     if (!totalRead) continue
     const totalNode = targetUiData.get(totalRead)
-    const total = totalNode.value
+    const isEnemyRes = isEnemyResStatKey(statKey)
+    let enemyBaseRes = 0
+    if (isEnemyRes) {
+      const ele = statKey.replace(/_enemyRes_$/, '')
+      const enemyBaseRead = (input.enemy as Record<string, NumNode>)[
+        `${ele}_res_`
+      ]
+      if (enemyBaseRead) {
+        enemyBaseRes = targetUiData.get(enemyBaseRead).value
+      }
+    }
+    const total = isEnemyRes ? totalNode.value - enemyBaseRes : totalNode.value
 
     if (statKey === 'hp' || statKey === 'atk' || statKey === 'def') {
       const baseRead = (input.base as Record<string, NumNode>)[statKey]!
@@ -450,8 +456,13 @@ export function extractStatBreakdowns(
         reconciledTotal,
       }
     } else {
-      const unit: '' | '%' = statKey === 'eleMas' ? '' : '%'
-      const allContribs = collectAdditiveContributors(totalNode, ctx, unit)
+      const unit: '' | '%' = isPercentStatKey(statKey) ? '%' : ''
+      const rawContribs = collectAdditiveContributors(totalNode, ctx, unit, {
+        isEnemyStat: isEnemyRes,
+      })
+      const allContribs = isEnemyRes
+        ? rawContribs.filter((c) => c.category !== 'enemy')
+        : rawContribs
       const baseContributors = allContribs.filter((c) =>
         c.label.includes('(Base Default)')
       )
@@ -462,15 +473,17 @@ export function extractStatBreakdowns(
       const contributors =
         baseContributors.length + flatContributors.length > 0
           ? [...baseContributors, ...flatContributors]
-          : [
-              {
-                category: 'character' as const,
-                sourceKey: targetKey,
-                label: `${displayName(targetKey)} (Base Default)`,
-                value: 0,
-                unit,
-              },
-            ]
+          : REAL_STAT_KEY_SET.has(statKey)
+            ? [
+                {
+                  category: 'character' as const,
+                  sourceKey: targetKey,
+                  label: `${displayName(targetKey)} (Base Default)`,
+                  value: 0,
+                  unit,
+                },
+              ]
+            : []
       const reconciledTotal = contributors.reduce((s, c) => s + c.value, 0)
 
       out[statKey] = {

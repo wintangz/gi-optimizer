@@ -232,6 +232,7 @@ export interface InstanceResult {
 export interface MemberStatSummary {
   base: Record<string, number>
   final: Record<string, number>
+  statBreakdowns?: Record<string, StatBreakdown>
 }
 
 export interface RotationResult {

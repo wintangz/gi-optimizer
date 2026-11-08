@@ -3719,15 +3719,64 @@ td {
   white-space: nowrap;
 }
 
-/* Compact Base -> Final Stat Grid inside each member card (zero horizontal scrollbars) */
+/* Compact Base -> Final Stat Grid & Grouped Real Stats + Additional Buffs inside each member card */
+.preset-member-stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.48rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.preset-member-real-stats-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  padding: 0.48rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  width: 100%;
+  min-width: 0;
+}
+
+.preset-member-stat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.preset-member-stat-group + .preset-member-stat-group {
+  padding-top: 0.38rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.preset-member-stat-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.preset-member-stat-group-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-section);
+}
+
+.preset-member-stat-group-col {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .preset-member-stats-grid {
   display: grid;
   grid-template-columns: auto repeat(7, minmax(0, 1fr));
   gap: 0.25rem;
-  padding: 0.45rem 0.55rem;
-  border-radius: var(--radius-sm);
-  background: var(--surface-inset);
-  border: 1px solid var(--border-subtle);
   width: 100%;
   min-width: 0;
   overflow: hidden;
@@ -3789,37 +3838,88 @@ td {
 }
 
 .preset-member-dmg-bonuses {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.9rem;
-  padding-top: 0.35rem;
-  margin-top: 0.15rem;
-  border-top: 1px solid var(--border-subtle);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+  gap: 0.28rem 0.9rem;
 }
 
 .preset-member-dmg-bonus-item {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.38rem;
+  justify-content: space-between;
+  gap: 0.42rem;
   font-size: 0.82rem;
-  line-height: 1.25;
+  line-height: 1.28;
   font-variant-numeric: tabular-nums;
 }
 
 .preset-member-dmg-bonus-label {
   display: inline-flex;
   align-items: center;
-  gap: 0.26rem;
-  color: var(--text-muted);
-  font-weight: 600;
+  gap: 0.28rem;
+  color: var(--text-body);
+  font-weight: 500;
+  min-width: 0;
 }
 
 .preset-member-dmg-bonus-val {
   color: var(--text-title);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.preset-member-additional-buffs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.34rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  width: 100%;
+  min-width: 0;
+}
+
+.preset-member-buffs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 0.28rem 0.85rem;
+}
+
+.preset-member-buff-item {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.24rem;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-body);
+}
+
+.preset-member-buff-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.preset-member-buff-label {
+  font-weight: 500;
+  color: var(--text-body);
+}
+
+.preset-member-buff-val {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.preset-member-buff-source {
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
 .preset-member-weapon-compare-note {
@@ -4245,8 +4345,25 @@ td {
   }
 }
 
+.comp-additional-buffs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.comp-stat-buff-source {
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (min-width: 768px) {
-  .comp-stat-comparison > .gi-table-wrap {
+  .comp-stat-comparison .gi-table-wrap {
     border: none;
     background: transparent;
     overflow: visible;

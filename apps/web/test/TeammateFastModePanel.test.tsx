@@ -245,7 +245,7 @@ describe('TeammateFastModePanel & Fast Mode UI (fast-mode)', () => {
     ).toBe('160.0%')
   })
 
-  it('renders final-value DMG bonus lines under the core stat grid with own element first and other non-zero bonuses after', () => {
+  it('renders GO-style grouped real-stat table (Core / DMG% / RES% / Other) with own element first in DMG% and omits zero groups, plus Additional Buffs with source attribution only when active', () => {
     const kazuhaStats = {
       base: sampleMemberStats.KaedeharaKazuha.base,
       final: {
@@ -255,6 +255,8 @@ describe('TeammateFastModePanel & Fast Mode UI (fast-mode)', () => {
         anemo_dmg_: 0.15,
         plunging_dmg_: 0.2,
         cryo_dmg_: 0,
+        pyro_res_: 0.15,
+        heal_: 0.22,
       },
     }
     const gridTree = evaluateTree(
@@ -263,15 +265,22 @@ describe('TeammateFastModePanel & Fast Mode UI (fast-mode)', () => {
         memberStats={kazuhaStats}
       />
     )
-    const bonusContainer = findByTestId(
+    expect(
+      findByTestId(gridTree, 'teammate-stat-group-core-KaedeharaKazuha')
+    ).toBeDefined()
+    const dmgGroup = findByTestId(
+      gridTree,
+      'teammate-stat-group-dmg-KaedeharaKazuha'
+    )!
+    expect(dmgGroup).toBeDefined()
+    const dmgRowsContainer = findByTestId(
       gridTree,
       'teammate-dmg-bonuses-KaedeharaKazuha'
     )!
-    expect(bonusContainer).toBeDefined()
-    const bonusKeys = bonusContainer.children
+    const bonusKeys = dmgRowsContainer.children
       .filter((c): c is VNode => typeof c !== 'string')
       .map((c) => c.props['data-stat-key'])
-    // Kazuha's own element (anemo_dmg_) is first, followed by other non-zero bonuses in EXTENDED_BONUS_STAT_KEYS order
+    // Kazuha's own element (anemo_dmg_) is first, followed by other non-zero bonuses in DMG_REAL_STAT_KEYS order
     expect(bonusKeys).toEqual([
       'anemo_dmg_',
       'pyro_dmg_',
@@ -294,6 +303,133 @@ describe('TeammateFastModePanel & Fast Mode UI (fast-mode)', () => {
         )!,
       ])
     ).toBe('39.4%')
+
+    // Non-zero RES% and Other groups are rendered
+    expect(
+      findByTestId(gridTree, 'teammate-stat-group-res-KaedeharaKazuha')
+    ).toBeDefined()
+    expect(
+      collectText([
+        findByTestId(gridTree, 'teammate-stat-final-KaedeharaKazuha-pyro_res_')!,
+      ])
+    ).toBe('15.0%')
+    expect(
+      findByTestId(gridTree, 'teammate-stat-group-other-KaedeharaKazuha')
+    ).toBeDefined()
+    expect(
+      collectText([
+        findByTestId(gridTree, 'teammate-stat-final-KaedeharaKazuha-heal_')!,
+      ])
+    ).toBe('22.0%')
+
+    // No active hit-scoped buffs -> no Additional Buffs section or placeholder box
+    expect(
+      findByTestId(gridTree, 'teammate-additional-buffs-KaedeharaKazuha')
+    ).toBeUndefined()
+
+    // Active hit-scoped buffs -> renders Additional Buffs with value and source attribution
+    const zibaiStats = {
+      base: sampleMemberStats.KaedeharaKazuha.base,
+      final: {
+        ...sampleMemberStats.KaedeharaKazuha.final,
+        geo_critRate_: 0.1,
+        geo_critDMG_: 0.3,
+        geo_enemyRes_: -0.5,
+      },
+      statBreakdowns: {
+        geo_critRate_: {
+          statKey: 'geo_critRate_',
+          total: 0.1,
+          reconciledTotal: 0.1,
+          unit: '%' as const,
+          base: 0,
+          baseContributors: [],
+          percentContributors: [],
+          flatContributors: [],
+          contributors: [
+            {
+              label: 'Illuga',
+              sourceKey: 'Illuga',
+              category: 'teamBuff' as const,
+              value: 0.1,
+              unit: '%' as const,
+            },
+          ],
+        },
+        geo_critDMG_: {
+          statKey: 'geo_critDMG_',
+          total: 0.3,
+          reconciledTotal: 0.3,
+          unit: '%' as const,
+          base: 0,
+          baseContributors: [],
+          percentContributors: [],
+          flatContributors: [],
+          contributors: [
+            {
+              label: 'Illuga',
+              sourceKey: 'Illuga',
+              category: 'teamBuff' as const,
+              value: 0.3,
+              unit: '%' as const,
+            },
+          ],
+        },
+        geo_enemyRes_: {
+          statKey: 'geo_enemyRes_',
+          total: -0.5,
+          reconciledTotal: -0.5,
+          unit: '%' as const,
+          base: 0,
+          baseContributors: [],
+          percentContributors: [],
+          flatContributors: [],
+          contributors: [
+            {
+              label: 'Elemental Resonance',
+              category: 'resonance' as const,
+              value: -0.2,
+              unit: '%' as const,
+            },
+            {
+              label: 'Linnea',
+              sourceKey: 'Linnea',
+              category: 'teamBuff' as const,
+              value: -0.3,
+              unit: '%' as const,
+            },
+          ],
+        },
+      },
+    }
+    const zibaiTree = evaluateTree(
+      <MemberCompactStatGrid characterKey="Zibai" memberStats={zibaiStats} />
+    )
+    const buffsSection = findByTestId(
+      zibaiTree,
+      'teammate-additional-buffs-Zibai'
+    )!
+    expect(buffsSection).toBeDefined()
+    const critRateBuffRow = findByTestId(
+      zibaiTree,
+      'teammate-additional-buff-Zibai-geo_critRate_'
+    )!
+    expect(collectText([critRateBuffRow])).toContain('Geo CRIT Rate')
+    expect(collectText([critRateBuffRow])).toContain('+10% — Illuga')
+    const critDmgBuffRow = findByTestId(
+      zibaiTree,
+      'teammate-additional-buff-Zibai-geo_critDMG_'
+    )!
+    expect(collectText([critDmgBuffRow])).toContain('Geo CRIT DMG')
+    expect(collectText([critDmgBuffRow])).toContain('+30% — Illuga')
+    const enemyResBuffRow = findByTestId(
+      zibaiTree,
+      'teammate-additional-buff-Zibai-geo_enemyRes_'
+    )!
+    expect(collectText([enemyResBuffRow])).toContain('Enemy Geo RES')
+    expect(collectText([enemyResBuffRow])).toContain(
+      '-50% — Elemental Resonance, Linnea'
+    )
   })
 
   it('supports typing positive and negative Fast Mode stat lines, shows Fast Mode badge & typed pills, and resets per member on bundled presets', () => {

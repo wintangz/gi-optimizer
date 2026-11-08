@@ -2,7 +2,17 @@
 
 import { CharacterBadge } from '@/components/Identifier'
 import { ChevronIcon, StatIcon } from '@/components/SvgIcons'
-import type { MemberStatSummary } from '@gi/engine'
+import {
+  ALL_ADDITIONAL_BUFF_KEYS,
+  DMG_REAL_STAT_KEYS,
+  OTHER_REAL_STAT_KEYS,
+  RES_REAL_STAT_KEYS,
+  formatBuffSourceAttribution,
+  formatSignedBuffValue,
+  getStatLabel,
+  isPercentStatKey,
+  type MemberStatSummary,
+} from '@gi/engine'
 import {
   FAST_MODE_STAT_KEYS,
   displayName,
@@ -17,39 +27,9 @@ import {
 } from '@gi/presets'
 import { useEffect, useState } from 'react'
 
-export const MEMBER_BONUS_STAT_KEYS = [
-  'pyro_dmg_',
-  'hydro_dmg_',
-  'electro_dmg_',
-  'cryo_dmg_',
-  'anemo_dmg_',
-  'geo_dmg_',
-  'dendro_dmg_',
-  'physical_dmg_',
-  'normal_dmg_',
-  'charged_dmg_',
-  'plunging_dmg_',
-  'skill_dmg_',
-  'burst_dmg_',
-] as const
+export const MEMBER_BONUS_STAT_KEYS = DMG_REAL_STAT_KEYS
 
 export type MemberBonusStatKey = (typeof MEMBER_BONUS_STAT_KEYS)[number]
-
-export const MEMBER_BONUS_STAT_LABELS: Record<MemberBonusStatKey, string> = {
-  pyro_dmg_: 'Pyro DMG Bonus',
-  hydro_dmg_: 'Hydro DMG Bonus',
-  electro_dmg_: 'Electro DMG Bonus',
-  cryo_dmg_: 'Cryo DMG Bonus',
-  anemo_dmg_: 'Anemo DMG Bonus',
-  geo_dmg_: 'Geo DMG Bonus',
-  dendro_dmg_: 'Dendro DMG Bonus',
-  physical_dmg_: 'Physical DMG Bonus',
-  normal_dmg_: 'Normal DMG Bonus',
-  charged_dmg_: 'Charged DMG Bonus',
-  plunging_dmg_: 'Plunging DMG Bonus',
-  skill_dmg_: 'Skill DMG Bonus',
-  burst_dmg_: 'Burst DMG Bonus',
-}
 
 export const FAST_MODE_STAT_META: Record<
   FastModeStatKey,
@@ -448,86 +428,220 @@ export function MemberCompactStatGrid({
   highlightFinal = false,
 }: MemberCompactStatGridProps) {
   const charMeta = getCharacterMeta(characterKey)
-  const ownElementBonusKey = `${charMeta.element}_dmg_` as MemberBonusStatKey
-  const otherNonZeroBonusKeys = MEMBER_BONUS_STAT_KEYS.filter(
+  const ownElementBonusKey = `${charMeta.element}_dmg_`
+  const ownElementNonZero =
+    Math.abs(memberStats?.final?.[ownElementBonusKey] ?? 0) > 1e-6
+  const otherNonZeroDmgKeys = DMG_REAL_STAT_KEYS.filter(
     (statKey) =>
       statKey !== ownElementBonusKey &&
       Math.abs(memberStats?.final?.[statKey] ?? 0) > 1e-6
   )
-  const bonusStatKeys: MemberBonusStatKey[] = [
-    ownElementBonusKey,
-    ...otherNonZeroBonusKeys,
+  const nonZeroDmgKeys: string[] = [
+    ...(ownElementNonZero ? [ownElementBonusKey] : []),
+    ...otherNonZeroDmgKeys,
   ]
+
+  const nonZeroResKeys = RES_REAL_STAT_KEYS.filter(
+    (statKey) => Math.abs(memberStats?.final?.[statKey] ?? 0) > 1e-6
+  )
+
+  const nonZeroOtherKeys = OTHER_REAL_STAT_KEYS.filter(
+    (statKey) => Math.abs(memberStats?.final?.[statKey] ?? 0) > 1e-6
+  )
+
+  const activeAdditionalBuffKeys = ALL_ADDITIONAL_BUFF_KEYS.filter(
+    (statKey) => Math.abs(memberStats?.final?.[statKey] ?? 0) > 1e-6
+  )
+
+  const renderNonCoreGroup = (
+    groupKey: 'dmg' | 'res' | 'other',
+    groupTitle: string,
+    keys: readonly string[],
+    extraTestId?: string
+  ) => {
+    if (keys.length === 0) return null
+    return (
+      <div
+        className={`preset-member-stat-group preset-member-stat-group-${groupKey}`}
+        data-testid={`teammate-stat-group-${groupKey}-${characterKey}`}
+        data-stat-group={groupKey}
+      >
+        <div className="preset-member-stat-group-header">
+          <span className="preset-member-stat-group-title">{groupTitle}</span>
+          <span className="preset-member-stat-group-col">Final</span>
+        </div>
+        <div
+          className="preset-member-dmg-bonuses"
+          data-testid={extraTestId}
+        >
+          {keys.map((statKey) => (
+            <div
+              key={statKey}
+              className="preset-member-dmg-bonus-item"
+              data-testid={`teammate-stat-row-${characterKey}-${statKey}`}
+              data-stat-key={statKey}
+            >
+              <span className="preset-member-dmg-bonus-label">
+                <StatIcon statKey={statKey} iconProps={{ size: 12 }} />
+                <span>{getStatLabel(statKey)}</span>
+              </span>
+              <strong
+                className={`preset-member-dmg-bonus-val${highlightFinal ? ' ok' : ''}`}
+                data-testid={`teammate-stat-final-${characterKey}-${statKey}`}
+              >
+                {formatTeammateStatValue(
+                  memberStats?.final?.[statKey],
+                  isPercentStatKey(statKey)
+                )}
+              </strong>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
-      className="preset-member-stats-grid"
+      className="preset-member-stats-section"
       data-testid={`teammate-stats-${characterKey}`}
       role="region"
       aria-label={`${displayName(characterKey)} Base and Final Stats`}
     >
-      <div className="preset-member-stat-legend">
-        <span className="preset-member-stat-label">Stat</span>
-        <span
-          className="preset-member-stat-base"
-          data-testid={`teammate-base-stats-${characterKey}`}
-        >
-          Base
-        </span>
-        <span
-          className="preset-member-stat-final"
-          data-testid={`teammate-final-stats-${characterKey}`}
-        >
-          Final
-        </span>
-      </div>
-
-      {TEAMMATE_DISPLAY_STAT_KEYS.map((s) => (
-        <div key={s.key} className="preset-member-stat-cell">
-          <span className="preset-member-stat-label">{s.label}</span>
-          <span
-            className="preset-member-stat-base"
-            data-testid={`teammate-stat-base-${characterKey}-${s.key}`}
-          >
-            {formatTeammateStatValue(memberStats?.base?.[s.key], s.isPercent)}
-          </span>
-          <strong
-            className={`preset-member-stat-final${highlightFinal ? ' ok' : ''}`}
-            data-testid={`teammate-stat-final-${characterKey}-${s.key}`}
-          >
-            {formatTeammateStatValue(memberStats?.final?.[s.key], s.isPercent)}
-          </strong>
-        </div>
-      ))}
-
       <div
-        className="preset-member-dmg-bonuses"
-        data-testid={`teammate-dmg-bonuses-${characterKey}`}
+        className="preset-member-real-stats-table"
+        data-testid={`teammate-real-stats-${characterKey}`}
       >
-        {bonusStatKeys.map((bonusKey) => (
-          <div
-            key={bonusKey}
-            className="preset-member-dmg-bonus-item"
-            data-testid={`teammate-stat-bonus-${characterKey}-${bonusKey}`}
-            data-stat-key={bonusKey}
-          >
-            <span className="preset-member-dmg-bonus-label">
-              <StatIcon statKey={bonusKey} iconProps={{ size: 12 }} />
-              <span>{MEMBER_BONUS_STAT_LABELS[bonusKey]}</span>
-            </span>
-            <strong
-              className={`preset-member-dmg-bonus-val${highlightFinal ? ' ok' : ''}`}
-              data-testid={`teammate-stat-final-${characterKey}-${bonusKey}`}
-            >
-              {formatTeammateStatValue(
-                memberStats?.final?.[bonusKey] ??
-                  (memberStats?.final ? 0 : undefined),
-                true
-              )}
-            </strong>
+        {/* Group 1: Core (always shown) */}
+        <div
+          className="preset-member-stat-group preset-member-stat-group-core"
+          data-testid={`teammate-stat-group-core-${characterKey}`}
+          data-stat-group="core"
+        >
+          <div className="preset-member-stat-group-header">
+            <span className="preset-member-stat-group-title">Core</span>
+            <span className="preset-member-stat-group-col">Base / Final</span>
           </div>
-        ))}
+          <div className="preset-member-stats-grid">
+            <div className="preset-member-stat-legend">
+              <span className="preset-member-stat-label">Stat</span>
+              <span
+                className="preset-member-stat-base"
+                data-testid={`teammate-base-stats-${characterKey}`}
+              >
+                Base
+              </span>
+              <span
+                className="preset-member-stat-final"
+                data-testid={`teammate-final-stats-${characterKey}`}
+              >
+                Final
+              </span>
+            </div>
+
+            {TEAMMATE_DISPLAY_STAT_KEYS.map((s) => (
+              <div
+                key={s.key}
+                className="preset-member-stat-cell"
+                data-testid={`teammate-stat-row-${characterKey}-${s.key}`}
+                data-stat-key={s.key}
+              >
+                <span className="preset-member-stat-label">{s.label}</span>
+                <span
+                  className="preset-member-stat-base"
+                  data-testid={`teammate-stat-base-${characterKey}-${s.key}`}
+                >
+                  {formatTeammateStatValue(
+                    memberStats?.base?.[s.key],
+                    s.isPercent
+                  )}
+                </span>
+                <strong
+                  className={`preset-member-stat-final${highlightFinal ? ' ok' : ''}`}
+                  data-testid={`teammate-stat-final-${characterKey}-${s.key}`}
+                >
+                  {formatTeammateStatValue(
+                    memberStats?.final?.[s.key],
+                    s.isPercent
+                  )}
+                </strong>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Group 2: DMG% (shown when non-zero, own element first) */}
+        {renderNonCoreGroup(
+          'dmg',
+          'DMG%',
+          nonZeroDmgKeys,
+          `teammate-dmg-bonuses-${characterKey}`
+        )}
+
+        {/* Group 3: RES% (shown when non-zero) */}
+        {renderNonCoreGroup('res', 'RES%', nonZeroResKeys)}
+
+        {/* Group 4: Other (shown when non-zero) */}
+        {renderNonCoreGroup('other', 'Other', nonZeroOtherKeys)}
       </div>
+
+      {/* Additional Buffs: every ACTIVE hit-scoped modifier on the selected member */}
+      {activeAdditionalBuffKeys.length > 0 && (
+        <div
+          className="preset-member-additional-buffs"
+          data-testid={`teammate-additional-buffs-${characterKey}`}
+          role="region"
+          aria-label={`${displayName(characterKey)} Additional Buffs`}
+        >
+          <div className="preset-member-stat-group-header">
+            <span className="preset-member-stat-group-title">
+              Additional Buffs
+            </span>
+            <span className="preset-member-stat-group-col">
+              Hit-Scoped Modifiers
+            </span>
+          </div>
+          <ul className="preset-member-buffs-list">
+            {activeAdditionalBuffKeys.map((buffKey) => {
+              const rawVal = memberStats?.final?.[buffKey] ?? 0
+              const label = getStatLabel(buffKey)
+              const signedVal = formatSignedBuffValue(buffKey, rawVal)
+              const breakdown = memberStats?.statBreakdowns?.[buffKey]
+              const source = formatBuffSourceAttribution(breakdown)
+
+              return (
+                <li
+                  key={buffKey}
+                  className="preset-member-buff-item"
+                  data-testid={`teammate-additional-buff-${characterKey}-${buffKey}`}
+                  data-stat-key={buffKey}
+                  data-buff-source={source || undefined}
+                >
+                  <span className="preset-member-buff-main">
+                    <StatIcon statKey={buffKey} iconProps={{ size: 12 }} />
+                    <span className="preset-member-buff-label">{label}</span>{' '}
+                    <strong
+                      className="preset-member-buff-val"
+                      data-testid={`teammate-additional-buff-val-${characterKey}-${buffKey}`}
+                    >
+                      {signedVal}
+                    </strong>
+                  </span>
+                  {source && (
+                    <span
+                      className="preset-member-buff-source"
+                      data-testid={`teammate-additional-buff-source-${characterKey}-${buffKey}`}
+                    >
+                      {' '}
+                      — {source}
+                    </span>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
