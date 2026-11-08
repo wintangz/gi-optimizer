@@ -1,0 +1,45 @@
+{
+  "presetId": "akasha/ganyu-melt-amos-c0",
+  "target": "Ganyu",
+  "total": 308270.31271580816,
+  "instances": [
+    {
+      "label": "Frostflake Arrow DMG (Melt ×5)",
+      "path": [
+        "charged",
+        "frostflake"
+      ],
+      "count": 5,
+      "perHit": 22834.83797894875,
+      "subtotal": 114174.18989474376
+    },
+    {
+      "label": "Frostflake Arrow Bloom DMG (Melt ×5)",
+      "path": [
+        "charged",
+        "frostflakeBloom"
+      ],
+      "count": 5,
+      "perHit": 38819.22456421288,
+      "subtotal": 194096.12282106437
+    }
+  ],
+  "stats": {
+    "hp": 15514.1853183872,
+    "atk": 3988.695750338238,
+    "def": 664.9345834000001,
+    "eleMas": 0,
+    "critRate_": 0.38050000000000006,
+    "critDMG_": 1.7858,
+    "enerRech_": 1.0971,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0.15,
+    "cryo_dmg_": 0.15,
+    "dendro_dmg_": 0
+  }
+}

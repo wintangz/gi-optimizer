@@ -34,6 +34,7 @@ import lyneyMonoPyroTfgmC0 from '../data/akasha/lyney-mono-pyro-tfgm-c0.json'
 import yelanDoubleHydroAquaC0 from '../data/akasha/yelan-double-hydro-aqua-c0.json'
 import fischlAggravatePolarC6 from '../data/akasha/fischl-aggravate-polar-c6.json'
 import nahidaSpreadFloatingDreamsC0 from '../data/akasha/nahida-spread-floatingdreams-c0.json'
+import ganyuMeltAmosC0 from '../data/akasha/ganyu-melt-amos-c0.json'
 import { presetSchema, type Preset } from './schema'
 
 const RAW_BUNDLED: unknown[] = [
@@ -42,6 +43,7 @@ const RAW_BUNDLED: unknown[] = [
   neuvProtoAmberC0,
   hutaoHomaC1,
   raidenScarletC0,
+  ganyuMeltAmosC0,
   nahidaSpreadFloatingDreamsC0,
   fischlAggravatePolarC6,
   yelanDoubleHydroAquaC0,
@@ -95,6 +97,7 @@ export const VERIFIED_PRESET_IDS: ReadonlySet<string> = /*#__PURE__*/ new Set([
   'akasha/neuvillette-hypercarry-protoamber-c0',
   'akasha/hutao-double-hydro-homa-c1',
   'akasha/raiden-hypercarry-scarlet-c0',
+  'akasha/ganyu-melt-amos-c0',
   'akasha/nahida-spread-floatingdreams-c0',
   'akasha/fischl-aggravate-polar-c6',
   'akasha/yelan-double-hydro-aqua-c0',
