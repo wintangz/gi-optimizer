@@ -1,0 +1,144 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "akasha/clorinde-aggravate-absolution-c0",
+  "name": "Clorinde — Aggravate (Fischl + Nahida + Kazuha)",
+  "description": "Akasha leaderboard preset for C0 Clorinde Aggravate with Fischl C6 (Elegy), Nahida (250 EM Burst share + A Thousand Floating Dreams), and Kazuha (1000 EM VV + Freedom-Sworn) at 3 A1 stacks.",
+  "source": "akasha",
+  "author": "akasha.cv",
+  "target": "Clorinde",
+  "team": [
+    {
+      "key": "Clorinde",
+      "build": {
+        "type": "fixed",
+        "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 10, "skill": 10, "burst": 10 } },
+        "weapon": { "key": "Absolution", "level": 90, "ascension": 6, "refinement": 1 }
+      },
+      "requirement": {},
+      "conditional": {
+        "Clorinde": {
+          "a1Reactions": "3",
+          "a4BondChanges": "2"
+        },
+        "Absolution": {
+          "bondStacks": "3"
+        },
+        "FragmentOfHarmonicWhimsy": {
+          "stacks": "3"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Fischl",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 6, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "ElegyForTheEnd", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "electro_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "critRate_": 31.1, "enerRech_": 22.0 } },
+            "sets": { "GoldenTroupe": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "ElegyForTheEnd": { "ThePartingRefrain": "on" },
+        "GoldenTroupe": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Nahida",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 6, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "AThousandFloatingDreams", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "critRate_": 31.1 } },
+            "sets": { "DeepwoodMemories": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Nahida": {
+          "partyInBurst": "on",
+          "condA1ActiveInBurst": "on"
+        },
+        "DeepwoodMemories": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "KaedeharaKazuha",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 6, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "FreedomSworn", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 33.0 } },
+            "sets": { "ViridescentVenerer": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "KaedeharaKazuha": { "swirlelectro": "electro" },
+        "ViridescentVenerer": { "swirlelectro": "electro" },
+        "FreedomSworn": { "MillennialMovement": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "Q -> E -> 6× (3× Swift Hunt + Impale the Night Lv.3) Aggravate",
+    "repeat": 1,
+    "targets": [
+      { "path": ["burst", "skillDmg"], "count": 2, "label": "Last Lightfall Hit (Aggravate ×2)", "hitMode": "avgHit", "reaction": "aggravate", "bonusStats": {} },
+      { "path": ["burst", "skillDmg"], "count": 3, "label": "Last Lightfall Hit (No Reaction ×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "normalDmg"], "count": 6, "label": "Swift Hunt Shot (Aggravate ×6)", "hitMode": "avgHit", "reaction": "aggravate", "bonusStats": {} },
+      { "path": ["skill", "normalDmg"], "count": 12, "label": "Swift Hunt Shot (No Reaction ×12)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "thrust3Dmg"], "count": 6, "label": "Impale the Night Lv.3 Hit (Aggravate ×6)", "hitMode": "avgHit", "reaction": "aggravate", "bonusStats": {} },
+      { "path": ["skill", "thrust3Dmg"], "count": 12, "label": "Impale the Night Lv.3 Hit (No Reaction ×12)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "bladeDmg"], "count": 1, "label": "Surging Blade DMG", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  },
+  "akasha": {
+    "calculationId": "clorinde-aggravate-absolution-c0",
+    "leaderboardUrl": "https://akasha.cv/leaderboards",
+    "label": "Clorinde — Aggravate (Absolution R1, C0)",
+    "retrievedAt": "authored-from-knowledge",
+    "notes": "Source: authored-from-knowledge. Fixed Akasha target spec: Lv.90/90 C0 10/10/10 with Absolution R1 Lv.90/90 (3 Bond stacks), 3 A1 Dark-Shattering Flame stacks, and 2 A4 Lawful Remuneration stacks. Teammates: Fischl C6 (Elegy R1), Nahida C0 (~1000 EM for 250 EM A1 share, Floating Dreams R1), Kazuha C0 (~1000 EM, Freedom-Sworn R1, 4p VV Electro Swirl)."
+  }
+}

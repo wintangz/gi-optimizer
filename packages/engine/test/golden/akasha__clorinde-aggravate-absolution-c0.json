@@ -1,0 +1,95 @@
+{
+  "presetId": "akasha/clorinde-aggravate-absolution-c0",
+  "target": "Clorinde",
+  "total": 1043735.077021418,
+  "instances": [
+    {
+      "label": "Last Lightfall Hit (Aggravate ×2)",
+      "path": [
+        "burst",
+        "skillDmg"
+      ],
+      "count": 2,
+      "perHit": 58360.40404883539,
+      "subtotal": 116720.80809767079
+    },
+    {
+      "label": "Last Lightfall Hit (No Reaction ×3)",
+      "path": [
+        "burst",
+        "skillDmg"
+      ],
+      "count": 3,
+      "perHit": 35827.30429794529,
+      "subtotal": 107481.91289383586
+    },
+    {
+      "label": "Swift Hunt Shot (Aggravate ×6)",
+      "path": [
+        "skill",
+        "normalDmg"
+      ],
+      "count": 6,
+      "perHit": 38550.16248689926,
+      "subtotal": 231300.97492139554
+    },
+    {
+      "label": "Swift Hunt Shot (No Reaction ×12)",
+      "path": [
+        "skill",
+        "normalDmg"
+      ],
+      "count": 12,
+      "perHit": 14790.264316129744,
+      "subtotal": 177483.17179355692
+    },
+    {
+      "label": "Impale the Night Lv.3 Hit (Aggravate ×6)",
+      "path": [
+        "skill",
+        "thrust3Dmg"
+      ],
+      "count": 6,
+      "perHit": 38122.58310328267,
+      "subtotal": 228735.498619696
+    },
+    {
+      "label": "Impale the Night Lv.3 Hit (No Reaction ×12)",
+      "path": [
+        "skill",
+        "thrust3Dmg"
+      ],
+      "count": 12,
+      "perHit": 14362.684932513155,
+      "subtotal": 172352.21919015786
+    },
+    {
+      "label": "Surging Blade DMG",
+      "path": [
+        "skill",
+        "bladeDmg"
+      ],
+      "count": 1,
+      "perHit": 9660.491505105087,
+      "subtotal": 9660.491505105087
+    }
+  ],
+  "stats": {
+    "hp": 20119.500520200243,
+    "atk": 2372.99664029632,
+    "def": 783.9254574000001,
+    "eleMas": 557.8499999999999,
+    "critRate_": 0.8852,
+    "critDMG_": 2.4624240000000004,
+    "enerRech_": 1.1166,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0.9187843200000001,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}
