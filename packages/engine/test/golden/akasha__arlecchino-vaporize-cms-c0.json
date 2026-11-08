@@ -1,0 +1,95 @@
+{
+  "presetId": "akasha/arlecchino-vaporize-cms-c0",
+  "target": "Arlecchino",
+  "total": 2323078.826090676,
+  "instances": [
+    {
+      "label": "All Is Ash Spike DMG",
+      "path": [
+        "skill",
+        "spikeDmg"
+      ],
+      "count": 1,
+      "perHit": 5217.995993004797,
+      "subtotal": 5217.995993004797
+    },
+    {
+      "label": "All Is Ash Cleave DMG (Vaporize)",
+      "path": [
+        "skill",
+        "finalDmg"
+      ],
+      "count": 1,
+      "perHit": 109943.80919278467,
+      "subtotal": 109943.80919278467
+    },
+    {
+      "label": "Masque 1-Hit (Vaporize ×3)",
+      "path": [
+        "normal",
+        "0"
+      ],
+      "count": 3,
+      "perHit": 192536.9653887673,
+      "subtotal": 577610.8961663019
+    },
+    {
+      "label": "Masque 2-Hit (×3)",
+      "path": [
+        "normal",
+        "1"
+      ],
+      "count": 3,
+      "perHit": 84097.6396221427,
+      "subtotal": 252292.91886642808
+    },
+    {
+      "label": "Masque 3-Hit (×3)",
+      "path": [
+        "normal",
+        "2"
+      ],
+      "count": 3,
+      "perHit": 89450.8959705405,
+      "subtotal": 268352.6879116215
+    },
+    {
+      "label": "Masque 4-Hit (×6)",
+      "path": [
+        "normal",
+        "3"
+      ],
+      "count": 6,
+      "perHit": 78066.99285121092,
+      "subtotal": 468401.9571072655
+    },
+    {
+      "label": "Masque 5-Hit (Vaporize ×3)",
+      "path": [
+        "normal",
+        "4"
+      ],
+      "count": 3,
+      "perHit": 213752.85361775642,
+      "subtotal": 641258.5608532693
+    }
+  ],
+  "stats": {
+    "hp": 18689.7546236,
+    "atk": 4156.9318703855,
+    "def": 764.7115981500001,
+    "eleMas": 354.1,
+    "critRate_": 0.8226120000000001,
+    "critDMG_": 1.5834000000000001,
+    "enerRech_": 1.1101,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 1.4527843200000001,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}
