@@ -1,0 +1,75 @@
+{
+  "presetId": "akasha/lyney-mono-pyro-tfgm-c0",
+  "target": "Lyney",
+  "total": 321602.00757569994,
+  "instances": [
+    {
+      "label": "Prop Arrow DMG (×3)",
+      "path": [
+        "charged",
+        "prop"
+      ],
+      "count": 3,
+      "perHit": 22783.430868839398,
+      "subtotal": 68350.2926065182
+    },
+    {
+      "label": "Pyrotechnic Strike DMG (×4)",
+      "path": [
+        "charged",
+        "pyrotechnic"
+      ],
+      "count": 4,
+      "perHit": 33811.83027602966,
+      "subtotal": 135247.32110411863
+    },
+    {
+      "label": "Wondrous Trick: Miracle Parade DMG",
+      "path": [
+        "burst",
+        "dmg"
+      ],
+      "count": 1,
+      "perHit": 18150.89558052308,
+      "subtotal": 18150.89558052308
+    },
+    {
+      "label": "Explosive Firework DMG",
+      "path": [
+        "burst",
+        "fireworkDmg"
+      ],
+      "count": 1,
+      "perHit": 48795.26474244517,
+      "subtotal": 48795.26474244517
+    },
+    {
+      "label": "Bewildering Lights (5 Prop Stacks)",
+      "path": [
+        "skill",
+        "dmg"
+      ],
+      "count": 1,
+      "perHit": 51058.23354209481,
+      "subtotal": 51058.23354209481
+    }
+  ],
+  "stats": {
+    "hp": 11021.319632000002,
+    "atk": 3175.80123939,
+    "def": 537.988059,
+    "eleMas": 0,
+    "critRate_": 0.242,
+    "critDMG_": 1.161536,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0.69678432,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}
