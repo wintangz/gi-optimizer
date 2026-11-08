@@ -349,6 +349,7 @@ export function WeaponBadge({
                 minWidth: 0,
                 maxWidth: '100%',
                 overflow: 'hidden',
+                justifySelf: 'start',
               }
             : {}),
         }}

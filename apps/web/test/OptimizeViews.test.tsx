@@ -3576,4 +3576,36 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       'data-testid="comp-additional-bonuses-current"'
     )
   })
+
+  it('stage-spacing-basics: defines shared stage spacing tokens in globals.css (20-24px stage panels, 14-16px cards, 12-16px grid gaps, 8-12px internal row gaps) and applies them across stage panels and cards', () => {
+    const cssPath = path.resolve(__dirname, '../src/app/globals.css')
+    const cssText = fs.readFileSync(cssPath, 'utf-8')
+
+    // Shared stage spacing tokens in :root
+    expect(cssText).toContain('--stage-panel-padding: 22px;')
+    expect(cssText).toContain('--stage-panel-gap: 14px;')
+    expect(cssText).toContain('--stage-card-padding: 15px;')
+    expect(cssText).toContain('--stage-grid-gap: 14px;')
+    expect(cssText).toContain('--stage-card-row-gap: 10px;')
+    expect(cssText).toContain('--stage-header-gap: 4px;')
+    expect(cssText).toContain('--stage-header-pb: 12px;')
+
+    // Applied to stage panels and cards inside panels
+    expect(cssText).toContain('padding: var(--stage-panel-padding);')
+    expect(cssText).toContain('padding: var(--stage-card-padding);')
+    expect(cssText).toContain('gap: var(--stage-grid-gap);')
+    expect(cssText).toContain('gap: var(--stage-card-row-gap);')
+
+    // Collapsible ConstraintsCard carries gi-collapsible-section class so it inherits stage-card-padding
+    const collapsibleConstraintsHtml = renderToStaticMarkup(
+      <ConstraintsCard
+        settings={{ ...DEFAULT_OPTIMIZER_SETTINGS, constraints: [] }}
+        onChange={() => {}}
+        collapsible
+      />
+    )
+    expect(collapsibleConstraintsHtml).toContain(
+      'class="panel gi-card gi-collapsible-section" data-testid="constraints-card" data-expanded="false"'
+    )
+  })
 })

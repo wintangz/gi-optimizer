@@ -7,6 +7,15 @@
   --space-5: 1.25rem;
   --space-6: 1.75rem;
 
+  /* Stage spacing system tokens (stage-spacing-basics) */
+  --stage-panel-padding: 22px;
+  --stage-panel-gap: 14px;
+  --stage-card-padding: 15px;
+  --stage-grid-gap: 14px;
+  --stage-card-row-gap: 10px;
+  --stage-header-gap: 4px;
+  --stage-header-pb: 12px;
+
   /* Border radii */
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -564,7 +573,7 @@ td {
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: var(--space-3);
+  padding: var(--stage-card-padding);
   font-size: 0.88rem;
 }
 
@@ -576,10 +585,10 @@ td {
   background: var(--surface-card);
   border: 1px solid var(--accent-border);
   border-radius: var(--radius-md);
-  padding: 0.85rem;
+  padding: var(--stage-card-padding);
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: var(--stage-card-row-gap);
 }
 
 .preset-akasha-top {
@@ -605,7 +614,10 @@ td {
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 0.85rem;
+  padding: var(--stage-card-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--stage-card-row-gap);
 }
 
 .preset-match-desc {
@@ -751,11 +763,12 @@ td {
   font-size: var(--font-body);
 }
 
-.gi-card {
+.gi-card,
+[data-stage] {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: 1.15rem 1.25rem;
+  gap: var(--stage-panel-gap);
+  padding: var(--stage-panel-padding);
 }
 
 .gi-card-header {
@@ -764,7 +777,7 @@ td {
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-3);
-  padding-bottom: 0.65rem;
+  padding-bottom: var(--stage-header-pb);
   border-bottom: 1px solid var(--border);
 }
 
@@ -776,7 +789,7 @@ td {
 }
 
 .gi-card-subtitle {
-  margin: 0.15rem 0 0;
+  margin: var(--stage-header-gap) 0 0;
   font-size: 0.88rem;
   color: var(--text-muted);
 }
@@ -1021,7 +1034,7 @@ td {
 .comp-list {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: var(--stage-grid-gap);
 }
 
 .comp-row {
@@ -1048,10 +1061,10 @@ td {
 }
 
 .comp-row-summary {
-  padding: 0.8rem 0.95rem;
+  padding: var(--stage-card-padding);
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: var(--stage-card-row-gap);
   cursor: pointer;
 }
 
@@ -1194,12 +1207,12 @@ td {
 }
 
 .comp-row-details {
-  padding: 0.9rem 1rem;
+  padding: var(--stage-card-padding);
   border-top: 1px solid var(--border);
   background: var(--surface-panel);
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: var(--stage-card-row-gap);
 }
 
 .comp-details-header {
@@ -1300,10 +1313,10 @@ td {
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 0.75rem 0.9rem;
+  padding: var(--stage-card-padding);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--stage-card-row-gap);
 }
 
 /* Artifact Pool Filters Panel (Items 4 & 5) */
@@ -1311,10 +1324,16 @@ td {
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 0.85rem 1rem;
+  padding: var(--stage-card-padding);
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: var(--stage-card-row-gap);
+}
+
+.opt-pool-filters-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stage-card-row-gap);
 }
 
 .opt-pool-filters-section {
@@ -1800,7 +1819,7 @@ td {
 }
 
 .gi-empty-card {
-  padding: var(--space-4) 1.15rem;
+  padding: var(--stage-card-padding);
   border-radius: var(--radius-md);
   background: var(--surface-card);
   border: 1px dashed var(--border);
@@ -1818,7 +1837,7 @@ td {
 .gi-setup-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 0.85rem;
+  gap: var(--stage-grid-gap);
 }
 
 .gi-field-label {
@@ -2036,7 +2055,7 @@ td {
 .opt-filter-pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4);
+  gap: var(--stage-grid-gap);
   align-items: stretch;
 }
 
@@ -2044,10 +2063,10 @@ td {
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 0.85rem;
+  padding: var(--stage-card-padding);
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: var(--stage-card-row-gap);
   height: 100%;
   min-width: 0;
 }
@@ -2058,8 +2077,8 @@ td {
 }
 
 .opt-filter-panel .tile-picker-grid {
-  flex: 1 1 auto;
-  height: 260px;
+  flex: 0 1 auto;
+  height: auto;
   max-height: 260px;
 }
 
@@ -2067,8 +2086,9 @@ td {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-2);
-  height: 1.5rem;
+  min-height: 1.5rem;
   flex-shrink: 0;
 }
 
@@ -2093,8 +2113,9 @@ td {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.4rem;
-  height: 2rem;
+  min-height: 2rem;
   flex-shrink: 0;
 }
 
@@ -2697,12 +2718,11 @@ td {
 .weapon-compare-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
-  padding: 0.85rem;
+  gap: var(--stage-card-row-gap);
+  padding: var(--stage-card-padding);
   border-radius: var(--radius-md);
   background: var(--surface-card);
   border: 1px solid var(--border);
-  margin-bottom: var(--space-3);
 }
 
 .weapon-compare-panel-header {
@@ -2899,6 +2919,13 @@ td {
 }
 
 @media (max-width: 640px) {
+  :root {
+    --stage-panel-padding: 20px;
+    --stage-card-padding: 14px;
+    --stage-grid-gap: 12px;
+    --stage-card-row-gap: 8px;
+  }
+
   .gi-buffs-rows,
   .gi-buffs-grid {
     grid-template-columns: 1fr;
@@ -2912,9 +2939,12 @@ td {
     padding: 0.9rem;
   }
 
-  .gi-card,
-  .panel {
+  .panel:not(.gi-card):not([data-stage]) {
     padding: 0.85rem;
+  }
+
+  .opt-filter-panel-summary {
+    white-space: normal;
   }
 
   .comp-row-metrics {
@@ -3340,7 +3370,7 @@ td {
 .preset-team-cards-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+  gap: var(--stage-grid-gap);
   align-items: stretch;
 }
 
@@ -3354,8 +3384,8 @@ td {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 0.6rem;
-  padding: 0.9rem;
+  gap: var(--stage-card-row-gap);
+  padding: var(--stage-card-padding);
   border-radius: var(--radius-md);
   background: var(--surface-card);
   border: 1px solid var(--border);
@@ -3638,19 +3668,27 @@ td {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--stage-panel-gap);
+  padding: var(--stage-panel-padding);
+  background: var(--surface-panel);
   border: 1px solid var(--accent-border);
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
 }
 
-.gi-collapsible-section {
+.gi-collapsible-section,
+[data-stage] .gi-card:not(.gi-modal-dialog) {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
-  padding: 0.75rem 0.9rem;
+  gap: var(--stage-card-row-gap);
+  padding: var(--stage-card-padding);
   border-radius: var(--radius-md);
   background: var(--surface-card);
   border: 1px solid var(--border);
+}
+
+[data-testid="constraints-card"][data-expanded="false"] .gi-card-header {
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .gi-collapsible-header {
@@ -3685,7 +3723,7 @@ td {
 .gi-collapsible-body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--stage-card-row-gap);
   padding-top: 0.55rem;
   border-top: 1px solid var(--border-subtle);
 }

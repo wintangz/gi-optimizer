@@ -2361,29 +2361,28 @@ function OptimizeInner() {
         aria-label="Run & Results"
       >
         <div className="gi-card-header">
-          <div className="preset-gear-row-md">
-            {activePreset && (
-              <CharacterBadge
-                characterKey={activePreset.target}
-                simulated={isAkashaPreset}
-                role="target"
-              />
-            )}
-            <div>
-              <h2 className="gi-card-title">5. Run &amp; Results</h2>
-              <p className="gi-card-subtitle">
-                {activePreset
-                  ? `${activePreset.name} · Rotation Repeat ×${activePreset.rotation.repeat ?? 1}`
-                  : 'Compare your current build against top-ranked optimizer builds.'}
-              </p>
-            </div>
+          <div>
+            <h2 className="gi-card-title">5. Run &amp; Results</h2>
+            <p className="gi-card-subtitle">
+              {activePreset
+                ? `${activePreset.name} · Rotation Repeat ×${activePreset.rotation.repeat ?? 1}`
+                : 'Compare your current build against top-ranked optimizer builds.'}
+            </p>
           </div>
 
           <div
             className="preset-gear-row-md"
             data-testid="run-results-controls"
           >
-            { evaluating && !running && !compareRunning && !teamRunning && (
+            {activePreset && (
+              <CharacterBadge
+                characterKey={activePreset.target}
+                simulated={isAkashaPreset}
+                role="target"
+                compact
+              />
+            )}
+            {evaluating && !running && !compareRunning && !teamRunning && (
               <Spinner
                 label={
                   hydratingEngine

@@ -703,12 +703,12 @@ export function ConstraintsCard({
 
   return (
     <section
-      className="panel gi-card"
+      className={`panel gi-card${collapsible ? ' gi-collapsible-section' : ''}`}
       data-testid="constraints-card"
       data-expanded={isExpanded ? 'true' : 'false'}
       aria-label="Constraints"
     >
-      <div className="gi-card-header">
+      <div className="gi-card-header gi-collapsible-header">
         <div>
           <h2 className="gi-card-title">Stat Constraints</h2>
           <p
@@ -718,14 +718,7 @@ export function ConstraintsCard({
             {summaryText}
           </p>
         </div>
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 'var(--sp-2)',
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="preset-gear-row-md">
           {isExpanded && (
             <button
               type="button"
@@ -753,7 +746,10 @@ export function ConstraintsCard({
       </div>
 
       {isExpanded && (
-        <div data-testid="constraints-collapsible-body">
+        <div
+          className="gi-collapsible-body"
+          data-testid="constraints-collapsible-body"
+        >
           {pickerOpen && (
             <div
               className="constraint-picker-panel"
@@ -3903,8 +3899,8 @@ export function SolverPoolFiltersPanel({
 
       {isExpanded && (
         <div
+          className="opt-pool-filters-body"
           data-testid="solver-pool-filters-body"
-          style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
         >
           {/* 1. Main-Stat Allowlist per Slot */}
           <div className="opt-pool-filters-section">

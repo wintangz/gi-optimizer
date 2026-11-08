@@ -1105,5 +1105,34 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     // (4) Stage 2 mode selection keeps Compare Weapons (N) count
     const compareModeBtn = findByTestId(treeReset, 'optimize-mode-compare')!
     expect(collectText([compareModeBtn])).toMatch(/^Compare Weapons \(\d+\)$/)
+
+    // (5) stage-spacing-basics: all 5 stages have consistent header structure (first child of .gi-card-header is the title/subtitle div) so section headers align to the same left edge
+    for (const stageId of [
+      'setup-card',
+      'mode-selection-card',
+      'team-buffs-stage',
+      'artifact-settings-card',
+      'results-card',
+    ] as const) {
+      const stageSection = findByTestId(treeReset, stageId)!
+      expect(stageSection).toBeDefined()
+      const headerDiv = stageSection.children.find(
+        (c): c is VNode =>
+          typeof c !== 'string' &&
+          typeof c.props.className === 'string' &&
+          c.props.className.includes('gi-card-header')
+      )!
+      expect(headerDiv).toBeDefined()
+      const firstHeaderChild = headerDiv.children.find(
+        (c): c is VNode => typeof c !== 'string'
+      )!
+      expect(firstHeaderChild).toBeDefined()
+      expect(firstHeaderChild.type).toBe('div')
+      const titleH2 = firstHeaderChild.children.find(
+        (c): c is VNode => typeof c !== 'string' && c.type === 'h2'
+      )!
+      expect(titleH2).toBeDefined()
+      expect(titleH2.props.className).toContain('gi-card-title')
+    }
   })
 })
