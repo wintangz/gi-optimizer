@@ -210,7 +210,7 @@ export function TeammateFastModeCard({
             <span className="gi-fast-mode-editor-title">
               Virtual 6th Artifact (Fast Mode)
             </span>
-            <span className="muted" style={{ fontSize: '0.78rem' }}>
+            <span className="muted" style={{ fontSize: 'var(--font-muted)' }}>
               Injects positive or negative stat rolls at the artifact layer
             </span>
           </div>
@@ -382,7 +382,7 @@ export function TeammateFastModePanel({
                 preset.source === 'official' && onToggleMemberBuildMode ? (
                   <span
                     className="muted"
-                    style={{ fontSize: '0.78rem' }}
+                    style={{ fontSize: 'var(--font-muted)' }}
                     data-testid={`teammate-card-build-mode-${member.key}`}
                   >
                     {resolved.forcedSimulated
@@ -564,6 +564,16 @@ export function MemberFastModeExpander({
             aria-modal="true"
             aria-label={`Fast Mode — ${displayName(characterKey)}`}
             data-testid={`fast-mode-modal-${characterKey}`}
+            tabIndex={-1}
+            ref={(el) => {
+              if (
+                el &&
+                typeof document !== 'undefined' &&
+                !el.contains(document.activeElement)
+              ) {
+                el.focus?.()
+              }
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="gi-card-header">

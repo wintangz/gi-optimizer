@@ -143,8 +143,8 @@ export function ResultsSkeleton({
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '0.75rem',
-          borderColor: 'rgba(122, 162, 255, 0.35)',
-          background: 'rgba(122, 162, 255, 0.06)',
+          borderColor: 'var(--accent-border)',
+          background: 'var(--accent-bg)',
         }}
       >
         <Spinner label={label} size="md" />

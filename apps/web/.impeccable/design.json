@@ -1,0 +1,401 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-08T14:07:30Z",
+  "title": "Design System: GI Optimizer",
+  "extensions": {
+    "colorMeta": {
+      "leyline-cobalt": {
+        "role": "primary",
+        "displayName": "Leyline Cobalt",
+        "canonical": "oklch(71% 0.145 258)",
+        "tonalRamp": [
+          "oklch(18% 0.045 258)",
+          "oklch(28% 0.075 258)",
+          "oklch(40% 0.110 258)",
+          "oklch(54% 0.135 258)",
+          "oklch(71% 0.145 258)",
+          "oklch(80% 0.110 258)",
+          "oklch(89% 0.060 258)",
+          "oklch(96% 0.020 258)"
+        ]
+      },
+      "leyline-cobalt-bright": {
+        "role": "primary",
+        "displayName": "Leyline Cobalt Bright",
+        "canonical": "oklch(77% 0.125 258)",
+        "tonalRamp": [
+          "oklch(20% 0.045 258)",
+          "oklch(31% 0.075 258)",
+          "oklch(44% 0.105 258)",
+          "oklch(60% 0.125 258)",
+          "oklch(77% 0.125 258)",
+          "oklch(84% 0.095 258)",
+          "oklch(91% 0.050 258)",
+          "oklch(97% 0.018 258)"
+        ]
+      },
+      "leyline-frost": {
+        "role": "primary",
+        "displayName": "Leyline Frost",
+        "canonical": "oklch(97% 0.015 258)",
+        "tonalRamp": [
+          "oklch(22% 0.025 258)",
+          "oklch(34% 0.030 258)",
+          "oklch(48% 0.035 258)",
+          "oklch(62% 0.030 258)",
+          "oklch(75% 0.025 258)",
+          "oklch(85% 0.020 258)",
+          "oklch(92% 0.018 258)",
+          "oklch(97% 0.015 258)"
+        ]
+      },
+      "verdigris-signal": {
+        "role": "secondary",
+        "displayName": "Verdigris Signal",
+        "canonical": "oklch(73% 0.135 158)",
+        "tonalRamp": [
+          "oklch(18% 0.040 158)",
+          "oklch(29% 0.070 158)",
+          "oklch(42% 0.105 158)",
+          "oklch(58% 0.130 158)",
+          "oklch(73% 0.135 158)",
+          "oklch(82% 0.100 158)",
+          "oklch(90% 0.055 158)",
+          "oklch(96% 0.020 158)"
+        ]
+      },
+      "amber-caution": {
+        "role": "secondary",
+        "displayName": "Amber Caution",
+        "canonical": "oklch(80% 0.145 78)",
+        "tonalRamp": [
+          "oklch(19% 0.040 78)",
+          "oklch(31% 0.075 78)",
+          "oklch(45% 0.110 78)",
+          "oklch(62% 0.135 78)",
+          "oklch(80% 0.145 78)",
+          "oklch(86% 0.105 78)",
+          "oklch(92% 0.055 78)",
+          "oklch(97% 0.020 78)"
+        ]
+      },
+      "crimson-fault": {
+        "role": "secondary",
+        "displayName": "Crimson Fault",
+        "canonical": "oklch(69% 0.185 24)",
+        "tonalRamp": [
+          "oklch(18% 0.050 24)",
+          "oklch(29% 0.090 24)",
+          "oklch(42% 0.135 24)",
+          "oklch(56% 0.165 24)",
+          "oklch(69% 0.185 24)",
+          "oklch(79% 0.130 24)",
+          "oklch(89% 0.070 24)",
+          "oklch(96% 0.025 24)"
+        ]
+      },
+      "abyssal-slate": {
+        "role": "neutral",
+        "displayName": "Abyssal Slate",
+        "canonical": "oklch(17% 0.018 262)",
+        "tonalRamp": [
+          "oklch(14% 0.015 262)",
+          "oklch(17% 0.018 262)",
+          "oklch(22% 0.022 262)",
+          "oklch(28% 0.026 262)",
+          "oklch(38% 0.030 262)",
+          "oklch(54% 0.028 262)",
+          "oklch(74% 0.020 262)",
+          "oklch(94% 0.010 262)"
+        ]
+      },
+      "trench-inset": {
+        "role": "neutral",
+        "displayName": "Trench Inset",
+        "canonical": "oklch(19% 0.020 262)",
+        "tonalRamp": [
+          "oklch(15% 0.016 262)",
+          "oklch(19% 0.020 262)",
+          "oklch(24% 0.024 262)",
+          "oklch(31% 0.028 262)",
+          "oklch(42% 0.030 262)",
+          "oklch(58% 0.026 262)",
+          "oklch(77% 0.018 262)",
+          "oklch(95% 0.008 262)"
+        ]
+      },
+      "obsidian-panel": {
+        "role": "neutral",
+        "displayName": "Obsidian Panel",
+        "canonical": "oklch(22% 0.024 262)",
+        "tonalRamp": [
+          "oklch(16% 0.018 262)",
+          "oklch(22% 0.024 262)",
+          "oklch(27% 0.028 262)",
+          "oklch(34% 0.032 262)",
+          "oklch(46% 0.032 262)",
+          "oklch(62% 0.026 262)",
+          "oklch(80% 0.018 262)",
+          "oklch(95% 0.008 262)"
+        ]
+      },
+      "astral-slate": {
+        "role": "neutral",
+        "displayName": "Astral Slate",
+        "canonical": "oklch(27% 0.030 262)",
+        "tonalRamp": [
+          "oklch(18% 0.020 262)",
+          "oklch(23% 0.025 262)",
+          "oklch(27% 0.030 262)",
+          "oklch(35% 0.035 262)",
+          "oklch(48% 0.035 262)",
+          "oklch(64% 0.028 262)",
+          "oklch(81% 0.018 262)",
+          "oklch(95% 0.008 262)"
+        ]
+      },
+      "structural-border": {
+        "role": "neutral",
+        "displayName": "Structural Border",
+        "canonical": "oklch(35% 0.038 262)",
+        "tonalRamp": [
+          "oklch(19% 0.020 262)",
+          "oklch(26% 0.028 262)",
+          "oklch(35% 0.038 262)",
+          "oklch(44% 0.042 262)",
+          "oklch(56% 0.038 262)",
+          "oklch(70% 0.028 262)",
+          "oklch(84% 0.018 262)",
+          "oklch(95% 0.008 262)"
+        ]
+      },
+      "starlight-title": {
+        "role": "neutral",
+        "displayName": "Starlight Title",
+        "canonical": "oklch(97% 0.008 262)",
+        "tonalRamp": [
+          "oklch(20% 0.018 262)",
+          "oklch(32% 0.022 262)",
+          "oklch(46% 0.024 262)",
+          "oklch(60% 0.020 262)",
+          "oklch(74% 0.016 262)",
+          "oklch(85% 0.012 262)",
+          "oklch(92% 0.010 262)",
+          "oklch(97% 0.008 262)"
+        ]
+      },
+      "chalk-body": {
+        "role": "neutral",
+        "displayName": "Chalk Body",
+        "canonical": "oklch(95% 0.012 262)",
+        "tonalRamp": [
+          "oklch(19% 0.018 262)",
+          "oklch(31% 0.022 262)",
+          "oklch(45% 0.024 262)",
+          "oklch(59% 0.022 262)",
+          "oklch(73% 0.018 262)",
+          "oklch(84% 0.015 262)",
+          "oklch(90% 0.013 262)",
+          "oklch(95% 0.012 262)"
+        ]
+      },
+      "muted-telemetry": {
+        "role": "neutral",
+        "displayName": "Muted Telemetry",
+        "canonical": "oklch(70% 0.035 262)",
+        "tonalRamp": [
+          "oklch(18% 0.018 262)",
+          "oklch(28% 0.024 262)",
+          "oklch(40% 0.030 262)",
+          "oklch(55% 0.035 262)",
+          "oklch(70% 0.035 262)",
+          "oklch(80% 0.026 262)",
+          "oklch(89% 0.016 262)",
+          "oklch(95% 0.008 262)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Top-level page titles (.gi-page-title)."
+      },
+      "section-display": {
+        "displayName": "Section Display",
+        "purpose": "Prominent modal and sub-panel titles."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Numbered stage headers (Stages 1–5), modal dialog titles, and primary panel headings."
+      },
+      "metric": {
+        "displayName": "Metric",
+        "purpose": "Primary damage figures and emphasized numeric readouts (tabular-nums)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles, preset names, character names in member tabs, and subsection headers."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Standard control copy, passive/buff descriptions, and tabular stat table values."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Filter chips, owned/SIM badges, stage pill counters, and compact button labels."
+      },
+      "muted": {
+        "displayName": "Muted",
+        "purpose": "Supporting metadata, secondary captions, and compact button labels."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Minimum readable floor (0.78rem) for micro-badges, substat roll pills, and table headers."
+      }
+    },
+    "shadows": [
+      {
+        "name": "active-selection-ring",
+        "value": "inset 0 0 0 1px #6ea0ff",
+        "purpose": "Crisp inner ring on selected preset cards, active member tabs, and active weapon candidates."
+      },
+      {
+        "name": "modal-dialog-elevation",
+        "value": "0 20px 48px rgba(0, 0, 0, 0.6)",
+        "purpose": "Structural elevation reserved strictly for popup modal dialogs over a blurred dark backdrop."
+      }
+    ],
+    "motion": [
+      {
+        "name": "transition-control",
+        "value": "120ms ease",
+        "purpose": "Immediate background and border-color feedback on buttons, chips, and summary rows."
+      },
+      {
+        "name": "transition-chevron",
+        "value": "150ms ease",
+        "purpose": "Smooth 180-degree rotation on the shared SVG ChevronToggle icon."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "960px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Solver Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "High-contrast Leyline Cobalt action button used for 'Run Optimization' and primary modal confirmations.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Run Optimization</button>",
+      "css": ".ds-btn-primary { background: var(--accent, #6ea0ff); color: #090c12; border: 1px solid var(--accent, #6ea0ff); border-radius: var(--radius-md, 8px); padding: 0.6rem 1.15rem; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 0.88rem; font-weight: 700; letter-spacing: 0.02em; cursor: pointer; transition: background 120ms ease, border-color 120ms ease; } .ds-btn-primary:hover { background: var(--accent-strong, #8db6ff); border-color: var(--accent-strong, #8db6ff); } .ds-btn-primary:focus-visible { outline: 2px solid var(--accent, #6ea0ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Control Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Compact instrument-grade button used for 'Edit' modal triggers, 'Reset Fast Mode', and secondary actions.",
+      "html": "<button class=\"ds-btn-secondary\" type=\"button\">Edit</button>",
+      "css": ".ds-btn-secondary { background: var(--control, #273044); color: var(--text-body, #eef1f8); border: 1px solid var(--border, #2f3950); border-radius: var(--radius-md, 8px); padding: 0.45rem 0.85rem; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: background 120ms ease, border-color 120ms ease, color 120ms ease; } .ds-btn-secondary:hover { background: var(--control-hover, #313c54); border-color: var(--border-strong, #465475); color: var(--text-title, #f5f7fc); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--accent, #6ea0ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Filter Chip (Selected & Default)",
+      "kind": "chip",
+      "refersTo": "chip-filter",
+      "description": "Capsule filter pills for elemental, weapon-type, and artifact-slot filtering.",
+      "html": "<div class=\"ds-chip-row\"><button class=\"ds-chip ds-chip-active\" type=\"button\">Hydro</button><button class=\"ds-chip\" type=\"button\">Pyro</button><button class=\"ds-chip\" type=\"button\">Cryo</button></div>",
+      "css": ".ds-chip-row { display: inline-flex; gap: 0.45rem; align-items: center; } .ds-chip { background: var(--surface-inset, #11151f); color: var(--text-body, #eef1f8); border: 1px solid var(--border, #2f3950); border-radius: 999px; padding: 0.35rem 0.75rem; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 0.82rem; font-weight: 600; letter-spacing: 0.02em; cursor: pointer; transition: background 120ms ease, border-color 120ms ease, color 120ms ease; } .ds-chip:hover { background: var(--surface-hover, #283145); border-color: var(--border-strong, #465475); } .ds-chip-active { background: var(--accent-bg, rgba(110, 160, 255, 0.16)); color: var(--accent-fg, #f0f5ff); border-color: var(--accent, #6ea0ff); } .ds-chip:focus-visible { outline: 2px solid var(--accent, #6ea0ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Numeric Stat Input",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Recessed tabular-nums input field for ER% constraints, Fast Mode stat lines, and level overrides.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Min ER (%)</span><input class=\"ds-input\" type=\"number\" value=\"200\" /></label>",
+      "css": ".ds-field { display: inline-flex; align-items: center; gap: 0.5rem; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; } .ds-field-label { font-size: 0.84rem; font-weight: 600; color: var(--text-section, #d2d9ea); } .ds-input { width: 5.5rem; background: var(--surface-inset, #11151f); color: var(--text-body, #eef1f8); border: 1px solid var(--border, #2f3950); border-radius: var(--radius-sm, 6px); padding: 0.42rem 0.6rem; font-size: 0.92rem; font-variant-numeric: tabular-nums; transition: border-color 120ms ease; } .ds-input:hover { border-color: var(--border-strong, #465475); } .ds-input:focus-visible { border-color: var(--accent, #6ea0ff); outline: 1px solid var(--accent, #6ea0ff); }"
+    },
+    {
+      "name": "Top Navigation Bar",
+      "kind": "nav",
+      "refersTo": "panel-stage",
+      "description": "Sticky dark-slate header bar with active cobalt route pill.",
+      "html": "<nav class=\"ds-nav\"><span class=\"ds-nav-brand\">GI Optimizer</span><div class=\"ds-nav-links\"><a class=\"ds-nav-link ds-nav-link-active\" href=\"#optimize\">Optimize</a><a class=\"ds-nav-link\" href=\"#presets\">Presets</a><a class=\"ds-nav-link\" href=\"#artifacts\">Artifacts</a><a class=\"ds-nav-link\" href=\"#import\">Import</a></div></nav>",
+      "css": ".ds-nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: rgba(13, 16, 23, 0.92); border: 1px solid var(--border-subtle, #242c3d); border-radius: var(--radius-lg, 12px); padding: 0.55rem 1rem; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; } .ds-nav-brand { font-size: 0.98rem; font-weight: 700; color: var(--text-title, #f5f7fc); letter-spacing: -0.01em; } .ds-nav-links { display: flex; gap: 0.35rem; } .ds-nav-link { color: var(--text-muted, #949eb8); text-decoration: none; font-size: 0.85rem; font-weight: 600; padding: 0.38rem 0.72rem; border-radius: var(--radius-md, 8px); border: 1px solid transparent; transition: background 120ms ease, color 120ms ease, border-color 120ms ease; } .ds-nav-link:hover { color: var(--text-body, #eef1f8); background: var(--surface-card, #202736); } .ds-nav-link-active { color: var(--accent-fg, #f0f5ff); background: var(--accent-bg, rgba(110, 160, 255, 0.16)); border-color: rgba(110, 160, 255, 0.45); }"
+    },
+    {
+      "name": "Stage Summary Row & Modal Trigger",
+      "kind": "card",
+      "refersTo": "card-stage",
+      "description": "Compact Stage 3/4 summary row showing live configuration state and a modal Edit button.",
+      "html": "<div class=\"ds-summary-row\"><div class=\"ds-summary-copy\"><span class=\"ds-summary-title\">Stat Constraints</span><span class=\"ds-summary-sep\">—</span><span class=\"ds-summary-val\">ER ≥ 200%, CRIT Rate ≥ 70%</span></div><button class=\"ds-summary-btn\" type=\"button\">Edit</button></div>",
+      "css": ".ds-summary-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; background: var(--surface-card, #202736); border: 1px solid var(--border, #2f3950); border-radius: var(--radius-md, 8px); padding: 0.62rem 0.85rem; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; transition: border-color 120ms ease, background 120ms ease; } .ds-summary-row:hover { border-color: var(--border-strong, #465475); background: var(--surface-hover, #283145); } .ds-summary-copy { display: flex; align-items: baseline; gap: 0.45rem; flex-wrap: wrap; } .ds-summary-title { font-size: 0.9rem; font-weight: 600; color: var(--text-title, #f5f7fc); } .ds-summary-sep { color: var(--text-muted, #949eb8); } .ds-summary-val { font-size: 0.86rem; color: var(--accent-fg, #f0f5ff); font-variant-numeric: tabular-nums; } .ds-summary-btn { background: var(--control, #273044); color: var(--text-body, #eef1f8); border: 1px solid var(--border, #2f3950); border-radius: var(--radius-sm, 6px); padding: 0.32rem 0.7rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; } .ds-summary-btn:hover { background: var(--control-hover, #313c54); border-color: var(--border-strong, #465475); }"
+    },
+    {
+      "name": "Build Comparison Row & SVG Chevron Toggle",
+      "kind": "custom",
+      "refersTo": "card-stage",
+      "description": "Signature tabular result row pairing semantic delta badges with the unified SVG ChevronToggle control.",
+      "html": "<div class=\"ds-build-row\"><div class=\"ds-build-main\"><span class=\"ds-rank-pill\">#1</span><span class=\"ds-build-dmg\">1,284,920</span><span class=\"ds-delta-ok\">+4.8%</span><span class=\"ds-tradeoff-neutral\">CRIT DMG −6.2% · ATK +11.4%</span></div><button class=\"ds-chevron-btn\" type=\"button\" aria-expanded=\"false\"><span>Details</span><svg class=\"ds-chevron-svg\" width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" aria-hidden=\"true\"><path d=\"M4 6L8 10L12 6\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button></div>",
+      "css": ".ds-build-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; background: var(--surface-card, #202736); border: 1px solid var(--border, #2f3950); border-radius: var(--radius-lg, 12px); padding: 0.7rem 0.9rem; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-variant-numeric: tabular-nums; } .ds-build-main { display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; } .ds-rank-pill { background: var(--accent-bg, rgba(110, 160, 255, 0.16)); color: var(--accent-fg, #f0f5ff); border: 1px solid var(--accent, #6ea0ff); border-radius: 999px; padding: 0.18rem 0.55rem; font-size: 0.8rem; font-weight: 700; } .ds-build-dmg { font-size: 1rem; font-weight: 700; color: var(--text-title, #f5f7fc); } .ds-delta-ok { background: rgba(76, 195, 138, 0.16); color: #4cc38a; border: 1px solid rgba(76, 195, 138, 0.5); border-radius: 6px; padding: 0.15rem 0.45rem; font-size: 0.82rem; font-weight: 600; } .ds-tradeoff-neutral { font-size: 0.82rem; color: var(--text-muted, #949eb8); } .ds-chevron-btn { display: inline-flex; align-items: center; gap: 0.35rem; background: var(--control, #273044); color: var(--text-body, #eef1f8); border: 1px solid var(--border, #2f3950); border-radius: var(--radius-sm, 6px); padding: 0.34rem 0.65rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background 120ms ease, border-color 120ms ease; } .ds-chevron-btn:hover { background: var(--control-hover, #313c54); border-color: var(--border-strong, #465475); } .ds-chevron-svg { transition: transform 150ms ease; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Theorycrafter's Flight Deck",
+    "overview": "GI Optimizer is a high-density, nocturnal theorycrafting workbench built for players and competitive optimizers who cross-check artifact rolls, damage formulas, and leaderboard assumptions. Its visual world behaves like an instrument-grade flight deck: calm, low-glare slate surfaces recede into the background so that solver controls, active buffs, and numerical deltas command immediate attention. Every visual signal on screen earns its place by encoding either workflow state, game semantics (element, rarity, ownership), or quantitative change.\n\nThe aesthetic philosophy prioritizes operational scannability over theatrical flourish. Complex multi-character configurations are tamed through a strict three-level surface hierarchy, tabular numeric alignment, and progressive disclosure via summary rows, popup editor modals, and single-open inline accordions. The system explicitly rejects marketing hero bloat, decorative glassmorphism over dense data tables, and alarmist red \"error\" styling on neutral negative stat trade-offs.",
+    "keyCharacteristics": [
+      "Dark-Room Telemetry Palette: A three-tier slate surface hierarchy (#0d1017 → #161b26 → #202736) with a recessed inset track (#11151f) that keeps long optimization sessions effortless on the eyes.",
+      "Single-Accent Command Focus: Leyline Cobalt (#6ea0ff) is reserved for primary solver actions, selected tabs, active filter pills, and focus rings so the user's eye can trace active state across all four stages in a single glance.",
+      "Semantic Delta Discipline: Positive damage gains and satisfied constraints light up in Verdigris Signal (#4cc38a), setup discrepancies and SIM fallbacks surface in Amber Caution (#f2b84b), and neutral stat trade-offs remain cool slate rather than error red.",
+      "Tabular Instrument Typography: Native system sans-serif paired with mandatory tabular-nums alignment across stat grids, substat roll tables, and damage comparison rows, adhering to a strict minimum readable floor (0.78rem).",
+      "Progressive Disclosure Architecture: Summary rows launch focused modal editors for configuration (Fast Mode, Weapon Effects, Pool Filters, Stat Constraints), while build comparisons expand inline one row at a time."
+    ],
+    "rules": [
+      {
+        "name": "The Single Accent Rule",
+        "body": "Leyline Cobalt (#6ea0ff) is the sole interactive brand accent across the entire application. Do not introduce secondary decorative brand colors for buttons or tabs; all other chromatic accents must represent either semantic status (Verdigris, Amber, Crimson) or authentic Genshin Impact domain data (elemental affinities and 1★–5★ item rarity).",
+        "section": "colors"
+      },
+      {
+        "name": "The Neutral Trade-Off Rule",
+        "body": "Individual stat decreases inside a build comparison (such as trading -12% CRIT DMG for +18% ATK% to achieve a higher total rotation result) are neutral analytical facts, not errors. Render individual stat decreases in Muted Telemetry (#949eb8) or Slate Section (#d2d9ea); reserve Crimson Fault (#ff6b6b) strictly for net-negative total build damage or broken constraints.",
+        "section": "colors"
+      },
+      {
+        "name": "The 0.78rem Floor Rule",
+        "body": "No text anywhere in the interface—including substat roll pills, rarity badges, or table footnotes—may drop below 0.78rem (12.5px). Density must be achieved through compact padding and summary-row disclosure, never by shrinking type into illegibility.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Telemetry Rule",
+        "body": "Every column, badge, or inline span that renders stats, percentages, damage outputs, refinement ranks, or roll values must apply font-variant-numeric: tabular-nums so vertical columns align to the pixel as values update.",
+        "section": "typography"
+      },
+      {
+        "name": "The Three-Surface Rule",
+        "body": "Never nest more than three distinct background surface levels (Page #0d1017 → Panel #161b26 → Card #202736, plus Inset #11151f for recessed controls) within a single view. When a card requires deep sub-configuration, open a focused modal or use a 1px subtle seam (#242c3d) rather than inventing a fourth card-inside-card-inside-card surface tone.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Flat-At-Rest Rule",
+        "body": "Do not apply drop shadows to cards, rows, or stage panels at rest or on hover. Shadows exist only to separate modal overlays from the workbench canvas.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preserve the three-level dark slate hierarchy (#0d1017 Page → #161b26 Stage Panel → #202736 Card, with #11151f Inset wells) and 1px solid #2f3950 borders across all views.",
+      "Do apply font-variant-numeric: tabular-nums to every stat value, damage number, percentage delta, refinement rank, and roll efficiency metric.",
+      "Do use the shared SVG ChevronToggle component for all inline expand/collapse controls, and enforce single-open accordion behavior on build details rows.",
+      "Do use summary rows paired with focused popup modals (box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6)) for secondary editors (Fast Mode, Candidate Effects, Pool Filters, Stat Constraints) so stage cards never balloon in height.",
+      "Do keep all text at or above the 0.78rem (12.5px) minimum font size floor."
+    ],
+    "donts": [
+      "Don't use literal text toggles ([Show], [Hide], Hide details) or raw Unicode arrow glyphs (▸, ▼, ▲, ▾, ▴) anywhere in the UI.",
+      "Don't color individual negative stat trade-offs in Crimson Fault (#ff6b6b); reserve red strictly for net-negative total build damage, broken constraints, or destructive actions.",
+      "Don't introduce decorative drop shadows on resting cards or panels, glassmorphic blurs over data tables, or marketing hero banners above the workbench.",
+      "Don't repeat a character's build-state badge (Fixed by Case, Fixed Spec, Owned) or duplicate member cards within Stage 3—each member appears once in the selector tabs with a single unified editor below."
+    ]
+  }
+}

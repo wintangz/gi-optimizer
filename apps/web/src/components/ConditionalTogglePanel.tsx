@@ -1072,14 +1072,16 @@ export function ConditionalTogglePanel({
             className="gi-buffs-member-tabs"
             data-testid="buff-panel-member-tabs"
           >
-            {memberEntries.map((entry) => {
+            {memberEntries.map((entry, tabIdx) => {
               const isSelected = activeEntry?.mKey === entry.mKey
               return (
                 <button
                   key={entry.mKey}
+                  id={`member-buffs-tab-${entry.mKey}`}
                   type="button"
                   role="tab"
                   aria-selected={isSelected}
+                  aria-controls={`member-buffs-panel-${entry.mKey}`}
                   data-testid={`member-buffs-tab-${entry.mKey}`}
                   data-character-key={entry.mKey}
                   data-selected={isSelected ? 'true' : 'false'}
@@ -1090,6 +1092,31 @@ export function ConditionalTogglePanel({
                   }
                   className={`gi-buffs-member-tab${isSelected ? ' is-selected' : ''}`}
                   onClick={() => setSelectedMemberKey(entry.mKey)}
+                  onKeyDown={(e) => {
+                    if (memberEntries.length <= 1) return
+                    let nextIdx = -1
+                    if (e.key === 'ArrowRight') {
+                      nextIdx = (tabIdx + 1) % memberEntries.length
+                    } else if (e.key === 'ArrowLeft') {
+                      nextIdx =
+                        (tabIdx - 1 + memberEntries.length) %
+                        memberEntries.length
+                    } else if (e.key === 'Home') {
+                      nextIdx = 0
+                    } else if (e.key === 'End') {
+                      nextIdx = memberEntries.length - 1
+                    }
+                    if (nextIdx >= 0) {
+                      e.preventDefault()
+                      const nextKey = memberEntries[nextIdx]!.mKey
+                      setSelectedMemberKey(nextKey)
+                      if (typeof document !== 'undefined') {
+                        document
+                          .getElementById(`member-buffs-tab-${nextKey}`)
+                          ?.focus?.()
+                      }
+                    }
+                  }}
                 >
                   <CharacterBadge
                     characterKey={entry.mKey}
@@ -1142,7 +1169,9 @@ export function ConditionalTogglePanel({
           {activeEntry && (
             <div
               key={activeEntry.mKey}
+              id={`member-buffs-panel-${activeEntry.mKey}`}
               role="tabpanel"
+              aria-labelledby={`member-buffs-tab-${activeEntry.mKey}`}
               className={`gi-buffs-member-card${
                 activeEntry.isTarget ? ' gi-buffs-member-card-target' : ''
               }${

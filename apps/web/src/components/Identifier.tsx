@@ -197,7 +197,7 @@ export function CharacterBadge({
               fontSize: compact ? '0.78rem' : '0.82rem',
               fontWeight: 700,
               letterSpacing: '0.03em',
-              background: 'rgba(245, 185, 66, 0.14)',
+              background: 'var(--warn-bg)',
               color: 'var(--warn)',
               border: '1px solid var(--warn)',
             }}
@@ -218,7 +218,7 @@ export function CharacterBadge({
               fontSize: compact ? '0.78rem' : '0.82rem',
               fontWeight: 700,
               letterSpacing: '0.03em',
-              background: 'rgba(92, 219, 149, 0.15)',
+              background: 'var(--ok-bg)',
               color: 'var(--ok)',
               border: '1px solid var(--ok)',
             }}
@@ -239,7 +239,7 @@ export function CharacterBadge({
               fontSize: compact ? '0.78rem' : '0.82rem',
               fontWeight: 700,
               letterSpacing: '0.03em',
-              background: 'rgba(122, 162, 247, 0.15)',
+              background: 'var(--accent-bg)',
               color: 'var(--accent)',
               border: '1px solid var(--accent)',
             }}
@@ -461,7 +461,7 @@ export function ArtifactBadge({
           width: `${stripSize}px`,
           height: `${stripSize}px`,
           minWidth: `${stripSize}px`,
-          borderRadius: '5px',
+          borderRadius: '6px',
           overflow: 'hidden',
           background: ITEM_DARK_SURFACE_BG,
           color: 'var(--fg)',
@@ -660,10 +660,10 @@ export function StatChip({
         alignItems: 'center',
         gap: '0.24rem',
         padding: compact ? '0.08rem 0.34rem' : '0.12rem 0.42rem',
-        borderRadius: '5px',
-        background: isMain ? 'rgba(122, 162, 255, 0.16)' : '#1d2130',
+        borderRadius: '6px',
+        background: isMain ? 'var(--accent-bg)' : '#1d2130',
         border: isMain
-          ? '1px solid rgba(122, 162, 255, 0.45)'
+          ? '1px solid var(--accent-border)'
           : '1px solid var(--border)',
         fontSize: compact ? '0.82rem' : '0.86rem',
         fontWeight: isMain ? 700 : 500,
@@ -827,7 +827,7 @@ export function RotationHitModeBadge({
         display: 'inline-flex',
         alignItems: 'center',
         padding: compact ? '0.1rem 0.4rem' : '0.14rem 0.46rem',
-        borderRadius: '5px',
+        borderRadius: '6px',
         background: '#1d2130',
         color: 'var(--fg)',
         border: '1px solid var(--border)',
@@ -1120,7 +1120,7 @@ export function BuildComparisonBars({
               style={{
                 width: `${currPct.toFixed(1)}%`,
                 height: '100%',
-                background: 'linear-gradient(90deg, #4b5578, #7aa2ff)',
+                background: 'linear-gradient(90deg, var(--border-strong), var(--accent))',
                 borderRadius: '999px',
               }}
             />
@@ -1150,7 +1150,7 @@ export function BuildComparisonBars({
               background: '#0e1017',
               borderRadius: '999px',
               overflow: 'hidden',
-              border: '1px solid rgba(76, 195, 138, 0.45)',
+              border: '1px solid var(--ok-border)',
             }}
           >
             <div
@@ -1158,7 +1158,7 @@ export function BuildComparisonBars({
               style={{
                 width: `${optPct.toFixed(1)}%`,
                 height: '100%',
-                background: 'linear-gradient(90deg, #2b8a62, #4cc38a)',
+                background: 'linear-gradient(90deg, var(--ok-bg), var(--ok))',
                 borderRadius: '999px',
               }}
             />

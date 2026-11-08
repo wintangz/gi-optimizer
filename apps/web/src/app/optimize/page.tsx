@@ -1529,11 +1529,11 @@ function OptimizeInner() {
   if (settings.lockedOnly) {
     setsProtectedParts.push('Locked only')
   }
-  const setsProtectedSummaryText = `Artifact Set Filter & Protected Characters — ${setsProtectedParts.join(' · ')}`
+  const setsProtectedSummaryBody = setsProtectedParts.join(' · ')
 
   return (
-    <div className="gi-page">
-      <header className="gi-page-header">
+    <div className="gi-page gi-optimize-page">
+      <header className="gi-page-header gi-optimize-header">
         <div>
           <h1 className="gi-page-title">Single-Character Rotation Optimizer</h1>
           <p className="gi-page-subtitle">
@@ -1541,6 +1541,52 @@ function OptimizeInner() {
             real GO team buffs and final-stat constraints.
           </p>
         </div>
+
+        <nav
+          className="gi-stage-wayfinding"
+          aria-label="Optimization stages"
+          data-testid="optimize-stage-wayfinding"
+        >
+          <a href="#stage-preset" className="gi-stage-wayfinding-pill">
+            <span className="gi-stage-wayfinding-num">01</span>
+            <span>Preset</span>
+            <span className="gi-stage-wayfinding-meta">
+              {activePreset ? displayName(activePreset.target) : 'None'}
+            </span>
+          </a>
+          <a href="#stage-mode" className="gi-stage-wayfinding-pill">
+            <span className="gi-stage-wayfinding-num">02</span>
+            <span>Mode</span>
+            <span className="gi-stage-wayfinding-meta">
+              {optimizeMode === 'compare'
+                ? 'Compare'
+                : optimizeMode === 'team'
+                  ? 'Team'
+                  : '1-Char'}
+            </span>
+          </a>
+          <a href="#stage-team-buffs" className="gi-stage-wayfinding-pill">
+            <span className="gi-stage-wayfinding-num">03</span>
+            <span>Team &amp; Buffs</span>
+            <span className="gi-stage-wayfinding-meta">
+              {teamMemberCards.length}M
+            </span>
+          </a>
+          <a href="#stage-artifacts" className="gi-stage-wayfinding-pill">
+            <span className="gi-stage-wayfinding-num">04</span>
+            <span>Artifacts</span>
+            <span className="gi-stage-wayfinding-meta">
+              {settings.constraints?.length ?? 0}C
+            </span>
+          </a>
+          <a href="#stage-results" className="gi-stage-wayfinding-pill">
+            <span className="gi-stage-wayfinding-num">05</span>
+            <span>Results</span>
+            <span className="gi-stage-wayfinding-meta">
+              {hasAnyResults || compareResult || teamResult ? 'Ready' : 'Idle'}
+            </span>
+          </a>
+        </nav>
       </header>
 
       {!record && (
@@ -1560,13 +1606,21 @@ function OptimizeInner() {
         </div>
       )}
 
-      {/* STAGE 1: PRESET PICKER */}
-      <section
-        className="panel gi-card"
-        data-testid="setup-card"
-        data-stage="preset-picker"
-        aria-label="Preset Picker"
-      >
+      <div className="gi-optimize-upper-deck" data-testid="optimize-upper-deck">
+        <div
+          className={`gi-optimize-setup-deck${
+            optimizeMode === 'compare' ? ' is-compare-mode' : ''
+          }`}
+          data-testid="optimize-setup-deck"
+        >
+          {/* STAGE 1: PRESET PICKER */}
+          <section
+            id="stage-preset"
+            className="panel gi-card"
+            data-testid="setup-card"
+            data-stage="preset-picker"
+            aria-label="Preset Picker"
+          >
         <div className="gi-card-header">
           <div>
             <h2 className="gi-card-title">1. Preset</h2>
@@ -1625,6 +1679,7 @@ function OptimizeInner() {
       {/* STAGE 2: MODE SELECTION */}
       {activePreset && (
         <section
+          id="stage-mode"
           className="panel gi-card"
           data-testid="mode-selection-card"
           data-stage="mode-selection"
@@ -1717,10 +1772,12 @@ function OptimizeInner() {
           )}
         </section>
       )}
+        </div>
 
       {/* STAGE 3: TEAM & BUFFS */}
       {activePreset && (
         <section
+          id="stage-team-buffs"
           className="panel gi-card"
           data-testid="team-buffs-stage"
           data-stage="team-buffs"
@@ -1801,6 +1858,12 @@ function OptimizeInner() {
               className="gi-modal-backdrop"
               data-testid="member-weapon-modal-backdrop"
               onClick={() => setWeaponModalMemberKey(null)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.stopPropagation()
+                  setWeaponModalMemberKey(null)
+                }
+              }}
             >
               <div
                 className="panel gi-card gi-modal-dialog"
@@ -1812,6 +1875,16 @@ function OptimizeInner() {
                 data-member-role={
                   activeModalMember.isTarget ? 'target' : 'teammate'
                 }
+                tabIndex={-1}
+                ref={(el) => {
+                  if (
+                    el &&
+                    typeof document !== 'undefined' &&
+                    !el.contains(document.activeElement)
+                  ) {
+                    el.focus?.()
+                  }
+                }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div
@@ -1956,51 +2029,65 @@ function OptimizeInner() {
           )}
         </section>
       )}
+      </div>
 
-      {/* STAGE 4: ARTIFACT SETTINGS */}
-      <section
-        className="panel gi-card"
-        data-testid="artifact-settings-card"
-        data-stage="artifact-settings"
-        aria-label="Artifact Settings"
+      <div
+        className={`gi-optimize-lower-deck${
+          isSetsProtectedOpen ? ' is-stage4-expanded' : ''
+        }`}
+        data-testid="optimize-lower-deck"
       >
-        <div className="gi-card-header">
-          <div>
-            <h2 className="gi-card-title">4. Artifact Settings</h2>
-            <p className="gi-card-subtitle">
-              Configure artifact set filters, protected characters, pool
-              filters, and stat constraints.
-            </p>
-          </div>
-        </div>
-
-        {/* 1. Artifact Set Filter + Protected Characters (Wikipedia-style collapsible) */}
-        <div
-          className="gi-collapsible-section"
-          data-testid="collapsible-sets-protected"
-          data-expanded={isSetsProtectedOpen ? 'true' : 'false'}
+        {/* STAGE 4: ARTIFACT SETTINGS */}
+        <section
+          id="stage-artifacts"
+          className="panel gi-card"
+          data-testid="artifact-settings-card"
+          data-stage="artifact-settings"
+          aria-label="Artifact Settings"
         >
-          <div className="gi-collapsible-header">
-            <div className="gi-collapsible-header-main">
-              <strong className="gi-collapsible-title">
-                Artifact Set Filter &amp; Protected Characters
-              </strong>
-              <span
-                className="gi-collapsible-summary"
-                data-testid="sets-protected-collapsible-summary"
-              >
-                {setsProtectedSummaryText}
-              </span>
+          <div className="gi-card-header">
+            <div>
+              <h2 className="gi-card-title">4. Artifact Settings</h2>
+              <p className="gi-card-subtitle">
+                Configure artifact set filters, protected characters, pool
+                filters, and stat constraints.
+              </p>
             </div>
-            <ChevronToggle
-              expanded={isSetsProtectedOpen}
-              className="gi-collapsible-toggle-btn"
-              data-testid="sets-protected-collapsible-toggle"
-              ariaControls="sets-protected-collapsible-body"
-              ariaLabel="Toggle Artifact Set Filter and Protected Characters"
-              onClick={() => setSetsProtectedManualOpen(!isSetsProtectedOpen)}
-            />
           </div>
+
+          {/* 1. Artifact Set Filter + Protected Characters (Wikipedia-style collapsible) */}
+          <div
+            className="gi-collapsible-section"
+            data-testid="collapsible-sets-protected"
+            data-expanded={isSetsProtectedOpen ? 'true' : 'false'}
+          >
+            <div className="gi-collapsible-header">
+              <div
+                className="gi-collapsible-header-main gi-collapsible-header-clickable"
+                onClick={() => setSetsProtectedManualOpen(!isSetsProtectedOpen)}
+              >
+                <strong className="gi-collapsible-title">
+                  Artifact Set Filter &amp; Protected Characters
+                </strong>
+                <span
+                  className="gi-collapsible-summary"
+                  data-testid="sets-protected-collapsible-summary"
+                >
+                  <span className="sr-only">
+                    Artifact Set Filter &amp; Protected Characters —{' '}
+                  </span>
+                  {setsProtectedSummaryBody}
+                </span>
+              </div>
+              <ChevronToggle
+                expanded={isSetsProtectedOpen}
+                className="gi-collapsible-toggle-btn"
+                data-testid="sets-protected-collapsible-toggle"
+                ariaControls="sets-protected-collapsible-body"
+                ariaLabel="Toggle Artifact Set Filter and Protected Characters"
+                onClick={() => setSetsProtectedManualOpen(!isSetsProtectedOpen)}
+              />
+            </div>
 
           {isSetsProtectedOpen && (
             <div
@@ -2151,11 +2238,18 @@ function OptimizeInner() {
           settings={settings}
           onChange={(next) => void updateSettings(next)}
           collapsible
+          currentStats={
+            currentEval?.stats ??
+            (activePreset
+              ? teamMemberStats[activePreset.target]?.final
+              : undefined)
+          }
         />
       </section>
 
       {/* STAGE 5: RUN & RESULTS */}
       <section
+        id="stage-results"
         className="panel gi-card"
         data-testid="results-card"
         data-stage="run-results"
@@ -2321,7 +2415,6 @@ function OptimizeInner() {
             {compareResult && !compareRunning && (
               <div
                 className="preset-provenance-box ok"
-                style={{ fontSize: '0.88rem' }}
                 data-testid="weapon-compare-summary-banner"
               >
                 {compareResult.cancelled
@@ -2395,7 +2488,6 @@ function OptimizeInner() {
             {teamResult && !teamRunning && (
               <div
                 className="preset-provenance-box ok"
-                style={{ fontSize: '0.88rem' }}
                 data-testid="team-optimize-summary-banner"
               >
                 ✓ Team optimized in {(teamResult.durationMs / 1000).toFixed(2)}s
@@ -2449,7 +2541,6 @@ function OptimizeInner() {
             {optResult && !running && (
               <div
                 className="preset-provenance-box ok"
-                style={{ fontSize: '0.88rem' }}
                 data-testid="optimize-summary-banner"
               >
                 ✓ Finished in {(optResult.durationMs / 1000).toFixed(2)}s — found{' '}
@@ -2519,6 +2610,7 @@ function OptimizeInner() {
           </>
         )}
       </section>
+      </div>
     </div>
   )
 }

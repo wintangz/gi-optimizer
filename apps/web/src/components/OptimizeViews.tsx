@@ -578,6 +578,8 @@ export interface ConstraintsCardProps {
   /** When true, renders as a summary row with an Edit button that opens a modal editor. */
   collapsible?: boolean
   defaultOpen?: boolean
+  /** Optional current final stats for the target character to show live reference values in the modal. */
+  currentStats?: Record<string, number>
 }
 
 export function ConstraintsCard({
@@ -586,6 +588,7 @@ export function ConstraintsCard({
   initialPickerOpen = false,
   collapsible = false,
   defaultOpen = false,
+  currentStats,
 }: ConstraintsCardProps) {
   const [pickerOpen, setPickerOpen] = useState(initialPickerOpen)
   const [draftBounds, setDraftBounds] = useState<Record<string, string>>({})
@@ -790,6 +793,27 @@ export function ConstraintsCard({
                 ? draftBounds[maxKey]!
                 : formatDisplayBoundValue(c.max)
 
+            const rawCurrentStat = currentStats?.[c.stat]
+            const hasLiveStat =
+              typeof rawCurrentStat === 'number' &&
+              Number.isFinite(rawCurrentStat)
+            const liveComparableVal = hasLiveStat
+              ? isPct
+                ? rawCurrentStat * 100
+                : rawCurrentStat
+              : undefined
+            const liveDisplayVal = hasLiveStat
+              ? isPct
+                ? `${(rawCurrentStat * 100).toFixed(1)}%`
+                : Math.round(rawCurrentStat).toLocaleString()
+              : undefined
+            const liveStatMet =
+              liveComparableVal !== undefined &&
+              (c.min === undefined || liveComparableVal + 1e-6 >= c.min) &&
+              (c.max === undefined || liveComparableVal - 1e-6 <= c.max)
+            const isInvertedBound =
+              c.min !== undefined && c.max !== undefined && c.min > c.max
+
             return (
               <div
                 key={`${c.stat}-${idx}`}
@@ -798,6 +822,25 @@ export function ConstraintsCard({
               >
                 <div className="constraint-row-chip">
                   <StatChip statKey={c.stat} showLabel isMain />
+                  {hasLiveStat && liveDisplayVal && (
+                    <span
+                      className={`constraint-live-ref ${
+                        liveStatMet ? 'is-met' : 'is-unmet'
+                      }`}
+                      data-testid={`constraint-live-ref-${c.stat}`}
+                      title="Target's current build final stat"
+                    >
+                      Current: {liveDisplayVal}
+                    </span>
+                  )}
+                  {isInvertedBound && (
+                    <span
+                      className="constraint-bound-warn"
+                      data-testid={`constraint-bound-warn-${c.stat}`}
+                    >
+                      Min &gt; Max
+                    </span>
+                  )}
                 </div>
 
                 <div className="constraint-row-inputs">
@@ -899,7 +942,10 @@ export function ConstraintsCard({
       aria-label="Constraints"
     >
       <div className="gi-card-header gi-collapsible-header">
-        <div>
+        <div
+          className={collapsible ? 'gi-collapsible-header-clickable' : undefined}
+          onClick={collapsible ? () => setManualExpanded(!isExpanded) : undefined}
+        >
           <h2 className="gi-card-title">Stat Constraints</h2>
           <p
             className="gi-card-subtitle"
@@ -908,7 +954,8 @@ export function ConstraintsCard({
               color: hasNonDefault ? 'var(--warn)' : 'var(--ok)',
             }}
           >
-            {summaryText}
+            <span className="sr-only">Stat Constraints — </span>
+            {summaryText.replace(/^Stat Constraints — /, '')}
           </p>
         </div>
         <div className="preset-gear-row-md">
@@ -1948,7 +1995,27 @@ export function BuildComparisonList({
                     {OPTIMIZE_SLOTS.map((slot) => {
                       const artId = row.selection.artifactIds[slot]
                       const art = artId ? artifactById.get(artId) : undefined
-                      if (!art) return null
+                      if (!art) {
+                        return (
+                          <div
+                            key={slot}
+                            className="artifact-piece-card is-empty-slot"
+                            data-testid={`empty-piece-slot-${slot}`}
+                          >
+                            <strong
+                              style={{
+                                fontSize: 'var(--font-muted)',
+                                textTransform: 'capitalize',
+                              }}
+                            >
+                              {slot}
+                            </strong>
+                            <span style={{ fontSize: '0.78rem' }}>
+                              No artifact equipped
+                            </span>
+                          </div>
+                        )
+                      }
                       return (
                         <ArtifactPieceRow
                           key={slot}
@@ -2447,7 +2514,7 @@ export function WeaponComparisonPanel({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 'var(--sp-2)',
+            gap: 'var(--space-2)',
             flexWrap: 'wrap',
           }}
         >
@@ -2457,7 +2524,7 @@ export function WeaponComparisonPanel({
               className="btn-secondary"
               data-testid="weapon-compare-reset-setup"
               onClick={handleResetCompareSetup}
-              style={{ fontSize: '0.78rem', padding: '0.24rem 0.6rem' }}
+              style={{ fontSize: 'var(--font-muted)', padding: '0.24rem 0.6rem' }}
             >
               Reset Setup
             </button>
@@ -2725,6 +2792,16 @@ export function WeaponComparisonPanel({
                       aria-modal="true"
                       aria-label={`Effects — ${wMeta.displayName}`}
                       data-testid={`weapon-compare-effects-modal-${cand.weaponKey}`}
+                      tabIndex={-1}
+                      ref={(el) => {
+                        if (
+                          el &&
+                          typeof document !== 'undefined' &&
+                          !el.contains(document.activeElement)
+                        ) {
+                          el.focus?.()
+                        }
+                      }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="gi-card-header">
@@ -2755,7 +2832,7 @@ export function WeaponComparisonPanel({
                               handleResetCandidateEffects(cand.weaponKey)
                             }
                             style={{
-                              fontSize: '0.78rem',
+                              fontSize: 'var(--font-muted)',
                               padding: '0.2rem 0.55rem',
                             }}
                           >
@@ -2813,7 +2890,7 @@ export function WeaponComparisonPanel({
                             />
                             <span>Weapon Passive</span>
                           </span>
-                          <span className="muted" style={{ fontSize: '0.8rem' }}>
+                          <span className="muted" style={{ fontSize: 'var(--font-muted)' }}>
                             {wMeta.displayName}
                           </span>
                         </div>
@@ -4012,23 +4089,14 @@ export function SolverPoolFiltersPanel({
       data-testid="solver-pool-filters-panel"
       data-expanded={isExpanded ? 'true' : 'false'}
     >
-      <div className="opt-filter-panel-header">
-        <span
-          className="opt-filter-panel-title"
+      <div className="gi-collapsible-header">
+        <div
+          className="gi-collapsible-header-main gi-collapsible-header-clickable"
           onClick={toggleExpanded}
-          style={{
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            textAlign: 'left',
-          }}
         >
-          <span>
+          <span className="opt-filter-panel-title">
             Artifact Pool Filters (Main Stats · Substats · Rarity · RV)
           </span>
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span
             data-testid="solver-pool-filters-summary"
             className="opt-filter-panel-summary"
@@ -4036,7 +4104,7 @@ export function SolverPoolFiltersPanel({
               color: isPoolUnrestricted ? 'var(--ok)' : 'var(--warn)',
             }}
           >
-            <span>
+            <span className="sr-only">
               {isPoolUnrestricted
                 ? 'Pool Filters — unrestricted ('
                 : 'Pool Filters — '}
@@ -4045,8 +4113,10 @@ export function SolverPoolFiltersPanel({
             {assumptionFilterActive
               ? ` · Assume Lv. ${mainStatAssumptionLevel}+`
               : ''}
-            {isPoolUnrestricted ? <span>)</span> : null}
+            {isPoolUnrestricted ? <span className="sr-only">)</span> : null}
           </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
           {!isPoolUnrestricted && !isExpanded && (
             <button
               type="button"

@@ -285,7 +285,7 @@ export default function ImportPage() {
               </button>
             ) : (
               <div className="preset-gear-row">
-                <span className="warn" style={{ fontSize: '0.88rem' }}>
+                <span className="warn" style={{ fontSize: 'var(--font-section)' }}>
                   Remove imported GOOD data?
                 </span>
                 <button
@@ -346,7 +346,7 @@ export default function ImportPage() {
           }}
         >
           <strong>Upload or Drag &amp; Drop a GOOD .json file</strong>
-          <span className="muted" style={{ fontSize: '0.88rem' }}>
+          <span className="muted" style={{ fontSize: 'var(--font-section)' }}>
             Supports GOOD v1, v2, and v3 scanner exports. UID / Enka showcase
             exports are not supported because they omit unequipped artifacts.
           </span>
@@ -469,7 +469,7 @@ export default function ImportPage() {
                 <span className="error">Import Failed</span>
               )}
             </strong>
-            <span className="muted" style={{ fontSize: '0.88rem' }}>
+            <span className="muted" style={{ fontSize: 'var(--font-section)' }}>
               Characters: {parseResult.summary.characters.imported}/
               {parseResult.summary.characters.read} · Weapons:{' '}
               {parseResult.summary.weapons.imported}/
