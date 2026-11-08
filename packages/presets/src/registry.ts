@@ -23,6 +23,7 @@ import mavuikaOverloadBlazingSunsC0 from '../data/akasha/mavuika-overload-blazin
 import skirkFreezeAzurelightC0 from '../data/akasha/skirk-freeze-azurelight-c0.json'
 import naviaCrystallizeVerdictC0 from '../data/akasha/navia-crystallize-verdict-c0.json'
 import clorindeAggravateAbsolutionC0 from '../data/akasha/clorinde-aggravate-absolution-c0.json'
+import mualaniVapeSurfsUpC0 from '../data/akasha/mualani-vaporize-surfsup-c0.json'
 import { presetSchema, type Preset } from './schema'
 
 const RAW_BUNDLED: unknown[] = [
@@ -31,6 +32,7 @@ const RAW_BUNDLED: unknown[] = [
   neuvProtoAmberC0,
   hutaoHomaC1,
   raidenScarletC0,
+  mualaniVapeSurfsUpC0,
   clorindeAggravateAbsolutionC0,
   naviaCrystallizeVerdictC0,
   skirkFreezeAzurelightC0,
@@ -73,6 +75,7 @@ export const VERIFIED_PRESET_IDS: ReadonlySet<string> = /*#__PURE__*/ new Set([
   'akasha/neuvillette-hypercarry-protoamber-c0',
   'akasha/hutao-double-hydro-homa-c1',
   'akasha/raiden-hypercarry-scarlet-c0',
+  'akasha/mualani-vaporize-surfsup-c0',
   'akasha/clorinde-aggravate-absolution-c0',
   'akasha/navia-crystallize-verdict-c0',
   'akasha/skirk-freeze-azurelight-c0',

@@ -1,0 +1,45 @@
+{
+  "presetId": "akasha/mualani-vaporize-surfsup-c0",
+  "target": "Mualani",
+  "total": 2797828.7495491523,
+  "instances": [
+    {
+      "label": "Sharky's Surging Bite (Vaporize ×3)",
+      "path": [
+        "skill",
+        "surgingDmg"
+      ],
+      "count": 3,
+      "perHit": 604927.1139203776,
+      "subtotal": 1814781.3417611327
+    },
+    {
+      "label": "Boomsharka-laka DMG (Vaporize)",
+      "path": [
+        "burst",
+        "dmg"
+      ],
+      "count": 1,
+      "perHit": 983047.4077880194,
+      "subtotal": 983047.4077880194
+    }
+  ],
+  "stats": {
+    "hp": 37349.053399724806,
+    "atk": 1101.39533293568,
+    "def": 630.4473425399999,
+    "eleMas": 481.52239999999995,
+    "critRate_": 0.8559000000000001,
+    "critDMG_": 2.353748,
+    "enerRech_": 1.0648,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0.256,
+    "geo_dmg_": 0.656,
+    "electro_dmg_": 0.256,
+    "hydro_dmg_": 1.472,
+    "pyro_dmg_": 0.256,
+    "cryo_dmg_": 0.256,
+    "dendro_dmg_": 0.256
+  }
+}
