@@ -1,0 +1,95 @@
+{
+  "presetId": "akasha/xiangling-vaporize-catch-c6",
+  "target": "Xiangling",
+  "total": 548748.0303464351,
+  "instances": [
+    {
+      "label": "Guoba Fire Breath (Vaporize ×2)",
+      "path": [
+        "skill",
+        "press"
+      ],
+      "count": 2,
+      "perHit": 22231.143577766023,
+      "subtotal": 44462.287155532045
+    },
+    {
+      "label": "Guoba Fire Breath (No Reaction ×2)",
+      "path": [
+        "skill",
+        "press"
+      ],
+      "count": 2,
+      "perHit": 10196.506680899785,
+      "subtotal": 20393.01336179957
+    },
+    {
+      "label": "Pyronado 1-Hit Swing (Vaporize)",
+      "path": [
+        "burst",
+        "dmg1"
+      ],
+      "count": 1,
+      "perHit": 26325.52214154609,
+      "subtotal": 26325.52214154609
+    },
+    {
+      "label": "Pyronado 2-Hit Swing",
+      "path": [
+        "burst",
+        "dmg2"
+      ],
+      "count": 1,
+      "perHit": 14757.635316670689,
+      "subtotal": 14757.635316670689
+    },
+    {
+      "label": "Pyronado 3-Hit Swing (Vaporize)",
+      "path": [
+        "burst",
+        "dmg3"
+      ],
+      "count": 1,
+      "perHit": 40073.29481546461,
+      "subtotal": 40073.29481546461
+    },
+    {
+      "label": "Pyronado DMG (Vaporize ×8)",
+      "path": [
+        "burst",
+        "dmgNado"
+      ],
+      "count": 8,
+      "perHit": 40950.812220182794,
+      "subtotal": 327606.49776146235
+    },
+    {
+      "label": "Pyronado DMG (No Reaction ×4)",
+      "path": [
+        "burst",
+        "dmgNado"
+      ],
+      "count": 4,
+      "perHit": 18782.44494848996,
+      "subtotal": 75129.77979395984
+    }
+  ],
+  "stats": {
+    "hp": 15654.914859,
+    "atk": 3162.3652597965684,
+    "def": 782.3397410882501,
+    "eleMas": 273.16999999999996,
+    "critRate_": 0.5788,
+    "critDMG_": 1.1916,
+    "enerRech_": 2.2034000000000002,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0.616,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}
