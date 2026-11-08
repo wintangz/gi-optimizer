@@ -3399,4 +3399,181 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       )
     ).toBeUndefined()
   })
+
+  it('extended-stat-display: renders "Additional Bonuses" group with non-zero elemental and talent-type DMG% bonuses, omits zero entries, and shows vs. Current diffs in the established format', () => {
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+
+    const currentStats = {
+      hp: 38000,
+      atk: 1200,
+      def: 850,
+      eleMas: 40,
+      enerRech_: 1.6,
+      critRate_: 0.8,
+      critDMG_: 1.9,
+      hydro_dmg_: 0.466,
+      pyro_dmg_: 0,
+      normal_dmg_: 0,
+      charged_dmg_: 0,
+      plunging_dmg_: 0,
+      skill_dmg_: 0.7,
+      burst_dmg_: 0,
+    }
+
+    const shimenawaBuildStats = {
+      hp: 39500,
+      atk: 1280,
+      def: 850,
+      eleMas: 40,
+      enerRech_: 1.65,
+      critRate_: 0.82,
+      critDMG_: 2.05,
+      hydro_dmg_: 0.466, // 0.0% diff vs Current
+      pyro_dmg_: 0, // zero -> omitted
+      electro_dmg_: 0, // zero -> omitted
+      normal_dmg_: 0.5, // +50.0% vs Current (Shimenawa 4pc)
+      charged_dmg_: 0.5, // +50.0% vs Current (Shimenawa 4pc)
+      plunging_dmg_: 0.5, // +50.0% vs Current (Shimenawa 4pc)
+      skill_dmg_: 0.55, // -15.0% vs Current (0.70 -> 0.55)
+      burst_dmg_: 0, // zero -> omitted
+    }
+
+    // 1. Comparison mode (opt-0 expanded vs Current)
+    const diffHtml = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        initialExpandedRowId="opt-0"
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: {
+            total: 350000,
+            stats: currentStats,
+            instances: [],
+          },
+        }}
+        optimizedBuilds={[
+          {
+            selection: { weaponId: 'w1', artifactIds: {} },
+            total: 380000,
+            evaluation: {
+              total: 380000,
+              stats: shimenawaBuildStats,
+              instances: [],
+            },
+          },
+        ]}
+      />
+    )
+
+    expect(diffHtml).toContain('data-testid="comp-additional-bonuses-opt-0"')
+    expect(diffHtml).toContain(
+      'data-testid="comp-additional-bonuses-header-opt-0"'
+    )
+    expect(diffHtml).toContain('>Additional Bonuses<')
+
+    // Non-zero elemental & talent-type bonuses are rendered with labels, values, and diffs
+    expect(diffHtml).toContain('data-testid="comp-stat-row-opt-0-hydro_dmg_"')
+    expect(diffHtml).toContain('>Hydro DMG Bonus<')
+    expect(diffHtml).toContain(
+      'data-testid="comp-stat-current-opt-0-hydro_dmg_">46.6%<'
+    )
+    expect(diffHtml).toContain(
+      'data-testid="comp-stat-value-opt-0-hydro_dmg_"><strong>46.6%</strong><'
+    )
+    expect(diffHtml).toContain(
+      'data-testid="comp-stat-diff-opt-0-hydro_dmg_" data-diff-sign="0" data-diff-ascii="0.0%">0.0%<'
+    )
+
+    expect(diffHtml).toContain('data-testid="comp-stat-row-opt-0-normal_dmg_"')
+    expect(diffHtml).toContain('>Normal DMG Bonus<')
+    expect(diffHtml).toContain(
+      'data-testid="comp-stat-current-opt-0-normal_dmg_">0.0%<'
+    )
+    expect(diffHtml).toContain(
+      'data-testid="comp-stat-value-opt-0-normal_dmg_"><strong>50.0%</strong><'
+    )
+    expect(diffHtml).toContain(
+      'class="comp-stat-num comp-stat-diff-delta ok" data-testid="comp-stat-diff-opt-0-normal_dmg_" data-diff-sign="+" data-diff-ascii="+50.0%">+50.0%<'
+    )
+
+    expect(diffHtml).toContain('data-testid="comp-stat-row-opt-0-charged_dmg_"')
+    expect(diffHtml).toContain('>Charged DMG Bonus<')
+    expect(diffHtml).toContain(
+      'data-testid="comp-stat-row-opt-0-plunging_dmg_"'
+    )
+    expect(diffHtml).toContain('>Plunging DMG Bonus<')
+
+    expect(diffHtml).toContain('data-testid="comp-stat-row-opt-0-skill_dmg_"')
+    expect(diffHtml).toContain('>Skill DMG Bonus<')
+    expect(diffHtml).toContain(
+      'class="comp-stat-num comp-stat-diff-delta muted" data-testid="comp-stat-diff-opt-0-skill_dmg_" data-diff-sign="-" data-diff-ascii="-15.0%">−15.0%<'
+    )
+
+    // Zero entries are omitted
+    expect(diffHtml).not.toContain('data-testid="comp-stat-row-opt-0-pyro_dmg_"')
+    expect(diffHtml).not.toContain(
+      'data-testid="comp-stat-row-opt-0-electro_dmg_"'
+    )
+    expect(diffHtml).not.toContain(
+      'data-testid="comp-stat-row-opt-0-burst_dmg_"'
+    )
+
+    // 2. Plain mode (Current build expanded)
+    const plainHtml = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        initialExpandedRowId="current"
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: {
+            total: 350000,
+            stats: currentStats,
+            instances: [],
+          },
+        }}
+        optimizedBuilds={[]}
+      />
+    )
+    expect(plainHtml).toContain('data-testid="comp-additional-bonuses-current"')
+    expect(plainHtml).toContain(
+      'data-testid="comp-stat-value-current-hydro_dmg_"><strong>46.6%</strong><'
+    )
+    expect(plainHtml).toContain(
+      'data-testid="comp-stat-value-current-skill_dmg_"><strong>70.0%</strong><'
+    )
+    expect(plainHtml).not.toContain(
+      'data-testid="comp-stat-row-current-normal_dmg_"'
+    )
+
+    // 3. When all extended bonuses are zero, the Additional Bonuses group is omitted
+    const zeroBonusesHtml = renderToStaticMarkup(
+      <BuildComparisonList
+        preset={preset}
+        artifactById={new Map()}
+        initialExpandedRowId="current"
+        currentBuild={{
+          selection: { weaponId: 'w1', artifactIds: {} },
+          evaluation: {
+            total: 350000,
+            stats: {
+              hp: 38000,
+              atk: 1200,
+              def: 850,
+              eleMas: 40,
+              enerRech_: 1.6,
+              critRate_: 0.8,
+              critDMG_: 1.9,
+            },
+            instances: [],
+          },
+        }}
+        optimizedBuilds={[]}
+      />
+    )
+    expect(zeroBonusesHtml).not.toContain(
+      'data-testid="comp-additional-bonuses-current"'
+    )
+  })
 })

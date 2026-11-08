@@ -104,6 +104,41 @@ export const CORE_STAT_DIFF_LABELS: Record<CoreResultStatKey, string> = {
   critDMG_: 'CD',
 }
 
+export const EXTENDED_BONUS_STAT_KEYS = [
+  'pyro_dmg_',
+  'hydro_dmg_',
+  'electro_dmg_',
+  'cryo_dmg_',
+  'anemo_dmg_',
+  'geo_dmg_',
+  'dendro_dmg_',
+  'physical_dmg_',
+  'normal_dmg_',
+  'charged_dmg_',
+  'plunging_dmg_',
+  'skill_dmg_',
+  'burst_dmg_',
+] as const
+
+export type ExtendedBonusStatKey = (typeof EXTENDED_BONUS_STAT_KEYS)[number]
+
+export const EXTENDED_BONUS_STAT_LABELS: Record<ExtendedBonusStatKey, string> =
+  {
+    pyro_dmg_: 'Pyro DMG Bonus',
+    hydro_dmg_: 'Hydro DMG Bonus',
+    electro_dmg_: 'Electro DMG Bonus',
+    cryo_dmg_: 'Cryo DMG Bonus',
+    anemo_dmg_: 'Anemo DMG Bonus',
+    geo_dmg_: 'Geo DMG Bonus',
+    dendro_dmg_: 'Dendro DMG Bonus',
+    physical_dmg_: 'Physical DMG Bonus',
+    normal_dmg_: 'Normal DMG Bonus',
+    charged_dmg_: 'Charged DMG Bonus',
+    plunging_dmg_: 'Plunging DMG Bonus',
+    skill_dmg_: 'Skill DMG Bonus',
+    burst_dmg_: 'Burst DMG Bonus',
+  }
+
 export interface CoreStatComparisonFormatted {
   currentText: string | null
   buildText: string
@@ -116,7 +151,7 @@ export interface CoreStatComparisonFormatted {
 }
 
 export function formatCoreStatComparison(
-  statKey: CoreResultStatKey,
+  statKey: CoreResultStatKey | ExtendedBonusStatKey | string,
   buildRaw: number,
   currentRaw?: number
 ): CoreStatComparisonFormatted {
@@ -1110,6 +1145,103 @@ function BuildStatComparisonSection({
   const showDiff = Boolean(baselineStats && !isCurrentBuild)
   const colSpan = showDiff ? 5 : 2
 
+  const nonZeroBonusKeys = EXTENDED_BONUS_STAT_KEYS.filter(
+    (statKey) => Math.abs(stats[statKey] ?? 0) > 1e-6
+  )
+
+  function renderStatRow(statKey: string, label: string) {
+    const buildRaw = stats[statKey] ?? 0
+    const currentRaw = showDiff ? (baselineStats?.[statKey] ?? 0) : undefined
+    const formatted = formatCoreStatComparison(statKey, buildRaw, currentRaw)
+    const sb = statBreakdowns?.[statKey]
+    const isStatExpanded = expandedStatKey === `${rowKey}:${statKey}`
+
+    return (
+      <Fragment key={statKey}>
+        <tr
+          data-testid={`comp-stat-row-${rowKey}-${statKey}`}
+          data-stat-key={statKey}
+          aria-expanded={sb ? isStatExpanded : undefined}
+          className={sb ? 'comp-expandable-tr' : undefined}
+          onClick={
+            sb && onToggleStatKey
+              ? () => onToggleStatKey(`${rowKey}:${statKey}`)
+              : undefined
+          }
+        >
+          <td className="comp-stat-col-label">
+            <span className="comp-stat-label-cell">
+              {sb && (
+                <span
+                  className={`comp-row-chevron${
+                    isStatExpanded ? ' is-expanded' : ''
+                  }`}
+                  data-testid={`comp-stat-toggle-${rowKey}-${statKey}`}
+                  aria-hidden="true"
+                >
+                  ▸
+                </span>
+              )}
+              <StatIcon statKey={statKey} iconProps={{ size: 13 }} />
+              <strong>{label}</strong>
+            </span>
+          </td>
+          {showDiff ? (
+            <>
+              <td
+                className="comp-stat-num muted"
+                data-testid={`comp-stat-current-${rowKey}-${statKey}`}
+              >
+                {formatted.currentText}
+              </td>
+              <td className="comp-stat-arrow muted" aria-hidden="true">
+                →
+              </td>
+              <td
+                className="comp-stat-num"
+                data-testid={`comp-stat-value-${rowKey}-${statKey}`}
+              >
+                <strong>{formatted.buildText}</strong>
+              </td>
+              <td
+                className={`comp-stat-num comp-stat-diff-delta ${formatted.cls}`}
+                data-testid={`comp-stat-diff-${rowKey}-${statKey}`}
+                data-diff-sign={formatted.sign ?? '0'}
+                data-diff-ascii={formatted.asciiDiffText ?? ''}
+                data-raw-diff={formatted.rawDiffText ?? undefined}
+                data-raw-diff-ascii={formatted.asciiRawDiffText ?? undefined}
+                title={formatted.rawDiffText ?? undefined}
+              >
+                {formatted.diffText}
+              </td>
+            </>
+          ) : (
+            <td
+              className="comp-stat-num"
+              data-testid={`comp-stat-value-${rowKey}-${statKey}`}
+            >
+              <strong>{formatted.buildText}</strong>
+            </td>
+          )}
+        </tr>
+        {isStatExpanded && sb && (
+          <tr
+            className="comp-breakdown-tr"
+            data-testid={`comp-stat-breakdown-row-${rowKey}-${statKey}`}
+          >
+            <td colSpan={colSpan}>
+              <StatBreakdownView
+                breakdown={sb}
+                rowKey={rowKey}
+                statKey={statKey}
+              />
+            </td>
+          </tr>
+        )}
+      </Fragment>
+    )
+  }
+
   return (
     <div
       className="comp-stat-comparison"
@@ -1155,111 +1287,33 @@ function BuildStatComparisonSection({
             </tr>
           </thead>
           <tbody>
-            {CORE_RESULT_STAT_KEYS.map((statKey) => {
-              const buildRaw = stats[statKey] ?? 0
-              const currentRaw = showDiff
-                ? (baselineStats?.[statKey] ?? 0)
-                : undefined
-              const formatted = formatCoreStatComparison(
-                statKey,
-                buildRaw,
-                currentRaw
-              )
-              const label = CORE_STAT_DIFF_LABELS[statKey]
-              const sb = statBreakdowns?.[statKey]
-              const isStatExpanded = expandedStatKey === `${rowKey}:${statKey}`
-
-              return (
-                <Fragment key={statKey}>
-                  <tr
-                    data-testid={`comp-stat-row-${rowKey}-${statKey}`}
-                    data-stat-key={statKey}
-                    aria-expanded={sb ? isStatExpanded : undefined}
-                    className={sb ? 'comp-expandable-tr' : undefined}
-                    onClick={
-                      sb && onToggleStatKey
-                        ? () => onToggleStatKey(`${rowKey}:${statKey}`)
-                        : undefined
-                    }
-                  >
-                    <td className="comp-stat-col-label">
-                      <span className="comp-stat-label-cell">
-                        {sb && (
-                          <span
-                            className={`comp-row-chevron${
-                              isStatExpanded ? ' is-expanded' : ''
-                            }`}
-                            data-testid={`comp-stat-toggle-${rowKey}-${statKey}`}
-                            aria-hidden="true"
-                          >
-                            ▸
-                          </span>
-                        )}
-                        <StatIcon statKey={statKey} iconProps={{ size: 13 }} />
-                        <strong>{label}</strong>
-                      </span>
-                    </td>
-                    {showDiff ? (
-                      <>
-                        <td
-                          className="comp-stat-num muted"
-                          data-testid={`comp-stat-current-${rowKey}-${statKey}`}
-                        >
-                          {formatted.currentText}
-                        </td>
-                        <td
-                          className="comp-stat-arrow muted"
-                          aria-hidden="true"
-                        >
-                          →
-                        </td>
-                        <td
-                          className="comp-stat-num"
-                          data-testid={`comp-stat-value-${rowKey}-${statKey}`}
-                        >
-                          <strong>{formatted.buildText}</strong>
-                        </td>
-                        <td
-                          className={`comp-stat-num comp-stat-diff-delta ${formatted.cls}`}
-                          data-testid={`comp-stat-diff-${rowKey}-${statKey}`}
-                          data-diff-sign={formatted.sign ?? '0'}
-                          data-diff-ascii={formatted.asciiDiffText ?? ''}
-                          data-raw-diff={formatted.rawDiffText ?? undefined}
-                          data-raw-diff-ascii={
-                            formatted.asciiRawDiffText ?? undefined
-                          }
-                          title={formatted.rawDiffText ?? undefined}
-                        >
-                          {formatted.diffText}
-                        </td>
-                      </>
-                    ) : (
-                      <td
-                        className="comp-stat-num"
-                        data-testid={`comp-stat-value-${rowKey}-${statKey}`}
-                      >
-                        <strong>{formatted.buildText}</strong>
-                      </td>
-                    )}
-                  </tr>
-                  {isStatExpanded && sb && (
-                    <tr
-                      className="comp-breakdown-tr"
-                      data-testid={`comp-stat-breakdown-row-${rowKey}-${statKey}`}
-                    >
-                      <td colSpan={colSpan}>
-                        <StatBreakdownView
-                          breakdown={sb}
-                          rowKey={rowKey}
-                          statKey={statKey}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              )
-            })}
+            {CORE_RESULT_STAT_KEYS.map((statKey) =>
+              renderStatRow(statKey, CORE_STAT_DIFF_LABELS[statKey])
+            )}
           </tbody>
+          {nonZeroBonusKeys.length > 0 && (
+            <tbody
+              className="comp-stat-bonus-group"
+              data-testid={`comp-additional-bonuses-${rowKey}`}
+              aria-label="Additional Bonuses"
+            >
+              <tr
+                className="comp-stat-group-header-row"
+                data-testid={`comp-additional-bonuses-header-${rowKey}`}
+              >
+                <th
+                  colSpan={colSpan}
+                  scope="colgroup"
+                  className="comp-stat-group-header"
+                >
+                  Additional Bonuses
+                </th>
+              </tr>
+              {nonZeroBonusKeys.map((statKey) =>
+                renderStatRow(statKey, EXTENDED_BONUS_STAT_LABELS[statKey])
+              )}
+            </tbody>
+          )}
         </table>
       </div>
     </div>

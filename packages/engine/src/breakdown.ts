@@ -363,6 +363,11 @@ const STAT_BREAKDOWN_KEYS = [
   'critDMG_',
   'heal_',
   ...allElementWithPhyKeys.map((ele) => `${ele}_dmg_` as const),
+  'normal_dmg_',
+  'charged_dmg_',
+  'plunging_dmg_',
+  'skill_dmg_',
+  'burst_dmg_',
 ] as const
 
 export function extractStatBreakdowns(

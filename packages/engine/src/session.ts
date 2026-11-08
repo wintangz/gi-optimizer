@@ -1643,6 +1643,16 @@ export function createSession(good: unknown): EngineSession {
         const k = `${ele}_dmg_` as const
         stats[k] = targetUiData.get(input.total[k]).value
       }
+      for (const move of [
+        'normal',
+        'charged',
+        'plunging',
+        'skill',
+        'burst',
+      ] as const) {
+        const k = `${move}_dmg_` as const
+        stats[k] = targetUiData.get(input.total[k]).value
+      }
 
       const statBreakdowns = extractStatBreakdowns(
         targetUiData,

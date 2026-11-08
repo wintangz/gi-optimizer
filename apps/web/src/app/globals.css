@@ -1284,6 +1284,17 @@ td {
   font-weight: 600;
 }
 
+.comp-stat-diff-table th.comp-stat-group-header {
+  text-align: left;
+  font-size: var(--font-section);
+  font-weight: 700;
+  color: var(--text-section);
+  background: var(--surface-inset);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0.36rem 0.65rem;
+}
+
 .preset-rotation-summary {
   background: var(--surface-card);
   border: 1px solid var(--border);

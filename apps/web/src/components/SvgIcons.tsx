@@ -484,6 +484,11 @@ export function hasStatIcon(statKey: string): boolean {
     case 'cdRed_':
     case 'shield_':
     case 'stamina':
+    case 'normal_dmg_':
+    case 'charged_dmg_':
+    case 'plunging_dmg_':
+    case 'skill_dmg_':
+    case 'burst_dmg_':
       return true
   }
   return resolveStatElement(statKey) !== null
@@ -504,6 +509,11 @@ export function StatIcon({
     case 'atk':
     case 'atk_':
     case 'base_atk':
+    case 'normal_dmg_':
+    case 'charged_dmg_':
+    case 'plunging_dmg_':
+    case 'skill_dmg_':
+    case 'burst_dmg_':
       return <AtkIcon {...iconProps} />
     case 'def':
     case 'def_':
