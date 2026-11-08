@@ -1741,6 +1741,20 @@ export function createSession(good: unknown): EngineSession {
           critRate_: memberUi.get(input.total.critRate_).value,
           critDMG_: memberUi.get(input.total.critDMG_).value,
         }
+        for (const ele of allElementWithPhyKeys) {
+          const k = `${ele}_dmg_` as const
+          final[k] = memberUi.get(input.total[k]).value
+        }
+        for (const move of [
+          'normal',
+          'charged',
+          'plunging',
+          'skill',
+          'burst',
+        ] as const) {
+          const k = `${move}_dmg_` as const
+          final[k] = memberUi.get(input.total[k]).value
+        }
         memberStats[mKey] = { base, final }
       }
 

@@ -64,6 +64,7 @@ export interface StageMemberEditorConfig {
   }
   isSimulated: boolean
   isWeaponLocked: boolean
+  isCompareTargetWeapon?: boolean
   effectiveWeaponSpec: SimulatedWeaponSpec
   isOverridden: boolean
   memberStats?: MemberStatSummary
@@ -1199,77 +1200,100 @@ export function ConditionalTogglePanel({
                 <div className="gi-buffs-member-identity">
                   {activeStageMember ? (
                     <div className="preset-team-member-card-weapon">
-                      <button
-                        type="button"
-                        className={`preset-member-weapon-btn${
-                          activeStageMember.isOverridden ? ' is-overridden' : ''
-                        }${activeStageMember.isWeaponLocked ? ' is-locked' : ''}`}
-                        data-testid={`member-weapon-trigger-${activeEntry.mKey}`}
-                        data-character-key={activeEntry.mKey}
-                        data-weapon-key={
-                          activeStageMember.effectiveWeaponSpec.key
-                        }
-                        data-weapon-overridden={
-                          activeStageMember.isOverridden ? 'true' : 'false'
-                        }
-                        data-weapon-locked={
-                          activeStageMember.isWeaponLocked ? 'true' : 'false'
-                        }
-                        disabled={activeStageMember.isWeaponLocked}
-                        aria-label={
-                          activeStageMember.isWeaponLocked
-                            ? `${displayName(activeEntry.mKey)} weapon fixed by Akasha case: ${displayName(activeStageMember.effectiveWeaponSpec.key)}`
-                            : `Change weapon for ${displayName(activeEntry.mKey)} (currently ${displayName(activeStageMember.effectiveWeaponSpec.key)} R${activeStageMember.effectiveWeaponSpec.refinement})`
-                        }
-                        title={
-                          activeStageMember.isWeaponLocked
-                            ? 'Teammate weapon is fixed by the Akasha leaderboard case'
-                            : `Click to choose weapon and refinement for ${displayName(activeEntry.mKey)}`
-                        }
-                        onClick={() => {
-                          if (!activeStageMember.isWeaponLocked) {
-                            activeStageMember.onOpenWeaponModal()
-                          }
-                        }}
-                      >
-                        <WeaponBadge
-                          weaponKey={activeStageMember.effectiveWeaponSpec.key}
-                          subtitle={`R${activeStageMember.effectiveWeaponSpec.refinement} · Lv.${activeStageMember.effectiveWeaponSpec.level ?? 90}`}
-                          compact
-                          uniformRow
-                        />
-                      </button>
-
-                      <span
-                        className="sr-only"
-                        data-testid={
-                          activeEntry.isTarget
-                            ? 'target-weapon-mode-status'
-                            : `member-weapon-status-${activeEntry.mKey}`
-                        }
-                      >
-                        {activeStageMember.isOverridden
-                          ? `Override: ${displayName(activeStageMember.effectiveWeaponSpec.key)} R${activeStageMember.effectiveWeaponSpec.refinement}`
-                          : '✓ Default Weapon'}
-                      </span>
-
-                      {activeStageMember.isOverridden &&
-                        !activeStageMember.isWeaponLocked && (
+                      {activeStageMember.isCompareTargetWeapon ? (
+                        <span
+                          className="preset-member-weapon-compare-note"
+                          data-testid={`target-weapon-compare-note-${activeEntry.mKey}`}
+                        >
+                          <WeaponTypeIcon
+                            weaponType={activeEntry.charMeta.weaponType}
+                            iconProps={{ size: 14 }}
+                          />
+                          <span>
+                            Weapons configured per candidate in Stage 2
+                          </span>
+                        </span>
+                      ) : (
+                        <>
                           <button
                             type="button"
-                            className="btn-secondary preset-weapon-reset-btn"
+                            className={`preset-member-weapon-btn${
+                              activeStageMember.isOverridden
+                                ? ' is-overridden'
+                                : ''
+                            }${activeStageMember.isWeaponLocked ? ' is-locked' : ''}`}
+                            data-testid={`member-weapon-trigger-${activeEntry.mKey}`}
+                            data-character-key={activeEntry.mKey}
+                            data-weapon-key={
+                              activeStageMember.effectiveWeaponSpec.key
+                            }
+                            data-weapon-overridden={
+                              activeStageMember.isOverridden ? 'true' : 'false'
+                            }
+                            data-weapon-locked={
+                              activeStageMember.isWeaponLocked
+                                ? 'true'
+                                : 'false'
+                            }
+                            disabled={activeStageMember.isWeaponLocked}
+                            aria-label={
+                              activeStageMember.isWeaponLocked
+                                ? `${displayName(activeEntry.mKey)} weapon fixed by Akasha case: ${displayName(activeStageMember.effectiveWeaponSpec.key)}`
+                                : `Change weapon for ${displayName(activeEntry.mKey)} (currently ${displayName(activeStageMember.effectiveWeaponSpec.key)} R${activeStageMember.effectiveWeaponSpec.refinement})`
+                            }
+                            title={
+                              activeStageMember.isWeaponLocked
+                                ? 'Teammate weapon is fixed by the Akasha leaderboard case'
+                                : `Click to choose weapon and refinement for ${displayName(activeEntry.mKey)}`
+                            }
+                            onClick={() => {
+                              if (!activeStageMember.isWeaponLocked) {
+                                activeStageMember.onOpenWeaponModal()
+                              }
+                            }}
+                          >
+                            <WeaponBadge
+                              weaponKey={
+                                activeStageMember.effectiveWeaponSpec.key
+                              }
+                              subtitle={`R${activeStageMember.effectiveWeaponSpec.refinement} · Lv.${activeStageMember.effectiveWeaponSpec.level ?? 90}`}
+                              compact
+                              uniformRow
+                            />
+                          </button>
+
+                          <span
+                            className="sr-only"
                             data-testid={
                               activeEntry.isTarget
-                                ? 'reset-target-weapon-btn'
-                                : `reset-member-weapon-btn-${activeEntry.mKey}`
+                                ? 'target-weapon-mode-status'
+                                : `member-weapon-status-${activeEntry.mKey}`
                             }
-                            aria-label={`Reset ${displayName(activeEntry.mKey)} weapon to default`}
-                            title="Reset weapon to default"
-                            onClick={activeStageMember.onResetWeapon}
                           >
-                            Reset
-                          </button>
-                        )}
+                            {activeStageMember.isOverridden
+                              ? `Override: ${displayName(activeStageMember.effectiveWeaponSpec.key)} R${activeStageMember.effectiveWeaponSpec.refinement}`
+                              : '✓ Default Weapon'}
+                          </span>
+
+                          {activeStageMember.isOverridden &&
+                            !activeStageMember.isWeaponLocked && (
+                              <button
+                                type="button"
+                                className="btn-secondary preset-weapon-reset-btn"
+                                data-testid={
+                                  activeEntry.isTarget
+                                    ? 'reset-target-weapon-btn'
+                                    : `reset-member-weapon-btn-${activeEntry.mKey}`
+                                }
+                                aria-label={`Reset ${displayName(activeEntry.mKey)} weapon to default`}
+                                title="Reset weapon to default"
+                                onClick={activeStageMember.onResetWeapon}
+                              >
+                                Reset
+                              </button>
+                            )}
+                        </>
+                      )}
                     </div>
                   ) : (
                     activeEntry.memberWeaponKey && (
@@ -1415,7 +1439,11 @@ export function ConditionalTogglePanel({
               <div className="gi-buffs-groups">
             {/* 1. WEAPON GROUP */}
             <div
-              className="gi-buffs-group"
+              className={`gi-buffs-group${
+                activeEntry.weaponConditionals.length === 0
+                  ? ' is-empty-group'
+                  : ''
+              }`}
               data-testid={`buff-group-weapon-${activeEntry.mKey}`}
             >
               <div className="gi-buffs-group-header">
@@ -1426,11 +1454,12 @@ export function ConditionalTogglePanel({
                   />
                   <span>Weapon Passive</span>
                 </span>
-                {activeEntry.memberWeaponKey && (
-                  <span className="muted" style={{ fontSize: '0.82rem' }}>
-                    {displayName(activeEntry.memberWeaponKey)}
-                  </span>
-                )}
+                {activeEntry.memberWeaponKey &&
+                  activeEntry.weaponConditionals.length > 0 && (
+                    <span className="muted" style={{ fontSize: '0.82rem' }}>
+                      {displayName(activeEntry.memberWeaponKey)}
+                    </span>
+                  )}
               </div>
               {activeEntry.weaponConditionals.length > 0 ? (
                 <div
@@ -1463,7 +1492,11 @@ export function ConditionalTogglePanel({
 
             {/* 2. ARTIFACT SET GROUP */}
             <div
-              className="gi-buffs-group"
+              className={`gi-buffs-group${
+                activeEntry.visibleArtifactConditionals.length === 0
+                  ? ' is-empty-group'
+                  : ''
+              }`}
               data-testid={`buff-group-artifact-${activeEntry.mKey}`}
             >
               <div className="gi-buffs-group-header">
@@ -1504,7 +1537,11 @@ export function ConditionalTogglePanel({
 
             {/* 3. CHARACTER PASSIVES & TALENTS GROUP */}
             <div
-              className="gi-buffs-group"
+              className={`gi-buffs-group${
+                activeEntry.characterConditionals.length === 0
+                  ? ' is-empty-group'
+                  : ''
+              }`}
               data-testid={`buff-group-character-${activeEntry.mKey}`}
             >
               <div className="gi-buffs-group-header">
@@ -1545,7 +1582,11 @@ export function ConditionalTogglePanel({
 
             {/* 4. CONSTELLATION EFFECTS GROUP */}
             <div
-              className="gi-buffs-group"
+              className={`gi-buffs-group${
+                activeEntry.constellationConditionals.length === 0
+                  ? ' is-empty-group'
+                  : ''
+              }`}
               data-testid={`buff-group-constellation-${activeEntry.mKey}`}
             >
               <div className="gi-buffs-group-header">

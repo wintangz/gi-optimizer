@@ -792,11 +792,39 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(
       findByTestId(compareTree, 'fast-mode-expander-toggle-KaedeharaKazuha')
     ).toBeDefined()
-    expect(findByTestId(compareTree, 'top-n-builds-select')).toBeUndefined()
-    expect(findByTestId(compareTree, 'run-weapon-compare-btn')).toBeDefined()
+    // Teammate weapon row remains interactive in Compare mode
+    expect(
+      findByTestId(compareTree, 'member-weapon-trigger-KaedeharaKazuha')
+    ).toBeDefined()
+    expect(
+      findByTestId(compareTree, 'target-weapon-compare-note-KaedeharaKazuha')
+    ).toBeUndefined()
+    // Switch to Target tab (Furina) in Compare mode: Stage 3 weapon row shows static note instead of trigger
+    ;(
+      findByTestId(compareTree, 'member-buffs-tab-Furina')!.props
+        .onClick as () => void
+    )()
+    const compareTargetTree = renderPass()
+    expect(
+      findByTestId(compareTargetTree, 'member-weapon-trigger-Furina')
+    ).toBeUndefined()
+    expect(
+      findByTestId(compareTargetTree, 'target-weapon-compare-note-Furina')
+    ).toBeDefined()
+    // Switch back to Kazuha tab for subsequent checks
+    ;(
+      findByTestId(compareTargetTree, 'member-buffs-tab-KaedeharaKazuha')!.props
+        .onClick as () => void
+    )()
+    const compareKazuhaTree = renderPass()
+    expect(findByTestId(compareKazuhaTree, 'top-n-builds-select')).toBeUndefined()
+    expect(findByTestId(compareKazuhaTree, 'run-weapon-compare-btn')).toBeDefined()
+    expect(
+      findByTestId(compareKazuhaTree, 'optimize-lower-deck')?.props.className
+    ).toContain('is-results-empty')
 
     // Switch to 'team' mode: Fast Mode expanders and WeaponComparisonPanel hide, Optimize Team button renders
-    const teamBtn = findByTestId(compareTree, 'optimize-mode-team')!
+    const teamBtn = findByTestId(compareKazuhaTree, 'optimize-mode-team')!
     ;(teamBtn.props.onClick as () => void)()
     const teamTree = renderPass()
     expect(findByTestId(teamTree, 'weapon-compare-panel')).toBeUndefined()

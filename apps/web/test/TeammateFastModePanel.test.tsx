@@ -34,6 +34,7 @@ vi.mock('react', async (importOriginal) => {
 })
 
 import {
+  MemberCompactStatGrid,
   TeammateFastModePanel,
   formatFastModeLine,
   formatTeammateStatValue,
@@ -242,6 +243,57 @@ describe('TeammateFastModePanel & Fast Mode UI (fast-mode)', () => {
         findByTestId(tree, 'teammate-stat-final-KaedeharaKazuha-enerRech_')!,
       ])
     ).toBe('160.0%')
+  })
+
+  it('renders final-value DMG bonus lines under the core stat grid with own element first and other non-zero bonuses after', () => {
+    const kazuhaStats = {
+      base: sampleMemberStats.KaedeharaKazuha.base,
+      final: {
+        ...sampleMemberStats.KaedeharaKazuha.final,
+        pyro_dmg_: 0.394,
+        hydro_dmg_: 0.394,
+        anemo_dmg_: 0.15,
+        plunging_dmg_: 0.2,
+        cryo_dmg_: 0,
+      },
+    }
+    const gridTree = evaluateTree(
+      <MemberCompactStatGrid
+        characterKey="KaedeharaKazuha"
+        memberStats={kazuhaStats}
+      />
+    )
+    const bonusContainer = findByTestId(
+      gridTree,
+      'teammate-dmg-bonuses-KaedeharaKazuha'
+    )!
+    expect(bonusContainer).toBeDefined()
+    const bonusKeys = bonusContainer.children
+      .filter((c): c is VNode => typeof c !== 'string')
+      .map((c) => c.props['data-stat-key'])
+    // Kazuha's own element (anemo_dmg_) is first, followed by other non-zero bonuses in EXTENDED_BONUS_STAT_KEYS order
+    expect(bonusKeys).toEqual([
+      'anemo_dmg_',
+      'pyro_dmg_',
+      'hydro_dmg_',
+      'plunging_dmg_',
+    ])
+    expect(
+      collectText([
+        findByTestId(
+          gridTree,
+          'teammate-stat-final-KaedeharaKazuha-anemo_dmg_'
+        )!,
+      ])
+    ).toBe('15.0%')
+    expect(
+      collectText([
+        findByTestId(
+          gridTree,
+          'teammate-stat-final-KaedeharaKazuha-pyro_dmg_'
+        )!,
+      ])
+    ).toBe('39.4%')
   })
 
   it('supports typing positive and negative Fast Mode stat lines, shows Fast Mode badge & typed pills, and resets per member on bundled presets', () => {

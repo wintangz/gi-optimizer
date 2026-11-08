@@ -1821,6 +1821,8 @@ function OptimizeInner() {
                   resolved: card.resolved,
                   isSimulated: card.isSimulated,
                   isWeaponLocked: card.isWeaponLocked,
+                  isCompareTargetWeapon:
+                    card.isTarget && optimizeMode === 'compare',
                   effectiveWeaponSpec: card.effectiveWeaponSpec,
                   isOverridden: card.isOverridden,
                   memberStats: teamMemberStats[card.key],
@@ -2034,6 +2036,16 @@ function OptimizeInner() {
       <div
         className={`gi-optimize-lower-deck${
           isSetsProtectedOpen ? ' is-stage4-expanded' : ''
+        }${
+          (
+            optimizeMode === 'compare'
+              ? !compareResult
+              : optimizeMode === 'team'
+                ? !teamResult
+                : !hasAnyResults
+          )
+            ? ' is-results-empty'
+            : ''
         }`}
         data-testid="optimize-lower-deck"
       >
@@ -2250,7 +2262,17 @@ function OptimizeInner() {
       {/* STAGE 5: RUN & RESULTS */}
       <section
         id="stage-results"
-        className="panel gi-card"
+        className={`panel gi-card${
+          (
+            optimizeMode === 'compare'
+              ? !compareResult
+              : optimizeMode === 'team'
+                ? !teamResult
+                : !hasAnyResults
+          )
+            ? ' is-results-empty'
+            : ''
+        }`}
         data-testid="results-card"
         data-stage="run-results"
         aria-label="Run & Results"

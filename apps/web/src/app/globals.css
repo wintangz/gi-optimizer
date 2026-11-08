@@ -177,10 +177,6 @@ a {
   flex: 1;
 }
 
-.container:has(.gi-optimize-page) {
-  max-width: 1380px;
-}
-
 .gi-footer {
   border-top: 1px solid var(--border);
   background: var(--surface-panel);
@@ -2724,6 +2720,37 @@ td {
   padding: 0.15rem 0;
 }
 
+.gi-buffs-group.is-empty-group,
+.gi-buffs-group:has(> .gi-buffs-empty) {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  width: fit-content;
+  max-width: 100%;
+  align-self: flex-start;
+  padding: 0.26rem 0.65rem;
+  background: var(--surface-inset);
+  border: 1px dashed var(--border-subtle);
+}
+
+.gi-buffs-group.is-empty-group > .gi-buffs-empty,
+.gi-buffs-group:has(> .gi-buffs-empty) > .gi-buffs-empty {
+  padding: 0;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  color: var(--text-muted);
+}
+
+.gi-buffs-group.is-empty-group > .gi-buffs-empty::before,
+.gi-buffs-group:has(> .gi-buffs-empty) > .gi-buffs-empty::before {
+  content: "·";
+  margin-right: 0.45rem;
+  color: var(--border-strong);
+}
+
 .gi-buff-row,
 .gi-buff-cell {
   display: flex;
@@ -3761,6 +3788,54 @@ td {
   color: var(--text-section);
 }
 
+.preset-member-dmg-bonuses {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  padding-top: 0.35rem;
+  margin-top: 0.15rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.preset-member-dmg-bonus-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.preset-member-dmg-bonus-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.26rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.preset-member-dmg-bonus-val {
+  color: var(--text-title);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.preset-member-weapon-compare-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.35rem 0.68rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  border: 1px dashed var(--border);
+  color: var(--text-section);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
 /* In-card Fast Mode Show/Hide Expander */
 .preset-member-fastmode-section {
   display: flex;
@@ -4105,21 +4180,28 @@ td {
 }
 
 @media (min-width: 960px) {
-  .gi-optimize-setup-deck:not(.is-compare-mode) > [data-testid="mode-selection-card"] {
-    flex-direction: row;
+  .gi-optimize-setup-deck > [data-testid="mode-selection-card"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 540px;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
+    column-gap: var(--space-4);
+    row-gap: var(--stage-panel-gap);
   }
 
-  .gi-optimize-setup-deck:not(.is-compare-mode) > [data-testid="mode-selection-card"] > .gi-card-header {
+  .gi-optimize-setup-deck > [data-testid="mode-selection-card"] > .gi-card-header {
+    grid-column: 1;
     padding-bottom: 0;
     border-bottom: none;
-    flex: 1 1 280px;
   }
 
-  .gi-optimize-setup-deck:not(.is-compare-mode) > [data-testid="mode-selection-card"] > .weapon-compare-mode-bar {
-    flex: 0 1 540px;
+  .gi-optimize-setup-deck > [data-testid="mode-selection-card"] > .weapon-compare-mode-bar {
+    grid-column: 2;
+    width: 540px;
+    max-width: 100%;
+  }
+
+  .gi-optimize-setup-deck > [data-testid="mode-selection-card"] > .weapon-compare-panel {
+    grid-column: 1 / -1;
   }
 }
 
@@ -4132,7 +4214,25 @@ td {
 
 @media (min-width: 1120px) {
   .gi-optimize-lower-deck:not(.is-stage4-expanded) {
-    grid-template-columns: minmax(350px, 0.78fr) minmax(0, 1.42fr);
+    grid-template-columns: minmax(320px, 0.78fr) minmax(0, 1.42fr);
+  }
+
+  .gi-optimize-lower-deck.is-results-empty:not(.is-stage4-expanded) {
+    align-items: stretch;
+  }
+
+  .gi-optimize-lower-deck.is-results-empty:not(.is-stage4-expanded) > [data-testid="results-card"] {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .gi-optimize-lower-deck.is-results-empty:not(.is-stage4-expanded) > [data-testid="results-card"] > .gi-empty-card {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
   }
 
   .gi-optimize-lower-deck:not(.is-stage4-expanded) > [data-testid="artifact-settings-card"] {
@@ -4141,7 +4241,147 @@ td {
   }
 
   .gi-optimize-lower-deck:not(.is-stage4-expanded) .comp-details-pieces {
-    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .comp-stat-comparison > .gi-table-wrap {
+    border: none;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > thead {
+    display: none;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-auto-flow: row dense;
+    gap: 0.48rem;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr[data-stat-key] {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    grid-template-areas:
+      "label label label diff"
+      "curr  arrow val   val";
+    align-items: center;
+    gap: 0.2rem 0.32rem;
+    padding: 0.45rem 0.62rem;
+    border-radius: var(--radius-sm);
+    background: var(--surface-inset);
+    border: 1px solid var(--border-subtle);
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+
+  .comp-stat-comparison[data-mode="plain"] .comp-stat-diff-table > tbody > tr[data-stat-key] {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "label val";
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr[data-stat-key].comp-expandable-tr:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr[data-stat-key][aria-expanded="true"] {
+    border-color: var(--accent-border);
+    background: var(--surface-card);
+    box-shadow: inset 0 0 0 1px var(--accent-border);
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr[data-stat-key] > td {
+    padding: 0;
+    border: none;
+    width: auto;
+    min-width: 0;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr[data-stat-key] > td.comp-stat-col-label {
+    grid-area: label;
+    width: auto;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0.84rem;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr[data-stat-key] > td.comp-stat-col-label .comp-stat-label-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr[data-stat-key] > td.comp-stat-col-label .comp-stat-label-cell strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr[data-stat-key] > td[data-testid^="comp-stat-current-"] {
+    grid-area: curr;
+    text-align: left;
+    font-size: 0.84rem;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr[data-stat-key] > td.comp-stat-arrow {
+    grid-area: arrow;
+    width: auto;
+    padding: 0 0.1rem !important;
+    font-size: 0.82rem;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr[data-stat-key] > td[data-testid^="comp-stat-value-"] {
+    grid-area: val;
+    text-align: left;
+    font-size: 0.92rem;
+  }
+
+  .comp-stat-comparison[data-mode="plain"] .comp-stat-diff-table > tbody > tr[data-stat-key] > td[data-testid^="comp-stat-value-"] {
+    text-align: right;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr[data-stat-key] > td.comp-stat-diff-delta {
+    grid-area: diff;
+    justify-self: end;
+    text-align: right;
+    font-size: 0.82rem;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr.comp-breakdown-tr {
+    grid-column: 1 / -1;
+    display: block;
+    width: 100%;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr.comp-breakdown-tr > td {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: none;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr.comp-stat-group-header-row {
+    grid-column: 1 / -1;
+    display: block;
+    width: 100%;
+  }
+
+  .comp-stat-comparison .comp-stat-diff-table > tbody > tr.comp-stat-group-header-row > th.comp-stat-group-header {
+    display: block;
+    width: 100%;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--border-subtle);
   }
 }
 

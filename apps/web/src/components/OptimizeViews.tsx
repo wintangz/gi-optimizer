@@ -2879,7 +2879,11 @@ export function WeaponComparisonPanel({
                     <div className="gi-buffs-groups">
                       {/* 1. Candidate Weapon Passive */}
                       <div
-                        className="gi-buffs-group"
+                        className={`gi-buffs-group${
+                          candEffects.weaponConditionals.length === 0
+                            ? ' is-empty-group'
+                            : ''
+                        }`}
                         data-testid={`weapon-compare-effects-weapon-${cand.weaponKey}`}
                       >
                         <div className="gi-buffs-group-header">
@@ -2890,9 +2894,14 @@ export function WeaponComparisonPanel({
                             />
                             <span>Weapon Passive</span>
                           </span>
-                          <span className="muted" style={{ fontSize: 'var(--font-muted)' }}>
-                            {wMeta.displayName}
-                          </span>
+                          {candEffects.weaponConditionals.length > 0 && (
+                            <span
+                              className="muted"
+                              style={{ fontSize: 'var(--font-muted)' }}
+                            >
+                              {wMeta.displayName}
+                            </span>
+                          )}
                         </div>
                         {candEffects.weaponConditionals.length > 0 ? (
                           <div className="gi-buffs-rows gi-buffs-grid">
@@ -2921,7 +2930,11 @@ export function WeaponComparisonPanel({
 
                       {/* 2. Target Artifact Set Effects */}
                       <div
-                        className="gi-buffs-group"
+                        className={`gi-buffs-group${
+                          candEffects.visibleArtifactConditionals.length === 0
+                            ? ' is-empty-group'
+                            : ''
+                        }`}
                         data-testid={`weapon-compare-effects-artifact-${cand.weaponKey}`}
                       >
                         <div className="gi-buffs-group-header">
@@ -2959,7 +2972,11 @@ export function WeaponComparisonPanel({
 
                       {/* 3. Target Character Passives & Talents */}
                       <div
-                        className="gi-buffs-group"
+                        className={`gi-buffs-group${
+                          candEffects.characterConditionals.length === 0
+                            ? ' is-empty-group'
+                            : ''
+                        }`}
                         data-testid={`weapon-compare-effects-character-${cand.weaponKey}`}
                       >
                         <div className="gi-buffs-group-header">
@@ -2998,7 +3015,11 @@ export function WeaponComparisonPanel({
 
                       {/* 4. Target Constellation Effects */}
                       <div
-                        className="gi-buffs-group"
+                        className={`gi-buffs-group${
+                          candEffects.constellationConditionals.length === 0
+                            ? ' is-empty-group'
+                            : ''
+                        }`}
                         data-testid={`weapon-compare-effects-constellation-${cand.weaponKey}`}
                       >
                         <div className="gi-buffs-group-header">

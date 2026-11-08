@@ -1,11 +1,12 @@
 'use client'
 
 import { CharacterBadge } from '@/components/Identifier'
-import { ChevronIcon } from '@/components/SvgIcons'
+import { ChevronIcon, StatIcon } from '@/components/SvgIcons'
 import type { MemberStatSummary } from '@gi/engine'
 import {
   FAST_MODE_STAT_KEYS,
   displayName,
+  getCharacterMeta,
   hasMemberFastMode,
   resolvePresetMemberBuildMode,
   type FastModeStatKey,
@@ -15,6 +16,40 @@ import {
   type PresetFastModeMap,
 } from '@gi/presets'
 import { useEffect, useState } from 'react'
+
+export const MEMBER_BONUS_STAT_KEYS = [
+  'pyro_dmg_',
+  'hydro_dmg_',
+  'electro_dmg_',
+  'cryo_dmg_',
+  'anemo_dmg_',
+  'geo_dmg_',
+  'dendro_dmg_',
+  'physical_dmg_',
+  'normal_dmg_',
+  'charged_dmg_',
+  'plunging_dmg_',
+  'skill_dmg_',
+  'burst_dmg_',
+] as const
+
+export type MemberBonusStatKey = (typeof MEMBER_BONUS_STAT_KEYS)[number]
+
+export const MEMBER_BONUS_STAT_LABELS: Record<MemberBonusStatKey, string> = {
+  pyro_dmg_: 'Pyro DMG Bonus',
+  hydro_dmg_: 'Hydro DMG Bonus',
+  electro_dmg_: 'Electro DMG Bonus',
+  cryo_dmg_: 'Cryo DMG Bonus',
+  anemo_dmg_: 'Anemo DMG Bonus',
+  geo_dmg_: 'Geo DMG Bonus',
+  dendro_dmg_: 'Dendro DMG Bonus',
+  physical_dmg_: 'Physical DMG Bonus',
+  normal_dmg_: 'Normal DMG Bonus',
+  charged_dmg_: 'Charged DMG Bonus',
+  plunging_dmg_: 'Plunging DMG Bonus',
+  skill_dmg_: 'Skill DMG Bonus',
+  burst_dmg_: 'Burst DMG Bonus',
+}
 
 export const FAST_MODE_STAT_META: Record<
   FastModeStatKey,
@@ -412,6 +447,18 @@ export function MemberCompactStatGrid({
   memberStats,
   highlightFinal = false,
 }: MemberCompactStatGridProps) {
+  const charMeta = getCharacterMeta(characterKey)
+  const ownElementBonusKey = `${charMeta.element}_dmg_` as MemberBonusStatKey
+  const otherNonZeroBonusKeys = MEMBER_BONUS_STAT_KEYS.filter(
+    (statKey) =>
+      statKey !== ownElementBonusKey &&
+      Math.abs(memberStats?.final?.[statKey] ?? 0) > 1e-6
+  )
+  const bonusStatKeys: MemberBonusStatKey[] = [
+    ownElementBonusKey,
+    ...otherNonZeroBonusKeys,
+  ]
+
   return (
     <div
       className="preset-member-stats-grid"
@@ -452,6 +499,35 @@ export function MemberCompactStatGrid({
           </strong>
         </div>
       ))}
+
+      <div
+        className="preset-member-dmg-bonuses"
+        data-testid={`teammate-dmg-bonuses-${characterKey}`}
+      >
+        {bonusStatKeys.map((bonusKey) => (
+          <div
+            key={bonusKey}
+            className="preset-member-dmg-bonus-item"
+            data-testid={`teammate-stat-bonus-${characterKey}-${bonusKey}`}
+            data-stat-key={bonusKey}
+          >
+            <span className="preset-member-dmg-bonus-label">
+              <StatIcon statKey={bonusKey} iconProps={{ size: 12 }} />
+              <span>{MEMBER_BONUS_STAT_LABELS[bonusKey]}</span>
+            </span>
+            <strong
+              className={`preset-member-dmg-bonus-val${highlightFinal ? ' ok' : ''}`}
+              data-testid={`teammate-stat-final-${characterKey}-${bonusKey}`}
+            >
+              {formatTeammateStatValue(
+                memberStats?.final?.[bonusKey] ??
+                  (memberStats?.final ? 0 : undefined),
+                true
+              )}
+            </strong>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
