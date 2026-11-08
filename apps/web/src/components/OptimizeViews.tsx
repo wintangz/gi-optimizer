@@ -15,6 +15,7 @@ import {
 } from '@/components/Identifier'
 import { WeaponTilePicker } from '@/components/TilePickers'
 import {
+  ChevronToggle,
   DownloadIcon,
   ElementIcon,
   SetEmblemIcon,
@@ -732,21 +733,21 @@ export function ConstraintsCard({
             </button>
           )}
           {collapsible && (
-            <button
-              type="button"
+            <ChevronToggle
+              expanded={isExpanded}
               className="gi-collapsible-toggle-btn"
               data-testid="constraints-collapsible-toggle"
-              aria-expanded={isExpanded}
+              ariaControls="constraints-collapsible-body"
+              ariaLabel="Toggle Stat Constraints"
               onClick={() => setManualExpanded(!isExpanded)}
-            >
-              [{isExpanded ? 'Hide' : 'Show'}]
-            </button>
+            />
           )}
         </div>
       </div>
 
       {isExpanded && (
         <div
+          id="constraints-collapsible-body"
           className="gi-collapsible-body"
           data-testid="constraints-collapsible-body"
         >
@@ -1248,15 +1249,18 @@ function BuildStatComparisonSection({
           <td className="comp-stat-col-label">
             <span className="comp-stat-label-cell">
               {sb && (
-                <span
-                  className={`comp-row-chevron${
-                    isStatExpanded ? ' is-expanded' : ''
-                  }`}
+                <ChevronToggle
+                  expanded={isStatExpanded}
+                  size={12}
+                  className="comp-row-chevron"
                   data-testid={`comp-stat-toggle-${rowKey}-${statKey}`}
-                  aria-hidden="true"
-                >
-                  ▸
-                </span>
+                  ariaControls={`comp-stat-breakdown-row-${rowKey}-${statKey}`}
+                  ariaLabel={`Toggle ${label} breakdown`}
+                  onClick={(e) => {
+                    e?.stopPropagation?.()
+                    onToggleStatKey?.(`${rowKey}:${statKey}`)
+                  }}
+                />
               )}
               <StatIcon statKey={statKey} iconProps={{ size: 13 }} />
               <strong>{label}</strong>
@@ -1302,6 +1306,7 @@ function BuildStatComparisonSection({
         </tr>
         {isStatExpanded && sb && (
           <tr
+            id={`comp-stat-breakdown-row-${rowKey}-${statKey}`}
             className="comp-breakdown-tr"
             data-testid={`comp-stat-breakdown-row-${rowKey}-${statKey}`}
           >
@@ -1569,24 +1574,20 @@ export function BuildComparisonList({
                   </span>
                 </div>
 
-                <button
-                  type="button"
+                <ChevronToggle
+                  label="Details"
+                  expanded={isExpanded}
                   className="comp-expand-btn"
-                  aria-expanded={isExpanded}
-                  aria-label={
-                    isExpanded
-                      ? `Collapse ${row.rankLabel} breakdown`
-                      : `Expand ${row.rankLabel} breakdown`
-                  }
+                  data-testid={`comp-expand-${row.id}`}
+                  ariaControls={`comp-details-${row.id}`}
+                  ariaLabel={`${row.rankLabel} build details`}
                   onClick={(e) => {
-                    e.stopPropagation()
+                    e?.stopPropagation?.()
                     setExpandedRowId((prev) =>
                       prev === row.id ? null : row.id
                     )
                   }}
-                >
-                  {isExpanded ? 'Hide details ▲' : 'Details ▼'}
-                </button>
+                />
               </div>
 
               {/* Second line: 5 Artifact Badges + 7 Final Stat Icon Chips */}
@@ -1657,6 +1658,7 @@ export function BuildComparisonList({
             {/* Expandable Per-Instance Breakdown & Slot Details */}
             {isExpanded && row.evaluation && (
               <div
+                id={`comp-details-${row.id}`}
                 className="comp-row-details"
                 data-testid={`comp-details-${row.id}`}
               >
@@ -1744,15 +1746,22 @@ export function BuildComparisonList({
                               <td className="comp-dmg-col-name">
                                 <span className="comp-stat-label-cell">
                                   {inst.breakdown && (
-                                    <span
-                                      className={`comp-row-chevron${
-                                        isInstExpanded ? ' is-expanded' : ''
-                                      }`}
+                                    <ChevronToggle
+                                      expanded={isInstExpanded}
+                                      size={12}
+                                      className="comp-row-chevron"
                                       data-testid={`comp-instance-toggle-${row.id}-${idx}`}
-                                      aria-hidden="true"
-                                    >
-                                      ▸
-                                    </span>
+                                      ariaControls={`comp-instance-breakdown-row-${row.id}-${idx}`}
+                                      ariaLabel={`Toggle ${formatRotationRowLabel(inst.label)} breakdown`}
+                                      onClick={(e) => {
+                                        e?.stopPropagation?.()
+                                        setExpandedInstanceKey((prev) =>
+                                          prev === instanceKey
+                                            ? null
+                                            : instanceKey
+                                        )
+                                      }}
+                                    />
                                   )}
                                   <strong>
                                     {formatRotationRowLabel(inst.label)}
@@ -1790,6 +1799,7 @@ export function BuildComparisonList({
                             </tr>
                             {isInstExpanded && inst.breakdown && (
                               <tr
+                                id={`comp-instance-breakdown-row-${row.id}-${idx}`}
                                 className="comp-breakdown-tr"
                                 data-testid={`comp-instance-breakdown-row-${row.id}-${idx}`}
                               >
@@ -2555,15 +2565,14 @@ export function WeaponComparisonPanel({
                       </select>
                     </label>
 
-                    <button
-                      type="button"
+                    <ChevronToggle
+                      label={`Effects (${candEffects.activeCount})`}
+                      expanded={isEffectsExpanded}
                       className={`btn-secondary weapon-compare-effects-btn${
                         isEffectsExpanded ? ' is-open' : ''
                       }${candEffects.setupDiffers ? ' is-modified' : ''}`}
-                      aria-expanded={isEffectsExpanded}
-                      aria-label={`${
-                        isEffectsExpanded ? 'Hide' : 'Configure'
-                      } ${wMeta.displayName} effects`}
+                      ariaControls={`weapon-compare-effects-panel-${cand.weaponKey}`}
+                      ariaLabel={`Configure ${wMeta.displayName} effects`}
                       data-testid={`weapon-compare-effects-toggle-${cand.weaponKey}`}
                       onClick={() =>
                         setExpandedEffectsByWeapon((prev) => ({
@@ -2571,12 +2580,7 @@ export function WeaponComparisonPanel({
                           [cand.weaponKey]: !prev[cand.weaponKey],
                         }))
                       }
-                    >
-                      <span>Effects ({candEffects.activeCount})</span>
-                      <span aria-hidden="true">
-                        {isEffectsExpanded ? '▲' : '▼'}
-                      </span>
-                    </button>
+                    />
 
                     <button
                       type="button"
@@ -2593,6 +2597,7 @@ export function WeaponComparisonPanel({
 
                 {isEffectsExpanded && (
                   <div
+                    id={`weapon-compare-effects-panel-${cand.weaponKey}`}
                     className="weapon-compare-effects-drawer"
                     data-testid={`weapon-compare-effects-panel-${cand.weaponKey}`}
                   >
@@ -3067,23 +3072,18 @@ export function WeaponComparisonList({
                   </span>
                 </div>
 
-                <button
-                  type="button"
+                <ChevronToggle
+                  label="Details"
+                  expanded={isExpanded}
                   className="comp-expand-btn"
                   data-testid={`weapon-compare-expand-${wKey}`}
-                  aria-expanded={isExpanded}
-                  aria-label={
-                    isExpanded
-                      ? `Collapse ${displayName(wKey)} build breakdown`
-                      : `Expand ${displayName(wKey)} build breakdown`
-                  }
+                  ariaControls={`weapon-compare-details-${wKey}`}
+                  ariaLabel={`${displayName(wKey)} build details`}
                   onClick={(e) => {
-                    e.stopPropagation()
+                    e?.stopPropagation?.()
                     setExpandedKey((prev) => (prev === wKey ? null : wKey))
                   }}
-                >
-                  {isExpanded ? 'Hide details ▲' : 'Details ▼'}
-                </button>
+                />
               </div>
 
               {selection && (
@@ -3154,6 +3154,7 @@ export function WeaponComparisonList({
 
             {isExpanded && topBuilds.length > 0 && (
               <div
+                id={`weapon-compare-details-${wKey}`}
                 className="comp-row-details"
                 data-testid={`weapon-compare-details-${wKey}`}
               >
@@ -3450,17 +3451,22 @@ export function WeaponComparisonList({
                                       <td className="comp-dmg-col-name">
                                         <span className="comp-stat-label-cell">
                                           {inst.breakdown && (
-                                            <span
-                                              className={`comp-row-chevron${
-                                                isInstExpanded
-                                                  ? ' is-expanded'
-                                                  : ''
-                                              }`}
+                                            <ChevronToggle
+                                              expanded={isInstExpanded}
+                                              size={12}
+                                              className="comp-row-chevron"
                                               data-testid={`weapon-compare-instance-toggle-${buildRowKey}-${idx}`}
-                                              aria-hidden="true"
-                                            >
-                                              ▸
-                                            </span>
+                                              ariaControls={`weapon-compare-instance-breakdown-row-${buildRowKey}-${idx}`}
+                                              ariaLabel={`Toggle ${formatRotationRowLabel(inst.label)} breakdown`}
+                                              onClick={(e) => {
+                                                e?.stopPropagation?.()
+                                                setExpandedInstanceKey((prev) =>
+                                                  prev === instanceKey
+                                                    ? null
+                                                    : instanceKey
+                                                )
+                                              }}
+                                            />
                                           )}
                                           <strong>
                                             {formatRotationRowLabel(inst.label)}
@@ -3493,6 +3499,7 @@ export function WeaponComparisonList({
                                     </tr>
                                     {isInstExpanded && inst.breakdown && (
                                       <tr
+                                        id={`weapon-compare-instance-breakdown-row-${buildRowKey}-${idx}`}
                                         className="comp-breakdown-tr"
                                         data-testid={`weapon-compare-instance-breakdown-row-${buildRowKey}-${idx}`}
                                       >
@@ -3823,17 +3830,10 @@ export function SolverPoolFiltersPanel({
       data-expanded={isExpanded ? 'true' : 'false'}
     >
       <div className="opt-filter-panel-header">
-        <button
-          type="button"
-          data-testid="solver-pool-filters-toggle"
-          aria-expanded={isExpanded}
+        <span
           className="opt-filter-panel-title"
           onClick={toggleExpanded}
           style={{
-            background: 'transparent',
-            border: 'none',
-            padding: 0,
-            color: 'inherit',
             cursor: 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
@@ -3841,16 +3841,10 @@ export function SolverPoolFiltersPanel({
             textAlign: 'left',
           }}
         >
-          <span
-            className={`comp-chevron${isExpanded ? ' is-open' : ''}`}
-            aria-hidden="true"
-          >
-            ▼
-          </span>
           <span>
             Artifact Pool Filters (Main Stats · Substats · Rarity · RV)
           </span>
-        </button>
+        </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span
             data-testid="solver-pool-filters-summary"
@@ -3887,18 +3881,20 @@ export function SolverPoolFiltersPanel({
               Reset Pool Filters
             </button>
           )}
-          <span
+          <ChevronToggle
+            expanded={isExpanded}
             className="gi-collapsible-toggle-btn"
-            data-testid="pool-filters-show-hide-label"
+            data-testid="solver-pool-filters-toggle"
+            ariaControls="solver-pool-filters-body"
+            ariaLabel="Toggle Artifact Pool Filters"
             onClick={toggleExpanded}
-          >
-            [{isExpanded ? 'Hide' : 'Show'}]
-          </span>
+          />
         </div>
       </div>
 
       {isExpanded && (
         <div
+          id="solver-pool-filters-body"
           className="opt-pool-filters-body"
           data-testid="solver-pool-filters-body"
         >
@@ -4491,20 +4487,20 @@ export function TeamOptimizationList({
                   </span>
                 </div>
 
-                <button
-                  type="button"
+                <ChevronToggle
+                  label="Details"
+                  expanded={isExpanded}
                   className="comp-expand-btn"
                   data-testid={`team-opt-expand-${mKey}`}
-                  aria-expanded={isExpanded}
+                  ariaControls={`team-opt-details-${mKey}`}
+                  ariaLabel={`${displayName(mKey)} build details`}
                   onClick={(e) => {
-                    e.stopPropagation()
+                    e?.stopPropagation?.()
                     setExpandedMemberKey((prev) =>
                       prev === mKey ? null : mKey
                     )
                   }}
-                >
-                  {isExpanded ? 'Hide details ▲' : 'Details ▼'}
-                </button>
+                />
               </div>
 
               <div className="comp-row-meta">
@@ -4573,6 +4569,7 @@ export function TeamOptimizationList({
 
             {isExpanded && memberRes.evaluation && (
               <div
+                id={`team-opt-details-${mKey}`}
                 className="comp-row-details"
                 data-testid={`team-opt-details-${mKey}`}
               >
@@ -4627,15 +4624,22 @@ export function TeamOptimizationList({
                               <td className="comp-dmg-col-name">
                                 <span className="comp-stat-label-cell">
                                   {inst.breakdown && (
-                                    <span
-                                      className={`comp-row-chevron${
-                                        isInstExpanded ? ' is-expanded' : ''
-                                      }`}
+                                    <ChevronToggle
+                                      expanded={isInstExpanded}
+                                      size={12}
+                                      className="comp-row-chevron"
                                       data-testid={`team-opt-instance-toggle-${mKey}-${idx}`}
-                                      aria-hidden="true"
-                                    >
-                                      ▸
-                                    </span>
+                                      ariaControls={`team-opt-instance-breakdown-row-${mKey}-${idx}`}
+                                      ariaLabel={`Toggle ${formatRotationRowLabel(inst.label)} breakdown`}
+                                      onClick={(e) => {
+                                        e?.stopPropagation?.()
+                                        setExpandedInstanceKey((prev) =>
+                                          prev === instanceKey
+                                            ? null
+                                            : instanceKey
+                                        )
+                                      }}
+                                    />
                                   )}
                                   <strong>
                                     {formatRotationRowLabel(inst.label)}
@@ -4664,6 +4668,7 @@ export function TeamOptimizationList({
                             </tr>
                             {isInstExpanded && inst.breakdown && (
                               <tr
+                                id={`team-opt-instance-breakdown-row-${mKey}-${idx}`}
                                 className="comp-breakdown-tr"
                                 data-testid={`team-opt-instance-breakdown-row-${mKey}-${idx}`}
                               >

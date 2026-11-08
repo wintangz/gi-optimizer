@@ -1680,11 +1680,15 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(findByTestId(tree, 'damage-breakdown-opt-0-0')).toBeUndefined()
     expect(findByTestId(tree, 'stat-breakdown-opt-0-atk')).toBeUndefined()
 
-    // Click damage row to expand its formula breakdown; chevron is a plain span, not a button
+    // Click damage row to expand its formula breakdown; chevron is a focusable ChevronToggle button
     const instChevron = findByTestId(tree, 'comp-instance-toggle-opt-0-0')
     expect(instChevron).toBeDefined()
-    expect(instChevron!.type).toBe('span')
-    expect(instChevron!.props.className).toBe('comp-row-chevron')
+    expect(instChevron!.type).toBe('button')
+    expect(instChevron!.props['aria-expanded']).toBe(false)
+    expect(instChevron!.props['aria-controls']).toBe(
+      'comp-instance-breakdown-row-opt-0-0'
+    )
+    expect(instChevron!.props.className).toContain('comp-row-chevron')
     const instRow = findByTestId(tree, 'comp-instance-row-opt-0-0')!
     expect(instRow.props['aria-expanded']).toBe(false)
     ;(instRow.props.onClick as () => void)()
@@ -1692,8 +1696,11 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     tree = renderList()
     expect(findByTestId(tree, 'damage-breakdown-opt-0-0')).toBeDefined()
     expect(
+      findByTestId(tree, 'comp-instance-toggle-opt-0-0')!.props['aria-expanded']
+    ).toBe(true)
+    expect(
       findByTestId(tree, 'comp-instance-toggle-opt-0-0')!.props.className
-    ).toBe('comp-row-chevron is-expanded')
+    ).toContain('is-expanded')
     expect(
       findByTestId(tree, 'damage-factor-opt-0-0-baseDamage')
     ).toBeDefined()
@@ -1703,11 +1710,15 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(findByTestId(tree, 'damage-factor-opt-0-0-enemyDef')).toBeDefined()
     expect(findByTestId(tree, 'damage-factor-opt-0-0-enemyRes')).toBeDefined()
 
-    // Click ATK stat row to expand its breakdown; chevron is a plain span, not a button
+    // Click ATK stat row to expand its breakdown; chevron is a focusable ChevronToggle button
     const atkChevron = findByTestId(tree, 'comp-stat-toggle-opt-0-atk')
     expect(atkChevron).toBeDefined()
-    expect(atkChevron!.type).toBe('span')
-    expect(atkChevron!.props.className).toBe('comp-row-chevron')
+    expect(atkChevron!.type).toBe('button')
+    expect(atkChevron!.props['aria-expanded']).toBe(false)
+    expect(atkChevron!.props['aria-controls']).toBe(
+      'comp-stat-breakdown-row-opt-0-atk'
+    )
+    expect(atkChevron!.props.className).toContain('comp-row-chevron')
     const atkRow = findByTestId(tree, 'comp-stat-row-opt-0-atk')!
     expect(atkRow.props['aria-expanded']).toBe(false)
     ;(atkRow.props.onClick as () => void)()
@@ -1715,8 +1726,11 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     tree = renderList()
     expect(findByTestId(tree, 'stat-breakdown-opt-0-atk')).toBeDefined()
     expect(
+      findByTestId(tree, 'comp-stat-toggle-opt-0-atk')!.props['aria-expanded']
+    ).toBe(true)
+    expect(
       findByTestId(tree, 'comp-stat-toggle-opt-0-atk')!.props.className
-    ).toBe('comp-row-chevron is-expanded')
+    ).toContain('is-expanded')
     const resonanceContrib = findByTestId(
       tree,
       'stat-contributor-opt-0-atk-2'
@@ -2198,7 +2212,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(detailsHtml).toContain('>Hour of Burning Skies: Sunfell Slice<')
     expect(detailsHtml).not.toContain('(Melt)')
     expect(detailsHtml).not.toContain('comp-inline-breakdown-btn')
-    expect(detailsHtml).toContain('class="comp-row-chevron"')
+    expect(detailsHtml).toContain('comp-row-chevron')
   })
 
   it('styles negative relative deltas with neutral muted class instead of red error class across build rows, weapon rows, team member rows, and stat diffs while reserving error for actual unmet constraints (delta-styling-tiers)', () => {
@@ -3607,5 +3621,63 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(collapsibleConstraintsHtml).toContain(
       'class="panel gi-card gi-collapsible-section" data-testid="constraints-card" data-expanded="false"'
     )
+  })
+
+  it('chevron-toggle-unify: replaces every bracketed show/hide label and unicode triangle toggle in apps/web/src with the shared SVG ChevronToggle component', () => {
+    const srcDir = path.resolve(__dirname, '../src')
+    const walkFiles = (dir: string): string[] => {
+      const entries = fs.readdirSync(dir, { withFileTypes: true })
+      const files: string[] = []
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) {
+          files.push(...walkFiles(full))
+        } else if (/\.(ts|tsx|css)$/.test(entry.name)) {
+          files.push(full)
+        }
+      }
+      return files
+    }
+
+    const forbidden = [
+      '[Show]',
+      '[Hide]',
+      'Hide details',
+      'Details ▼',
+      'Details ▾',
+      '\u25b8',
+      '\u25be',
+      '\u25b4',
+      '\u25bc',
+      '\u25b2',
+    ]
+
+    for (const file of walkFiles(srcDir)) {
+      const content = fs.readFileSync(file, 'utf-8')
+      for (const token of forbidden) {
+        expect(
+          content.includes(token),
+          `Found forbidden token "${token}" in ${path.relative(srcDir, file)}`
+        ).toBe(false)
+      }
+    }
+
+    // Collapsible ConstraintsCard renders the shared ChevronToggle SVG button with aria-expanded and aria-controls
+    const closedConstraintsHtml = renderToStaticMarkup(
+      <ConstraintsCard
+        settings={{ ...DEFAULT_OPTIMIZER_SETTINGS, constraints: [] }}
+        onChange={() => {}}
+        collapsible
+      />
+    )
+    expect(closedConstraintsHtml).toContain(
+      'data-testid="constraints-collapsible-toggle"'
+    )
+    expect(closedConstraintsHtml).toContain('aria-expanded="false"')
+    expect(closedConstraintsHtml).toContain(
+      'aria-controls="constraints-collapsible-body"'
+    )
+    expect(closedConstraintsHtml).toContain('data-gi-icon="ChevronIcon"')
+    expect(closedConstraintsHtml).toContain('data-chevron-state="closed"')
   })
 })

@@ -871,7 +871,17 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       'sets-protected-collapsible-summary'
     )!
     expect(setsToggle.props['aria-expanded']).toBe(false)
-    expect(collectText([setsToggle])).toBe('[Show]')
+    expect(setsToggle.props['aria-controls']).toBe(
+      'sets-protected-collapsible-body'
+    )
+    expect(
+      findAll(
+        [setsToggle],
+        (n) =>
+          n.props['data-gi-icon'] === 'ChevronIcon' &&
+          n.props['data-chevron-state'] === 'closed'
+      )
+    ).toHaveLength(1)
     expect(collectText([setsSummary])).toContain(
       'Artifact Set Filter & Protected Characters — All sets allowed · None protected'
     )
@@ -896,7 +906,17 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       'constraints-collapsible-summary'
     )!
     expect(constraintsToggle.props['aria-expanded']).toBe(false)
-    expect(collectText([constraintsToggle])).toBe('[Show]')
+    expect(constraintsToggle.props['aria-controls']).toBe(
+      'constraints-collapsible-body'
+    )
+    expect(
+      findAll(
+        [constraintsToggle],
+        (n) =>
+          n.props['data-gi-icon'] === 'ChevronIcon' &&
+          n.props['data-chevron-state'] === 'closed'
+      )
+    ).toHaveLength(1)
     expect(collectText([constraintsSummary])).toBe('Stat Constraints — none')
     expect(findByTestId(tree1, 'constraints-collapsible-body')).toBeUndefined()
 
@@ -1054,7 +1074,15 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       )!
       expect(expToggle).toBeDefined()
       expect(expToggle.props['aria-expanded']).toBe(false)
-      expect(collectText([expToggle])).toBe('[Show]')
+      expect(expToggle.props['aria-controls']).toBe(`fast-mode-editor-${tmKey}`)
+      expect(
+        findAll(
+          [expToggle],
+          (n) =>
+            n.props['data-gi-icon'] === 'ChevronIcon' &&
+            n.props['data-chevron-state'] === 'closed'
+        )
+      ).toHaveLength(1)
       expect(findByTestId(tree1, `fast-mode-editor-${tmKey}`)).toBeUndefined()
       expect(findByTestId(tree1, `fast-mode-reset-${tmKey}`)).toBeUndefined()
     }

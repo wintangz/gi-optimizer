@@ -542,3 +542,87 @@ export function StatIcon({
   if (ele) return <ElementIcon ele={ele} iconProps={iconProps} />
   return null
 }
+
+export interface ChevronIconProps {
+  expanded?: boolean
+  size?: number
+  className?: string
+  'data-testid'?: string
+}
+
+export function ChevronIcon({
+  expanded = false,
+  size = 14,
+  className,
+  'data-testid': dataTestId,
+}: ChevronIconProps) {
+  return (
+    <svg
+      className={`gi-svg-icon gi-chevron-icon${expanded ? ' is-expanded' : ''}${className ? ` ${className}` : ''}`}
+      data-gi-icon="ChevronIcon"
+      data-chevron-state={expanded ? 'open' : 'closed'}
+      data-testid={dataTestId}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
+
+export interface ChevronToggleProps {
+  expanded: boolean
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
+  ariaLabel?: string
+  ariaControls?: string
+  label?: React.ReactNode
+  size?: number
+  className?: string
+  style?: React.CSSProperties
+  disabled?: boolean
+  title?: string
+  'data-testid'?: string
+}
+
+export function ChevronToggle({
+  expanded,
+  onClick,
+  ariaLabel,
+  ariaControls,
+  label,
+  size = 14,
+  className,
+  style,
+  disabled,
+  title,
+  'data-testid': dataTestId,
+}: ChevronToggleProps) {
+  return (
+    <button
+      type="button"
+      className={`gi-chevron-toggle${expanded ? ' is-expanded' : ''}${label !== undefined && label !== null ? ' has-label' : ''}${className ? ` ${className}` : ''}`}
+      data-testid={dataTestId}
+      aria-expanded={expanded}
+      aria-controls={ariaControls}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      title={title}
+      style={style}
+      onClick={onClick}
+    >
+      {label !== undefined && label !== null && (
+        <span className="gi-chevron-toggle-label">{label}</span>
+      )}
+      <ChevronIcon expanded={expanded} size={size} />
+    </button>
+  )
+}
+

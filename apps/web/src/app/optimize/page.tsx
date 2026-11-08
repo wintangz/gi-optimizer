@@ -27,6 +27,7 @@ import {
   WeaponTilePicker,
 } from '@/components/TilePickers'
 import {
+  ChevronToggle,
   DownloadIcon,
   GearIcon,
   PlayIcon,
@@ -2191,19 +2192,19 @@ function OptimizeInner() {
                 {setsProtectedSummaryText}
               </span>
             </div>
-            <button
-              type="button"
+            <ChevronToggle
+              expanded={isSetsProtectedOpen}
               className="gi-collapsible-toggle-btn"
               data-testid="sets-protected-collapsible-toggle"
-              aria-expanded={isSetsProtectedOpen}
+              ariaControls="sets-protected-collapsible-body"
+              ariaLabel="Toggle Artifact Set Filter and Protected Characters"
               onClick={() => setSetsProtectedManualOpen(!isSetsProtectedOpen)}
-            >
-              [{isSetsProtectedOpen ? 'Hide' : 'Show'}]
-            </button>
+            />
           </div>
 
           {isSetsProtectedOpen && (
             <div
+              id="sets-protected-collapsible-body"
               className="gi-collapsible-body"
               data-testid="sets-protected-collapsible-body"
             >

@@ -19,6 +19,7 @@ import {
 } from '@/components/TilePickers'
 import { SkeletonBlock, Spinner } from '@/components/Loading'
 import {
+  ChevronToggle,
   CopyIcon,
   DownloadIcon,
   PlayIcon,
@@ -968,15 +969,15 @@ function TeamsInner() {
           {draft.team.length < 4 && (
             <div className="preset-gear-row-md">
               <CharacterBadge characterKey={newMemberKey} compact />
-              <button
-                type="button"
+              <ChevronToggle
+                label="Choose Teammate"
+                expanded={showTeammatePicker}
                 className="btn-secondary"
                 data-testid="toggle-add-teammate-picker-btn"
-                aria-expanded={showTeammatePicker}
+                ariaControls="add-teammate-picker-panel"
+                ariaLabel="Choose Teammate"
                 onClick={() => setShowTeammatePicker((prev) => !prev)}
-              >
-                {showTeammatePicker ? 'Hide Roster' : 'Choose Teammate…'}
-              </button>
+              />
               <button
                 type="button"
                 className="btn-secondary"
@@ -989,7 +990,11 @@ function TeamsInner() {
         </div>
 
         {draft.team.length < 4 && showTeammatePicker && (
-          <div className="gi-field-label" data-testid="add-teammate-picker-panel">
+          <div
+            id="add-teammate-picker-panel"
+            className="gi-field-label"
+            data-testid="add-teammate-picker-panel"
+          >
             <span className="muted">
               Select a character tile to add as a simulated teammate:
             </span>
@@ -1065,20 +1070,21 @@ function TeamsInner() {
                       gap: '0.35rem',
                     }}
                   >
-                    <button
-                      type="button"
+                    <ChevronToggle
+                      label="Change Target Character"
+                      expanded={showTargetPicker}
                       className="btn-secondary"
                       data-testid="toggle-change-target-btn"
-                      aria-expanded={showTargetPicker}
+                      ariaControls="change-target-picker-panel"
+                      ariaLabel="Change Target Character"
                       onClick={() => setShowTargetPicker((prev) => !prev)}
                       style={{ alignSelf: 'flex-start', fontSize: '0.82rem' }}
-                    >
-                      {showTargetPicker
-                        ? 'Hide Target Roster'
-                        : 'Change Target Character'}
-                    </button>
+                    />
                     {showTargetPicker && (
-                      <div data-testid="change-target-picker-panel">
+                      <div
+                        id="change-target-picker-panel"
+                        data-testid="change-target-picker-panel"
+                      >
                         <CharacterTilePicker
                           ariaLabel="Target character"
                           value={member.key}

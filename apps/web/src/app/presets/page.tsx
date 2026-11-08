@@ -20,6 +20,7 @@ import {
   WeaponTilePicker,
 } from '@/components/TilePickers'
 import {
+  ChevronToggle,
   CopyIcon,
   GearIcon,
   PlayIcon,
@@ -521,16 +522,21 @@ export default function PresetsPage() {
                       {activePreset.team[0].build.character.talent.burst})
                     </code>
                   </strong>
-                  <button
-                    type="button"
+                  <ChevronToggle
+                    label="Details"
+                    expanded={expandedDetailAssumptions}
                     className="preset-collapse-toggle"
+                    data-testid="preset-akasha-details-toggle"
+                    ariaControls="preset-akasha-assumptions-desc"
+                    ariaLabel="Toggle Akasha preset details"
                     onClick={() => setExpandedDetailAssumptions((v) => !v)}
-                  >
-                    {expandedDetailAssumptions ? 'Hide details ▴' : 'Details ▾'}
-                  </button>
+                  />
                 </div>
                 {expandedDetailAssumptions && (
-                  <div className="muted preset-akasha-desc">
+                  <div
+                    id="preset-akasha-assumptions-desc"
+                    className="muted preset-akasha-desc"
+                  >
                     Evaluates <strong>{displayName(activePreset.target)}</strong>{' '}
                     with fixed character stats and any chosen weapon; only your
                     imported GOOD artifacts are used.

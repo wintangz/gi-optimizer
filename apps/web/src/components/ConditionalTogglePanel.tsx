@@ -6,6 +6,7 @@ import {
   WeaponBadge,
 } from '@/components/Identifier'
 import {
+  ChevronToggle,
   ElementIcon,
   SetEmblemIcon,
   WeaponTypeIcon,
@@ -781,15 +782,14 @@ export function ConditionalTogglePanel({
             </button>
           )}
           {collapsible && (
-            <button
-              type="button"
+            <ChevronToggle
+              expanded={isExpanded}
               className="btn-secondary gi-collapsible-toggle"
               data-testid="buffs-collapsible-toggle"
-              aria-expanded={isExpanded}
+              ariaControls="buff-panel-member-tabs"
+              ariaLabel="Toggle Buffs and Passives"
               onClick={() => setUserExpanded(!isExpanded)}
-            >
-              [{isExpanded ? 'Hide' : 'Show'}]
-            </button>
+            />
           )}
         </div>
       </div>

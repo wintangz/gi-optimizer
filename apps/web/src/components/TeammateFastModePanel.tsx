@@ -1,6 +1,7 @@
 'use client'
 
 import { CharacterBadge } from '@/components/Identifier'
+import { ChevronToggle } from '@/components/SvgIcons'
 import type { MemberStatSummary } from '@gi/engine'
 import {
   FAST_MODE_STAT_KEYS,
@@ -540,21 +541,20 @@ export function MemberFastModeExpander({
               Reset Fast Mode
             </button>
           )}
-          <button
-            type="button"
+          <ChevronToggle
+            expanded={expanded}
             className="gi-collapsible-toggle-btn preset-fastmode-toggle"
             data-testid={`fast-mode-expander-toggle-${characterKey}`}
-            aria-expanded={expanded}
-            aria-label={`${expanded ? 'Hide' : 'Show'} Virtual 6th Artifact for ${displayName(characterKey)}`}
+            ariaControls={`fast-mode-editor-${characterKey}`}
+            ariaLabel={`Toggle Virtual 6th Artifact for ${displayName(characterKey)}`}
             onClick={() => setExpanded((prev) => !prev)}
-          >
-            [{expanded ? 'Hide' : 'Show'}]
-          </button>
+          />
         </div>
       </div>
 
       {expanded && (
         <div
+          id={`fast-mode-editor-${characterKey}`}
           className="gi-fast-mode-editor"
           data-testid={`fast-mode-editor-${characterKey}`}
         >
