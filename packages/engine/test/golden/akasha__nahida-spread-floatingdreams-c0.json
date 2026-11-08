@@ -1,0 +1,45 @@
+{
+  "presetId": "akasha/nahida-spread-floatingdreams-c0",
+  "target": "Nahida",
+  "total": 305858.3952657552,
+  "instances": [
+    {
+      "label": "All Schemes to Know Hold DMG (Spread)",
+      "path": [
+        "skill",
+        "holdDmg"
+      ],
+      "count": 1,
+      "perHit": 13804.307840497573,
+      "subtotal": 13804.307840497573
+    },
+    {
+      "label": "Tri-Karma Purification DMG (Spread ×8)",
+      "path": [
+        "skill",
+        "karmaDmg"
+      ],
+      "count": 8,
+      "perHit": 36506.7609281572,
+      "subtotal": 292054.0874252576
+    }
+  ],
+  "stats": {
+    "hp": 16106.63231068369,
+    "atk": 1839.6332780548,
+    "def": 630.2145834,
+    "eleMas": 1237.3844,
+    "critRate_": 0.39599999999999996,
+    "critDMG_": 1.596,
+    "enerRech_": 1.3885999999999998,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0.35
+  }
+}

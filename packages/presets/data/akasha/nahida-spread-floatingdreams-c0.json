@@ -1,0 +1,137 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "akasha/nahida-spread-floatingdreams-c0",
+  "name": "Nahida — Off-Field Tri-Karma Spread (Alhaitham + Kuki Shinobu + Zhongli)",
+  "description": "Akasha leaderboard preset for C0 Nahida Off-Field Tri-Karma Purification Spread with Alhaitham, Kuki Shinobu (1000 EM for A1 250 EM share + Deepwood 4p + Freedom-Sworn), and Zhongli (Jade Shield RES shred + Tenacity 4p).",
+  "source": "akasha",
+  "author": "akasha.cv",
+  "target": "Nahida",
+  "team": [
+    {
+      "key": "Nahida",
+      "build": {
+        "type": "fixed",
+        "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 10, "skill": 10, "burst": 10 } },
+        "weapon": { "key": "AThousandFloatingDreams", "level": 90, "ascension": 6, "refinement": 1 }
+      },
+      "requirement": {},
+      "conditional": {
+        "Nahida": {
+          "partyInBurst": "on",
+          "condA1ActiveInBurst": "on"
+        },
+        "DeepwoodMemories": {
+          "set4": "on"
+        },
+        "GildedDreams": {
+          "passive": "on"
+        },
+        "GoldenTroupe": {
+          "set4": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Alhaitham",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 9, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "LightOfFoliarIncision", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "dendro_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 79.2, "critRate_": 31.1 } },
+            "sets": { "GildedDreams": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Alhaitham": { "withMirrors": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "KukiShinobu",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "FreedomSworn", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "hp_": 29.7 } },
+            "sets": { "DeepwoodMemories": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "FreedomSworn": { "MillennialMovement": "on" },
+        "DeepwoodMemories": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Zhongli",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "BlackTassel", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "hp_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 19.8 } },
+            "sets": { "TenacityOfTheMillelith": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Zhongli": { "skill": "on" },
+        "TenacityOfTheMillelith": { "skill": "cast" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "E Hold + 8× Tri-Karma Purification Spread",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "holdDmg"], "count": 1, "label": "All Schemes to Know Hold DMG (Spread)", "hitMode": "avgHit", "reaction": "spread", "bonusStats": {} },
+      { "path": ["skill", "karmaDmg"], "count": 8, "label": "Tri-Karma Purification DMG (Spread ×8)", "hitMode": "avgHit", "reaction": "spread", "bonusStats": {} }
+    ]
+  },
+  "akasha": {
+    "calculationId": "nahida-spread-floatingdreams-c0",
+    "leaderboardUrl": "https://akasha.cv/leaderboards",
+    "label": "Nahida — Off-Field Tri-Karma Spread (A Thousand Floating Dreams R1, C0)",
+    "retrievedAt": "authored-from-knowledge",
+    "notes": "Source: authored-from-knowledge. Fixed Akasha target spec: Lv.90/90 C0 10/10/10 with A Thousand Floating Dreams R1 Lv.90/90, Shrine of Maya active with 250 EM A1 share. Teammates: Alhaitham C0, Kuki Shinobu C6 (~1000 EM for A1 cap, Freedom-Sworn R1, 4p Deepwood), Zhongli C0 (Jade Shield RES shred, 4p Tenacity)."
+  }
+}
