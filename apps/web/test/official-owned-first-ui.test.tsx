@@ -433,13 +433,30 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(kazuhaToggleAfter.props['data-build-mode']).toBe('tc')
     expect(collectText([kazuhaToggleAfter])).toBe('Simulated (TC)')
 
-    // (4) Protected Characters and Artifact Set Filter sit as a matched pair (optimize-panels-alignment)
-    const filterPair = findByTestId(tree2, 'optimize-filter-panels-pair')!
+    // (4) Protected Characters and Artifact Set Filter sit as a matched pair inside collapsible-sets-protected (optimize-panels-alignment)
+    const setsProtectedToggle = findByTestId(
+      tree2,
+      'sets-protected-collapsible-toggle'
+    )!
+    expect(setsProtectedToggle).toBeDefined()
+    ;(setsProtectedToggle.props.onClick as () => void)()
+    const tree2Expanded = renderPass()
+
+    const filterPair = findByTestId(
+      tree2Expanded,
+      'optimize-filter-panels-pair'
+    )!
     expect(filterPair).toBeDefined()
     expect(filterPair.props.className).toBe('opt-filter-pair')
 
-    const protectedPanel = findByTestId(tree2, 'protected-characters-panel')!
-    const artFilterPanel = findByTestId(tree2, 'artifact-set-filter-panel')!
+    const protectedPanel = findByTestId(
+      tree2Expanded,
+      'protected-characters-panel'
+    )!
+    const artFilterPanel = findByTestId(
+      tree2Expanded,
+      'artifact-set-filter-panel'
+    )!
     expect(protectedPanel).toBeDefined()
     expect(artFilterPanel).toBeDefined()
     expect(protectedPanel.props.className).toBe('opt-filter-panel')
@@ -684,7 +701,10 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     const idxTeamRoster = orderedTestIds.indexOf('preset-team-roster')
     const idxBuffsPanel = orderedTestIds.indexOf('conditional-toggle-panel')
     const idxStage4Artifacts = orderedTestIds.indexOf('artifact-settings-card')
-    const idxFilterPair = orderedTestIds.indexOf('optimize-filter-panels-pair')
+    const idxSetsProtected = orderedTestIds.indexOf(
+      'collapsible-sets-protected'
+    )
+    const idxPoolFilters = orderedTestIds.indexOf('solver-pool-filters-panel')
     const idxConstraintsCard = orderedTestIds.indexOf('constraints-card')
     const idxStage5Results = orderedTestIds.indexOf('results-card')
     const idxTopNBuilds = orderedTestIds.indexOf('top-n-builds-select')
@@ -697,8 +717,9 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(idxTeamRoster).toBeGreaterThan(idxStage3TeamBuffs)
     expect(idxBuffsPanel).toBeGreaterThan(idxTeamRoster)
     expect(idxStage4Artifacts).toBeGreaterThan(idxBuffsPanel)
-    expect(idxFilterPair).toBeGreaterThan(idxStage4Artifacts)
-    expect(idxConstraintsCard).toBeGreaterThan(idxFilterPair)
+    expect(idxSetsProtected).toBeGreaterThan(idxStage4Artifacts)
+    expect(idxPoolFilters).toBeGreaterThan(idxSetsProtected)
+    expect(idxConstraintsCard).toBeGreaterThan(idxPoolFilters)
     expect(idxStage5Results).toBeGreaterThan(idxConstraintsCard)
     expect(idxTopNBuilds).toBeGreaterThan(idxStage5Results)
     expect(idxRunOptimizeBtn).toBeGreaterThan(idxStage5Results)
@@ -828,5 +849,138 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
 
     await (runCompareBtn2.props.onClick as () => Promise<void>)()
     expect(mockOptimizePresetInWorker).toHaveBeenCalledTimes(2)
+  })
+
+  it('flow-collapsible-stages: groups Artifact settings into 3 Wikipedia-style collapsible sections with live one-line summaries, moves Main-Stat Assumption Level into Pool Filters, Top N Builds into Run & Results, and Resonance toggle into Team & Buffs', () => {
+    resetSolverPoolFiltersExpandedSession()
+    const tree1 = renderPass()
+
+    // (1) At defaults, all 3 Artifact settings sections start closed with one-line summaries and show/hide toggles
+    const setsToggle = findByTestId(tree1, 'sets-protected-collapsible-toggle')!
+    const setsSummary = findByTestId(
+      tree1,
+      'sets-protected-collapsible-summary'
+    )!
+    expect(setsToggle.props['aria-expanded']).toBe(false)
+    expect(collectText([setsToggle])).toBe('[Show]')
+    expect(collectText([setsSummary])).toContain(
+      'Artifact Set Filter & Protected Characters — All sets allowed · None protected'
+    )
+    expect(findByTestId(tree1, 'sets-protected-collapsible-body')).toBeUndefined()
+
+    const poolToggle = findByTestId(tree1, 'solver-pool-filters-toggle')!
+    const poolSummary = findByTestId(tree1, 'solver-pool-filters-summary')!
+    expect(poolToggle.props['aria-expanded']).toBe(false)
+    expect(collectText([poolSummary])).toContain('Pool Filters — unrestricted')
+    expect(findByTestId(tree1, 'solver-pool-filters-body')).toBeUndefined()
+    // Main-Stat Assumption Level is not rendered outside Pool Filters when Pool Filters is collapsed
+    expect(
+      findByTestId(tree1, 'pool-filter-main-stat-assumption')
+    ).toBeUndefined()
+
+    const constraintsToggle = findByTestId(
+      tree1,
+      'constraints-collapsible-toggle'
+    )!
+    const constraintsSummary = findByTestId(
+      tree1,
+      'constraints-collapsible-summary'
+    )!
+    expect(constraintsToggle.props['aria-expanded']).toBe(false)
+    expect(collectText([constraintsToggle])).toBe('[Show]')
+    expect(collectText([constraintsSummary])).toBe('Stat Constraints — none')
+    expect(findByTestId(tree1, 'constraints-collapsible-body')).toBeUndefined()
+
+    // (2) Top N Builds sits inside Run & Results (Stage 5) and Resonance toggle sits inside Team & Buffs (Stage 3)
+    const stage3 = findByTestId(tree1, 'team-buffs-stage')!
+    const stage5 = findByTestId(tree1, 'results-card')!
+    expect(findByTestId([stage3], 'resonance-master-toggle')).toBeDefined()
+    expect(findByTestId([stage5], 'top-n-builds-select')).toBeDefined()
+
+    // (3) Expand Pool Filters -> Main-Stat Assumption Level lives inside Pool Filters
+    ;(poolToggle.props.onClick as () => void)()
+    const treePoolExpanded = renderPass()
+    const poolBody = findByTestId(treePoolExpanded, 'solver-pool-filters-body')!
+    expect(poolBody).toBeDefined()
+    expect(
+      findByTestId([poolBody], 'pool-filter-main-stat-assumption')
+    ).toBeDefined()
+
+    // (4) Non-default settings start open on fresh mount, and collapsed sections update their summary live
+    hookStore.reset()
+    resetSolverPoolFiltersExpandedSession()
+    mockSettings = {
+      ...structuredClone(DEFAULT_OPTIMIZER_SETTINGS),
+      excludedCharacters: ['Neuvillette'],
+      mainStatAssumptionLevel: 20,
+      constraints: [{ stat: 'enerRech_', min: 200 }],
+    }
+
+    const treeNonDefault = renderPass()
+    expect(
+      findByTestId(treeNonDefault, 'sets-protected-collapsible-toggle')!.props[
+        'aria-expanded'
+      ]
+    ).toBe(true)
+    expect(
+      collectText([
+        findByTestId(treeNonDefault, 'sets-protected-collapsible-summary')!,
+      ])
+    ).toContain('1 protected')
+
+    expect(
+      findByTestId(treeNonDefault, 'solver-pool-filters-toggle')!.props[
+        'aria-expanded'
+      ]
+    ).toBe(true)
+    expect(
+      collectText([
+        findByTestId(treeNonDefault, 'solver-pool-filters-summary')!,
+      ])
+    ).toContain('Assume Lv. 20+')
+
+    expect(
+      findByTestId(treeNonDefault, 'constraints-collapsible-toggle')!.props[
+        'aria-expanded'
+      ]
+    ).toBe(true)
+    expect(
+      collectText([
+        findByTestId(treeNonDefault, 'constraints-collapsible-summary')!,
+      ])
+    ).toBe('Stat Constraints — ER ≥ 200%')
+
+    // Collapse Stat Constraints manually -> body hides, and changing settings updates the collapsed summary live
+    ;(
+      findByTestId(treeNonDefault, 'constraints-collapsible-toggle')!.props
+        .onClick as () => void
+    )()
+    const treeCollapsedConstraints = renderPass()
+    expect(
+      findByTestId(treeCollapsedConstraints, 'constraints-collapsible-toggle')!
+        .props['aria-expanded']
+    ).toBe(false)
+    expect(
+      findByTestId(treeCollapsedConstraints, 'constraints-collapsible-body')
+    ).toBeUndefined()
+
+    mockSettings = {
+      ...mockSettings,
+      constraints: [
+        { stat: 'enerRech_', min: 200 },
+        { stat: 'critRate_', min: 70, max: 100 },
+      ],
+    }
+    const treeLiveSummary = renderPass()
+    expect(
+      findByTestId(treeLiveSummary, 'constraints-collapsible-toggle')!.props[
+        'aria-expanded'
+      ]
+    ).toBe(false)
+    expect(
+      collectText([
+        findByTestId(treeLiveSummary, 'constraints-collapsible-summary')!,
+      ])
+    ).toBe('Stat Constraints — ER ≥ 200%, CRIT Rate 70%–100%')
   })
 })

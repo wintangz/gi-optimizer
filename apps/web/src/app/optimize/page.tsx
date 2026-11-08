@@ -80,6 +80,7 @@ import {
   setPresetMemberBuildMode,
   setPresetMemberFastModeStat,
   setPresetWeaponCompareCandidates,
+  summarizeArtSetFilter,
   type FastModeStatKey,
   type MemberBuildMode,
   type Preset,
@@ -183,6 +184,9 @@ function OptimizeInner() {
     useState<TeamOptimizeProgress | null>(null)
   const [teamResult, setTeamResult] = useState<TeamOptimizeResult | null>(null)
   const [teamError, setTeamError] = useState<string | null>(null)
+  const [setsProtectedManualOpen, setSetsProtectedManualOpen] = useState<
+    boolean | null
+  >(null)
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -1458,6 +1462,36 @@ function OptimizeInner() {
   const hasAnyResults =
     showCurrentComparison || comparisonOptimizedBuilds.length > 0
 
+  const artSetSummary = summarizeArtSetFilter(settings)
+  const isSetFilterNonDefault =
+    artSetSummary.mode !== 'all' || artSetSummary.selectedCount > 0
+  const isProtectedNonDefault =
+    settings.excludedCharacters.length > 0 ||
+    !settings.includeEquippedOnOthers ||
+    Boolean(settings.lockedOnly)
+  const hasSetsProtectedNonDefault =
+    isSetFilterNonDefault || isProtectedNonDefault
+  const isSetsProtectedOpen =
+    setsProtectedManualOpen !== null
+      ? setsProtectedManualOpen
+      : hasSetsProtectedNonDefault
+
+  const setsProtectedParts: string[] = [
+    artSetSummary.mode === 'all' && artSetSummary.selectedCount === 0
+      ? 'All sets allowed'
+      : artSetSummary.text,
+    settings.excludedCharacters.length > 0
+      ? `${settings.excludedCharacters.length} protected`
+      : 'None protected',
+  ]
+  if (!settings.includeEquippedOnOthers) {
+    setsProtectedParts.push('Unshared only')
+  }
+  if (settings.lockedOnly) {
+    setsProtectedParts.push('Locked only')
+  }
+  const setsProtectedSummaryText = `Artifact Set Filter & Protected Characters — ${setsProtectedParts.join(' · ')}`
+
   return (
     <div className="gi-page">
       <header className="gi-page-header">
@@ -2121,179 +2155,189 @@ function OptimizeInner() {
           <div>
             <h2 className="gi-card-title">4. Artifact Settings</h2>
             <p className="gi-card-subtitle">
-              Configure artifact pool rules, set filters, protected characters,
-              and stat constraints.
+              Configure artifact set filters, protected characters, pool
+              filters, and stat constraints.
             </p>
           </div>
         </div>
 
-        {/* Artifact Pool Settings */}
-        <div className="gi-setup-grid">
-          <label className="gi-field-label">
-            <span className="muted">Main-Stat Assumption Level</span>
-            <select
-              aria-label="Main-Stat Assumption Level"
-              value={settings.mainStatAssumptionLevel}
-              onChange={(e) =>
-                void updateSettings({
-                  ...settings,
-                  mainStatAssumptionLevel: Number(e.target.value) as
-                    | 0
-                    | 4
-                    | 8
-                    | 12
-                    | 16
-                    | 20,
-                })
-              }
-            >
-              <option value={0}>No Assumption (Actual Level)</option>
-              <option value={4}>Assume at least Lv. 4</option>
-              <option value={8}>Assume at least Lv. 8</option>
-              <option value={12}>Assume at least Lv. 12</option>
-              <option value={16}>Assume at least Lv. 16</option>
-              <option value={20}>Assume Full Level (Lv. 20)</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="presets-filter-bar">
-          <label className="presets-filter-label">
-            <input
-              type="checkbox"
-              checked={settings.includeEquippedOnOthers}
-              onChange={(e) =>
-                void updateSettings({
-                  ...settings,
-                  includeEquippedOnOthers: e.target.checked,
-                })
-              }
-            />
-            <span>Include artifacts equipped on other characters</span>
-          </label>
-
-          <label className="presets-filter-label">
-            <input
-              type="checkbox"
-              checked={Boolean(settings.lockedOnly)}
-              onChange={(e) =>
-                void updateSettings({
-                  ...settings,
-                  lockedOnly: e.target.checked,
-                })
-              }
-            />
-            <span>Use locked artifacts only</span>
-          </label>
-        </div>
-
-        {/* Protected Characters & Multi-Mode Artifact Set Filter */}
+        {/* 1. Artifact Set Filter + Protected Characters (Wikipedia-style collapsible) */}
         <div
-          className="opt-filter-pair"
-          data-testid="optimize-filter-panels-pair"
+          className="gi-collapsible-section"
+          data-testid="collapsible-sets-protected"
+          data-expanded={isSetsProtectedOpen ? 'true' : 'false'}
         >
-          <div
-            className="opt-filter-panel"
-            data-testid="protected-characters-panel"
-          >
-            <div className="opt-filter-panel-header">
-              <span className="opt-filter-panel-title">
-                Protected Characters
-              </span>
+          <div className="gi-collapsible-header">
+            <div className="gi-collapsible-header-main">
+              <strong className="gi-collapsible-title">
+                Artifact Set Filter &amp; Protected Characters
+              </strong>
               <span
-                data-testid="protected-characters-summary"
-                className="opt-filter-panel-summary"
-                style={{
-                  color:
-                    settings.excludedCharacters.length > 0
-                      ? 'var(--warn)'
-                      : 'var(--ok)',
-                }}
+                className="gi-collapsible-summary"
+                data-testid="sets-protected-collapsible-summary"
               >
-                {settings.excludedCharacters.length > 0
-                  ? `${settings.excludedCharacters.length} protected`
-                  : 'None protected'}
+                {setsProtectedSummaryText}
               </span>
             </div>
-
-            <div className="opt-filter-panel-subbar">
-              <span className="opt-filter-panel-hint">
-                Click a character tile to keep or release their equipped
-                artifacts.
-              </span>
-            </div>
-
-            {(record?.good.characters ?? []).length > 0 ? (
-              <CharacterTilePicker
-                ariaLabel="Protect character"
-                searchable
-                selectedKeys={settings.excludedCharacters}
-                options={(record?.good.characters ?? []).map((c) => ({
-                  key: c.key,
-                  label: displayName(c.key),
-                  subcaption: settings.excludedCharacters.includes(c.key)
-                    ? 'Protected'
-                    : `Lv.${c.level} C${c.constellation}`,
-                }))}
-                onChange={(ck) => {
-                  const isProtected = settings.excludedCharacters.includes(ck)
-                  void updateSettings({
-                    ...settings,
-                    excludedCharacters: isProtected
-                      ? settings.excludedCharacters.filter((x) => x !== ck)
-                      : [...settings.excludedCharacters, ck],
-                  })
-                }}
-              />
-            ) : (
-              <div className="tile-picker-wrap">
-                <div className="tile-picker-toolbar">
-                  <input
-                    type="search"
-                    className="tile-picker-search"
-                    aria-label="Search Protect character"
-                    placeholder="Search characters…"
-                    disabled
-                    value=""
-                    readOnly
-                  />
-                </div>
-                <div
-                  role="group"
-                  aria-label="Protect character"
-                  className="tile-picker-grid"
-                >
-                  <div
-                    className="muted"
-                    style={{
-                      gridColumn: '1 / -1',
-                      fontSize: '0.82rem',
-                      padding: '0.4rem',
-                    }}
-                  >
-                    Import a GOOD file to select characters to protect.
-                  </div>
-                </div>
-              </div>
-            )}
+            <button
+              type="button"
+              className="gi-collapsible-toggle-btn"
+              data-testid="sets-protected-collapsible-toggle"
+              aria-expanded={isSetsProtectedOpen}
+              onClick={() => setSetsProtectedManualOpen(!isSetsProtectedOpen)}
+            >
+              [{isSetsProtectedOpen ? 'Hide' : 'Show'}]
+            </button>
           </div>
 
-          <ArtifactSetFilter
-            settings={settings}
-            onChange={(next) => void updateSettings(next)}
-          />
+          {isSetsProtectedOpen && (
+            <div
+              className="gi-collapsible-body"
+              data-testid="sets-protected-collapsible-body"
+            >
+              <div className="presets-filter-bar">
+                <label className="presets-filter-label">
+                  <input
+                    type="checkbox"
+                    checked={settings.includeEquippedOnOthers}
+                    onChange={(e) =>
+                      void updateSettings({
+                        ...settings,
+                        includeEquippedOnOthers: e.target.checked,
+                      })
+                    }
+                  />
+                  <span>Include artifacts equipped on other characters</span>
+                </label>
+
+                <label className="presets-filter-label">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(settings.lockedOnly)}
+                    onChange={(e) =>
+                      void updateSettings({
+                        ...settings,
+                        lockedOnly: e.target.checked,
+                      })
+                    }
+                  />
+                  <span>Use locked artifacts only</span>
+                </label>
+              </div>
+
+              <div
+                className="opt-filter-pair"
+                data-testid="optimize-filter-panels-pair"
+              >
+                <div
+                  className="opt-filter-panel"
+                  data-testid="protected-characters-panel"
+                >
+                  <div className="opt-filter-panel-header">
+                    <span className="opt-filter-panel-title">
+                      Protected Characters
+                    </span>
+                    <span
+                      data-testid="protected-characters-summary"
+                      className="opt-filter-panel-summary"
+                      style={{
+                        color:
+                          settings.excludedCharacters.length > 0
+                            ? 'var(--warn)'
+                            : 'var(--ok)',
+                      }}
+                    >
+                      {settings.excludedCharacters.length > 0
+                        ? `${settings.excludedCharacters.length} protected`
+                        : 'None protected'}
+                    </span>
+                  </div>
+
+                  <div className="opt-filter-panel-subbar">
+                    <span className="opt-filter-panel-hint">
+                      Click a character tile to keep or release their equipped
+                      artifacts.
+                    </span>
+                  </div>
+
+                  {(record?.good.characters ?? []).length > 0 ? (
+                    <CharacterTilePicker
+                      ariaLabel="Protect character"
+                      searchable
+                      selectedKeys={settings.excludedCharacters}
+                      options={(record?.good.characters ?? []).map((c) => ({
+                        key: c.key,
+                        label: displayName(c.key),
+                        subcaption: settings.excludedCharacters.includes(c.key)
+                          ? 'Protected'
+                          : `Lv.${c.level} C${c.constellation}`,
+                      }))}
+                      onChange={(ck) => {
+                        const isProtected =
+                          settings.excludedCharacters.includes(ck)
+                        void updateSettings({
+                          ...settings,
+                          excludedCharacters: isProtected
+                            ? settings.excludedCharacters.filter(
+                                (x) => x !== ck
+                              )
+                            : [...settings.excludedCharacters, ck],
+                        })
+                      }}
+                    />
+                  ) : (
+                    <div className="tile-picker-wrap">
+                      <div className="tile-picker-toolbar">
+                        <input
+                          type="search"
+                          className="tile-picker-search"
+                          aria-label="Search Protect character"
+                          placeholder="Search characters…"
+                          disabled
+                          value=""
+                          readOnly
+                        />
+                      </div>
+                      <div
+                        role="group"
+                        aria-label="Protect character"
+                        className="tile-picker-grid"
+                      >
+                        <div
+                          className="muted"
+                          style={{
+                            gridColumn: '1 / -1',
+                            fontSize: '0.82rem',
+                            padding: '0.4rem',
+                          }}
+                        >
+                          Import a GOOD file to select characters to protect.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <ArtifactSetFilter
+                  settings={settings}
+                  onChange={(next) => void updateSettings(next)}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* GO-Style Deep Artifact Pool Filters */}
+        {/* 2. Pool Filters (with Main-Stat Assumption Level inside) */}
         <SolverPoolFiltersPanel
           settings={settings}
           onChange={(next) => void updateSettings(next)}
         />
 
-        {/* Stat Constraints */}
+        {/* 3. Stat Constraints (Wikipedia-style collapsible) */}
         <ConstraintsCard
           settings={settings}
           onChange={(next) => void updateSettings(next)}
+          collapsible
         />
       </section>
 

@@ -545,21 +545,57 @@ function formatDisplayBoundValue(val: number | undefined): string {
   return String(val)
 }
 
+export function summarizeStatConstraints(
+  constraints: readonly StatConstraint[] | undefined
+): string {
+  if (!constraints || constraints.length === 0) {
+    return 'Stat Constraints — none'
+  }
+  const parts = constraints.map((c) => {
+    const label =
+      STAT_PICKER_OPTIONS.find((o) => o.key === c.stat)?.label ??
+      shortStatLabel(c.stat).replace(/%$/, '')
+    const unit = isPercentStatConstraintKey(c.stat) ? '%' : ''
+    if (c.min !== undefined && c.max !== undefined) {
+      return `${label} ${c.min}${unit}–${c.max}${unit}`
+    }
+    if (c.min !== undefined) {
+      return `${label} ≥ ${c.min}${unit}`
+    }
+    if (c.max !== undefined) {
+      return `${label} ≤ ${c.max}${unit}`
+    }
+    return label
+  })
+  return `Stat Constraints — ${parts.join(', ')}`
+}
+
 export interface ConstraintsCardProps {
   settings: OptimizerSettings
   onChange: (next: OptimizerSettings) => void
   initialPickerOpen?: boolean
+  /** When true, renders as a Wikipedia-style collapsible section (open when constraints exist, closed when empty). */
+  collapsible?: boolean
 }
 
 export function ConstraintsCard({
   settings,
   onChange,
   initialPickerOpen = false,
+  collapsible = false,
 }: ConstraintsCardProps) {
   const [pickerOpen, setPickerOpen] = useState(initialPickerOpen)
   const [draftBounds, setDraftBounds] = useState<Record<string, string>>({})
+  const [manualExpanded, setManualExpanded] = useState<boolean | null>(null)
   const constraints = settings.constraints ?? []
   const usedStats = new Set<string>(constraints.map((c) => c.stat))
+  const hasNonDefault = constraints.length > 0
+  const isExpanded = !collapsible
+    ? true
+    : manualExpanded !== null
+      ? manualExpanded
+      : hasNonDefault
+  const summaryText = summarizeStatConstraints(constraints)
 
   function getBoundDraftKey(stat: StatConstraintKey, field: 'min' | 'max') {
     return `${stat}:${field}`
@@ -669,176 +705,220 @@ export function ConstraintsCard({
     <section
       className="panel gi-card"
       data-testid="constraints-card"
+      data-expanded={isExpanded ? 'true' : 'false'}
       aria-label="Constraints"
     >
       <div className="gi-card-header">
         <div>
-          <h2 className="gi-card-title">Constraints</h2>
-          <p className="gi-card-subtitle">
-            Set minimum floors or maximum caps on final character stats.
+          <h2 className="gi-card-title">Stat Constraints</h2>
+          <p
+            className="gi-card-subtitle"
+            data-testid="constraints-collapsible-summary"
+          >
+            {summaryText}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn-secondary btn-icon"
-          data-testid="add-constraint-btn"
-          aria-expanded={pickerOpen}
-          onClick={() => setPickerOpen((prev) => !prev)}
-          disabled={usedStats.size >= STAT_CONSTRAINT_KEYS.length}
-        >
-          <span>+ Add constraint</span>
-        </button>
-      </div>
-
-      {pickerOpen && (
         <div
-          className="constraint-picker-panel"
-          data-testid="constraint-stat-picker"
-          role="group"
-          aria-label="Select a stat to constrain"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 'var(--sp-2)',
+            flexWrap: 'wrap',
+          }}
         >
-          <div className="constraint-picker-header">
-            <span className="muted">Choose a final stat to bound:</span>
+          {isExpanded && (
             <button
               type="button"
-              className="btn-ghost-sm"
-              onClick={() => setPickerOpen(false)}
+              className="btn-secondary btn-icon"
+              data-testid="add-constraint-btn"
+              aria-expanded={pickerOpen}
+              onClick={() => setPickerOpen((prev) => !prev)}
+              disabled={usedStats.size >= STAT_CONSTRAINT_KEYS.length}
             >
-              Close
+              <span>+ Add constraint</span>
             </button>
-          </div>
-          <div className="constraint-picker-grid">
-            {STAT_PICKER_OPTIONS.map((opt) => {
-              const isAdded = usedStats.has(opt.key)
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  className={`constraint-picker-item${
-                    isAdded ? ' is-disabled' : ''
-                  }`}
-                  data-testid={`picker-stat-${opt.key}`}
-                  disabled={isAdded}
-                  onClick={() => handleAddStat(opt.key)}
-                  title={
-                    isAdded
-                      ? `${opt.label} constraint already added`
-                      : `Add ${opt.label} constraint`
-                  }
-                >
-                  <StatChip statKey={opt.key} showLabel />
-                </button>
-              )
-            })}
-          </div>
+          )}
+          {collapsible && (
+            <button
+              type="button"
+              className="gi-collapsible-toggle-btn"
+              data-testid="constraints-collapsible-toggle"
+              aria-expanded={isExpanded}
+              onClick={() => setManualExpanded(!isExpanded)}
+            >
+              [{isExpanded ? 'Hide' : 'Show'}]
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
-      {constraints.length === 0 ? (
-        <div
-          className="constraint-empty-line"
-          data-testid="constraints-empty-state"
-        >
-          No constraints. Add one to set floors or caps, e.g. ER at least 160%.
-        </div>
-      ) : (
-        <div className="constraint-rows" data-testid="constraint-rows">
-          {constraints.map((c, idx) => {
-            const isPct = isPercentStatConstraintKey(c.stat)
-            const label = shortStatLabel(c.stat)
-            const minKey = getBoundDraftKey(c.stat, 'min')
-            const maxKey = getBoundDraftKey(c.stat, 'max')
-            const minDisplay =
-              minKey in draftBounds
-                ? draftBounds[minKey]!
-                : formatDisplayBoundValue(c.min)
-            const maxDisplay =
-              maxKey in draftBounds
-                ? draftBounds[maxKey]!
-                : formatDisplayBoundValue(c.max)
-
-            return (
-              <div
-                key={`${c.stat}-${idx}`}
-                className="constraint-row"
-                data-testid={`constraint-row-${c.stat}`}
-              >
-                <div className="constraint-row-chip">
-                  <StatChip statKey={c.stat} showLabel isMain />
-                </div>
-
-                <div className="constraint-row-inputs">
-                  <label className="constraint-bound-field">
-                    <span className="constraint-bound-tag">Min</span>
-                    <div className="constraint-input-wrap">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        data-testid={`constraint-min-${c.stat}`}
-                        aria-label={`${label} Min`}
-                        placeholder="—"
-                        value={minDisplay}
-                        onFocus={() => handleFocusBound(c.stat, 'min', c.min)}
-                        onChange={(e) =>
-                          handleChangeBound(idx, c.stat, 'min', e.target.value)
-                        }
-                        onBlur={() => handleBlurBound(idx, c.stat, 'min')}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.currentTarget.blur()
-                          }
-                        }}
-                      />
-                      {isPct && (
-                        <span className="constraint-unit" aria-hidden="true">
-                          %
-                        </span>
-                      )}
-                    </div>
-                  </label>
-
-                  <label className="constraint-bound-field">
-                    <span className="constraint-bound-tag">Max</span>
-                    <div className="constraint-input-wrap">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        data-testid={`constraint-max-${c.stat}`}
-                        aria-label={`${label} Max`}
-                        placeholder="—"
-                        value={maxDisplay}
-                        onFocus={() => handleFocusBound(c.stat, 'max', c.max)}
-                        onChange={(e) =>
-                          handleChangeBound(idx, c.stat, 'max', e.target.value)
-                        }
-                        onBlur={() => handleBlurBound(idx, c.stat, 'max')}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.currentTarget.blur()
-                          }
-                        }}
-                      />
-                      {isPct && (
-                        <span className="constraint-unit" aria-hidden="true">
-                          %
-                        </span>
-                      )}
-                    </div>
-                  </label>
-                </div>
-
+      {isExpanded && (
+        <div data-testid="constraints-collapsible-body">
+          {pickerOpen && (
+            <div
+              className="constraint-picker-panel"
+              data-testid="constraint-stat-picker"
+              role="group"
+              aria-label="Select a stat to constrain"
+            >
+              <div className="constraint-picker-header">
+                <span className="muted">Choose a final stat to bound:</span>
                 <button
                   type="button"
-                  className="btn-icon-only btn-danger-ghost"
-                  aria-label={`Remove ${label} constraint`}
-                  title={`Remove ${label} constraint`}
-                  onClick={() => handleRemove(idx)}
+                  className="btn-ghost-sm"
+                  onClick={() => setPickerOpen(false)}
                 >
-                  <TrashIcon size={14} />
+                  Close
                 </button>
               </div>
-            )
-          })}
+              <div className="constraint-picker-grid">
+                {STAT_PICKER_OPTIONS.map((opt) => {
+                  const isAdded = usedStats.has(opt.key)
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      className={`constraint-picker-item${
+                        isAdded ? ' is-disabled' : ''
+                      }`}
+                      data-testid={`picker-stat-${opt.key}`}
+                      disabled={isAdded}
+                      onClick={() => handleAddStat(opt.key)}
+                      title={
+                        isAdded
+                          ? `${opt.label} constraint already added`
+                          : `Add ${opt.label} constraint`
+                      }
+                    >
+                      <StatChip statKey={opt.key} showLabel />
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {constraints.length === 0 ? (
+            <div
+              className="constraint-empty-line"
+              data-testid="constraints-empty-state"
+            >
+              No constraints. Add one to set floors or caps, e.g. ER at least 160%.
+            </div>
+          ) : (
+            <div className="constraint-rows" data-testid="constraint-rows">
+              {constraints.map((c, idx) => {
+                const isPct = isPercentStatConstraintKey(c.stat)
+                const label = shortStatLabel(c.stat)
+                const minKey = getBoundDraftKey(c.stat, 'min')
+                const maxKey = getBoundDraftKey(c.stat, 'max')
+                const minDisplay =
+                  minKey in draftBounds
+                    ? draftBounds[minKey]!
+                    : formatDisplayBoundValue(c.min)
+                const maxDisplay =
+                  maxKey in draftBounds
+                    ? draftBounds[maxKey]!
+                    : formatDisplayBoundValue(c.max)
+
+                return (
+                  <div
+                    key={`${c.stat}-${idx}`}
+                    className="constraint-row"
+                    data-testid={`constraint-row-${c.stat}`}
+                  >
+                    <div className="constraint-row-chip">
+                      <StatChip statKey={c.stat} showLabel isMain />
+                    </div>
+
+                    <div className="constraint-row-inputs">
+                      <label className="constraint-bound-field">
+                        <span className="constraint-bound-tag">Min</span>
+                        <div className="constraint-input-wrap">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            data-testid={`constraint-min-${c.stat}`}
+                            aria-label={`${label} Min`}
+                            placeholder="—"
+                            value={minDisplay}
+                            onFocus={() =>
+                              handleFocusBound(c.stat, 'min', c.min)
+                            }
+                            onChange={(e) =>
+                              handleChangeBound(
+                                idx,
+                                c.stat,
+                                'min',
+                                e.target.value
+                              )
+                            }
+                            onBlur={() => handleBlurBound(idx, c.stat, 'min')}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.currentTarget.blur()
+                              }
+                            }}
+                          />
+                          {isPct && (
+                            <span className="constraint-unit" aria-hidden="true">
+                              %
+                            </span>
+                          )}
+                        </div>
+                      </label>
+
+                      <label className="constraint-bound-field">
+                        <span className="constraint-bound-tag">Max</span>
+                        <div className="constraint-input-wrap">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            data-testid={`constraint-max-${c.stat}`}
+                            aria-label={`${label} Max`}
+                            placeholder="—"
+                            value={maxDisplay}
+                            onFocus={() =>
+                              handleFocusBound(c.stat, 'max', c.max)
+                            }
+                            onChange={(e) =>
+                              handleChangeBound(
+                                idx,
+                                c.stat,
+                                'max',
+                                e.target.value
+                              )
+                            }
+                            onBlur={() => handleBlurBound(idx, c.stat, 'max')}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.currentTarget.blur()
+                              }
+                            }}
+                          />
+                          {isPct && (
+                            <span className="constraint-unit" aria-hidden="true">
+                              %
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn-icon-only btn-danger-ghost"
+                      aria-label={`Remove ${label} constraint`}
+                      title={`Remove ${label} constraint`}
+                      onClick={() => handleRemove(idx)}
+                    >
+                      <TrashIcon size={14} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -3616,8 +3696,11 @@ export function SolverPoolFiltersPanel({
     readPoolFiltersSessionExpanded()
   )
   const summary = summarizeSolverPoolFilters(settings)
+  const mainStatAssumptionLevel = settings.mainStatAssumptionLevel ?? 0
+  const assumptionFilterActive = mainStatAssumptionLevel > 0
+  const isPoolUnrestricted = summary.isUnrestricted && !assumptionFilterActive
   const isExpanded =
-    sessionExpanded !== null ? sessionExpanded : !summary.isUnrestricted
+    sessionExpanded !== null ? sessionExpanded : !isPoolUnrestricted
   const mainStatKeys: MainStatAllowlistMap = settings.mainStatKeys ?? {}
   const requiredSubstats: string[] = settings.requiredSubstats ?? []
   const requiredSubstatsMode: RequiredSubstatsMode =
@@ -3777,12 +3860,21 @@ export function SolverPoolFiltersPanel({
             data-testid="solver-pool-filters-summary"
             className="opt-filter-panel-summary"
             style={{
-              color: summary.isUnrestricted ? 'var(--ok)' : 'var(--warn)',
+              color: isPoolUnrestricted ? 'var(--ok)' : 'var(--warn)',
             }}
           >
+            <span>
+              {isPoolUnrestricted
+                ? 'Pool Filters — unrestricted ('
+                : 'Pool Filters — '}
+            </span>
             {summary.text}
+            {assumptionFilterActive
+              ? ` · Assume Lv. ${mainStatAssumptionLevel}+`
+              : ''}
+            {isPoolUnrestricted ? <span>)</span> : null}
           </span>
-          {!summary.isUnrestricted && (
+          {!isPoolUnrestricted && (
             <button
               type="button"
               data-testid="solver-pool-filters-reset"
@@ -3790,12 +3882,22 @@ export function SolverPoolFiltersPanel({
               style={{ padding: '0.2rem 0.6rem', fontSize: '0.82rem' }}
               onClick={() => {
                 setDraftValues({})
-                onChange(resetSolverPoolFilters(settings))
+                onChange({
+                  ...resetSolverPoolFilters(settings),
+                  mainStatAssumptionLevel: 0,
+                })
               }}
             >
               Reset Pool Filters
             </button>
           )}
+          <span
+            className="gi-collapsible-toggle-btn"
+            data-testid="pool-filters-show-hide-label"
+            onClick={toggleExpanded}
+          >
+            [{isExpanded ? 'Hide' : 'Show'}]
+          </span>
         </div>
       </div>
 
@@ -4148,6 +4250,52 @@ export function SolverPoolFiltersPanel({
                 <span className="muted" style={{ fontSize: '0.82rem' }}>
                   % RV min
                 </span>
+              </div>
+            </div>
+
+            <div
+              className={`opt-pool-filter-field${assumptionFilterActive ? ' is-active' : ''}`}
+              data-testid="pool-filter-field-assumption"
+              data-active={assumptionFilterActive ? 'true' : 'false'}
+            >
+              <div className="opt-pool-field-header">
+                <span className="opt-pool-field-label">
+                  Main-Stat Assumption Level
+                </span>
+                {assumptionFilterActive && (
+                  <span
+                    className="opt-pool-active-pill"
+                    data-testid="pool-filter-active-assumption"
+                  >
+                    Assume Lv. {mainStatAssumptionLevel}+
+                  </span>
+                )}
+              </div>
+              <div className="opt-pool-field-controls">
+                <select
+                  aria-label="Main-Stat Assumption Level"
+                  data-testid="pool-filter-main-stat-assumption"
+                  value={mainStatAssumptionLevel}
+                  onChange={(e) =>
+                    onChange({
+                      ...settings,
+                      mainStatAssumptionLevel: Number(e.target.value) as
+                        | 0
+                        | 4
+                        | 8
+                        | 12
+                        | 16
+                        | 20,
+                    })
+                  }
+                >
+                  <option value={0}>No Assumption (Actual Level)</option>
+                  <option value={4}>Assume at least Lv. 4</option>
+                  <option value={8}>Assume at least Lv. 8</option>
+                  <option value={12}>Assume at least Lv. 12</option>
+                  <option value={16}>Assume at least Lv. 16</option>
+                  <option value={20}>Assume Full Level (Lv. 20)</option>
+                </select>
               </div>
             </div>
           </div>
