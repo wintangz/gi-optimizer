@@ -2347,6 +2347,12 @@ td {
 }
 
 /* Conditional Toggle Panel */
+.gi-stage-team-buffs-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 .gi-buffs-resonance-bar {
   display: flex;
   align-items: center;
@@ -2497,6 +2503,17 @@ td {
   border: 1px solid var(--accent-border);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.gi-target-member-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.1rem 0.42rem;
+  border-radius: var(--radius-xs);
+  background: var(--ok-bg);
+  color: var(--ok);
+  border: 1px solid var(--ok-border);
+  letter-spacing: 0.02em;
 }
 
 .gi-buffs-groups {
@@ -3453,6 +3470,12 @@ td {
   min-width: 0;
 }
 
+.gi-buffs-member-identity .preset-team-member-card-weapon {
+  padding-top: 0;
+  border-top: none;
+  flex: 1 1 280px;
+}
+
 .preset-member-weapon-btn {
   display: flex;
   align-items: center;
@@ -3668,6 +3691,18 @@ td {
   gap: 0.35rem;
   min-width: 0;
   flex: 1 1 0%;
+}
+
+.preset-fastmode-edit-pill {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 0.08rem 0.38rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .preset-fastmode-toggle,

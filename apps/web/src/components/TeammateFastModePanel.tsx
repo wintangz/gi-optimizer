@@ -487,23 +487,8 @@ export function MemberFastModeExpander({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [expanded])
 
-  if (!fastModeAvailable) {
+  if (!fastModeAvailable || isTarget) {
     return null
-  }
-
-  if (isTarget) {
-    return (
-      <div
-        className="preset-member-fastmode-section is-target-note"
-        data-testid={`target-fast-mode-note-${characterKey}`}
-      >
-        <div className="preset-member-fastmode-bar">
-          <span className="preset-fastmode-target-note">
-            Optimization Target — Artifacts solved from your pool
-          </span>
-        </div>
-      </div>
-    )
   }
 
   const isActive = hasMemberFastMode(fastModeStats)
@@ -552,6 +537,12 @@ export function MemberFastModeExpander({
             data-testid={`fast-mode-summary-${characterKey}`}
           >
             {summaryText}
+          </span>
+          <span
+            className="preset-fastmode-edit-pill"
+            data-testid={`fast-mode-edit-btn-${characterKey}`}
+          >
+            Edit
           </span>
           <ChevronIcon expanded={expanded} size={14} />
         </span>

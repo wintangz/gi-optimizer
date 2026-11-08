@@ -373,21 +373,44 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
   it('renders owned teammates as Owned Build (without SIM badge), unowned teammates as Simulated (Not in GOOD) with SIM badge, and persists per-member toggle', async () => {
     const tree1 = renderPass()
 
-    // (1) Owned members (Neuvillette, KaedeharaKazuha) default to 'owned' without SIM badge
-    const neuvSlot = findByTestId(tree1, 'preset-team-member-Neuvillette')
-    const kazuhaSlot = findByTestId(tree1, 'preset-team-member-KaedeharaKazuha')
-    expect(neuvSlot).toBeDefined()
-    expect(kazuhaSlot).toBeDefined()
+    // (1) Member selector tabs show Owned members (Neuvillette, KaedeharaKazuha) without SIM badge and Unowned member (Zhongli) with SIM badge
+    const neuvTab = findByTestId(tree1, 'member-buffs-tab-Neuvillette')
+    const kazuhaTab = findByTestId(tree1, 'member-buffs-tab-KaedeharaKazuha')
+    const zhongliTab = findByTestId(tree1, 'member-buffs-tab-Zhongli')
+    expect(neuvTab).toBeDefined()
+    expect(kazuhaTab).toBeDefined()
+    expect(zhongliTab).toBeDefined()
 
-    const neuvBadge = findCharacterBadge([neuvSlot!])!
-    const kazuhaBadge = findCharacterBadge([kazuhaSlot!])!
+    const neuvBadge = findCharacterBadge([neuvTab!])!
+    const kazuhaBadge = findCharacterBadge([kazuhaTab!])!
+    const zhongliBadge = findCharacterBadge([zhongliTab!])!
     expect(neuvBadge.props['data-simulated']).toBe('false')
     expect(kazuhaBadge.props['data-simulated']).toBe('false')
+    expect(zhongliBadge.props['data-simulated']).toBe('true')
     expect(collectText([neuvBadge])).not.toContain('SIM')
     expect(collectText([kazuhaBadge])).not.toContain('SIM')
+    expect(collectText([zhongliBadge])).toContain('SIM')
 
+    // Switch to Zhongli's tab -> his editor shows Simulated (Not in GOOD)
+    ;(zhongliTab!.props.onClick as () => void)()
+    const treeZhongli = renderPass()
+    const zhongliToggle = findByTestId(
+      treeZhongli,
+      'member-build-toggle-Zhongli'
+    )!
+    expect(zhongliToggle.props['data-build-mode']).toBe('tc')
+    expect(zhongliToggle.props['data-owned-in-good']).toBe('false')
+    expect(zhongliToggle.props['data-forced-simulated']).toBe('true')
+    expect(collectText([zhongliToggle])).toContain('Simulated (Not in GOOD)')
+
+    // Switch to KaedeharaKazuha's tab -> his editor shows Owned Build toggle
+    ;(
+      findByTestId(treeZhongli, 'member-buffs-tab-KaedeharaKazuha')!.props
+        .onClick as () => void
+    )()
+    const treeKazuha = renderPass()
     const kazuhaToggle = findByTestId(
-      tree1,
+      treeKazuha,
       'member-build-toggle-KaedeharaKazuha'
     )!
     expect(kazuhaToggle.props['data-build-mode']).toBe('owned')
@@ -395,19 +418,7 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(kazuhaToggle.props['data-forced-simulated']).toBe('false')
     expect(collectText([kazuhaToggle])).toBe('Owned Build')
 
-    // (3) Unowned member (Zhongli is absent from SAMPLE_GOOD) runs as simulated and is visibly labelled
-    const zhongliSlot = findByTestId(tree1, 'preset-team-member-Zhongli')!
-    const zhongliBadge = findCharacterBadge([zhongliSlot])!
-    expect(zhongliBadge.props['data-simulated']).toBe('true')
-    expect(collectText([zhongliBadge])).toContain('SIM')
-
-    const zhongliToggle = findByTestId(tree1, 'member-build-toggle-Zhongli')!
-    expect(zhongliToggle.props['data-build-mode']).toBe('tc')
-    expect(zhongliToggle.props['data-owned-in-good']).toBe('false')
-    expect(zhongliToggle.props['data-forced-simulated']).toBe('true')
-    expect(collectText([zhongliToggle])).toContain('Simulated (Not in GOOD)')
-
-    // (2) Toggle owned member (KaedeharaKazuha) to simulated ('tc') -> persists in settings and updates badge to SIM
+    // (2) Toggle owned member (KaedeharaKazuha) to simulated ('tc') -> persists in settings and updates tab badge to SIM
     const onClickKazuha = kazuhaToggle.props.onClick as () => void
     onClickKazuha()
 
@@ -418,11 +429,11 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     ).toBe('tc')
 
     const tree2 = renderPass()
-    const kazuhaSlotAfter = findByTestId(
+    const kazuhaTabAfter = findByTestId(
       tree2,
-      'preset-team-member-KaedeharaKazuha'
+      'member-buffs-tab-KaedeharaKazuha'
     )!
-    const kazuhaBadgeAfter = findCharacterBadge([kazuhaSlotAfter])!
+    const kazuhaBadgeAfter = findCharacterBadge([kazuhaTabAfter])!
     expect(kazuhaBadgeAfter.props['data-simulated']).toBe('true')
     expect(collectText([kazuhaBadgeAfter])).toContain('SIM')
 
@@ -479,20 +490,37 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     }
   })
 
-  it('renders 4 member cards in Team & Buffs with modal weapon-picking for any member (teammates fixed on Akasha) and collapsible Buffs & Passives (flow-team-stage / official-preset-weapon-picker)', async () => {
+  it('merges Stage 3 into one Team & Buffs section with member selector tabs, unified member editor, and modal weapon-picking for any member (teammates fixed on Akasha) (team-buffs-merge / flow-team-stage)', async () => {
     mockOptimizePresetInWorker.mockClear()
     const tree1 = renderPass()
     await Promise.resolve()
     await Promise.resolve()
 
-    // (1) Team & Buffs stage shows 4 member cards with portrait, owned/simulated state, and weapon trigger
-    const cardsGrid = findByTestId(tree1, 'preset-team-roster')
-    expect(cardsGrid).toBeDefined()
-    expect(cardsGrid!.props.className).toContain('preset-team-cards-grid')
+    // (1) Separate member card grid and separate Buffs & Passives sub-panel are gone
+    expect(findByTestId(tree1, 'preset-team-roster')).toBeUndefined()
+    expect(findByTestId(tree1, 'buffs-collapsible-toggle')).toBeUndefined()
+    expect(findByTestId(tree1, 'buffs-collapsible-summary')).toBeUndefined()
+
+    const stage3 = findByTestId(tree1, 'team-buffs-stage')!
+    expect(stage3).toBeDefined()
+    expect(findByTestId([stage3], 'team-resonance-master-row')).toBeDefined()
+    expect(findByTestId([stage3], 'buff-panel-member-tabs')).toBeDefined()
+
+    // Each member appears EXACTLY ONCE in Stage 3 (as a tab in buff-panel-member-tabs)
     for (const key of ['Furina', 'Neuvillette', 'KaedeharaKazuha', 'Zhongli']) {
-      expect(findByTestId(tree1, `preset-team-member-${key}`)).toBeDefined()
-      expect(findByTestId(tree1, `member-weapon-trigger-${key}`)).toBeDefined()
+      expect(findByTestId([stage3], `member-buffs-tab-${key}`)).toBeDefined()
+      const charBadgesInStage = findAll(
+        [stage3],
+        (n) =>
+          n.props['data-identifier-kind'] === 'character' &&
+          n.props['data-character-key'] === key
+      )
+      expect(charBadgesInStage).toHaveLength(1)
     }
+
+    // Furina (Target) is selected initially; her editor shows her weapon row
+    expect(findByTestId(tree1, 'member-buffs-panel-Furina')).toBeDefined()
+    expect(findByTestId(tree1, 'member-weapon-trigger-Furina')).toBeDefined()
     const modeStatus = findByTestId(tree1, 'target-weapon-mode-status')
     expect(collectText([modeStatus!])).toContain('Default Weapon')
     expect(findByTestId(tree1, 'reset-target-weapon-btn')).toBeUndefined()
@@ -587,7 +615,7 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     })
     expect(optCall.weaponId).toBeUndefined()
 
-    // (4) Click "Reset to Default" -> clears override and returns to Default Weapon
+    // (4) Click "Reset" -> clears override and returns to Default Weapon
     const resetBtn = findByTestId(treeClosed, 'reset-target-weapon-btn')
     expect(resetBtn).toBeDefined()
     ;(resetBtn!.props.onClick as () => void)()
@@ -598,9 +626,14 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     ).toContain('Default Weapon')
     expect(findByTestId(tree4, 'reset-target-weapon-btn')).toBeUndefined()
 
-    // (5) Clicking a teammate's weapon opens the weapon-picker modal for that teammate
+    // (5) Switch to KaedeharaKazuha's tab and click his weapon row -> opens weapon-picker modal for KaedeharaKazuha
+    ;(
+      findByTestId(tree4, 'member-buffs-tab-KaedeharaKazuha')!.props
+        .onClick as () => void
+    )()
+    const treeKazuhaSelected = renderPass()
     const kazuhaWeaponBtn = findByTestId(
-      tree4,
+      treeKazuhaSelected,
       'member-weapon-trigger-KaedeharaKazuha'
     )
     expect(kazuhaWeaponBtn).toBeDefined()
@@ -632,31 +665,15 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     )
     expect(resetTeammateBtn).toBeDefined()
     ;(resetTeammateBtn!.props.onClick as () => void)()
+    ;(
+      findByTestId(treeTeammatePicked, 'close-weapon-modal-btn')!.props
+        .onClick as () => void
+    )()
 
-    // (6) Buffs & Passives in Team & Buffs is a collapsible section
+    // (6) On an Akasha preset, target weapon trigger is enabled while teammates' weapons stay fixed by the case
     const treeAfterReset = renderPass()
-    const buffsToggle = findByTestId(
-      treeAfterReset,
-      'buffs-collapsible-toggle'
-    )
-    const buffsSummary = findByTestId(
-      treeAfterReset,
-      'buffs-collapsible-summary'
-    )
-    expect(buffsToggle).toBeDefined()
-    expect(buffsSummary).toBeDefined()
-    expect(buffsToggle!.props['aria-expanded']).toBe(false)
-    ;(buffsToggle!.props.onClick as () => void)()
-    const treeBuffsExpanded = renderPass()
-    expect(
-      findByTestId(treeBuffsExpanded, 'buffs-collapsible-toggle')!.props[
-        'aria-expanded'
-      ]
-    ).toBe(true)
-
-    // (7) On an Akasha preset, target weapon trigger is enabled while teammates' weapons stay fixed by the case
     const akashaBtn = findAll(
-      treeBuffsExpanded,
+      treeAfterReset,
       (n) =>
         n.type === 'button' &&
         typeof n.props['data-preset-id'] === 'string' &&
@@ -666,22 +683,29 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(akashaBtn).toBeDefined()
     ;(akashaBtn!.props.onClick as () => void)()
 
-    const treeAkasha = renderPass()
+    // Switch back to Furina tab to verify target weapon trigger is enabled
+    const treeAkasha1 = renderPass()
+    ;(
+      findByTestId(treeAkasha1, 'member-buffs-tab-Furina')!.props
+        .onClick as () => void
+    )()
+    const treeAkashaTarget = renderPass()
     const akashaTargetWeaponBtn = findByTestId(
-      treeAkasha,
+      treeAkashaTarget,
       'member-weapon-trigger-Furina'
     )
     expect(akashaTargetWeaponBtn).toBeDefined()
     expect(akashaTargetWeaponBtn!.props.disabled).toBe(false)
-    const akashaTeammateTriggers = findAll(
-      treeAkasha,
-      (n) =>
-        typeof n.props['data-testid'] === 'string' &&
-        String(n.props['data-testid']).startsWith('member-weapon-trigger-') &&
-        n.props['data-character-key'] !== 'Furina'
-    )
-    expect(akashaTeammateTriggers.length).toBeGreaterThan(0)
-    for (const tmBtn of akashaTeammateTriggers) {
+
+    // Switch to each Akasha teammate tab and verify their weapon row is locked
+    for (const tmKey of ['Neuvillette', 'KaedeharaKazuha', 'Zhongli'] as const) {
+      ;(
+        findByTestId(treeAkashaTarget, `member-buffs-tab-${tmKey}`)!.props
+          .onClick as () => void
+      )()
+      const treeTm = renderPass()
+      const tmBtn = findByTestId(treeTm, `member-weapon-trigger-${tmKey}`)!
+      expect(tmBtn).toBeDefined()
       expect(tmBtn.props.disabled).toBe(true)
       expect(tmBtn.props['data-weapon-locked']).toBe('true')
     }
@@ -698,8 +722,11 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     const idxStage2Mode = orderedTestIds.indexOf('mode-selection-card')
     const idxWeaponModeBar = orderedTestIds.indexOf('optimize-weapon-mode-bar')
     const idxStage3TeamBuffs = orderedTestIds.indexOf('team-buffs-stage')
-    const idxTeamRoster = orderedTestIds.indexOf('preset-team-roster')
-    const idxBuffsPanel = orderedTestIds.indexOf('conditional-toggle-panel')
+    const idxResonanceRow = orderedTestIds.indexOf('team-resonance-master-row')
+    const idxMemberTabs = orderedTestIds.indexOf('buff-panel-member-tabs')
+    const idxActiveMemberPanel = orderedTestIds.indexOf(
+      'member-buffs-panel-Furina'
+    )
     const idxStage4Artifacts = orderedTestIds.indexOf('artifact-settings-card')
     const idxSetsProtected = orderedTestIds.indexOf(
       'collapsible-sets-protected'
@@ -714,9 +741,10 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(idxStage2Mode).toBeGreaterThan(idxStage1Preset)
     expect(idxWeaponModeBar).toBeGreaterThan(idxStage2Mode)
     expect(idxStage3TeamBuffs).toBeGreaterThan(idxWeaponModeBar)
-    expect(idxTeamRoster).toBeGreaterThan(idxStage3TeamBuffs)
-    expect(idxBuffsPanel).toBeGreaterThan(idxTeamRoster)
-    expect(idxStage4Artifacts).toBeGreaterThan(idxBuffsPanel)
+    expect(idxResonanceRow).toBeGreaterThan(idxStage3TeamBuffs)
+    expect(idxMemberTabs).toBeGreaterThan(idxResonanceRow)
+    expect(idxActiveMemberPanel).toBeGreaterThan(idxMemberTabs)
+    expect(idxStage4Artifacts).toBeGreaterThan(idxActiveMemberPanel)
     expect(idxSetsProtected).toBeGreaterThan(idxStage4Artifacts)
     expect(idxPoolFilters).toBeGreaterThan(idxSetsProtected)
     expect(idxConstraintsCard).toBeGreaterThan(idxPoolFilters)
@@ -735,16 +763,26 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       collectText([findByTestId(tree, 'optimize-mode-team')!])
     ).toBe('Optimize Team')
 
-    // In default 'single' mode: WeaponComparisonPanel is hidden, in-card Fast Mode expander and Top N Builds are shown
-    expect(findByTestId(tree, 'weapon-compare-panel')).toBeUndefined()
-    expect(findByTestId(tree, 'teammate-fast-mode-panel')).toBeUndefined()
+    // Target's editor (Furina) has NO Fast Mode row
+    expect(findByTestId(tree, 'fast-mode-expander-toggle-Furina')).toBeUndefined()
+
+    // Select KaedeharaKazuha's tab to verify Fast Mode visibility across modes
+    ;(
+      findByTestId(tree, 'member-buffs-tab-KaedeharaKazuha')!.props
+        .onClick as () => void
+    )()
+    const kazuhaTree = renderPass()
+
+    // In default 'single' mode: WeaponComparisonPanel is hidden, teammate's Fast Mode row and Top N Builds are shown
+    expect(findByTestId(kazuhaTree, 'weapon-compare-panel')).toBeUndefined()
+    expect(findByTestId(kazuhaTree, 'teammate-fast-mode-panel')).toBeUndefined()
     expect(
-      findByTestId(tree, 'fast-mode-expander-toggle-KaedeharaKazuha')
+      findByTestId(kazuhaTree, 'fast-mode-expander-toggle-KaedeharaKazuha')
     ).toBeDefined()
-    expect(findByTestId(tree, 'top-n-builds-select')).toBeDefined()
+    expect(findByTestId(kazuhaTree, 'top-n-builds-select')).toBeDefined()
 
     // Switch to 'compare' mode: WeaponComparisonPanel appears, single-mode target picker and Top N Builds hide
-    const compareBtn = findByTestId(tree, 'optimize-mode-compare')!
+    const compareBtn = findByTestId(kazuhaTree, 'optimize-mode-compare')!
     ;(compareBtn.props.onClick as () => void)()
     const compareTree = renderPass()
     expect(findByTestId(compareTree, 'weapon-compare-panel')).toBeDefined()
@@ -1013,14 +1051,21 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     ).toBe('Stat Constraints — ER ≥ 200%, CRIT Rate 70%–100%')
   })
 
-  it('team-stage-member-cards: renders one unified card per member (2x2 grid) with single build-state label, uniform weapon row, compact base->final stat grid, and closed-by-default Fast Mode expander where Reset Fast Mode shows only when active', () => {
+  it('team-buffs-merge / team-stage-member-cards: merges Stage 3 into one section where each member appears once as a tab (Furina with Target marker), and each member editor displays weapon row, single build-state label, Base->Final stats, Fast Mode modal trigger (teammates only), and buff switches', () => {
     mockSearchParams = new URLSearchParams('preset=akasha/furina-salon-pjc-c0')
     const tree1 = renderPass()
 
-    // (1) Separate Teammate Stats & Fast Mode row is gone; all 4 members live in preset-team-roster
+    // (1) Separate member card grid and separate Buffs & Passives sub-panel are gone
     expect(findByTestId(tree1, 'teammate-fast-mode-panel')).toBeUndefined()
-    const roster = findByTestId(tree1, 'preset-team-roster')!
-    expect(roster).toBeDefined()
+    expect(findByTestId(tree1, 'preset-team-roster')).toBeUndefined()
+    expect(findByTestId(tree1, 'buffs-collapsible-toggle')).toBeUndefined()
+
+    const stage3 = findByTestId(tree1, 'team-buffs-stage')!
+    expect(stage3).toBeDefined()
+    expect(findByTestId([stage3], 'team-resonance-master-row')).toBeDefined()
+    const tablist = findByTestId([stage3], 'buff-panel-member-tabs')!
+    expect(tablist).toBeDefined()
+
     const memberKeys = [
       'Furina',
       'Neuvillette',
@@ -1028,24 +1073,52 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       'Zhongli',
     ] as const
 
+    // Each member appears EXACTLY ONCE in Stage 3 (in their tab), and Furina's tab carries the Target marker
     for (const mKey of memberKeys) {
-      const card = findByTestId([roster], `preset-team-member-${mKey}`)!
-      expect(card).toBeDefined()
+      const tab = findByTestId([tablist], `member-buffs-tab-${mKey}`)!
+      expect(tab).toBeDefined()
+      const charBadgesInStage = findAll(
+        [stage3],
+        (n) =>
+          n.props['data-identifier-kind'] === 'character' &&
+          n.props['data-character-key'] === mKey
+      )
+      expect(charBadgesInStage).toHaveLength(1)
+      if (mKey === 'Furina') {
+        expect(collectText([tab])).toContain('Target')
+      } else {
+        expect(collectText([tab])).not.toContain('Target')
+      }
+    }
 
-      // Build-state label appears EXACTLY ONCE per card
-      const statePill = findByTestId([card], `member-build-state-${mKey}`)!
+    // Target (Furina) editor has NO Fast Mode row
+    expect(findByTestId(tree1, 'fast-mode-section-Furina')).toBeUndefined()
+    expect(
+      findByTestId(tree1, 'fast-mode-expander-toggle-Furina')
+    ).toBeUndefined()
+
+    for (const mKey of memberKeys) {
+      ;(
+        findByTestId(tree1, `member-buffs-tab-${mKey}`)!.props
+          .onClick as () => void
+      )()
+      const treeMember = renderPass()
+      const editor = findByTestId(treeMember, `member-buffs-panel-${mKey}`)!
+      expect(editor).toBeDefined()
+
+      // Build-state label appears EXACTLY ONCE in the member editor
+      const statePill = findByTestId([editor], `member-build-state-${mKey}`)!
       expect(statePill).toBeDefined()
       if (mKey === 'Furina') {
         expect(collectText([statePill])).toContain('Fixed Spec · Lv.90 C0')
       } else {
         expect(collectText([statePill])).toBe('Fixed by Case')
-        // Verify 'Fixed by Case' is not duplicated anywhere else in the card
-        const cardText = collectText([card])
-        expect(cardText.split('Fixed by Case').length - 1).toBe(1)
+        const editorText = collectText([editor])
+        expect(editorText.split('Fixed by Case').length - 1).toBe(1)
       }
 
       // Uniform single-row weapon badge inside the weapon trigger
-      const weaponBtn = findByTestId([card], `member-weapon-trigger-${mKey}`)!
+      const weaponBtn = findByTestId([editor], `member-weapon-trigger-${mKey}`)!
       expect(weaponBtn).toBeDefined()
       const weaponRowBadge = findAll(
         [weaponBtn],
@@ -1056,45 +1129,73 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
         'preset-weapon-badge-row'
       )
 
-      // Compact base -> final stat grid lives inside the card
-      expect(findByTestId([card], `teammate-stats-${mKey}`)).toBeDefined()
+      // Compact base -> final stat grid lives inside the member editor
+      expect(findByTestId([editor], `teammate-stats-${mKey}`)).toBeDefined()
       expect(
-        findByTestId([card], `teammate-stat-base-${mKey}-hp`)
+        findByTestId([editor], `teammate-stat-base-${mKey}-hp`)
       ).toBeDefined()
       expect(
-        findByTestId([card], `teammate-stat-final-${mKey}-hp`)
+        findByTestId([editor], `teammate-stat-final-${mKey}-hp`)
       ).toBeDefined()
-    }
 
-    // (2) Fast Mode Virtual 6th Artifact expander on teammates starts closed by default, and Reset Fast Mode is NOT rendered when empty
-    for (const tmKey of ['Neuvillette', 'KaedeharaKazuha', 'Zhongli'] as const) {
-      const expToggle = findByTestId(
-        tree1,
-        `fast-mode-expander-toggle-${tmKey}`
-      )!
-      expect(expToggle).toBeDefined()
-      expect(expToggle.props['aria-expanded']).toBe(false)
-      expect(expToggle.props['aria-controls']).toBe(`fast-mode-editor-${tmKey}`)
+      // Buff/passive groups live in the same member editor
+      expect(findByTestId([editor], `buff-group-weapon-${mKey}`)).toBeDefined()
       expect(
-        findAll(
-          [expToggle],
-          (n) =>
-            n.props['data-gi-icon'] === 'ChevronIcon' &&
-            n.props['data-chevron-state'] === 'closed'
+        findByTestId([editor], `buff-group-artifact-${mKey}`)
+      ).toBeDefined()
+      expect(
+        findByTestId([editor], `buff-group-character-${mKey}`)
+      ).toBeDefined()
+      expect(
+        findByTestId([editor], `buff-group-constellation-${mKey}`)
+      ).toBeDefined()
+
+      // Fast Mode row on teammates starts closed by default with "Not set" and "Edit" button
+      if (mKey !== 'Furina') {
+        const expToggle = findByTestId(
+          [editor],
+          `fast-mode-expander-toggle-${mKey}`
+        )!
+        expect(expToggle).toBeDefined()
+        expect(expToggle.props['aria-expanded']).toBe(false)
+        expect(expToggle.props['aria-controls']).toBe(
+          `fast-mode-editor-${mKey}`
         )
-      ).toHaveLength(1)
-      expect(
-        collectText([findByTestId(tree1, `fast-mode-summary-${tmKey}`)!])
-      ).toBe('Not set')
-      expect(findByTestId(tree1, `fast-mode-modal-${tmKey}`)).toBeUndefined()
-      expect(findByTestId(tree1, `fast-mode-editor-${tmKey}`)).toBeUndefined()
-      expect(findByTestId(tree1, `fast-mode-reset-${tmKey}`)).toBeUndefined()
+        expect(
+          findAll(
+            [expToggle],
+            (n) =>
+              n.props['data-gi-icon'] === 'ChevronIcon' &&
+              n.props['data-chevron-state'] === 'closed'
+          )
+        ).toHaveLength(1)
+        expect(
+          collectText([findByTestId([editor], `fast-mode-summary-${mKey}`)!])
+        ).toBe('Not set')
+        expect(
+          collectText([findByTestId([editor], `fast-mode-edit-btn-${mKey}`)!])
+        ).toBe('Edit')
+        expect(
+          findByTestId(treeMember, `fast-mode-modal-${mKey}`)
+        ).toBeUndefined()
+        expect(
+          findByTestId(treeMember, `fast-mode-editor-${mKey}`)
+        ).toBeUndefined()
+        expect(
+          findByTestId(treeMember, `fast-mode-reset-${mKey}`)
+        ).toBeUndefined()
+      }
     }
 
-    // (3) Expand KaedeharaKazuha's Fast Mode modal and enter +200 EM -> Reset Fast Mode appears ONLY for KaedeharaKazuha
+    // (2) Select KaedeharaKazuha's tab, open his Fast Mode modal, and enter +200 EM -> Reset Fast Mode appears in modal and Fast Mode badge appears on Kazuha's tab
     ;(
-      findByTestId(tree1, 'fast-mode-expander-toggle-KaedeharaKazuha')!.props
+      findByTestId(tree1, 'member-buffs-tab-KaedeharaKazuha')!.props
         .onClick as () => void
+    )()
+    const treeKazuha = renderPass()
+    ;(
+      findByTestId(treeKazuha, 'fast-mode-expander-toggle-KaedeharaKazuha')!
+        .props.onClick as () => void
     )()
     const treeExpanded = renderPass()
     expect(
@@ -1125,17 +1226,16 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(
       findByTestId(treeWithFastMode, 'fast-mode-reset-KaedeharaKazuha')
     ).toBeDefined()
+    // Fast Mode badge renders on KaedeharaKazuha's tab
+    const kazuhaTabWithFastMode = findByTestId(
+      treeWithFastMode,
+      'member-buffs-tab-KaedeharaKazuha'
+    )!
     expect(
-      findByTestId(treeWithFastMode, 'fast-mode-badge-KaedeharaKazuha')
+      findByTestId([kazuhaTabWithFastMode], 'fast-mode-badge-KaedeharaKazuha')
     ).toBeDefined()
-    expect(
-      findByTestId(treeWithFastMode, 'fast-mode-reset-Neuvillette')
-    ).toBeUndefined()
-    expect(
-      findByTestId(treeWithFastMode, 'fast-mode-reset-Zhongli')
-    ).toBeUndefined()
 
-    // Clicking Reset Fast Mode clears KaedeharaKazuha's Fast Mode values and hides the button again
+    // Clicking Reset Fast Mode clears KaedeharaKazuha's Fast Mode values and hides the button & tab badge again
     ;(
       findByTestId(treeWithFastMode, 'fast-mode-reset-KaedeharaKazuha')!.props
         .onClick as () => void
@@ -1144,12 +1244,15 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(
       findByTestId(treeReset, 'fast-mode-reset-KaedeharaKazuha')
     ).toBeUndefined()
+    expect(
+      findByTestId(treeReset, 'fast-mode-badge-KaedeharaKazuha')
+    ).toBeUndefined()
 
-    // (4) Stage 2 mode selection keeps Compare Weapons (N) count
+    // (3) Stage 2 mode selection keeps Compare Weapons (N) count
     const compareModeBtn = findByTestId(treeReset, 'optimize-mode-compare')!
     expect(collectText([compareModeBtn])).toMatch(/^Compare Weapons \(\d+\)$/)
 
-    // (5) stage-spacing-basics: all 5 stages have consistent header structure (first child of .gi-card-header is the title/subtitle div) so section headers align to the same left edge
+    // (4) stage-spacing-basics: all 5 stages have consistent header structure (first child of .gi-card-header is the title/subtitle div) so section headers align to the same left edge
     for (const stageId of [
       'setup-card',
       'mode-selection-card',

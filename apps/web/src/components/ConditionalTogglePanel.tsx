@@ -11,12 +11,18 @@ import {
   SetEmblemIcon,
   WeaponTypeIcon,
 } from '@/components/SvgIcons'
+import {
+  MemberCompactStatGrid,
+  MemberFastModeExpander,
+} from '@/components/TeammateFastModePanel'
 import { getCatalogInWorker } from '@/lib/engine/workerClient'
 import { getCharacterMeta } from '@/lib/itemMeta'
 import {
   prettifyConditionalKey,
   type ConditionalDescriptor,
   type ConditionalStateDescriptor,
+  type MemberStatSummary,
+  type SimulatedWeaponSpec,
 } from '@gi/engine'
 import type { IGOOD } from '@gi/good'
 import {
@@ -26,18 +32,47 @@ import {
   getPresetMemberBuildModes,
   getPresetResonanceEnabled,
   hasMemberConditionalOverrides,
+  hasMemberFastMode,
   readEffectiveConditionalValue,
   resetMemberConditionalOverrides,
   resolvePresetMemberBuildMode,
   seedCandidateTargetConditionals,
   setMemberConditionalOverride,
   setPresetResonanceEnabled,
+  type FastModeStatKey,
+  type FastModeStats,
   type MemberBuildMode,
   type MemberConditionalsMap,
   type OptimizerSettings,
   type Preset,
+  type TeamMember,
 } from '@gi/presets'
 import { useEffect, useMemo, useState } from 'react'
+
+export interface StageMemberEditorConfig {
+  member: TeamMember
+  isTarget: boolean
+  resolved: {
+    mode: MemberBuildMode
+    ownedInGood: boolean
+    forcedSimulated: boolean
+  }
+  isSimulated: boolean
+  isWeaponLocked: boolean
+  effectiveWeaponSpec: SimulatedWeaponSpec
+  isOverridden: boolean
+  memberStats?: MemberStatSummary
+  fastModeStats?: FastModeStats
+  fastModeAvailable: boolean
+  onOpenWeaponModal: () => void
+  onResetWeapon: () => void
+  onToggleBuildMode?: (nextMode: MemberBuildMode) => void
+  onChangeFastModeStat: (
+    statKey: FastModeStatKey,
+    value: number | undefined
+  ) => void
+  onResetFastMode: () => void
+}
 
 export interface ConditionalTogglePanelProps {
   preset: Preset
@@ -50,6 +85,10 @@ export interface ConditionalTogglePanelProps {
   conditionalsByChar?: Record<string, ConditionalDescriptor[]>
   /** When true, renders Buffs & Passives as a collapsible section (starts open if modified, closed if default). */
   collapsible?: boolean
+  /** When true, renders directly inside Stage 3 (Team & Buffs) without a separate sub-panel card or header. */
+  embedded?: boolean
+  /** Per-member Stage 3 editor state & handlers (weapon row, build-state pill/toggle, Base->Final stats, Fast Mode modal trigger). */
+  stageMembers?: Record<string, StageMemberEditorConfig>
 }
 
 const SECTION_SHORT_BADGE: Record<string, string> = {
@@ -476,6 +515,8 @@ export function ConditionalTogglePanel({
   activeTargetWeaponKey,
   conditionalsByChar: providedCatalog,
   collapsible = false,
+  embedded = false,
+  stageMembers,
 }: ConditionalTogglePanelProps) {
   const [loadedCatalog, setLoadedCatalog] = useState<
     Record<string, ConditionalDescriptor[]>
@@ -574,49 +615,63 @@ export function ConditionalTogglePanel({
     const isTarget = idx === 0
     const charMeta = getCharacterMeta(mKey)
     const locKey = mKey.startsWith('Traveler') ? 'Traveler' : mKey
+    const stageMember = stageMembers?.[mKey]
 
-    const resolvedBuild = resolvePresetMemberBuildMode({
-      presetSource: preset.source,
-      isTarget,
-      memberBuildType: member.build.type,
-      characterKey: mKey,
-      ownedCharKeys,
-      overrideMode: memberBuildModes[mKey],
-    })
+    const resolvedBuild =
+      stageMember?.resolved ??
+      resolvePresetMemberBuildMode({
+        presetSource: preset.source,
+        isTarget,
+        memberBuildType: member.build.type,
+        characterKey: mKey,
+        ownedCharKeys,
+        overrideMode: memberBuildModes[mKey],
+      })
 
-    const isSimulated = isTarget
-      ? member.build.type === 'tc' || member.build.type === 'fixed'
-      : resolvedBuild.mode === 'tc'
+    const isSimulated = stageMember
+      ? stageMember.isSimulated
+      : isTarget
+        ? member.build.type === 'tc' || member.build.type === 'fixed'
+        : resolvedBuild.mode === 'tc'
+
+    const isFastModeActive = Boolean(
+      stageMember &&
+        !isTarget &&
+        stageMember.fastModeAvailable &&
+        hasMemberFastMode(stageMember.fastModeStats)
+    )
 
     const equippedGoodWeaponKey = (good?.weapons ?? []).find(
       (w) => w.location === locKey
     )?.key
 
     const resolvedTargetWeaponKey =
+      stageMember?.effectiveWeaponSpec.key ??
       activeTargetWeaponKey ??
       (member.build.type === 'fixed'
         ? member.build.weapon.key
         : equippedGoodWeaponKey ?? member.requirement?.weapon?.key)
 
-    let memberWeaponKey: string | undefined
+    let memberWeaponKey: string | undefined =
+      stageMember?.effectiveWeaponSpec.key
     const memberArtSets: Record<string, number> = {}
 
     if (isTarget) {
-      memberWeaponKey = resolvedTargetWeaponKey
+      memberWeaponKey = memberWeaponKey ?? resolvedTargetWeaponKey
       for (const art of good?.artifacts ?? []) {
         if (art.location === locKey && art.setKey) {
           memberArtSets[art.setKey] = (memberArtSets[art.setKey] ?? 0) + 1
         }
       }
     } else if (resolvedBuild.mode === 'owned') {
-      memberWeaponKey = equippedGoodWeaponKey
+      memberWeaponKey = memberWeaponKey ?? equippedGoodWeaponKey
       for (const art of good?.artifacts ?? []) {
         if (art.location === locKey && art.setKey) {
           memberArtSets[art.setKey] = (memberArtSets[art.setKey] ?? 0) + 1
         }
       }
     } else if (member.build.type === 'tc') {
-      memberWeaponKey = member.build.tc.weapon.key
+      memberWeaponKey = memberWeaponKey ?? member.build.tc.weapon.key
       for (const [sk, cnt] of Object.entries(
         member.build.tc.artifact.sets ?? {}
       )) {
@@ -625,7 +680,7 @@ export function ConditionalTogglePanel({
         }
       }
     } else if (member.build.type === 'fixed') {
-      memberWeaponKey = member.build.weapon.key
+      memberWeaponKey = memberWeaponKey ?? member.build.weapon.key
     }
 
     const memberCatalog = catalogByChar[mKey] ?? []
@@ -635,7 +690,8 @@ export function ConditionalTogglePanel({
       memberIndex: idx,
       resolvedMode: resolvedBuild.mode,
       activeTargetWeaponKey: resolvedTargetWeaponKey,
-      memberOwnedWeaponKey: equippedGoodWeaponKey,
+      memberOwnedWeaponKey:
+        stageMember?.effectiveWeaponSpec.key ?? equippedGoodWeaponKey,
       memberCatalog,
     })
 
@@ -701,7 +757,10 @@ export function ConditionalTogglePanel({
       mKey,
       isTarget,
       charMeta,
+      resolvedBuild,
       isSimulated,
+      isFastModeActive,
+      stageMember,
       memberWeaponKey,
       activeWornSets,
       weaponConditionals,
@@ -716,6 +775,7 @@ export function ConditionalTogglePanel({
 
   const activeEntry =
     memberEntries.find((e) => e.mKey === selectedMemberKey) ?? memberEntries[0]
+  const activeStageMember = activeEntry?.stageMember
 
   const totalActiveCount = memberEntries.reduce(
     (sum, e) => sum + e.activeCount,
@@ -732,67 +792,77 @@ export function ConditionalTogglePanel({
       }${!resonanceEnabled ? ' · Resonance OFF' : ''} (${totalActiveCount} active)`
     : `Buffs & Passives — defaults (${totalActiveCount} active)`
 
-  const isExpanded = !collapsible
-    ? true
-    : userExpanded !== null
-      ? userExpanded
-      : anyPresetOverrides
+  const isExpanded =
+    embedded || !collapsible
+      ? true
+      : userExpanded !== null
+        ? userExpanded
+        : anyPresetOverrides
+
+  const RootTag = embedded ? 'div' : 'section'
 
   return (
-    <section
-      className={`panel gi-card${collapsible ? ' gi-collapsible-section' : ''}`}
+    <RootTag
+      className={
+        embedded
+          ? 'gi-stage-team-buffs-body'
+          : `panel gi-card${collapsible ? ' gi-collapsible-section' : ''}`
+      }
       data-testid="conditional-toggle-panel"
       data-expanded={isExpanded ? 'true' : 'false'}
-      aria-label="Buffs & Passives"
+      aria-label={embedded ? undefined : 'Buffs & Passives'}
     >
-      <div className="gi-card-header gi-collapsible-header">
-        <div>
-          <div className="gi-collapsible-title-row">
-            <h2
-              className="gi-card-title"
-              data-testid="buffs-collapsible-summary"
-            >
-              {collapsible ? buffsSummaryText : 'Buffs & Passives'}
-            </h2>
+      {!embedded && (
+        <div className="gi-card-header gi-collapsible-header">
+          <div>
+            <div className="gi-collapsible-title-row">
+              <h2
+                className="gi-card-title"
+                data-testid="buffs-collapsible-summary"
+              >
+                {collapsible ? buffsSummaryText : 'Buffs & Passives'}
+              </h2>
+            </div>
+            {!collapsible && (
+              <p className="gi-card-subtitle">
+                Inspect and toggle weapon passives, artifact set effects,
+                character talents, and constellation buffs for every team
+                member.
+              </p>
+            )}
           </div>
-          {!collapsible && (
-            <p className="gi-card-subtitle">
-              Inspect and toggle weapon passives, artifact set effects, character
-              talents, and constellation buffs for every team member.
-            </p>
-          )}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            {anyPresetOverrides && (
+              <button
+                type="button"
+                className="btn-secondary"
+                data-testid="reset-all-conditionals"
+                onClick={handleResetAll}
+                style={{ fontSize: '0.82rem', padding: '0.28rem 0.65rem' }}
+              >
+                Reset All to Defaults
+              </button>
+            )}
+            {collapsible && (
+              <ChevronToggle
+                expanded={isExpanded}
+                className="btn-secondary gi-collapsible-toggle"
+                data-testid="buffs-collapsible-toggle"
+                ariaControls="buff-panel-member-tabs"
+                ariaLabel="Toggle Buffs and Passives"
+                onClick={() => setUserExpanded(!isExpanded)}
+              />
+            )}
+          </div>
         </div>
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            flexWrap: 'wrap',
-          }}
-        >
-          {anyPresetOverrides && (
-            <button
-              type="button"
-              className="btn-secondary"
-              data-testid="reset-all-conditionals"
-              onClick={handleResetAll}
-              style={{ fontSize: '0.82rem', padding: '0.28rem 0.65rem' }}
-            >
-              Reset All to Defaults
-            </button>
-          )}
-          {collapsible && (
-            <ChevronToggle
-              expanded={isExpanded}
-              className="btn-secondary gi-collapsible-toggle"
-              data-testid="buffs-collapsible-toggle"
-              ariaControls="buff-panel-member-tabs"
-              ariaLabel="Toggle Buffs and Passives"
-              onClick={() => setUserExpanded(!isExpanded)}
-            />
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Team-Level Elemental Resonance Master Toggle */}
       <div
@@ -822,6 +892,17 @@ export function ConditionalTogglePanel({
           </span>
         </div>
         <div className="gi-buffs-resonance-controls">
+          {embedded && anyPresetOverrides && (
+            <button
+              type="button"
+              className="btn-secondary"
+              data-testid="reset-all-conditionals"
+              onClick={handleResetAll}
+              style={{ fontSize: '0.82rem', padding: '0.28rem 0.65rem' }}
+            >
+              Reset All to Defaults
+            </button>
+          )}
           <button
             type="button"
             role="switch"
@@ -860,16 +941,30 @@ export function ConditionalTogglePanel({
                   data-testid={`member-buffs-tab-${entry.mKey}`}
                   data-character-key={entry.mKey}
                   data-selected={isSelected ? 'true' : 'false'}
+                  data-member-role={entry.isTarget ? 'target' : 'teammate'}
+                  data-build-mode={entry.resolvedBuild.mode}
+                  data-fast-mode-active={
+                    entry.isFastModeActive ? 'true' : 'false'
+                  }
                   className={`gi-buffs-member-tab${isSelected ? ' is-selected' : ''}`}
                   onClick={() => setSelectedMemberKey(entry.mKey)}
                 >
                   <CharacterBadge
                     characterKey={entry.mKey}
                     simulated={entry.isSimulated}
-                    role={entry.isTarget ? 'target' : 'owned'}
+                    role="owned"
                     compact
                   />
                   <span className="gi-buffs-member-tab-meta">
+                    {entry.isTarget && (
+                      <span
+                        className="gi-target-member-badge"
+                        data-testid={`member-tab-target-${entry.mKey}`}
+                        title="Optimization Target"
+                      >
+                        Target
+                      </span>
+                    )}
                     <span
                       className={`gi-buffs-count-pill${
                         entry.activeCount > 0 ? ' is-active' : ''
@@ -886,85 +981,267 @@ export function ConditionalTogglePanel({
                         Modified
                       </span>
                     )}
+                    {!entry.isTarget && entry.isFastModeActive && (
+                      <span
+                        className="gi-fast-mode-badge"
+                        data-testid={`fast-mode-badge-${entry.mKey}`}
+                        title="Virtual 6th artifact active on this teammate"
+                      >
+                        Fast Mode
+                      </span>
+                    )}
                   </span>
                 </button>
               )
             })}
           </div>
 
-          {/* Single Active Member Buffs & Passives Panel */}
+          {/* Single Active Member Unified Editor */}
           {activeEntry && (
-        <div
-          key={activeEntry.mKey}
-          role="tabpanel"
-          className={`gi-buffs-member-card${
-            activeEntry.isTarget ? ' gi-buffs-member-card-target' : ''
-          }`}
-          data-testid={`member-buffs-panel-${activeEntry.mKey}`}
-          data-character-key={activeEntry.mKey}
-        >
-          {/* Member Header */}
-          <div
-            className="gi-buffs-member-header"
-            data-testid={`member-buffs-header-${activeEntry.mKey}`}
-          >
-            <div className="gi-buffs-member-identity">
-              <CharacterBadge
-                characterKey={activeEntry.mKey}
-                simulated={activeEntry.isSimulated}
-                role={activeEntry.isTarget ? 'target' : 'owned'}
-                compact
-              />
-              {activeEntry.memberWeaponKey && (
-                <WeaponBadge weaponKey={activeEntry.memberWeaponKey} compact />
-              )}
-              {activeEntry.activeWornSets.map(([sk, cnt]) => (
-                <ArtifactBadge
-                  key={sk}
-                  setKey={sk}
-                  slotKey="flower"
-                  compact
-                  subtitle={`(${cnt >= 4 ? 4 : 2}p)`}
-                />
-              ))}
-            </div>
-
-            <div className="gi-buffs-member-actions">
-              <span
-                className={`gi-buffs-count-pill${
-                  activeEntry.activeCount > 0 ? ' is-active' : ''
-                }`}
-                data-testid={`member-active-buffs-count-${activeEntry.mKey}`}
+            <div
+              key={activeEntry.mKey}
+              role="tabpanel"
+              className={`gi-buffs-member-card${
+                activeEntry.isTarget ? ' gi-buffs-member-card-target' : ''
+              }${
+                activeStageMember?.isOverridden ? ' is-weapon-overridden' : ''
+              }${activeEntry.isFastModeActive ? ' is-fast-mode' : ''}`}
+              data-testid={`member-buffs-panel-${activeEntry.mKey}`}
+              data-character-key={activeEntry.mKey}
+              data-member-role={activeEntry.isTarget ? 'target' : 'teammate'}
+              data-build-mode={activeEntry.resolvedBuild.mode}
+              data-weapon-overridden={
+                activeStageMember?.isOverridden ? 'true' : 'false'
+              }
+              data-weapon-locked={
+                activeStageMember?.isWeaponLocked ? 'true' : 'false'
+              }
+              data-fast-mode-active={
+                activeEntry.isFastModeActive ? 'true' : 'false'
+              }
+            >
+              {/* Member Editor Top Row: Weapon, Equipped Sets, Build-State & Reset */}
+              <div
+                className="gi-buffs-member-header"
+                data-testid={`member-buffs-header-${activeEntry.mKey}`}
               >
-                {activeEntry.activeCount} active
-              </span>
-              {activeEntry.hasMemberOverride && (
-                <span
-                  className="gi-buffs-modified-pill"
-                  data-testid={`member-modified-badge-${activeEntry.mKey}`}
-                >
-                  Modified
-                </span>
-              )}
-              <button
-                type="button"
-                className="btn-secondary"
-                data-testid={`reset-member-conditionals-${activeEntry.mKey}`}
-                disabled={!activeEntry.hasMemberOverride}
-                onClick={() => handleResetMember(activeEntry.mKey)}
-                title={`Reset ${displayName(activeEntry.mKey)} buffs & passives to derived defaults`}
-                style={{
-                  fontSize: '0.82rem',
-                  padding: '0.18rem 0.5rem',
-                  lineHeight: 1.2,
-                }}
-              >
-                Reset
-              </button>
-            </div>
-          </div>
+                <div className="gi-buffs-member-identity">
+                  {activeStageMember ? (
+                    <div className="preset-team-member-card-weapon">
+                      <button
+                        type="button"
+                        className={`preset-member-weapon-btn${
+                          activeStageMember.isOverridden ? ' is-overridden' : ''
+                        }${activeStageMember.isWeaponLocked ? ' is-locked' : ''}`}
+                        data-testid={`member-weapon-trigger-${activeEntry.mKey}`}
+                        data-character-key={activeEntry.mKey}
+                        data-weapon-key={
+                          activeStageMember.effectiveWeaponSpec.key
+                        }
+                        data-weapon-overridden={
+                          activeStageMember.isOverridden ? 'true' : 'false'
+                        }
+                        data-weapon-locked={
+                          activeStageMember.isWeaponLocked ? 'true' : 'false'
+                        }
+                        disabled={activeStageMember.isWeaponLocked}
+                        aria-label={
+                          activeStageMember.isWeaponLocked
+                            ? `${displayName(activeEntry.mKey)} weapon fixed by Akasha case: ${displayName(activeStageMember.effectiveWeaponSpec.key)}`
+                            : `Change weapon for ${displayName(activeEntry.mKey)} (currently ${displayName(activeStageMember.effectiveWeaponSpec.key)} R${activeStageMember.effectiveWeaponSpec.refinement})`
+                        }
+                        title={
+                          activeStageMember.isWeaponLocked
+                            ? 'Teammate weapon is fixed by the Akasha leaderboard case'
+                            : `Click to choose weapon and refinement for ${displayName(activeEntry.mKey)}`
+                        }
+                        onClick={() => {
+                          if (!activeStageMember.isWeaponLocked) {
+                            activeStageMember.onOpenWeaponModal()
+                          }
+                        }}
+                      >
+                        <WeaponBadge
+                          weaponKey={activeStageMember.effectiveWeaponSpec.key}
+                          subtitle={`R${activeStageMember.effectiveWeaponSpec.refinement} · Lv.${activeStageMember.effectiveWeaponSpec.level ?? 90}`}
+                          compact
+                          uniformRow
+                        />
+                      </button>
 
-          <div className="gi-buffs-groups">
+                      <span
+                        className="sr-only"
+                        data-testid={
+                          activeEntry.isTarget
+                            ? 'target-weapon-mode-status'
+                            : `member-weapon-status-${activeEntry.mKey}`
+                        }
+                      >
+                        {activeStageMember.isOverridden
+                          ? `Override: ${displayName(activeStageMember.effectiveWeaponSpec.key)} R${activeStageMember.effectiveWeaponSpec.refinement}`
+                          : '✓ Default Weapon'}
+                      </span>
+
+                      {activeStageMember.isOverridden &&
+                        !activeStageMember.isWeaponLocked && (
+                          <button
+                            type="button"
+                            className="btn-secondary preset-weapon-reset-btn"
+                            data-testid={
+                              activeEntry.isTarget
+                                ? 'reset-target-weapon-btn'
+                                : `reset-member-weapon-btn-${activeEntry.mKey}`
+                            }
+                            aria-label={`Reset ${displayName(activeEntry.mKey)} weapon to default`}
+                            title="Reset weapon to default"
+                            onClick={activeStageMember.onResetWeapon}
+                          >
+                            Reset
+                          </button>
+                        )}
+                    </div>
+                  ) : (
+                    activeEntry.memberWeaponKey && (
+                      <WeaponBadge
+                        weaponKey={activeEntry.memberWeaponKey}
+                        compact
+                      />
+                    )
+                  )}
+                  {activeEntry.activeWornSets.map(([sk, cnt]) => (
+                    <ArtifactBadge
+                      key={sk}
+                      setKey={sk}
+                      slotKey="flower"
+                      compact
+                      subtitle={`(${cnt >= 4 ? 4 : 2}p)`}
+                    />
+                  ))}
+                </div>
+
+                <div className="gi-buffs-member-actions">
+                  {activeStageMember &&
+                    (preset.source === 'official' &&
+                    !activeEntry.isTarget &&
+                    activeStageMember.onToggleBuildMode ? (
+                      <button
+                        type="button"
+                        className="btn-secondary preset-member-state-btn"
+                        data-testid={`member-build-toggle-${activeEntry.mKey}`}
+                        data-character-key={activeEntry.mKey}
+                        data-build-mode={activeStageMember.resolved.mode}
+                        data-owned-in-good={
+                          activeStageMember.resolved.ownedInGood
+                            ? 'true'
+                            : 'false'
+                        }
+                        data-forced-simulated={
+                          activeStageMember.resolved.forcedSimulated
+                            ? 'true'
+                            : 'false'
+                        }
+                        aria-pressed={activeStageMember.resolved.mode === 'tc'}
+                        aria-label={
+                          activeStageMember.resolved.forcedSimulated
+                            ? `${displayName(activeEntry.mKey)}: Simulated (Not in GOOD)`
+                            : `${displayName(activeEntry.mKey)} build source: ${
+                                activeStageMember.resolved.mode === 'owned'
+                                  ? 'Owned Build'
+                                  : 'Simulated (TC)'
+                              }`
+                        }
+                        title={
+                          activeStageMember.resolved.forcedSimulated
+                            ? `${displayName(activeEntry.mKey)} is not in your imported GOOD file — running simulated preset build`
+                            : 'Switch teammate between your Owned GOOD build and the preset Simulated (TC) build'
+                        }
+                        onClick={() => {
+                          const nextMode: MemberBuildMode =
+                            !activeStageMember.resolved.ownedInGood
+                              ? 'tc'
+                              : activeStageMember.resolved.mode === 'owned'
+                                ? 'tc'
+                                : 'owned'
+                          activeStageMember.onToggleBuildMode?.(nextMode)
+                        }}
+                      >
+                        {activeStageMember.resolved.forcedSimulated
+                          ? 'Simulated (Not in GOOD)'
+                          : activeStageMember.resolved.mode === 'owned'
+                            ? 'Owned Build'
+                            : 'Simulated (TC)'}
+                      </button>
+                    ) : (
+                      <span
+                        className="preset-member-state-pill"
+                        data-testid={`member-build-state-${activeEntry.mKey}`}
+                      >
+                        {activeEntry.isTarget &&
+                        preset.source === 'akasha' &&
+                        activeStageMember.member.build.type === 'fixed'
+                          ? `Fixed Spec · Lv.${activeStageMember.member.build.character.level} C${activeStageMember.member.build.character.constellation}`
+                          : activeStageMember.isWeaponLocked
+                            ? 'Fixed by Case'
+                            : activeEntry.isSimulated
+                              ? 'Simulated (TC)'
+                              : 'Owned Build'}
+                      </span>
+                    ))}
+                  <span
+                    className={`gi-buffs-count-pill${
+                      activeEntry.activeCount > 0 ? ' is-active' : ''
+                    }`}
+                    data-testid={`member-active-buffs-count-${activeEntry.mKey}`}
+                  >
+                    {activeEntry.activeCount} active
+                  </span>
+                  {activeEntry.hasMemberOverride && (
+                    <span
+                      className="gi-buffs-modified-pill"
+                      data-testid={`member-modified-badge-${activeEntry.mKey}`}
+                    >
+                      Modified
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    data-testid={`reset-member-conditionals-${activeEntry.mKey}`}
+                    disabled={!activeEntry.hasMemberOverride}
+                    onClick={() => handleResetMember(activeEntry.mKey)}
+                    title={`Reset ${displayName(activeEntry.mKey)} buffs & passives to derived defaults`}
+                    style={{
+                      fontSize: '0.82rem',
+                      padding: '0.18rem 0.5rem',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              {/* Member Base -> Final Stat Grid & Fast Mode Row (when embedded in Stage 3) */}
+              {activeStageMember && (
+                <>
+                  <MemberCompactStatGrid
+                    characterKey={activeEntry.mKey}
+                    memberStats={activeStageMember.memberStats}
+                    highlightFinal={activeEntry.isFastModeActive}
+                  />
+
+                  <MemberFastModeExpander
+                    characterKey={activeEntry.mKey}
+                    isTarget={activeEntry.isTarget}
+                    fastModeStats={activeStageMember.fastModeStats}
+                    fastModeAvailable={activeStageMember.fastModeAvailable}
+                    onChangeStat={activeStageMember.onChangeFastModeStat}
+                    onResetMember={activeStageMember.onResetFastMode}
+                  />
+                </>
+              )}
+
+              <div className="gi-buffs-groups">
             {/* 1. WEAPON GROUP */}
             <div
               className="gi-buffs-group"
@@ -1140,7 +1417,7 @@ export function ConditionalTogglePanel({
       )}
         </>
       )}
-    </section>
+    </RootTag>
   )
 }
 

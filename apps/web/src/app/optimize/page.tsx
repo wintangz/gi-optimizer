@@ -2,13 +2,12 @@
 
 import OptimizeLoading from './loading'
 import { ArtifactSetFilter } from '@/components/ArtifactSetFilter'
-import { ConditionalTogglePanel } from '@/components/ConditionalTogglePanel'
+import {
+  ConditionalTogglePanel,
+  type StageMemberEditorConfig,
+} from '@/components/ConditionalTogglePanel'
 import { CharacterBadge, WeaponBadge } from '@/components/Identifier'
 import { ProgressBar, ResultsSkeleton, Spinner } from '@/components/Loading'
-import {
-  MemberCompactStatGrid,
-  MemberFastModeExpander,
-} from '@/components/TeammateFastModePanel'
 import {
   BuildComparisonList,
   ConstraintsCard,
@@ -72,7 +71,6 @@ import {
   getPresetWeaponCompareCandidates,
   getWeaponMeta,
   hasMemberConditionalOverrides,
-  hasMemberFastMode,
   listBundledPresets,
   listWeaponsForType,
   matchAccount,
@@ -1646,6 +1644,41 @@ function OptimizeInner() {
               Optimize Team
             </button>
           </div>
+
+          {optimizeMode === 'compare' && (
+            <WeaponComparisonPanel
+              targetCharacterKey={activePreset.target}
+              good={effectiveGood ?? record?.good}
+              preset={effectivePreset ?? activePreset}
+              settings={settings}
+              selectedCandidates={activeCompareCandidates}
+              onChangeCandidates={(next) => {
+                setCompareCandidatesByPreset((prev) => ({
+                  ...prev,
+                  [activePreset.id]: next,
+                }))
+                void updateSettings(
+                  setPresetWeaponCompareCandidates(
+                    settings,
+                    activePreset.id,
+                    next
+                  )
+                )
+                setCompareResult(null)
+              }}
+              onResetCandidates={() => {
+                setCompareCandidatesByPreset((prev) => {
+                  const next = { ...prev }
+                  delete next[activePreset.id]
+                  return next
+                })
+                void updateSettings(
+                  resetPresetWeaponCompareCandidates(settings, activePreset.id)
+                )
+                setCompareResult(null)
+              }}
+            />
+          )}
         </section>
       )}
 
@@ -1661,224 +1694,70 @@ function OptimizeInner() {
             <div>
               <h2 className="gi-card-title">3. Team &amp; Buffs</h2>
               <p className="gi-card-subtitle">
-                Click any member&apos;s weapon to open the weapon picker; toggle
-                owned vs. simulated teammate builds and active combat buffs.
+                Select a team member to configure their weapon, build source,
+                Fast Mode stats, and active combat buffs.
               </p>
             </div>
           </div>
 
-          <div
-            className="preset-team-cards-grid"
-            data-testid="preset-team-roster"
-          >
-            {teamMemberCards.map((card) => {
-              const {
-                member: m,
-                isTarget,
-                resolved,
-                isSimulated,
-                isWeaponLocked,
-                effectiveWeaponSpec,
-                isOverridden,
-              } = card
-              const memberFastMode = activeFastMode[m.key]
-              const isFastModeActive =
-                !isTarget &&
-                optimizeMode !== 'team' &&
-                hasMemberFastMode(memberFastMode)
-
-              return (
-                <div
-                  key={m.key}
-                  className={`preset-team-member-card${
-                    isTarget ? ' is-target' : ''
-                  }${isOverridden ? ' is-weapon-overridden' : ''}${
-                    isFastModeActive ? ' is-fast-mode' : ''
-                  }`}
-                  data-testid={`preset-team-member-${m.key}`}
-                  data-member-role={isTarget ? 'target' : 'teammate'}
-                  data-build-mode={resolved.mode}
-                  data-weapon-overridden={isOverridden ? 'true' : 'false'}
-                  data-weapon-locked={isWeaponLocked ? 'true' : 'false'}
-                  data-fast-mode-active={isFastModeActive ? 'true' : 'false'}
-                >
-                  <div className="preset-team-member-card-top">
-                    <div className="preset-team-member-identity">
-                      <CharacterBadge
-                        characterKey={m.key}
-                        simulated={isSimulated}
-                        role={isTarget ? 'target' : 'owned'}
-                        compact
-                      />
-                      {isFastModeActive && (
-                        <span
-                          className="gi-fast-mode-badge"
-                          data-testid={`fast-mode-badge-${m.key}`}
-                          title="Virtual 6th artifact active on this teammate"
-                        >
-                          Fast Mode
-                        </span>
-                      )}
-                    </div>
-
-                    {activePreset.source === 'official' && !isTarget ? (
-                      <button
-                        type="button"
-                        className="btn-secondary preset-member-state-btn"
-                        data-testid={`member-build-toggle-${m.key}`}
-                        data-character-key={m.key}
-                        data-build-mode={resolved.mode}
-                        data-owned-in-good={
-                          resolved.ownedInGood ? 'true' : 'false'
-                        }
-                        data-forced-simulated={
-                          resolved.forcedSimulated ? 'true' : 'false'
-                        }
-                        aria-pressed={resolved.mode === 'tc'}
-                        aria-label={
-                          resolved.forcedSimulated
-                            ? `${displayName(m.key)}: Simulated (Not in GOOD)`
-                            : `${displayName(m.key)} build source: ${
-                                resolved.mode === 'owned'
-                                  ? 'Owned Build'
-                                  : 'Simulated (TC)'
-                              }`
-                        }
-                        title={
-                          resolved.forcedSimulated
-                            ? `${displayName(m.key)} is not in your imported GOOD file — running simulated preset build`
-                            : 'Switch teammate between your Owned GOOD build and the preset Simulated (TC) build'
-                        }
-                        onClick={() => {
-                          const nextMode: MemberBuildMode =
-                            !resolved.ownedInGood
-                              ? 'tc'
-                              : resolved.mode === 'owned'
-                                ? 'tc'
-                                : 'owned'
+          <ConditionalTogglePanel
+            preset={effectivePreset ?? activePreset}
+            settings={settings}
+            onChangeSettings={(next) => {
+              void updateSettings(next)
+              setOptResult(null)
+              setOptimisedEvals([])
+            }}
+            good={effectiveGood ?? record?.good}
+            activeTargetWeaponKey={
+              targetWeaponOverrideSpec?.key ??
+              displayedTargetWeaponSpec?.key ??
+              record?.good.weapons.find((w) => w.id === effectiveWeaponId)
+                ?.key ??
+              record?.good.weapons.find(
+                (w) => w.location === activePreset.target
+              )?.key
+            }
+            embedded
+            stageMembers={Object.fromEntries(
+              teamMemberCards.map((card): [string, StageMemberEditorConfig] => [
+                card.key,
+                {
+                  member: card.member,
+                  isTarget: card.isTarget,
+                  resolved: card.resolved,
+                  isSimulated: card.isSimulated,
+                  isWeaponLocked: card.isWeaponLocked,
+                  effectiveWeaponSpec: card.effectiveWeaponSpec,
+                  isOverridden: card.isOverridden,
+                  memberStats: teamMemberStats[card.key],
+                  fastModeStats: activeFastMode[card.key],
+                  fastModeAvailable: optimizeMode !== 'team',
+                  onOpenWeaponModal: () => setWeaponModalMemberKey(card.key),
+                  onResetWeapon: () =>
+                    handleResetMemberWeapon(card.key, card.isTarget),
+                  onToggleBuildMode:
+                    activePreset.source === 'official' && !card.isTarget
+                      ? (nextMode: MemberBuildMode) => {
                           void updateSettings(
                             setPresetMemberBuildMode(
                               settings,
                               activePreset.id,
-                              m.key,
+                              card.key,
                               nextMode
                             )
                           )
                           setOptResult(null)
                           setOptimisedEvals([])
-                        }}
-                      >
-                        {resolved.forcedSimulated
-                          ? 'Simulated (Not in GOOD)'
-                          : resolved.mode === 'owned'
-                            ? 'Owned Build'
-                            : 'Simulated (TC)'}
-                      </button>
-                    ) : (
-                      <span
-                        className="preset-member-state-pill"
-                        data-testid={`member-build-state-${m.key}`}
-                      >
-                        {isTarget &&
-                        isAkashaPreset &&
-                        m.build.type === 'fixed'
-                          ? `Fixed Spec · Lv.${m.build.character.level} C${m.build.character.constellation}`
-                          : isWeaponLocked
-                            ? 'Fixed by Case'
-                            : isSimulated
-                              ? 'Simulated (TC)'
-                              : 'Owned Build'}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="preset-team-member-card-weapon">
-                    <button
-                      type="button"
-                      className={`preset-member-weapon-btn${
-                        isOverridden ? ' is-overridden' : ''
-                      }${isWeaponLocked ? ' is-locked' : ''}`}
-                      data-testid={`member-weapon-trigger-${m.key}`}
-                      data-character-key={m.key}
-                      data-weapon-key={effectiveWeaponSpec.key}
-                      data-weapon-overridden={isOverridden ? 'true' : 'false'}
-                      data-weapon-locked={isWeaponLocked ? 'true' : 'false'}
-                      disabled={isWeaponLocked}
-                      aria-label={
-                        isWeaponLocked
-                          ? `${displayName(m.key)} weapon fixed by Akasha case: ${displayName(effectiveWeaponSpec.key)}`
-                          : `Change weapon for ${displayName(m.key)} (currently ${displayName(effectiveWeaponSpec.key)} R${effectiveWeaponSpec.refinement})`
-                      }
-                      title={
-                        isWeaponLocked
-                          ? 'Teammate weapon is fixed by the Akasha leaderboard case'
-                          : `Click to choose weapon and refinement for ${displayName(m.key)}`
-                      }
-                      onClick={() => {
-                        if (!isWeaponLocked) {
-                          setWeaponModalMemberKey(m.key)
                         }
-                      }}
-                    >
-                      <WeaponBadge
-                        weaponKey={effectiveWeaponSpec.key}
-                        subtitle={`R${effectiveWeaponSpec.refinement} · Lv.${effectiveWeaponSpec.level ?? 90}`}
-                        compact
-                        uniformRow
-                      />
-                    </button>
-
-                    <span
-                      className="sr-only"
-                      data-testid={
-                        isTarget
-                          ? 'target-weapon-mode-status'
-                          : `member-weapon-status-${m.key}`
-                      }
-                    >
-                      {isOverridden
-                        ? `Override: ${displayName(effectiveWeaponSpec.key)} R${effectiveWeaponSpec.refinement}`
-                        : '✓ Default Weapon'}
-                    </span>
-
-                    {isOverridden && !isWeaponLocked && (
-                      <button
-                        type="button"
-                        className="btn-secondary preset-weapon-reset-btn"
-                        data-testid={
-                          isTarget
-                            ? 'reset-target-weapon-btn'
-                            : `reset-member-weapon-btn-${m.key}`
-                        }
-                        aria-label={`Reset ${displayName(m.key)} weapon to default`}
-                        title="Reset weapon to default"
-                        onClick={() => handleResetMemberWeapon(m.key, isTarget)}
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
-
-                  <MemberCompactStatGrid
-                    characterKey={m.key}
-                    memberStats={teamMemberStats[m.key]}
-                    highlightFinal={isFastModeActive}
-                  />
-
-                  <MemberFastModeExpander
-                    characterKey={m.key}
-                    isTarget={isTarget}
-                    fastModeStats={memberFastMode}
-                    fastModeAvailable={optimizeMode !== 'team'}
-                    onChangeStat={(statKey, val) =>
-                      handleChangeMemberFastModeStat(m.key, statKey, val)
-                    }
-                    onResetMember={() => handleResetMemberFastMode(m.key)}
-                  />
-                </div>
-              )
-            })}
-          </div>
+                      : undefined,
+                  onChangeFastModeStat: (statKey, val) =>
+                    handleChangeMemberFastModeStat(card.key, statKey, val),
+                  onResetFastMode: () => handleResetMemberFastMode(card.key),
+                },
+              ])
+            )}
+          />
 
           {/* Weapon Picker Modal (for any non-locked team member) */}
           {activeModalMember && (
@@ -2039,121 +1918,6 @@ function OptimizeInner() {
               </div>
             </div>
           )}
-
-          {optimizeMode === 'compare' && (
-            <WeaponComparisonPanel
-              targetCharacterKey={activePreset.target}
-              good={effectiveGood ?? record?.good}
-              preset={effectivePreset ?? activePreset}
-              settings={settings}
-              selectedCandidates={activeCompareCandidates}
-              onChangeCandidates={(next) => {
-                setCompareCandidatesByPreset((prev) => ({
-                  ...prev,
-                  [activePreset.id]: next,
-                }))
-                void updateSettings(
-                  setPresetWeaponCompareCandidates(
-                    settings,
-                    activePreset.id,
-                    next
-                  )
-                )
-                setCompareResult(null)
-              }}
-              onResetCandidates={() => {
-                setCompareCandidatesByPreset((prev) => {
-                  const next = { ...prev }
-                  delete next[activePreset.id]
-                  return next
-                })
-                void updateSettings(
-                  resetPresetWeaponCompareCandidates(settings, activePreset.id)
-                )
-                setCompareResult(null)
-              }}
-            />
-          )}
-
-          {optimizeMode === 'single' &&
-            !isAkashaPreset &&
-            matchReport && (
-            <div className="preset-match-box">
-              <div className="preset-akasha-top">
-                <strong>
-                  Target Character &amp; Weapon Check:{' '}
-                  <span className={matchReport.canRun ? 'ok' : 'error'}>
-                    {matchReport.canRun
-                      ? `Ready (${displayName(activePreset.target)})`
-                      : 'Target Character / Weapon Requirements Not Met'}
-                  </span>
-                </strong>
-                <span className="muted" style={{ fontSize: '0.82rem' }}>
-                  Simulated (<code>SIM</code>) preset teammates are fixed and
-                  never checked against your account.
-                </span>
-              </div>
-              <ul className="preset-match-list preset-match-results">
-                {matchReport.parts.map((pt, i) => (
-                  <li
-                    key={i}
-                    className={`preset-match-item ${pt.ok ? 'ok' : 'error'}`}
-                  >
-                    {pt.ok ? '✓' : '✕'} {pt.message}
-                    {pt.part === 'weapon' &&
-                      pt.candidates &&
-                      pt.candidates.length > 0 && (
-                        <div
-                          className="preset-match-candidates"
-                          style={{ marginTop: '0.4rem', width: '100%' }}
-                        >
-                          <WeaponTilePicker
-                            ariaLabel="Qualifying Weapon Copy"
-                            value={
-                              selectedWeaponId ||
-                              matchReport.selectedWeaponId ||
-                              pt.candidates[0]!.id
-                            }
-                            options={pt.candidates.map((cand) => ({
-                              id: cand.id,
-                              weaponKey: cand.key,
-                              label: displayName(cand.key),
-                              subcaption: `R${cand.refinement} Lv.${cand.level} ${
-                                cand.location
-                                  ? `(${displayName(cand.location)})`
-                                  : '(Inventory)'
-                              }`,
-                            }))}
-                            onChange={(nextId) => setSelectedWeaponId(nextId)}
-                          />
-                        </div>
-                      )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <ConditionalTogglePanel
-            preset={effectivePreset ?? activePreset}
-            settings={settings}
-            onChangeSettings={(next) => {
-              void updateSettings(next)
-              setOptResult(null)
-              setOptimisedEvals([])
-            }}
-            good={effectiveGood ?? record?.good}
-            activeTargetWeaponKey={
-              targetWeaponOverrideSpec?.key ??
-              displayedTargetWeaponSpec?.key ??
-              record?.good.weapons.find((w) => w.id === effectiveWeaponId)
-                ?.key ??
-              record?.good.weapons.find(
-                (w) => w.location === activePreset.target
-              )?.key
-            }
-            collapsible
-          />
         </section>
       )}
 
