@@ -2563,6 +2563,7 @@ function OptimizeInner() {
                 artifactById={artifactById}
                 settings={settings}
                 good={record?.good}
+                initialExpandedWeaponKey={null}
                 currentBuild={
                   showCurrentComparison && currentSelection && currentEval
                     ? {
@@ -2628,6 +2629,7 @@ function OptimizeInner() {
                 preset={activePreset}
                 result={teamResult}
                 artifactById={artifactById}
+                initialExpandedMemberKey={null}
               />
             )}
           </>
@@ -2710,6 +2712,7 @@ function OptimizeInner() {
                 }
                 optimizedBuilds={comparisonOptimizedBuilds}
                 artifactById={artifactById}
+                initialExpandedRowId={null}
                 onExportGO={(sel, label) => void handleExportGO(sel, label)}
               />
             )}

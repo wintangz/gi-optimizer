@@ -1083,11 +1083,15 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
             n.props['data-chevron-state'] === 'closed'
         )
       ).toHaveLength(1)
+      expect(
+        collectText([findByTestId(tree1, `fast-mode-summary-${tmKey}`)!])
+      ).toBe('Not set')
+      expect(findByTestId(tree1, `fast-mode-modal-${tmKey}`)).toBeUndefined()
       expect(findByTestId(tree1, `fast-mode-editor-${tmKey}`)).toBeUndefined()
       expect(findByTestId(tree1, `fast-mode-reset-${tmKey}`)).toBeUndefined()
     }
 
-    // (3) Expand KaedeharaKazuha's Fast Mode expander and enter +200 EM -> Reset Fast Mode appears ONLY for KaedeharaKazuha
+    // (3) Expand KaedeharaKazuha's Fast Mode modal and enter +200 EM -> Reset Fast Mode appears ONLY for KaedeharaKazuha
     ;(
       findByTestId(tree1, 'fast-mode-expander-toggle-KaedeharaKazuha')!.props
         .onClick as () => void
@@ -1097,6 +1101,12 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       findByTestId(treeExpanded, 'fast-mode-expander-toggle-KaedeharaKazuha')!
         .props['aria-expanded']
     ).toBe(true)
+    const fastModal = findByTestId(
+      treeExpanded,
+      'fast-mode-modal-KaedeharaKazuha'
+    )!
+    expect(fastModal).toBeDefined()
+    expect(fastModal.props['aria-label']).toBe('Fast Mode — Kaedehara Kazuha')
     const emInput = findByTestId(
       treeExpanded,
       'fast-mode-input-KaedeharaKazuha-eleMas'
@@ -1107,6 +1117,11 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     )({ target: { value: '200' } })
 
     const treeWithFastMode = renderPass()
+    expect(
+      collectText([
+        findByTestId(treeWithFastMode, 'fast-mode-summary-KaedeharaKazuha')!,
+      ])
+    ).toBe('+200 EM')
     expect(
       findByTestId(treeWithFastMode, 'fast-mode-reset-KaedeharaKazuha')
     ).toBeDefined()

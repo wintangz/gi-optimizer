@@ -1430,6 +1430,15 @@ export function BuildComparisonList({
     initialExpandedStatKey
   )
 
+  useEffect(() => {
+    if (!expandedRowId || typeof window === 'undefined') return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpandedRowId(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [expandedRowId])
+
   const rows: InternalComparisonRow[] = []
   if (currentBuild) {
     rows.push({
@@ -1655,38 +1664,78 @@ export function BuildComparisonList({
               </div>
             </div>
 
-            {/* Expandable Per-Instance Breakdown & Slot Details */}
+            {/* Build Details Modal */}
             {isExpanded && row.evaluation && (
               <div
-                id={`comp-details-${row.id}`}
-                className="comp-row-details"
-                data-testid={`comp-details-${row.id}`}
+                className="gi-modal-backdrop"
+                data-testid={`comp-details-modal-backdrop-${row.id}`}
+                onClick={() => setExpandedRowId(null)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setExpandedRowId(null)
+                }}
               >
-                <div className="comp-details-header">
-                  <strong>
-                    Per-Instance Rotation Breakdown (Repeat ×
-                    {preset.rotation.repeat ?? 1})
-                  </strong>
-                  {onExportGO && (
-                    <button
-                      type="button"
-                      className="btn-secondary btn-icon"
-                      onClick={() =>
-                        onExportGO(
-                          row.selection,
-                          row.kind === 'current'
-                            ? 'current'
-                            : `opt-rank-${row.rank ?? 1}`
-                        )
-                      }
-                    >
-                      <DownloadIcon size={14} />
-                      <span>Verify GO (.json)</span>
-                    </button>
-                  )}
-                </div>
+                <div
+                  className="panel gi-card gi-modal-dialog gi-build-details-modal"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={`Build Details — ${row.rankLabel}`}
+                  data-testid={`comp-details-modal-${row.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="gi-card-header">
+                    <div>
+                      <h3 className="gi-card-title">
+                        Build Details — {row.rankLabel} ({formatNum(row.total)}{' '}
+                        DMG)
+                      </h3>
+                      <p className="gi-card-subtitle">
+                        Per-Instance Rotation Breakdown (Repeat ×
+                        {preset.rotation.repeat ?? 1})
+                      </p>
+                    </div>
+                    <div className="preset-gear-row-md">
+                      {onExportGO && (
+                        <button
+                          type="button"
+                          className="btn-secondary btn-icon"
+                          onClick={() =>
+                            onExportGO(
+                              row.selection,
+                              row.kind === 'current'
+                                ? 'current'
+                                : `opt-rank-${row.rank ?? 1}`
+                            )
+                          }
+                        >
+                          <DownloadIcon size={14} />
+                          <span>Verify GO (.json)</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        data-testid={`close-comp-details-modal-${row.id}`}
+                        aria-label="Close build details"
+                        onClick={() => setExpandedRowId(null)}
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
 
-                <div className="gi-table-wrap">
+                  <div
+                    id={`comp-details-${row.id}`}
+                    className="comp-row-details"
+                    data-testid={`comp-details-${row.id}`}
+                  >
+                    <div className="comp-details-header">
+                      <strong>
+                        Per-Instance Rotation Breakdown (Repeat ×
+                        {preset.rotation.repeat ?? 1})
+                      </strong>
+                    </div>
+
+                    <div className="gi-table-wrap">
                   <table className="gi-table comp-damage-table">
                     <thead>
                       <tr>
@@ -1870,6 +1919,8 @@ export function BuildComparisonList({
                         />
                       )
                     })}
+                  </div>
+                </div>
                   </div>
                 </div>
               </div>
@@ -2320,6 +2371,16 @@ export function WeaponComparisonPanel({
   const anySetupDiffers = Object.values(candidateEffectEntriesByWeapon).some(
     (e) => e.setupDiffers
   )
+  const hasOpenEffectsModal = Object.values(expandedEffectsByWeapon).some(Boolean)
+
+  useEffect(() => {
+    if (!hasOpenEffectsModal || typeof window === 'undefined') return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpandedEffectsByWeapon({})
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [hasOpenEffectsModal])
 
   return (
     <div
@@ -2597,56 +2658,103 @@ export function WeaponComparisonPanel({
 
                 {isEffectsExpanded && (
                   <div
-                    id={`weapon-compare-effects-panel-${cand.weaponKey}`}
-                    className="weapon-compare-effects-drawer"
-                    data-testid={`weapon-compare-effects-panel-${cand.weaponKey}`}
+                    className="gi-modal-backdrop"
+                    data-testid={`weapon-compare-effects-modal-backdrop-${cand.weaponKey}`}
+                    onClick={() =>
+                      setExpandedEffectsByWeapon((prev) => ({
+                        ...prev,
+                        [cand.weaponKey]: false,
+                      }))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setExpandedEffectsByWeapon((prev) => ({
+                          ...prev,
+                          [cand.weaponKey]: false,
+                        }))
+                      }
+                    }}
                   >
-                    <div className="weapon-compare-effects-header">
-                      <div>
-                        <strong>
-                          Target Effects for {wMeta.displayName} (
-                          {displayName(candEffects.targetKey)})
-                        </strong>
-                        <p
-                          className="muted"
-                          style={{ fontSize: '0.78rem', margin: 0 }}
-                        >
-                          Configure weapon passives, artifact set effects, and
-                          character/constellation buffs for this candidate only.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        data-testid={`weapon-compare-effects-reset-${cand.weaponKey}`}
-                        disabled={!candEffects.setupDiffers}
-                        onClick={() =>
-                          handleResetCandidateEffects(cand.weaponKey)
-                        }
-                        style={{
-                          fontSize: '0.78rem',
-                          padding: '0.2rem 0.55rem',
-                        }}
-                      >
-                        Reset Effects
-                      </button>
-                    </div>
-
-                    {candEffects.setupDiffers && (
-                      <div
-                        className="weapon-compare-effects-diff-banner"
-                        data-testid={`weapon-compare-effects-diff-list-${cand.weaponKey}`}
-                      >
-                        {candEffects.diffs.map((d) => (
-                          <span
-                            key={`${d.sheet}:${d.key}`}
-                            className="weapon-compare-effects-diff-chip"
+                    <div
+                      id={`weapon-compare-effects-modal-${cand.weaponKey}`}
+                      className="panel gi-card gi-modal-dialog gi-effects-modal"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label={`Effects — ${wMeta.displayName}`}
+                      data-testid={`weapon-compare-effects-modal-${cand.weaponKey}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="gi-card-header">
+                        <div className="preset-gear-row-md">
+                          <WeaponBadge
+                            weaponKey={cand.weaponKey}
+                            subtitle={`Lv.${cand.level} A${cand.ascension} · R${cand.refinement}`}
+                          />
+                          <div>
+                            <h3 className="gi-card-title">
+                              Effects — {wMeta.displayName}
+                            </h3>
+                            <p className="gi-card-subtitle">
+                              Configure weapon passives, artifact set effects,
+                              and character/constellation buffs for{' '}
+                              {displayName(candEffects.targetKey)} on this
+                              candidate only.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="preset-gear-row-md">
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            data-testid={`weapon-compare-effects-reset-${cand.weaponKey}`}
+                            disabled={!candEffects.setupDiffers}
+                            onClick={() =>
+                              handleResetCandidateEffects(cand.weaponKey)
+                            }
+                            style={{
+                              fontSize: '0.78rem',
+                              padding: '0.2rem 0.55rem',
+                            }}
                           >
-                            {d.summary}
-                          </span>
-                        ))}
+                            Reset Effects
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            data-testid={`close-weapon-compare-effects-modal-${cand.weaponKey}`}
+                            aria-label="Close weapon effects modal"
+                            onClick={() =>
+                              setExpandedEffectsByWeapon((prev) => ({
+                                ...prev,
+                                [cand.weaponKey]: false,
+                              }))
+                            }
+                          >
+                            Done
+                          </button>
+                        </div>
                       </div>
-                    )}
+
+                      <div
+                        id={`weapon-compare-effects-panel-${cand.weaponKey}`}
+                        className="weapon-compare-effects-drawer"
+                        data-testid={`weapon-compare-effects-panel-${cand.weaponKey}`}
+                      >
+                        {candEffects.setupDiffers && (
+                          <div
+                            className="weapon-compare-effects-diff-banner"
+                            data-testid={`weapon-compare-effects-diff-list-${cand.weaponKey}`}
+                          >
+                            {candEffects.diffs.map((d) => (
+                              <span
+                                key={`${d.sheet}:${d.key}`}
+                                className="weapon-compare-effects-diff-chip"
+                              >
+                                {d.summary}
+                              </span>
+                            ))}
+                          </div>
+                        )}
 
                     <div className="gi-buffs-groups">
                       {/* 1. Candidate Weapon Passive */}
@@ -2807,6 +2915,8 @@ export function WeaponComparisonPanel({
                         )}
                       </div>
                     </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2857,6 +2967,15 @@ export function WeaponComparisonList({
     null
   )
   const [expandedStatKey, setExpandedStatKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!expandedKey || typeof window === 'undefined') return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpandedKey(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [expandedKey])
 
   if (result.rows.length === 0) {
     return null
@@ -3154,24 +3273,64 @@ export function WeaponComparisonList({
 
             {isExpanded && topBuilds.length > 0 && (
               <div
-                id={`weapon-compare-details-${wKey}`}
-                className="comp-row-details"
-                data-testid={`weapon-compare-details-${wKey}`}
+                className="gi-modal-backdrop"
+                data-testid={`weapon-compare-details-modal-backdrop-${wKey}`}
+                onClick={() => setExpandedKey(null)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setExpandedKey(null)
+                }}
               >
-                <div className="comp-details-header">
-                  <strong>
-                    Top {topBuilds.length} Build
-                    {topBuilds.length === 1 ? '' : 's'} for {displayName(wKey)}{' '}
-                    (Repeat ×{preset.rotation.repeat ?? 1})
-                  </strong>
-                </div>
-
                 <div
-                  className="weapon-compare-top-builds"
-                  data-testid={`weapon-compare-top-builds-${wKey}`}
-                  role="list"
-                  aria-label={`Top builds for ${displayName(wKey)}`}
+                  className="panel gi-card gi-modal-dialog gi-build-details-modal"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={`Build Details — ${displayName(wKey)}`}
+                  data-testid={`weapon-compare-details-modal-${wKey}`}
+                  onClick={(e) => e.stopPropagation()}
                 >
+                  <div className="gi-card-header">
+                    <div>
+                      <h3 className="gi-card-title">
+                        Build Details — {displayName(wKey)}
+                      </h3>
+                      <p className="gi-card-subtitle">
+                        Top {topBuilds.length} Build
+                        {topBuilds.length === 1 ? '' : 's'} for{' '}
+                        {displayName(wKey)} (Repeat ×
+                        {preset.rotation.repeat ?? 1})
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      data-testid={`close-weapon-compare-details-modal-${wKey}`}
+                      aria-label="Close build details"
+                      onClick={() => setExpandedKey(null)}
+                    >
+                      Done
+                    </button>
+                  </div>
+
+                  <div
+                    id={`weapon-compare-details-${wKey}`}
+                    className="comp-row-details"
+                    data-testid={`weapon-compare-details-${wKey}`}
+                  >
+                    <div className="comp-details-header">
+                      <strong>
+                        Top {topBuilds.length} Build
+                        {topBuilds.length === 1 ? '' : 's'} for{' '}
+                        {displayName(wKey)} (Repeat ×
+                        {preset.rotation.repeat ?? 1})
+                      </strong>
+                    </div>
+
+                    <div
+                      className="weapon-compare-top-builds"
+                      data-testid={`weapon-compare-top-builds-${wKey}`}
+                      role="list"
+                      aria-label={`Top builds for ${displayName(wKey)}`}
+                    >
                   {topBuilds.map((buildEntry, bIdx) => {
                     const buildRank = buildEntry.rank || bIdx + 1
                     const buildSelection = buildEntry.selection
@@ -3546,6 +3705,8 @@ export function WeaponComparisonList({
                       </div>
                     )
                   })}
+                </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -4301,22 +4462,37 @@ export interface TeamOptimizationListProps {
   preset: Preset
   result: TeamOptimizeResult
   artifactById: ReadonlyMap<string, IArtifact>
+  initialExpandedMemberKey?: string | null
 }
 
 export function TeamOptimizationList({
   preset,
   result,
   artifactById,
+  initialExpandedMemberKey,
 }: TeamOptimizationListProps) {
   const firstActiveMember =
     result.members.find((m) => !m.skippedSolver)?.memberKey ?? null
+  const defaultExpanded =
+    initialExpandedMemberKey !== undefined
+      ? initialExpandedMemberKey
+      : firstActiveMember
   const [expandedMemberKey, setExpandedMemberKey] = useState<string | null>(
-    firstActiveMember
+    defaultExpanded
   )
   const [expandedInstanceKey, setExpandedInstanceKey] = useState<string | null>(
     null
   )
   const [expandedStatKey, setExpandedStatKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!expandedMemberKey || typeof window === 'undefined') return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpandedMemberKey(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [expandedMemberKey])
 
   const teamDelta = formatRelativeDelta(
     result.teamTotal,
@@ -4569,18 +4745,55 @@ export function TeamOptimizationList({
 
             {isExpanded && memberRes.evaluation && (
               <div
-                id={`team-opt-details-${mKey}`}
-                className="comp-row-details"
-                data-testid={`team-opt-details-${mKey}`}
+                className="gi-modal-backdrop"
+                data-testid={`team-opt-details-modal-backdrop-${mKey}`}
+                onClick={() => setExpandedMemberKey(null)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setExpandedMemberKey(null)
+                }}
               >
-                <div className="comp-details-header">
-                  <strong>
-                    {displayName(mKey)} — Rotation Breakdown (Repeat ×
-                    {preset.rotation.repeat ?? 1})
-                  </strong>
-                </div>
+                <div
+                  className="panel gi-card gi-modal-dialog gi-build-details-modal"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={`Build Details — ${displayName(mKey)}`}
+                  data-testid={`team-opt-details-modal-${mKey}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="gi-card-header">
+                    <div>
+                      <h3 className="gi-card-title">
+                        Build Details — {displayName(mKey)}
+                      </h3>
+                      <p className="gi-card-subtitle">
+                        {displayName(mKey)} — Rotation Breakdown (Repeat ×
+                        {preset.rotation.repeat ?? 1})
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      data-testid={`close-team-opt-details-modal-${mKey}`}
+                      aria-label="Close build details"
+                      onClick={() => setExpandedMemberKey(null)}
+                    >
+                      Done
+                    </button>
+                  </div>
 
-                <div className="gi-table-wrap">
+                  <div
+                    id={`team-opt-details-${mKey}`}
+                    className="comp-row-details"
+                    data-testid={`team-opt-details-${mKey}`}
+                  >
+                    <div className="comp-details-header">
+                      <strong>
+                        {displayName(mKey)} — Rotation Breakdown (Repeat ×
+                        {preset.rotation.repeat ?? 1})
+                      </strong>
+                    </div>
+
+                    <div className="gi-table-wrap">
                   <table className="gi-table comp-damage-table">
                     <thead>
                       <tr>
@@ -4739,6 +4952,8 @@ export function TeamOptimizationList({
                         />
                       )
                     })}
+                  </div>
+                </div>
                   </div>
                 </div>
               </div>

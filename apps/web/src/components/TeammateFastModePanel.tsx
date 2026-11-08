@@ -1,7 +1,7 @@
 'use client'
 
 import { CharacterBadge } from '@/components/Identifier'
-import { ChevronToggle } from '@/components/SvgIcons'
+import { ChevronIcon } from '@/components/SvgIcons'
 import type { MemberStatSummary } from '@gi/engine'
 import {
   FAST_MODE_STAT_KEYS,
@@ -14,7 +14,7 @@ import {
   type Preset,
   type PresetFastModeMap,
 } from '@gi/presets'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export const FAST_MODE_STAT_META: Record<
   FastModeStatKey,
@@ -478,6 +478,15 @@ export function MemberFastModeExpander({
 }: MemberFastModeExpanderProps) {
   const [expanded, setExpanded] = useState(false)
 
+  useEffect(() => {
+    if (!expanded || typeof window === 'undefined') return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpanded(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [expanded])
+
   if (!fastModeAvailable) {
     return null
   }
@@ -504,6 +513,10 @@ export function MemberFastModeExpander({
       ? [[sk, val] as const]
       : []
   })
+  const summaryText =
+    activeEntries.length > 0
+      ? activeEntries.map(([sk, val]) => formatFastModeLine(sk, val)).join(', ')
+      : 'Not set'
 
   return (
     <div
@@ -512,126 +525,174 @@ export function MemberFastModeExpander({
       data-expanded={expanded ? 'true' : 'false'}
       data-fast-mode-active={isActive ? 'true' : 'false'}
     >
-      <div className="preset-member-fastmode-bar">
-        <div className="preset-member-fastmode-bar-left">
+      <button
+        type="button"
+        className="preset-member-fastmode-bar preset-member-fastmode-trigger gi-chevron-toggle has-label"
+        data-testid={`fast-mode-expander-toggle-${characterKey}`}
+        aria-expanded={expanded}
+        aria-controls={`fast-mode-editor-${characterKey}`}
+        aria-label={`Fast Mode — ${displayName(characterKey)}`}
+        onClick={() => setExpanded((prev) => !prev)}
+      >
+        <span className="preset-member-fastmode-bar-left">
           <span className="preset-fastmode-label">
             Virtual 6th Artifact (Fast Mode)
           </span>
-          {activeEntries.length > 0 && (
-            <span
-              className="preset-fastmode-summary"
-              data-testid={`fast-mode-summary-${characterKey}`}
-            >
-              {activeEntries
-                .map(([sk, val]) => formatFastModeLine(sk, val))
-                .join(' · ')}
-            </span>
-          )}
-        </div>
+          <span
+            className={`gi-fast-mode-status-pill${isActive ? ' is-active' : ''}`}
+            data-testid={`fast-mode-status-${characterKey}`}
+          >
+            {isActive ? 'Active' : 'Inactive'}
+          </span>
+        </span>
 
-        <div className="preset-member-fastmode-bar-actions">
-          {isActive && (
-            <button
-              type="button"
-              className="btn-secondary gi-fast-mode-reset-btn"
-              data-testid={`fast-mode-reset-${characterKey}`}
-              onClick={onResetMember}
-              title={`Reset ${displayName(characterKey)}'s virtual 6th artifact`}
-            >
-              Reset Fast Mode
-            </button>
-          )}
-          <ChevronToggle
-            expanded={expanded}
-            className="gi-collapsible-toggle-btn preset-fastmode-toggle"
-            data-testid={`fast-mode-expander-toggle-${characterKey}`}
-            ariaControls={`fast-mode-editor-${characterKey}`}
-            ariaLabel={`Toggle Virtual 6th Artifact for ${displayName(characterKey)}`}
-            onClick={() => setExpanded((prev) => !prev)}
-          />
-        </div>
-      </div>
+        <span className="preset-member-fastmode-bar-actions">
+          <span
+            className={`preset-fastmode-summary${isActive ? '' : ' is-empty'}`}
+            data-testid={`fast-mode-summary-${characterKey}`}
+          >
+            {summaryText}
+          </span>
+          <ChevronIcon expanded={expanded} size={14} />
+        </span>
+      </button>
 
       {expanded && (
         <div
-          id={`fast-mode-editor-${characterKey}`}
-          className="gi-fast-mode-editor"
-          data-testid={`fast-mode-editor-${characterKey}`}
+          className="gi-modal-backdrop"
+          data-testid={`fast-mode-modal-backdrop-${characterKey}`}
+          onClick={() => setExpanded(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setExpanded(false)
+          }}
         >
-          {activeEntries.length > 0 && (
-            <div
-              className="gi-fast-mode-lines"
-              data-testid={`fast-mode-lines-${characterKey}`}
-            >
-              {activeEntries.map(([sk, val]) => (
-                <span
-                  key={sk}
-                  className={`gi-fast-mode-line-pill${val < 0 ? ' is-negative' : ''}`}
-                  data-testid={`fast-mode-line-${characterKey}-${sk}`}
-                >
-                  <span>{formatFastModeLine(sk, val)}</span>
+          <div
+            id={`fast-mode-modal-${characterKey}`}
+            className="panel gi-card gi-modal-dialog gi-fast-mode-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Fast Mode — ${displayName(characterKey)}`}
+            data-testid={`fast-mode-modal-${characterKey}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="gi-card-header">
+              <div className="preset-gear-row-md">
+                <CharacterBadge characterKey={characterKey} compact />
+                <div>
+                  <h3 className="gi-card-title">
+                    Fast Mode — {displayName(characterKey)}
+                  </h3>
+                  <p className="gi-card-subtitle">
+                    Virtual 6th artifact stat adjustments for{' '}
+                    {displayName(characterKey)}.
+                  </p>
+                </div>
+              </div>
+              <div className="preset-gear-row-md">
+                {isActive && (
                   <button
                     type="button"
-                    aria-label={`Remove ${FAST_MODE_STAT_META[sk].fullLabel} from ${displayName(characterKey)}`}
-                    data-testid={`fast-mode-remove-${characterKey}-${sk}`}
-                    onClick={() => onChangeStat(sk, undefined)}
+                    className="btn-secondary gi-fast-mode-reset-btn"
+                    data-testid={`fast-mode-reset-${characterKey}`}
+                    onClick={onResetMember}
+                    title={`Reset ${displayName(characterKey)}'s virtual 6th artifact`}
                   >
-                    ×
+                    Reset Fast Mode
                   </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div
-            className="gi-fast-mode-inputs-grid"
-            data-testid={`fast-mode-inputs-${characterKey}`}
-          >
-            {FAST_MODE_STAT_KEYS.map((sk) => {
-              const meta = FAST_MODE_STAT_META[sk]
-              const rawVal = fastModeStats?.[sk]
-              return (
-                <label
-                  key={sk}
-                  className={`gi-fast-mode-input-cell${
-                    typeof rawVal === 'number' && rawVal !== 0
-                      ? ' is-filled'
-                      : ''
-                  }`}
+                )}
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  data-testid={`close-fast-mode-modal-${characterKey}`}
+                  aria-label="Close Fast Mode editor"
+                  onClick={() => setExpanded(false)}
                 >
-                  <span className="gi-fast-mode-input-label">
-                    {meta.shortLabel}
-                  </span>
-                  <input
-                    type="number"
-                    step="any"
-                    aria-label={`${displayName(characterKey)} Fast Mode ${meta.shortLabel}`}
-                    data-testid={`fast-mode-input-${characterKey}-${sk}`}
-                    placeholder="0"
-                    value={
-                      typeof rawVal === 'number' &&
-                      Number.isFinite(rawVal) &&
-                      rawVal !== 0
-                        ? String(rawVal)
-                        : ''
-                    }
-                    onChange={(e) => {
-                      const raw = e.target.value.trim()
-                      if (raw === '' || raw === '-') {
-                        onChangeStat(sk, undefined)
-                        return
-                      }
-                      const parsed = Number(raw)
-                      if (Number.isFinite(parsed) && parsed !== 0) {
-                        onChangeStat(sk, parsed)
-                      } else {
-                        onChangeStat(sk, undefined)
-                      }
-                    }}
-                  />
-                </label>
-              )
-            })}
+                  Done
+                </button>
+              </div>
+            </div>
+
+            <div
+              id={`fast-mode-editor-${characterKey}`}
+              className="gi-fast-mode-editor"
+              data-testid={`fast-mode-editor-${characterKey}`}
+            >
+              {activeEntries.length > 0 && (
+                <div
+                  className="gi-fast-mode-lines"
+                  data-testid={`fast-mode-lines-${characterKey}`}
+                >
+                  {activeEntries.map(([sk, val]) => (
+                    <span
+                      key={sk}
+                      className={`gi-fast-mode-line-pill${val < 0 ? ' is-negative' : ''}`}
+                      data-testid={`fast-mode-line-${characterKey}-${sk}`}
+                    >
+                      <span>{formatFastModeLine(sk, val)}</span>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${FAST_MODE_STAT_META[sk].fullLabel} from ${displayName(characterKey)}`}
+                        data-testid={`fast-mode-remove-${characterKey}-${sk}`}
+                        onClick={() => onChangeStat(sk, undefined)}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div
+                className="gi-fast-mode-inputs-grid"
+                data-testid={`fast-mode-inputs-${characterKey}`}
+              >
+                {FAST_MODE_STAT_KEYS.map((sk) => {
+                  const meta = FAST_MODE_STAT_META[sk]
+                  const rawVal = fastModeStats?.[sk]
+                  return (
+                    <label
+                      key={sk}
+                      className={`gi-fast-mode-input-cell${
+                        typeof rawVal === 'number' && rawVal !== 0
+                          ? ' is-filled'
+                          : ''
+                      }`}
+                    >
+                      <span className="gi-fast-mode-input-label">
+                        {meta.shortLabel}
+                      </span>
+                      <input
+                        type="number"
+                        step="any"
+                        aria-label={`${displayName(characterKey)} Fast Mode ${meta.shortLabel}`}
+                        data-testid={`fast-mode-input-${characterKey}-${sk}`}
+                        placeholder="0"
+                        value={
+                          typeof rawVal === 'number' &&
+                          Number.isFinite(rawVal) &&
+                          rawVal !== 0
+                            ? String(rawVal)
+                            : ''
+                        }
+                        onChange={(e) => {
+                          const raw = e.target.value.trim()
+                          if (raw === '' || raw === '-') {
+                            onChangeStat(sk, undefined)
+                            return
+                          }
+                          const parsed = Number(raw)
+                          if (Number.isFinite(parsed) && parsed !== 0) {
+                            onChangeStat(sk, parsed)
+                          } else {
+                            onChangeStat(sk, undefined)
+                          }
+                        }}
+                      />
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
