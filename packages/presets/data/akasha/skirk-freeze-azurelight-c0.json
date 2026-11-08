@@ -1,0 +1,147 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "akasha/skirk-freeze-azurelight-c0",
+  "name": "Skirk — Freeze Hypercarry (Escoffier + Furina + Shenhe)",
+  "description": "Akasha leaderboard preset for C0 Skirk Freeze Hypercarry with Escoffier (55% Cryo/Hydro RES shred + Symphonist of Scents), Furina (250 Fanfare + Tenacity 4p), and Shenhe (Icy Quills + Cryo DMG%/RES shred + Noblesse 4p).",
+  "source": "akasha",
+  "author": "akasha.cv",
+  "target": "Skirk",
+  "team": [
+    {
+      "key": "Skirk",
+      "build": {
+        "type": "fixed",
+        "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 10, "skill": 10, "burst": 10 } },
+        "weapon": { "key": "Azurelight", "level": 90, "ascension": 6, "refinement": 1 }
+      },
+      "requirement": {},
+      "conditional": {
+        "Skirk": {
+          "burstVoidAbsorb": "3",
+          "a4DeathStacks": "3"
+        },
+        "Azurelight": {
+          "afterSkill": "on",
+          "noEnergy": "on"
+        },
+        "FinaleOfTheDeepGalleries": {
+          "0EnergyNoBurst": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Escoffier",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 9 } },
+          "weapon": { "key": "SymphonistOfScents", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "cryo_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "GoldenTroupe": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Escoffier": { "a4SkillBurstHit": "on" },
+        "SymphonistOfScents": { "healing": "on" },
+        "GoldenTroupe": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Furina",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 10 } },
+          "weapon": { "key": "FavoniusSword", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "TenacityOfTheMillelith": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Furina": { "burstFanfare": "250" },
+        "TenacityOfTheMillelith": { "skill": "cast" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Shenhe",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 10 } },
+          "weapon": { "key": "CalamityQueller", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "atk_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "enerRech_": 44.0 } },
+            "sets": { "NoblesseOblige": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Shenhe": {
+          "quill": "quill",
+          "burst": "burst",
+          "asc1": "field",
+          "asc4Hold": "hold"
+        },
+        "CalamityQueller": { "stack": "6" },
+        "NoblesseOblige": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "E -> Q (Havoc: Extinction) -> 3× N5 + CA Seven-Phase Flash",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "0"], "count": 3, "label": "Seven-Phase Flash 1-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "1"], "count": 3, "label": "Seven-Phase Flash 2-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "2"], "count": 6, "label": "Seven-Phase Flash 3-Hit (3×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "3"], "count": 6, "label": "Seven-Phase Flash 4-Hit (3×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "4"], "count": 3, "label": "Seven-Phase Flash 5-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "chargedDmg"], "count": 3, "label": "Seven-Phase Flash Charged Attack (1×3)", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  },
+  "akasha": {
+    "calculationId": "skirk-freeze-azurelight-c0",
+    "leaderboardUrl": "https://akasha.cv/leaderboards",
+    "label": "Skirk — Freeze Hypercarry (Azurelight R1, C0)",
+    "retrievedAt": "authored-from-knowledge",
+    "notes": "Source: authored-from-knowledge. Fixed Akasha target spec: Lv.90/90 C0 10/10/10 with Azurelight R1 Lv.90/90 (0 Energy + after Skill active), 3 Void Rifts absorbed, and 3 Death's Crossing stacks. Teammates: Escoffier C0 (Symphonist of Scents R1, -55% Cryo/Hydro RES), Furina C0 (250 Fanfare, 4p Tenacity), Shenhe C0 (Calamity Queller R1, 4p Noblesse)."
+  }
+}
