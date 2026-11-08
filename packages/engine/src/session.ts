@@ -20,6 +20,7 @@ import { uiDataForTeam } from '@genshin-optimizer/gi/uidata'
 import { input } from '@genshin-optimizer/gi/wr'
 import {
   applyMemberConditionalOverrides,
+  getPresetResonanceEnabled,
   readEffectiveConditionalValue,
   resolvePresetMemberBuildMode,
   resolveRotationTargetOwner,
@@ -261,6 +262,7 @@ export interface HydratePresetTeamOptions {
   ownedCharKeys?: ReadonlySet<string>
   memberBuildModes?: Record<string, MemberBuildMode>
   memberConditionals?: PresetMemberConditionalOverrides
+  resonanceEnabled?: boolean
 }
 
 export function computeDefaultMemberConditionals(opts: {
@@ -514,7 +516,8 @@ function presetTeamFingerprint(
   preset: Preset,
   activeWeaponKey: string | undefined,
   effectiveMemberModes: MemberBuildMode[],
-  memberConditionals?: PresetMemberConditionalOverrides
+  memberConditionals?: PresetMemberConditionalOverrides,
+  resonanceEnabled?: boolean
 ): string {
   return JSON.stringify({
     id: preset.id,
@@ -527,6 +530,7 @@ function presetTeamFingerprint(
     activeWeaponKey: activeWeaponKey ?? '',
     effectiveMemberModes,
     memberConditionals: memberConditionals ?? {},
+    resonanceEnabled: resonanceEnabled !== false,
   })
 }
 
@@ -573,7 +577,8 @@ export function hydratePresetTeam(
     preset,
     resolvedWeaponKey,
     resolvedMembers.map((m) => m.mode),
-    opts?.memberConditionals
+    opts?.memberConditionals,
+    opts?.resonanceEnabled
   )
   const cached = dbPresetCache.get(db as object)
   if (
@@ -699,35 +704,40 @@ export function hydratePresetTeam(
   }
 
   // Fill teamConditional.resonance with 'on' for any element appearing 2+ times
-  // in the team when the preset does not specify it.
+  // in the team when the preset does not specify it, unless master resonance is OFF.
+  const resonanceEnabled = opts?.resonanceEnabled !== false
   const rawResonance = preset.teamConditional?.resonance ?? {}
-  const effectiveResonance: Record<string, string> = { ...rawResonance }
-  const eleCounts: Record<string, number> = {}
-  for (let i = 0; i < Math.min(4, preset.team.length); i++) {
-    const mKey = preset.team[i]!.key as CharacterKey
-    const ele = (getCharStat(mKey) as { ele?: string } | undefined)?.ele
-    if (ele) {
-      eleCounts[ele] = (eleCounts[ele] ?? 0) + 1
-    }
-  }
-  for (const [ele, count] of Object.entries(eleCounts)) {
-    if (count >= 2) {
-      const capEle = ele.charAt(0).toUpperCase() + ele.slice(1)
-      const authoredVal = rawResonance[capEle] ?? rawResonance[ele]
-      if (authoredVal === undefined) {
-        effectiveResonance[capEle] = 'on'
-        effectiveResonance[ele] = 'on'
+  const effectiveResonance: Record<string, string> = resonanceEnabled
+    ? { ...rawResonance }
+    : { __masterOff: 'off' }
+  if (resonanceEnabled) {
+    const eleCounts: Record<string, number> = {}
+    for (let i = 0; i < Math.min(4, preset.team.length); i++) {
+      const mKey = preset.team[i]!.key as CharacterKey
+      const ele = (getCharStat(mKey) as { ele?: string } | undefined)?.ele
+      if (ele) {
+        eleCounts[ele] = (eleCounts[ele] ?? 0) + 1
       }
-      const activeVal = effectiveResonance[capEle] ?? effectiveResonance[ele]
-      if (activeVal === 'on') {
-        if (ele === 'cryo') {
-          effectiveResonance.ShatteringIce ??= 'on'
-        } else if (ele === 'geo') {
-          effectiveResonance.EnduringRock ??= 'on'
-          effectiveResonance.EnduringRockHit ??= 'on'
-        } else if (ele === 'dendro') {
-          effectiveResonance.SprawlingCanopy2ele ??= 'on'
-          effectiveResonance.SprawlingCanopy3ele ??= 'on'
+    }
+    for (const [ele, count] of Object.entries(eleCounts)) {
+      if (count >= 2) {
+        const capEle = ele.charAt(0).toUpperCase() + ele.slice(1)
+        const authoredVal = rawResonance[capEle] ?? rawResonance[ele]
+        if (authoredVal === undefined) {
+          effectiveResonance[capEle] = 'on'
+          effectiveResonance[ele] = 'on'
+        }
+        const activeVal = effectiveResonance[capEle] ?? effectiveResonance[ele]
+        if (activeVal === 'on') {
+          if (ele === 'cryo') {
+            effectiveResonance.ShatteringIce ??= 'on'
+          } else if (ele === 'geo') {
+            effectiveResonance.EnduringRock ??= 'on'
+            effectiveResonance.EnduringRockHit ??= 'on'
+          } else if (ele === 'dendro') {
+            effectiveResonance.SprawlingCanopy2ele ??= 'on'
+            effectiveResonance.SprawlingCanopy3ele ??= 'on'
+          }
         }
       }
     }
@@ -785,6 +795,7 @@ export function hydrateTeamIntoDb(
       ownedCharKeys: goodCharKeys,
       memberBuildModes: selection?.memberBuildModes,
       memberConditionals: selection?.memberConditionals,
+      resonanceEnabled: selection?.resonanceEnabled,
     }
   )
   const targetCharKey = preset.target as CharacterKey
@@ -987,6 +998,7 @@ export async function compareWeapons(
   opts?: {
     memberBuildModes?: Record<string, MemberBuildMode>
     memberConditionals?: PresetMemberConditionalOverrides
+    resonanceEnabled?: boolean
     onProgress?: (p: WeaponCompareProgress) => void
     signal?: AbortSignal
     maxWorkers?: number
@@ -999,6 +1011,8 @@ export async function compareWeapons(
     opts?.memberBuildModes ?? settings.memberBuildModes?.[preset.id]
   const effectiveMemberConditionals =
     opts?.memberConditionals ?? settings.memberConditionalOverrides?.[preset.id]
+  const effectiveResonanceEnabled =
+    opts?.resonanceEnabled ?? getPresetResonanceEnabled(settings, preset.id)
 
   const compareSettings: OptimizerSettings = {
     ...settings,
@@ -1025,6 +1039,7 @@ export async function compareWeapons(
         weaponOverride,
         memberBuildModes: effectiveMemberBuildModes,
         memberConditionals: effectiveMemberConditionals,
+        resonanceEnabled: effectiveResonanceEnabled,
         signal: opts?.signal,
         maxWorkers: opts?.maxWorkers,
         onProgress: (solverProgress) => {
@@ -1083,6 +1098,9 @@ export async function compareWeapons(
           ...(effectiveMemberConditionals &&
           Object.keys(effectiveMemberConditionals).length > 0
             ? { memberConditionals: effectiveMemberConditionals }
+            : {}),
+          ...(effectiveResonanceEnabled === false
+            ? { resonanceEnabled: false }
             : {}),
         }
         const evaluation = session.evaluate(preset, selectionForEval)
@@ -1394,6 +1412,9 @@ export function createSession(good: unknown): EngineSession {
                   ...(selection?.memberConditionals
                     ? { memberConditionals: selection.memberConditionals }
                     : {}),
+                  ...(typeof selection?.resonanceEnabled === 'boolean'
+                    ? { resonanceEnabled: selection.resonanceEnabled }
+                    : {}),
                 }
           const subEval = this.evaluate(subPreset, memberSel)
           if (memberKey === preset.target) {
@@ -1448,6 +1469,7 @@ export function createSession(good: unknown): EngineSession {
           ownedCharKeys: goodCharKeys,
           memberBuildModes: selection?.memberBuildModes,
           memberConditionals: selection?.memberConditionals,
+          resonanceEnabled: selection?.resonanceEnabled,
         }
       )
       const targetKey = preset.target as CharacterKey
@@ -1576,6 +1598,7 @@ export function createSession(good: unknown): EngineSession {
         weaponOverride?: SimulatedWeaponSpec
         memberBuildModes?: Record<string, MemberBuildMode>
         memberConditionals?: PresetMemberConditionalOverrides
+        resonanceEnabled?: boolean
         onProgress?: (p: OptimizeProgress) => void
         signal?: AbortSignal
         maxWorkers?: number
@@ -1586,6 +1609,8 @@ export function createSession(good: unknown): EngineSession {
       const effectiveMemberConditionals =
         opts?.memberConditionals ??
         settings.memberConditionalOverrides?.[preset.id]
+      const effectiveResonanceEnabled =
+        opts?.resonanceEnabled ?? getPresetResonanceEnabled(settings, preset.id)
 
       const {
         isFixedTarget,
@@ -1612,6 +1637,7 @@ export function createSession(good: unknown): EngineSession {
           ownedCharKeys: goodCharKeys,
           memberBuildModes: effectiveMemberBuildModes,
           memberConditionals: effectiveMemberConditionals,
+          resonanceEnabled: effectiveResonanceEnabled,
         }
       )
 
@@ -1621,6 +1647,7 @@ export function createSession(good: unknown): EngineSession {
         weaponOverrideSpec: isFixedTarget ? effectiveWeaponSpec : opts?.weaponOverride,
         memberBuildModes: effectiveMemberBuildModes,
         memberConditionals: effectiveMemberConditionals,
+        resonanceEnabled: effectiveResonanceEnabled,
         onProgress: opts?.onProgress,
         signal: opts?.signal,
         maxWorkers: opts?.maxWorkers,
@@ -1643,6 +1670,8 @@ export function createSession(good: unknown): EngineSession {
       const effectiveMemberConditionals =
         opts?.memberConditionals ??
         settings.memberConditionalOverrides?.[preset.id]
+      const effectiveResonanceEnabled =
+        opts?.resonanceEnabled ?? getPresetResonanceEnabled(settings, preset.id)
 
       const totalMembers = Math.min(4, preset.team.length)
 
@@ -1662,8 +1691,8 @@ export function createSession(good: unknown): EngineSession {
           memberKey,
           effectiveMemberBuildModes
         )
-        const currentSelection: BuildSelection =
-          memberIndex === 0 && opts?.weaponOverride
+        const currentSelection: BuildSelection = {
+          ...(memberIndex === 0 && opts?.weaponOverride
             ? {
                 ...baseCurrentSelection,
                 weaponId: undefined,
@@ -1674,7 +1703,11 @@ export function createSession(good: unknown): EngineSession {
                   ...baseCurrentSelection,
                   weaponId: opts.weaponId,
                 }
-              : baseCurrentSelection
+              : baseCurrentSelection),
+          ...(effectiveResonanceEnabled === false
+            ? { resonanceEnabled: false }
+            : {}),
+        }
 
         if (memberRows.length === 0) {
           members.push({
@@ -1732,6 +1765,7 @@ export function createSession(good: unknown): EngineSession {
             ownedCharKeys: goodCharKeys,
             memberBuildModes: effectiveMemberBuildModes,
             memberConditionals: effectiveMemberConditionals,
+            resonanceEnabled: effectiveResonanceEnabled,
           }
         )
 
@@ -1766,6 +1800,7 @@ export function createSession(good: unknown): EngineSession {
                 : undefined,
             memberBuildModes: effectiveMemberBuildModes,
             memberConditionals: effectiveMemberConditionals,
+            resonanceEnabled: effectiveResonanceEnabled,
             excludedArtifactIds: assignedArtifactIds,
             onProgress: (solverProgress) => {
               opts?.onProgress?.({
@@ -1795,6 +1830,9 @@ export function createSession(good: unknown): EngineSession {
               Object.keys(effectiveMemberConditionals).length > 0
                 ? { memberConditionals: effectiveMemberConditionals }
                 : {}),
+              ...(effectiveResonanceEnabled === false
+                ? { resonanceEnabled: false }
+                : {}),
             }
           : {
               ...currentSelection,
@@ -1805,6 +1843,9 @@ export function createSession(good: unknown): EngineSession {
               ...(effectiveMemberConditionals &&
               Object.keys(effectiveMemberConditionals).length > 0
                 ? { memberConditionals: effectiveMemberConditionals }
+                : {}),
+              ...(effectiveResonanceEnabled === false
+                ? { resonanceEnabled: false }
                 : {}),
             }
 
@@ -1824,6 +1865,9 @@ export function createSession(good: unknown): EngineSession {
           ...(effectiveMemberConditionals &&
           Object.keys(effectiveMemberConditionals).length > 0
             ? { memberConditionals: effectiveMemberConditionals }
+            : {}),
+          ...(effectiveResonanceEnabled === false
+            ? { resonanceEnabled: false }
             : {}),
         })
 
@@ -1868,6 +1912,7 @@ export function createSession(good: unknown): EngineSession {
       opts?: {
         memberBuildModes?: Record<string, MemberBuildMode>
         memberConditionals?: PresetMemberConditionalOverrides
+        resonanceEnabled?: boolean
         onProgress?: (p: WeaponCompareProgress) => void
         signal?: AbortSignal
         maxWorkers?: number

@@ -23,11 +23,13 @@ import {
   displayName,
   getPresetConditionalOverrides,
   getPresetMemberBuildModes,
+  getPresetResonanceEnabled,
   hasMemberConditionalOverrides,
   readEffectiveConditionalValue,
   resetMemberConditionalOverrides,
   resolvePresetMemberBuildMode,
   setMemberConditionalOverride,
+  setPresetResonanceEnabled,
   type MemberBuildMode,
   type MemberConditionalsMap,
   type OptimizerSettings,
@@ -516,10 +518,22 @@ export function ConditionalTogglePanel({
     [settings, preset.id]
   )
 
-  const anyPresetOverrides = useMemo(
-    () => hasMemberConditionalOverrides(settings, preset.id),
+  const resonanceEnabled = useMemo(
+    () => getPresetResonanceEnabled(settings, preset.id),
     [settings, preset.id]
   )
+
+  const anyPresetOverrides = useMemo(
+    () =>
+      hasMemberConditionalOverrides(settings, preset.id) || !resonanceEnabled,
+    [settings, preset.id, resonanceEnabled]
+  )
+
+  function handleToggleResonance() {
+    onChangeSettings(
+      setPresetResonanceEnabled(settings, preset.id, !resonanceEnabled)
+    )
+  }
 
   function handleSetCondState(
     characterKey: string,
@@ -722,6 +736,52 @@ export function ConditionalTogglePanel({
             Reset All to Defaults
           </button>
         )}
+      </div>
+
+      {/* Team-Level Elemental Resonance Master Toggle */}
+      <div
+        className={`gi-buffs-resonance-bar${resonanceEnabled ? ' is-on' : ' is-off'}`}
+        data-testid="team-resonance-master-row"
+        data-resonance-enabled={resonanceEnabled ? 'true' : 'false'}
+      >
+        <div className="gi-buffs-resonance-info">
+          <div className="gi-buffs-resonance-title-row">
+            <span className="gi-buffs-resonance-label">
+              Elemental Resonance
+            </span>
+            <span className="gi-buff-team-tag" title="Team-wide resonance buffs">
+              Team
+            </span>
+            {!resonanceEnabled && (
+              <span
+                className="gi-buffs-modified-pill"
+                data-testid="resonance-modified-badge"
+              >
+                Modified
+              </span>
+            )}
+          </div>
+          <span className="gi-buffs-resonance-desc muted">
+            Applies party elemental resonance effects across evaluation and optimization.
+          </span>
+        </div>
+        <div className="gi-buffs-resonance-controls">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={resonanceEnabled}
+            aria-label="Elemental Resonance"
+            data-testid="resonance-master-toggle"
+            data-state-value={resonanceEnabled ? 'on' : 'off'}
+            className={`gi-buff-switch${resonanceEnabled ? ' is-on' : ''}`}
+            onClick={handleToggleResonance}
+          >
+            <span className="gi-buff-switch-thumb" />
+            <span className="gi-buff-switch-text">
+              {resonanceEnabled ? 'ON' : 'OFF'}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Character Switcher Tab Bar (GO-style team member tiles) */}

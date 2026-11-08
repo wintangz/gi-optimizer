@@ -7,6 +7,7 @@ import {
   DEFAULT_OPTIMIZER_SETTINGS,
   getBundledPreset,
   getPresetConditionalOverrides,
+  getPresetResonanceEnabled,
   hasMemberConditionalOverrides,
   type OptimizerSettings,
 } from '@gi/presets'
@@ -777,5 +778,73 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
     )
     expect(getTextContent(fallbackDotLabel)).toBe('After Use Skill')
     expect(String(fallbackDotLabel.props.title)).toContain('(afterUse.skill)')
+  })
+
+  it('renders the team-level Elemental Resonance master switch (ON by default), toggles to OFF, preserves member overrides, and resets to ON on Reset All', () => {
+    const preset = getBundledPreset('official/skirk-freeze')!
+    let currentSettings: OptimizerSettings = { ...DEFAULT_OPTIMIZER_SETTINGS }
+
+    function renderPanel() {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        const nodes = evaluateTree(
+          React.createElement(ConditionalTogglePanel, {
+            preset,
+            settings: currentSettings,
+            onChangeSettings: (next) => {
+              currentSettings = next
+            },
+            good: SAMPLE_GOOD,
+            conditionalsByChar: SAMPLE_CATALOG,
+          })
+        )
+        hookStore.flushEffects()
+        return nodes.filter((n): n is VNode => typeof n !== 'string')
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    function getTextContent(node: VNode | string): string {
+      if (typeof node === 'string') return node
+      return node.children.map((c) => getTextContent(c)).join('')
+    }
+
+    // 1. Default state: ON
+    const tree1 = renderPanel()
+    const resRow1 = findByTestId(tree1, 'team-resonance-master-row')
+    expect(resRow1).toBeDefined()
+    expect(getTextContent(resRow1!)).toContain('Elemental Resonance')
+    const resToggle1 = findByTestId(tree1, 'resonance-master-toggle')!
+    expect(resToggle1).toBeDefined()
+    expect(resToggle1.props.role).toBe('switch')
+    expect(resToggle1.props['aria-label']).toBe('Elemental Resonance')
+    expect(resToggle1.props['aria-checked']).toBe(true)
+    expect(getTextContent(resToggle1)).toBe('ON')
+    expect(findByTestId(tree1, 'reset-all-conditionals')).toBeUndefined()
+
+    // 2. Click to toggle OFF
+    ;(resToggle1.props.onClick as () => void)()
+    expect(getPresetResonanceEnabled(currentSettings, preset.id)).toBe(false)
+
+    const tree2 = renderPanel()
+    const resToggle2 = findByTestId(tree2, 'resonance-master-toggle')!
+    expect(resToggle2.props['aria-checked']).toBe(false)
+    expect(getTextContent(resToggle2)).toBe('OFF')
+    expect(findByTestId(tree2, 'resonance-modified-badge')).toBeDefined()
+
+    // Reset All button appears when resonance is OFF even without member overrides
+    const resetAllBtn = findByTestId(tree2, 'reset-all-conditionals')
+    expect(resetAllBtn).toBeDefined()
+
+    // 3. Clicking Reset All restores Elemental Resonance to ON
+    ;(resetAllBtn!.props.onClick as () => void)()
+    expect(getPresetResonanceEnabled(currentSettings, preset.id)).toBe(true)
+
+    const tree3 = renderPanel()
+    const resToggle3 = findByTestId(tree3, 'resonance-master-toggle')!
+    expect(resToggle3.props['aria-checked']).toBe(true)
+    expect(getTextContent(resToggle3)).toBe('ON')
   })
 })

@@ -230,11 +230,23 @@ function isResonanceExplicitlyOn(
   return val === 'on'
 }
 
+function isMasterResonanceOff(
+  resCond: Record<string, string> | undefined
+): boolean {
+  return Boolean(
+    resCond && (resCond.__masterOff === 'off' || resCond.all === 'off')
+  )
+}
+
 function getEffectiveResonanceData(
   resCond: Record<string, string> | undefined,
   smallTeamEleCounts?: Record<string, number>,
   isActiveTeamChar = false
 ): Data {
+  if (isMasterResonanceOff(resCond)) {
+    return {} as Data
+  }
+
   const offPyro = isResonanceExplicitlyOff(resCond, 'pyro')
   const offHydro = isResonanceExplicitlyOff(resCond, 'hydro')
   const offCryo = isResonanceExplicitlyOff(resCond, 'cryo')

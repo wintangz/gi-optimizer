@@ -263,7 +263,12 @@ function collectAdditiveContributors(
     source
   ) {
     const memberKey = resolveTeamMemberKey(source, ctx.teamKeys)
-    if (memberKey && (prefix === 'teamBuff' || memberKey !== ctx.targetKey)) {
+    if (
+      memberKey &&
+      (prefix === 'teamBuff' ||
+        opts?.inheritedPrefix === 'teamBuff' ||
+        memberKey !== ctx.targetKey)
+    ) {
       const uncollapsed = uncollapseMemberTeamBuff(
         ctx,
         memberKey,
@@ -709,6 +714,11 @@ export function extractDamageRowBreakdown(opts: {
   )
 
   // 3. Crit contributors
+  const critRateResonanceContribs = collectAdditiveContributors(
+    hitUiData.get(input.total.critRate_),
+    ctx,
+    '%'
+  ).filter((c) => c.category === 'resonance')
   const critContributors: BreakdownContributor[] = [
     {
       category: 'character',
@@ -717,6 +727,7 @@ export function extractDamageRowBreakdown(opts: {
       value: critRate,
       unit: '%',
     },
+    ...critRateResonanceContribs,
     {
       category: 'character',
       sourceKey: targetKey,

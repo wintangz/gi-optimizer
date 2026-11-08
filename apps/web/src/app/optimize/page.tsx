@@ -62,6 +62,7 @@ import {
   getCharacterMeta,
   getPresetConditionalOverrides,
   getPresetMemberBuildModes,
+  getPresetResonanceEnabled,
   getWeaponMeta,
   hasMemberConditionalOverrides,
   listBundledPresets,
@@ -215,6 +216,14 @@ function OptimizeInner() {
       activePreset
         ? hasMemberConditionalOverrides(settings, activePreset.id)
         : false,
+    [activePreset, settings]
+  )
+
+  const activeResonanceEnabled = useMemo(
+    () =>
+      activePreset
+        ? getPresetResonanceEnabled(settings, activePreset.id)
+        : true,
     [activePreset, settings]
   )
 
@@ -479,6 +488,7 @@ function OptimizeInner() {
               ...(hasActiveConditionalOverrides
                 ? { memberConditionals: activeMemberConditionals }
                 : {}),
+              ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
             }
           : {
               ...(baseRes.currentBuild.weaponOverride
@@ -495,6 +505,7 @@ function OptimizeInner() {
               ...(hasActiveConditionalOverrides
                 ? { memberConditionals: activeMemberConditionals }
                 : {}),
+              ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
             }
         setCurrentSelection(effectiveCurrent)
 
@@ -512,6 +523,7 @@ function OptimizeInner() {
         const needsReEval = isAkashaPreset
           ? Boolean(
               hasActiveConditionalOverrides ||
+                !activeResonanceEnabled ||
                 (targetWeaponOverrideSpec &&
                   (targetWeaponOverrideSpec.key !==
                     baseRes.currentBuild.weaponOverride?.key ||
@@ -523,7 +535,8 @@ function OptimizeInner() {
                 (effectiveWeaponId &&
                   effectiveWeaponId !== baseRes.currentBuild.weaponId) ||
                 hasOfficialMemberModeOverrides ||
-                hasActiveConditionalOverrides
+                hasActiveConditionalOverrides ||
+                !activeResonanceEnabled
             )
 
         if (needsReEval) {
@@ -563,6 +576,7 @@ function OptimizeInner() {
     activeMemberBuildModes,
     activeMemberConditionals,
     hasActiveConditionalOverrides,
+    activeResonanceEnabled,
   ])
 
   // Off-main-thread evaluation of all returned Top-N Optimised Builds via the shared worker session
@@ -597,6 +611,7 @@ function OptimizeInner() {
                 ...(hasActiveConditionalOverrides
                   ? { memberConditionals: activeMemberConditionals }
                   : {}),
+                ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
               },
             })
             return res.result
@@ -627,6 +642,7 @@ function OptimizeInner() {
     activeMemberBuildModes,
     activeMemberConditionals,
     hasActiveConditionalOverrides,
+    activeResonanceEnabled,
   ])
 
   async function startOptimization() {
@@ -769,6 +785,7 @@ function OptimizeInner() {
                 ...(hasActiveConditionalOverrides
                   ? { memberConditionals: activeMemberConditionals }
                   : {}),
+                ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
               }
               const evalRes = await evaluatePresetInWorker({
                 datasetKey: importedAtSnapshot,

@@ -142,6 +142,18 @@ export interface OptimizerSettings {
    * A value of `'off'` explicitly disables the conditional; any other string sets the conditional state.
    */
   memberConditionalOverrides?: Record<string, PresetMemberConditionalOverrides>
+  /**
+   * Per-preset master Elemental Resonance on/off override (`[presetId] => boolean`).
+   * Defaults to `true` (ON) when omitted or undefined. When `false` (OFF), all elemental
+   * resonances are suppressed for the preset without mutating bundled preset data or
+   * individual trigger conditional overrides.
+   */
+  resonanceEnabledByPreset?: Record<string, boolean>
+  /**
+   * Optional run-level master Elemental Resonance override (`true` = ON, `false` = OFF).
+   * Used when `resonanceEnabledByPreset[presetId]` is not set.
+   */
+  resonanceEnabled?: boolean
   topN: number
 }
 
@@ -163,6 +175,7 @@ export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
   setFilterSelection: {},
   memberBuildModes: {},
   memberConditionalOverrides: {},
+  resonanceEnabledByPreset: {},
   topN: 5,
 }
 
@@ -299,6 +312,47 @@ export function setMemberConditionalOverride(
   }
 }
 
+export function getPresetResonanceEnabled(
+  settings:
+    | Pick<OptimizerSettings, 'resonanceEnabledByPreset' | 'resonanceEnabled'>
+    | undefined,
+  presetId: string
+): boolean {
+  const map = settings?.resonanceEnabledByPreset
+  if (map) {
+    const direct = map[presetId]
+    if (typeof direct === 'boolean') {
+      return direct
+    }
+    const subIdx = presetId.indexOf('__member_')
+    if (subIdx > 0) {
+      const rootPresetId = presetId.slice(0, subIdx)
+      const rootVal = map[rootPresetId]
+      if (typeof rootVal === 'boolean') {
+        return rootVal
+      }
+    }
+  }
+  if (typeof settings?.resonanceEnabled === 'boolean') {
+    return settings.resonanceEnabled
+  }
+  return true
+}
+
+export function setPresetResonanceEnabled(
+  settings: OptimizerSettings,
+  presetId: string,
+  enabled: boolean
+): OptimizerSettings {
+  return {
+    ...settings,
+    resonanceEnabledByPreset: {
+      ...(settings.resonanceEnabledByPreset ?? {}),
+      [presetId]: enabled,
+    },
+  }
+}
+
 export function resetMemberConditionalOverrides(
   settings: OptimizerSettings,
   presetId: string,
@@ -307,6 +361,15 @@ export function resetMemberConditionalOverrides(
   const currentAll = { ...(settings.memberConditionalOverrides ?? {}) }
   if (!characterKey) {
     delete currentAll[presetId]
+    if (settings.resonanceEnabledByPreset?.[presetId] !== undefined) {
+      const currentRes = { ...settings.resonanceEnabledByPreset }
+      delete currentRes[presetId]
+      return {
+        ...settings,
+        memberConditionalOverrides: currentAll,
+        resonanceEnabledByPreset: currentRes,
+      }
+    }
     return {
       ...settings,
       memberConditionalOverrides: currentAll,

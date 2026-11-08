@@ -3,6 +3,7 @@ import {
   STAT_CONSTRAINT_KEYS,
   getPresetConditionalOverrides,
   getPresetMemberBuildModes,
+  getPresetResonanceEnabled,
   hasMemberConditionalOverrides,
   isActiveStatConstraint,
   isPercentStatConstraintKey,
@@ -12,6 +13,7 @@ import {
   resolvePresetMemberBuildMode,
   setMemberConditionalOverride,
   setPresetMemberBuildMode,
+  setPresetResonanceEnabled,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
   type MemberBuildMode,
@@ -32,6 +34,7 @@ export {
   STAT_CONSTRAINT_KEYS,
   getPresetConditionalOverrides,
   getPresetMemberBuildModes,
+  getPresetResonanceEnabled,
   hasMemberConditionalOverrides,
   isActiveStatConstraint,
   isPercentStatConstraintKey,
@@ -41,6 +44,7 @@ export {
   resolvePresetMemberBuildMode,
   setMemberConditionalOverride,
   setPresetMemberBuildMode,
+  setPresetResonanceEnabled,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
   type MemberBuildMode,
@@ -72,6 +76,8 @@ export interface BuildSelection {
   memberBuildModes?: Record<string, MemberBuildMode>
   /** Optional per-member conditional overrides (`[characterKey][sheetKey][condKey]`). */
   memberConditionals?: PresetMemberConditionalOverrides
+  /** Optional master Elemental Resonance override (`true` = enabled, `false` = disabled). */
+  resonanceEnabled?: boolean
 }
 
 export type BreakdownSourceCategory =
@@ -291,6 +297,7 @@ export interface TeamOptimizeOptions {
   weaponOverride?: SimulatedWeaponSpec
   memberBuildModes?: Record<string, MemberBuildMode>
   memberConditionals?: PresetMemberConditionalOverrides
+  resonanceEnabled?: boolean
   onProgress?: (p: TeamOptimizeProgress) => void
   signal?: AbortSignal
   maxWorkers?: number
@@ -350,6 +357,7 @@ export interface EngineSession {
       weaponOverride?: SimulatedWeaponSpec
       memberBuildModes?: Record<string, MemberBuildMode>
       memberConditionals?: PresetMemberConditionalOverrides
+      resonanceEnabled?: boolean
       onProgress?: (p: OptimizeProgress) => void
       signal?: AbortSignal
       maxWorkers?: number
@@ -362,6 +370,7 @@ export interface EngineSession {
     opts?: {
       memberBuildModes?: Record<string, MemberBuildMode>
       memberConditionals?: PresetMemberConditionalOverrides
+      resonanceEnabled?: boolean
       onProgress?: (p: WeaponCompareProgress) => void
       signal?: AbortSignal
       maxWorkers?: number

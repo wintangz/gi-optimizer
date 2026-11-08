@@ -12,6 +12,8 @@ import {
   createSession,
   DEFAULT_OPTIMIZER_SETTINGS,
   getDefaultTargetArtifactSetConditionals,
+  resolveDefaultWeaponCompareCandidate,
+  setPresetResonanceEnabled,
 } from '../src'
 
 function makeReducedGood(
@@ -332,5 +334,164 @@ describe('Buff Coverage Fixes (buff-coverage-fixes)', () => {
       evalWithoutNoblesse.stats.atk!
     )
     expect(evalWithNoblesse.total).toBeGreaterThan(evalWithoutNoblesse.total)
+  })
+
+  it('supports master Elemental Resonance toggle on official/skirk-freeze across evaluate, optimize, compareWeapons, and optimizeTeam', async () => {
+    const skirkPreset = getBundledPreset('official/skirk-freeze')!
+    const baseSelection = session.currentBuild(skirkPreset)
+
+    // 1. Default (ON): Cryo resonance grants +15% CRIT Rate vs Frozen and appears in breakdown
+    const evalDefault = session.evaluate(skirkPreset, baseSelection)
+    const defaultCritContributors =
+      evalDefault.statBreakdowns?.critRate_?.contributors ?? []
+    expect(
+      defaultCritContributors.some(
+        (c) => c.category === 'resonance' && c.label === 'Elemental Resonance'
+      )
+    ).toBe(true)
+    const defaultHasResonanceInFactors = evalDefault.instances.some((inst) =>
+      (inst.breakdown?.factors ?? []).some((fg) =>
+        fg.contributors.some((c) => c.category === 'resonance')
+      )
+    )
+    expect(defaultHasResonanceInFactors).toBe(true)
+
+    // 2. Toggled OFF: drops target CRIT Rate by 0.15 (15.0%), reduces rotation total, and removes all resonance contributors
+    const evalOff = session.evaluate(skirkPreset, {
+      ...baseSelection,
+      resonanceEnabled: false,
+    })
+    expect(evalDefault.stats.critRate_! - evalOff.stats.critRate_!).toBeCloseTo(
+      0.15,
+      6
+    )
+    expect(evalOff.total).toBeLessThan(evalDefault.total)
+
+    for (const sb of Object.values(evalOff.statBreakdowns ?? {})) {
+      expect(sb.contributors.some((c) => c.category === 'resonance')).toBe(
+        false
+      )
+    }
+    for (const inst of evalOff.instances) {
+      for (const fg of inst.breakdown?.factors ?? []) {
+        expect(fg.contributors.some((c) => c.category === 'resonance')).toBe(
+          false
+        )
+      }
+    }
+
+    // 3. Toggled back ON: restores original CRIT Rate and rotation total bit-for-bit
+    const evalBackOn = session.evaluate(skirkPreset, {
+      ...baseSelection,
+      resonanceEnabled: true,
+    })
+    expect(evalBackOn.stats.critRate_).toBe(evalDefault.stats.critRate_)
+    expect(evalBackOn.total).toBe(evalDefault.total)
+
+    // 4. Consistency across optimize, compareWeapons, and optimizeTeam via OptimizerSettings
+    const settingsOff = setPresetResonanceEnabled(
+      { ...DEFAULT_OPTIMIZER_SETTINGS, topN: 1 },
+      skirkPreset.id,
+      false
+    )
+    const settingsOn = setPresetResonanceEnabled(
+      settingsOff,
+      skirkPreset.id,
+      true
+    )
+
+    const optDefault = await session.optimize(skirkPreset, {
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      topN: 1,
+    })
+    const optOff = await session.optimize(skirkPreset, settingsOff)
+    const optBackOn = await session.optimize(skirkPreset, settingsOn)
+
+    expect(optOff.builds[0]!.resonanceEnabled).toBe(false)
+    expect(optOff.builds[0]!.total).toBeLessThan(optDefault.builds[0]!.total)
+    const reEvalOptOff = session.evaluate(skirkPreset, optOff.builds[0]!)
+    expect(
+      Math.abs(optOff.builds[0]!.total - reEvalOptOff.total) /
+        reEvalOptOff.total
+    ).toBeLessThanOrEqual(1e-5)
+    expect(optBackOn.builds[0]!.total).toBe(optDefault.builds[0]!.total)
+
+    const candidate = resolveDefaultWeaponCompareCandidate(
+      'Azurelight',
+      'Skirk',
+      smallGood
+    )
+    const cmpOff = await session.compareWeapons(skirkPreset, settingsOff, [
+      candidate,
+    ])
+    const cmpOn = await session.compareWeapons(skirkPreset, settingsOn, [
+      candidate,
+    ])
+    expect(cmpOff.leaderTotal!).toBeLessThan(cmpOn.leaderTotal!)
+    expect(cmpOff.rows[0]!.bestBuild?.resonanceEnabled).toBe(false)
+
+    const teamOff = await session.optimizeTeam(skirkPreset, settingsOff)
+    const teamOn = await session.optimizeTeam(skirkPreset, settingsOn)
+    expect(teamOff.teamTotal).toBeLessThan(teamOn.teamTotal)
+    expect(teamOff.currentTeamTotal).toBeLessThan(teamOn.currentTeamTotal)
+    expect(teamOff.members[0]!.currentEvaluation?.total).toBe(evalOff.total)
+    expect(teamOn.members[0]!.currentEvaluation?.total).toBe(evalDefault.total)
+  })
+
+  it('suppresses Pyro, Hydro, Geo, and Dendro resonances when resonanceEnabled is false even with explicit teamConditional triggers', () => {
+    // Pyro + Hydro (2 Pyro + 2 Hydro)
+    const pyroHydroPreset = createBlankUserPreset(
+      'Mavuika',
+      'Pyro Hydro Resonance Test',
+      ['burst', 'skillDmg']
+    )
+    pyroHydroPreset.team.push(
+      createDefaultTcTeammate('Bennett'),
+      createDefaultTcTeammate('Furina'),
+      createDefaultTcTeammate('Neuvillette')
+    )
+    pyroHydroPreset.teamConditional = {
+      resonance: { Pyro: 'on', pyro: 'on', Hydro: 'on', hydro: 'on' },
+      reaction: {},
+    }
+    const phOn = session.evaluate(pyroHydroPreset)
+    const phOff = session.evaluate(pyroHydroPreset, {
+      artifactIds: session.currentBuild(pyroHydroPreset).artifactIds,
+      resonanceEnabled: false,
+    })
+    expect(phOn.stats.atk!).toBeGreaterThan(phOff.stats.atk!)
+    expect(phOn.stats.hp!).toBeGreaterThan(phOff.stats.hp!)
+
+    // Geo + Dendro (2 Geo + 2 Dendro)
+    const geoDendroPreset = createBlankUserPreset(
+      'Navia',
+      'Geo Dendro Resonance Test',
+      ['skill', 'totalShardDmg']
+    )
+    geoDendroPreset.team.push(
+      createDefaultTcTeammate('Zhongli'),
+      createDefaultTcTeammate('Nahida'),
+      createDefaultTcTeammate('Alhaitham')
+    )
+    geoDendroPreset.teamConditional = {
+      resonance: {
+        Geo: 'on',
+        geo: 'on',
+        EnduringRock: 'on',
+        EnduringRockHit: 'on',
+        Dendro: 'on',
+        dendro: 'on',
+        SprawlingCanopy2ele: 'on',
+        SprawlingCanopy3ele: 'on',
+      },
+      reaction: {},
+    }
+    const gdOn = session.evaluate(geoDendroPreset)
+    const gdOff = session.evaluate(geoDendroPreset, {
+      artifactIds: session.currentBuild(geoDendroPreset).artifactIds,
+      resonanceEnabled: false,
+    })
+    expect(gdOn.stats.eleMas! - gdOff.stats.eleMas!).toBeCloseTo(100, 5)
+    expect(gdOn.total).toBeGreaterThan(gdOff.total)
   })
 })

@@ -2314,6 +2314,50 @@ td {
 }
 
 /* Conditional Toggle Panel */
+.gi-buffs-resonance-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0.6rem 0.85rem;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.gi-buffs-resonance-bar.is-on {
+  border-color: var(--accent-border);
+}
+
+.gi-buffs-resonance-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.gi-buffs-resonance-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.gi-buffs-resonance-label {
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.gi-buffs-resonance-desc {
+  font-size: var(--text-xs);
+}
+
+.gi-buffs-resonance-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .gi-buffs-member-tabs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));

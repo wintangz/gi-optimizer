@@ -5,15 +5,19 @@ import {
   createDefaultTcTeammate,
   DEFAULT_OPTIMIZER_SETTINGS,
   DEFAULT_TC_TEAMMATE_CONDITIONAL,
+  getPresetResonanceEnabled,
   invertSets,
   isActiveStatConstraint,
   isPercentStatConstraintKey,
   migrateOptimizerSettings,
   normalizeStatConstraintValue,
+  resetMemberConditionalOverrides,
   resetSolverPoolFilters,
   resolveArtSetExclusion,
   resolveEffectiveSetFilter,
   selectAllSets,
+  setMemberConditionalOverride,
+  setPresetResonanceEnabled,
   STAT_CONSTRAINT_KEYS,
   summarizeArtSetFilter,
   summarizeSolverPoolFilters,
@@ -321,5 +325,56 @@ describe('Deep Artifact Pool Filters Settings (solver-filters-deep)', () => {
     expect(reset.levelHigh).toBe(20)
     expect(reset.minRarity).toBe(1)
     expect(reset.minRv).toBe(0)
+  })
+})
+
+describe('Master Elemental Resonance Toggle Settings (resonance-master-toggle)', () => {
+  it('defaults to ON (true), persists per preset, falls back from member sub-preset IDs, and resets on full preset conditional reset', () => {
+    const presetA = 'official/skirk-freeze'
+    const presetB = 'official/mavuika-melt'
+
+    expect(getPresetResonanceEnabled(undefined, presetA)).toBe(true)
+    expect(getPresetResonanceEnabled(DEFAULT_OPTIMIZER_SETTINGS, presetA)).toBe(
+      true
+    )
+
+    // Toggle presetA OFF -> presetA is false, sub-preset ID for presetA is false, presetB stays true
+    const offA = setPresetResonanceEnabled(
+      DEFAULT_OPTIMIZER_SETTINGS,
+      presetA,
+      false
+    )
+    expect(getPresetResonanceEnabled(offA, presetA)).toBe(false)
+    expect(
+      getPresetResonanceEnabled(offA, `${presetA}__member_Escoffier`)
+    ).toBe(false)
+    expect(getPresetResonanceEnabled(offA, presetB)).toBe(true)
+
+    // Per-member conditional reset does not alter team-level resonance
+    const withCondAndResOff = setMemberConditionalOverride(
+      offA,
+      presetA,
+      'Skirk',
+      'Skirk',
+      'burstVoidAbsorb',
+      'off'
+    )
+    const afterMemberReset = resetMemberConditionalOverrides(
+      withCondAndResOff,
+      presetA,
+      'Skirk'
+    )
+    expect(getPresetResonanceEnabled(afterMemberReset, presetA)).toBe(false)
+
+    // Full preset conditional reset restores resonance to ON (true)
+    const afterFullReset = resetMemberConditionalOverrides(
+      afterMemberReset,
+      presetA
+    )
+    expect(getPresetResonanceEnabled(afterFullReset, presetA)).toBe(true)
+
+    // Toggle back ON explicitly
+    const onAgain = setPresetResonanceEnabled(offA, presetA, true)
+    expect(getPresetResonanceEnabled(onAgain, presetA)).toBe(true)
   })
 })

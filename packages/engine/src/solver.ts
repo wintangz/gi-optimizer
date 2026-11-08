@@ -400,6 +400,7 @@ export async function runSolver(
     weaponOverrideSpec?: SimulatedWeaponSpec
     memberBuildModes?: Record<string, MemberBuildMode>
     memberConditionals?: PresetMemberConditionalOverrides
+    resonanceEnabled?: boolean
     excludedArtifactIds?: ReadonlySet<string>
     onProgress?: (p: OptimizeProgress) => void
     signal?: AbortSignal
@@ -633,6 +634,9 @@ export async function runSolver(
         ...(opts?.memberConditionals &&
         Object.keys(opts.memberConditionals).length > 0
           ? { memberConditionals: opts.memberConditionals }
+          : {}),
+        ...(opts?.resonanceEnabled === false
+          ? { resonanceEnabled: false }
           : {}),
         artifactIds,
         total: b.value * repeat,
