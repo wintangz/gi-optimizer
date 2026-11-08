@@ -67,6 +67,8 @@ export interface WeaponBadgeProps {
   compact?: boolean
   /** Optional refinement/level/location metadata shown next to the weapon name. */
   subtitle?: ReactNode
+  /** When true, renders icon, single-line ellipsis name, stars, and subtitle in a fixed single-row grid. */
+  uniformRow?: boolean
 }
 
 export interface ArtifactBadgeProps {
@@ -296,6 +298,7 @@ export function WeaponBadge({
   rarityOverride,
   compact = false,
   subtitle,
+  uniformRow = false,
 }: WeaponBadgeProps) {
   const [failedKey, setFailedKey] = useState<string | null>(null)
   const imageFailed = failedKey === weaponKey
@@ -311,17 +314,23 @@ export function WeaponBadge({
       data-weapon-key={weaponKey}
       data-weapon-type={meta.weaponType}
       data-rarity={String(meta.rarity)}
-      style={{
-        display: 'inline-flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: compact ? '0.35rem' : '0.45rem',
-        verticalAlign: 'middle',
-      }}
+      className={uniformRow ? 'preset-weapon-badge-row' : undefined}
+      style={
+        uniformRow
+          ? undefined
+          : {
+              display: 'inline-flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: compact ? '0.35rem' : '0.45rem',
+              verticalAlign: 'middle',
+            }
+      }
     >
       {/* Dark surface weapon badge chip with Genshin rarity-coloured border */}
       <span
         data-testid="weapon-chip"
+        className={uniformRow ? 'preset-weapon-chip' : undefined}
         title={`${meta.displayName} (${starsText} ${meta.weaponTypeLabel})`}
         style={{
           display: 'inline-flex',
@@ -335,6 +344,13 @@ export function WeaponBadge({
           fontWeight: 700,
           fontSize: compact ? '0.82rem' : '0.88rem',
           lineHeight: 1.2,
+          ...(uniformRow
+            ? {
+                minWidth: 0,
+                maxWidth: '100%',
+                overflow: 'hidden',
+              }
+            : {}),
         }}
       >
         {imageFailed ? (
@@ -362,15 +378,38 @@ export function WeaponBadge({
             }}
           />
         )}
-        <strong>{meta.displayName}</strong>
+        <strong
+          className={uniformRow ? 'preset-weapon-name' : undefined}
+          style={
+            uniformRow
+              ? {
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }
+              : undefined
+          }
+        >
+          {meta.displayName}
+        </strong>
       </span>
 
       <RarityStars rarity={meta.rarity} compact={compact} />
 
       {subtitle && (
         <span
-          className="muted"
-          style={{ fontSize: compact ? '0.82rem' : '0.86rem' }}
+          className={`muted${uniformRow ? ' preset-weapon-subtitle' : ''}`}
+          style={{
+            fontSize: compact ? '0.82rem' : '0.86rem',
+            ...(uniformRow
+              ? {
+                  whiteSpace: 'nowrap',
+                  fontVariantNumeric: 'tabular-nums',
+                  flexShrink: 0,
+                }
+              : {}),
+          }}
         >
           {subtitle}
         </span>

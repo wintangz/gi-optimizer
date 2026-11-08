@@ -5,7 +5,10 @@ import { ArtifactSetFilter } from '@/components/ArtifactSetFilter'
 import { ConditionalTogglePanel } from '@/components/ConditionalTogglePanel'
 import { CharacterBadge, WeaponBadge } from '@/components/Identifier'
 import { ProgressBar, ResultsSkeleton, Spinner } from '@/components/Loading'
-import { TeammateFastModePanel } from '@/components/TeammateFastModePanel'
+import {
+  MemberCompactStatGrid,
+  MemberFastModeExpander,
+} from '@/components/TeammateFastModePanel'
 import {
   BuildComparisonList,
   ConstraintsCard,
@@ -68,6 +71,7 @@ import {
   getPresetWeaponCompareCandidates,
   getWeaponMeta,
   hasMemberConditionalOverrides,
+  hasMemberFastMode,
   listBundledPresets,
   listWeaponsForType,
   matchAccount,
@@ -1676,31 +1680,50 @@ function OptimizeInner() {
                 effectiveWeaponSpec,
                 isOverridden,
               } = card
+              const memberFastMode = activeFastMode[m.key]
+              const isFastModeActive =
+                !isTarget &&
+                optimizeMode !== 'team' &&
+                hasMemberFastMode(memberFastMode)
 
               return (
                 <div
                   key={m.key}
                   className={`preset-team-member-card${
                     isTarget ? ' is-target' : ''
-                  }${isOverridden ? ' is-weapon-overridden' : ''}`}
+                  }${isOverridden ? ' is-weapon-overridden' : ''}${
+                    isFastModeActive ? ' is-fast-mode' : ''
+                  }`}
                   data-testid={`preset-team-member-${m.key}`}
                   data-member-role={isTarget ? 'target' : 'teammate'}
                   data-build-mode={resolved.mode}
                   data-weapon-overridden={isOverridden ? 'true' : 'false'}
                   data-weapon-locked={isWeaponLocked ? 'true' : 'false'}
+                  data-fast-mode-active={isFastModeActive ? 'true' : 'false'}
                 >
                   <div className="preset-team-member-card-top">
-                    <CharacterBadge
-                      characterKey={m.key}
-                      simulated={isSimulated}
-                      role={isTarget ? 'target' : 'owned'}
-                      compact
-                    />
+                    <div className="preset-team-member-identity">
+                      <CharacterBadge
+                        characterKey={m.key}
+                        simulated={isSimulated}
+                        role={isTarget ? 'target' : 'owned'}
+                        compact
+                      />
+                      {isFastModeActive && (
+                        <span
+                          className="gi-fast-mode-badge"
+                          data-testid={`fast-mode-badge-${m.key}`}
+                          title="Virtual 6th artifact active on this teammate"
+                        >
+                          Fast Mode
+                        </span>
+                      )}
+                    </div>
 
                     {activePreset.source === 'official' && !isTarget ? (
                       <button
                         type="button"
-                        className="btn-secondary"
+                        className="btn-secondary preset-member-state-btn"
                         data-testid={`member-build-toggle-${m.key}`}
                         data-character-key={m.key}
                         data-build-mode={resolved.mode}
@@ -1743,11 +1766,6 @@ function OptimizeInner() {
                           setOptResult(null)
                           setOptimisedEvals([])
                         }}
-                        style={{
-                          fontSize: '0.78rem',
-                          padding: '0.18rem 0.48rem',
-                          lineHeight: 1.2,
-                        }}
                       >
                         {resolved.forcedSimulated
                           ? 'Simulated (Not in GOOD)'
@@ -1765,7 +1783,7 @@ function OptimizeInner() {
                         m.build.type === 'fixed'
                           ? `Fixed Spec · Lv.${m.build.character.level} C${m.build.character.constellation}`
                           : isWeaponLocked
-                            ? 'Fixed by Case (SIM)'
+                            ? 'Fixed by Case'
                             : isSimulated
                               ? 'Simulated (TC)'
                               : 'Owned Build'}
@@ -1805,50 +1823,57 @@ function OptimizeInner() {
                         weaponKey={effectiveWeaponSpec.key}
                         subtitle={`R${effectiveWeaponSpec.refinement} · Lv.${effectiveWeaponSpec.level ?? 90}`}
                         compact
+                        uniformRow
                       />
                     </button>
 
-                    <div className="preset-member-weapon-meta">
-                      <span
-                        className={isOverridden ? 'warn' : 'ok'}
+                    <span
+                      className="sr-only"
+                      data-testid={
+                        isTarget
+                          ? 'target-weapon-mode-status'
+                          : `member-weapon-status-${m.key}`
+                      }
+                    >
+                      {isOverridden
+                        ? `Override: ${displayName(effectiveWeaponSpec.key)} R${effectiveWeaponSpec.refinement}`
+                        : '✓ Default Weapon'}
+                    </span>
+
+                    {isOverridden && !isWeaponLocked && (
+                      <button
+                        type="button"
+                        className="btn-secondary preset-weapon-reset-btn"
                         data-testid={
                           isTarget
-                            ? 'target-weapon-mode-status'
-                            : `member-weapon-status-${m.key}`
+                            ? 'reset-target-weapon-btn'
+                            : `reset-member-weapon-btn-${m.key}`
                         }
-                        style={{
-                          fontSize: '0.78rem',
-                          fontWeight: isOverridden ? 600 : 500,
-                        }}
+                        aria-label={`Reset ${displayName(m.key)} weapon to default`}
+                        title="Reset weapon to default"
+                        onClick={() => handleResetMemberWeapon(m.key, isTarget)}
                       >
-                        {isWeaponLocked
-                          ? 'Fixed by Case'
-                          : isOverridden
-                            ? `Override: ${displayName(effectiveWeaponSpec.key)} R${effectiveWeaponSpec.refinement}`
-                            : '✓ Default Weapon'}
-                      </span>
-                      {isOverridden && !isWeaponLocked && (
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          data-testid={
-                            isTarget
-                              ? 'reset-target-weapon-btn'
-                              : `reset-member-weapon-btn-${m.key}`
-                          }
-                          style={{
-                            fontSize: '0.78rem',
-                            padding: '0.12rem 0.42rem',
-                          }}
-                          onClick={() =>
-                            handleResetMemberWeapon(m.key, isTarget)
-                          }
-                        >
-                          Reset to Default
-                        </button>
-                      )}
-                    </div>
+                        Reset
+                      </button>
+                    )}
                   </div>
+
+                  <MemberCompactStatGrid
+                    characterKey={m.key}
+                    memberStats={teamMemberStats[m.key]}
+                    highlightFinal={isFastModeActive}
+                  />
+
+                  <MemberFastModeExpander
+                    characterKey={m.key}
+                    isTarget={isTarget}
+                    fastModeStats={memberFastMode}
+                    fastModeAvailable={optimizeMode !== 'team'}
+                    onChangeStat={(statKey, val) =>
+                      handleChangeMemberFastModeStat(m.key, statKey, val)
+                    }
+                    onResetMember={() => handleResetMemberFastMode(m.key)}
+                  />
                 </div>
               )
             })}
@@ -2106,19 +2131,6 @@ function OptimizeInner() {
                 ))}
               </ul>
             </div>
-          )}
-
-          {optimizeMode !== 'team' && (
-            <TeammateFastModePanel
-              preset={effectivePreset ?? activePreset}
-              ownedCharKeys={ownedCharKeys}
-              memberBuildModes={activeMemberBuildModes}
-              memberStats={teamMemberStats}
-              effectiveFastMode={activeFastMode}
-              optimizeMode={optimizeMode}
-              onChangeMemberStat={handleChangeMemberFastModeStat}
-              onResetMember={handleResetMemberFastMode}
-            />
           )}
 
           <ConditionalTogglePanel

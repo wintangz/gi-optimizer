@@ -735,9 +735,12 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       collectText([findByTestId(tree, 'optimize-mode-team')!])
     ).toBe('Optimize Team')
 
-    // In default 'single' mode: WeaponComparisonPanel is hidden, TeammateFastModePanel and Top N Builds are shown
+    // In default 'single' mode: WeaponComparisonPanel is hidden, in-card Fast Mode expander and Top N Builds are shown
     expect(findByTestId(tree, 'weapon-compare-panel')).toBeUndefined()
-    expect(findByTestId(tree, 'teammate-fast-mode-panel')).toBeDefined()
+    expect(findByTestId(tree, 'teammate-fast-mode-panel')).toBeUndefined()
+    expect(
+      findByTestId(tree, 'fast-mode-expander-toggle-KaedeharaKazuha')
+    ).toBeDefined()
     expect(findByTestId(tree, 'top-n-builds-select')).toBeDefined()
 
     // Switch to 'compare' mode: WeaponComparisonPanel appears, single-mode target picker and Top N Builds hide
@@ -748,15 +751,21 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(
       findByTestId(compareTree, 'official-target-weapon-picker')
     ).toBeUndefined()
+    expect(
+      findByTestId(compareTree, 'fast-mode-expander-toggle-KaedeharaKazuha')
+    ).toBeDefined()
     expect(findByTestId(compareTree, 'top-n-builds-select')).toBeUndefined()
     expect(findByTestId(compareTree, 'run-weapon-compare-btn')).toBeDefined()
 
-    // Switch to 'team' mode: TeammateFastModePanel and WeaponComparisonPanel hide, Optimize Team button renders
+    // Switch to 'team' mode: Fast Mode expanders and WeaponComparisonPanel hide, Optimize Team button renders
     const teamBtn = findByTestId(compareTree, 'optimize-mode-team')!
     ;(teamBtn.props.onClick as () => void)()
     const teamTree = renderPass()
     expect(findByTestId(teamTree, 'weapon-compare-panel')).toBeUndefined()
     expect(findByTestId(teamTree, 'teammate-fast-mode-panel')).toBeUndefined()
+    expect(
+      findByTestId(teamTree, 'fast-mode-expander-toggle-KaedeharaKazuha')
+    ).toBeUndefined()
     expect(findByTestId(teamTree, 'top-n-builds-select')).toBeUndefined()
     expect(findByTestId(teamTree, 'run-team-optimize-btn')).toBeDefined()
 
@@ -982,5 +991,119 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
         findByTestId(treeLiveSummary, 'constraints-collapsible-summary')!,
       ])
     ).toBe('Stat Constraints — ER ≥ 200%, CRIT Rate 70%–100%')
+  })
+
+  it('team-stage-member-cards: renders one unified card per member (2x2 grid) with single build-state label, uniform weapon row, compact base->final stat grid, and closed-by-default Fast Mode expander where Reset Fast Mode shows only when active', () => {
+    mockSearchParams = new URLSearchParams('preset=akasha/furina-salon-pjc-c0')
+    const tree1 = renderPass()
+
+    // (1) Separate Teammate Stats & Fast Mode row is gone; all 4 members live in preset-team-roster
+    expect(findByTestId(tree1, 'teammate-fast-mode-panel')).toBeUndefined()
+    const roster = findByTestId(tree1, 'preset-team-roster')!
+    expect(roster).toBeDefined()
+    const memberKeys = [
+      'Furina',
+      'Neuvillette',
+      'KaedeharaKazuha',
+      'Zhongli',
+    ] as const
+
+    for (const mKey of memberKeys) {
+      const card = findByTestId([roster], `preset-team-member-${mKey}`)!
+      expect(card).toBeDefined()
+
+      // Build-state label appears EXACTLY ONCE per card
+      const statePill = findByTestId([card], `member-build-state-${mKey}`)!
+      expect(statePill).toBeDefined()
+      if (mKey === 'Furina') {
+        expect(collectText([statePill])).toContain('Fixed Spec · Lv.90 C0')
+      } else {
+        expect(collectText([statePill])).toBe('Fixed by Case')
+        // Verify 'Fixed by Case' is not duplicated anywhere else in the card
+        const cardText = collectText([card])
+        expect(cardText.split('Fixed by Case').length - 1).toBe(1)
+      }
+
+      // Uniform single-row weapon badge inside the weapon trigger
+      const weaponBtn = findByTestId([card], `member-weapon-trigger-${mKey}`)!
+      expect(weaponBtn).toBeDefined()
+      const weaponRowBadge = findAll(
+        [weaponBtn],
+        (n) => n.props['data-identifier-kind'] === 'weapon'
+      )[0]!
+      expect(weaponRowBadge).toBeDefined()
+      expect(weaponRowBadge.props.className).toContain(
+        'preset-weapon-badge-row'
+      )
+
+      // Compact base -> final stat grid lives inside the card
+      expect(findByTestId([card], `teammate-stats-${mKey}`)).toBeDefined()
+      expect(
+        findByTestId([card], `teammate-stat-base-${mKey}-hp`)
+      ).toBeDefined()
+      expect(
+        findByTestId([card], `teammate-stat-final-${mKey}-hp`)
+      ).toBeDefined()
+    }
+
+    // (2) Fast Mode Virtual 6th Artifact expander on teammates starts closed by default, and Reset Fast Mode is NOT rendered when empty
+    for (const tmKey of ['Neuvillette', 'KaedeharaKazuha', 'Zhongli'] as const) {
+      const expToggle = findByTestId(
+        tree1,
+        `fast-mode-expander-toggle-${tmKey}`
+      )!
+      expect(expToggle).toBeDefined()
+      expect(expToggle.props['aria-expanded']).toBe(false)
+      expect(collectText([expToggle])).toBe('[Show]')
+      expect(findByTestId(tree1, `fast-mode-editor-${tmKey}`)).toBeUndefined()
+      expect(findByTestId(tree1, `fast-mode-reset-${tmKey}`)).toBeUndefined()
+    }
+
+    // (3) Expand KaedeharaKazuha's Fast Mode expander and enter +200 EM -> Reset Fast Mode appears ONLY for KaedeharaKazuha
+    ;(
+      findByTestId(tree1, 'fast-mode-expander-toggle-KaedeharaKazuha')!.props
+        .onClick as () => void
+    )()
+    const treeExpanded = renderPass()
+    expect(
+      findByTestId(treeExpanded, 'fast-mode-expander-toggle-KaedeharaKazuha')!
+        .props['aria-expanded']
+    ).toBe(true)
+    const emInput = findByTestId(
+      treeExpanded,
+      'fast-mode-input-KaedeharaKazuha-eleMas'
+    )!
+    expect(emInput).toBeDefined()
+    ;(
+      emInput.props.onChange as (e: { target: { value: string } }) => void
+    )({ target: { value: '200' } })
+
+    const treeWithFastMode = renderPass()
+    expect(
+      findByTestId(treeWithFastMode, 'fast-mode-reset-KaedeharaKazuha')
+    ).toBeDefined()
+    expect(
+      findByTestId(treeWithFastMode, 'fast-mode-badge-KaedeharaKazuha')
+    ).toBeDefined()
+    expect(
+      findByTestId(treeWithFastMode, 'fast-mode-reset-Neuvillette')
+    ).toBeUndefined()
+    expect(
+      findByTestId(treeWithFastMode, 'fast-mode-reset-Zhongli')
+    ).toBeUndefined()
+
+    // Clicking Reset Fast Mode clears KaedeharaKazuha's Fast Mode values and hides the button again
+    ;(
+      findByTestId(treeWithFastMode, 'fast-mode-reset-KaedeharaKazuha')!.props
+        .onClick as () => void
+    )()
+    const treeReset = renderPass()
+    expect(
+      findByTestId(treeReset, 'fast-mode-reset-KaedeharaKazuha')
+    ).toBeUndefined()
+
+    // (4) Stage 2 mode selection keeps Compare Weapons (N) count
+    const compareModeBtn = findByTestId(treeReset, 'optimize-mode-compare')!
+    expect(collectText([compareModeBtn])).toMatch(/^Compare Weapons \(\d+\)$/)
   })
 })

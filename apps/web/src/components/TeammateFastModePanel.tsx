@@ -13,6 +13,7 @@ import {
   type Preset,
   type PresetFastModeMap,
 } from '@gi/presets'
+import { useState } from 'react'
 
 export const FAST_MODE_STAT_META: Record<
   FastModeStatKey,
@@ -395,6 +396,245 @@ export function TeammateFastModePanel({
           )
         })}
       </div>
+    </div>
+  )
+}
+
+export interface MemberCompactStatGridProps {
+  characterKey: string
+  memberStats?: MemberStatSummary
+  highlightFinal?: boolean
+}
+
+export function MemberCompactStatGrid({
+  characterKey,
+  memberStats,
+  highlightFinal = false,
+}: MemberCompactStatGridProps) {
+  return (
+    <div
+      className="preset-member-stats-grid"
+      data-testid={`teammate-stats-${characterKey}`}
+      role="region"
+      aria-label={`${displayName(characterKey)} Base and Final Stats`}
+    >
+      <div className="preset-member-stat-legend">
+        <span className="preset-member-stat-label">Stat</span>
+        <span
+          className="preset-member-stat-base"
+          data-testid={`teammate-base-stats-${characterKey}`}
+        >
+          Base
+        </span>
+        <span
+          className="preset-member-stat-final"
+          data-testid={`teammate-final-stats-${characterKey}`}
+        >
+          Final
+        </span>
+      </div>
+
+      {TEAMMATE_DISPLAY_STAT_KEYS.map((s) => (
+        <div key={s.key} className="preset-member-stat-cell">
+          <span className="preset-member-stat-label">{s.label}</span>
+          <span
+            className="preset-member-stat-base"
+            data-testid={`teammate-stat-base-${characterKey}-${s.key}`}
+          >
+            {formatTeammateStatValue(memberStats?.base?.[s.key], s.isPercent)}
+          </span>
+          <strong
+            className={`preset-member-stat-final${highlightFinal ? ' ok' : ''}`}
+            data-testid={`teammate-stat-final-${characterKey}-${s.key}`}
+          >
+            {formatTeammateStatValue(memberStats?.final?.[s.key], s.isPercent)}
+          </strong>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export interface MemberFastModeExpanderProps {
+  characterKey: string
+  isTarget: boolean
+  fastModeStats?: FastModeStats
+  fastModeAvailable: boolean
+  onChangeStat: (
+    statKey: FastModeStatKey,
+    value: number | undefined
+  ) => void
+  onResetMember: () => void
+}
+
+export function MemberFastModeExpander({
+  characterKey,
+  isTarget,
+  fastModeStats,
+  fastModeAvailable,
+  onChangeStat,
+  onResetMember,
+}: MemberFastModeExpanderProps) {
+  const [expanded, setExpanded] = useState(false)
+
+  if (!fastModeAvailable) {
+    return null
+  }
+
+  if (isTarget) {
+    return (
+      <div
+        className="preset-member-fastmode-section is-target-note"
+        data-testid={`target-fast-mode-note-${characterKey}`}
+      >
+        <div className="preset-member-fastmode-bar">
+          <span className="preset-fastmode-target-note">
+            Optimization Target — Artifacts solved from your pool
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  const isActive = hasMemberFastMode(fastModeStats)
+  const activeEntries = FAST_MODE_STAT_KEYS.flatMap((sk) => {
+    const val = fastModeStats?.[sk]
+    return typeof val === 'number' && Number.isFinite(val) && val !== 0
+      ? [[sk, val] as const]
+      : []
+  })
+
+  return (
+    <div
+      className="preset-member-fastmode-section"
+      data-testid={`fast-mode-section-${characterKey}`}
+      data-expanded={expanded ? 'true' : 'false'}
+      data-fast-mode-active={isActive ? 'true' : 'false'}
+    >
+      <div className="preset-member-fastmode-bar">
+        <div className="preset-member-fastmode-bar-left">
+          <span className="preset-fastmode-label">
+            Virtual 6th Artifact (Fast Mode)
+          </span>
+          {activeEntries.length > 0 && (
+            <span
+              className="preset-fastmode-summary"
+              data-testid={`fast-mode-summary-${characterKey}`}
+            >
+              {activeEntries
+                .map(([sk, val]) => formatFastModeLine(sk, val))
+                .join(' · ')}
+            </span>
+          )}
+        </div>
+
+        <div className="preset-member-fastmode-bar-actions">
+          {isActive && (
+            <button
+              type="button"
+              className="btn-secondary gi-fast-mode-reset-btn"
+              data-testid={`fast-mode-reset-${characterKey}`}
+              onClick={onResetMember}
+              title={`Reset ${displayName(characterKey)}'s virtual 6th artifact`}
+            >
+              Reset Fast Mode
+            </button>
+          )}
+          <button
+            type="button"
+            className="gi-collapsible-toggle-btn preset-fastmode-toggle"
+            data-testid={`fast-mode-expander-toggle-${characterKey}`}
+            aria-expanded={expanded}
+            aria-label={`${expanded ? 'Hide' : 'Show'} Virtual 6th Artifact for ${displayName(characterKey)}`}
+            onClick={() => setExpanded((prev) => !prev)}
+          >
+            [{expanded ? 'Hide' : 'Show'}]
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div
+          className="gi-fast-mode-editor"
+          data-testid={`fast-mode-editor-${characterKey}`}
+        >
+          {activeEntries.length > 0 && (
+            <div
+              className="gi-fast-mode-lines"
+              data-testid={`fast-mode-lines-${characterKey}`}
+            >
+              {activeEntries.map(([sk, val]) => (
+                <span
+                  key={sk}
+                  className={`gi-fast-mode-line-pill${val < 0 ? ' is-negative' : ''}`}
+                  data-testid={`fast-mode-line-${characterKey}-${sk}`}
+                >
+                  <span>{formatFastModeLine(sk, val)}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${FAST_MODE_STAT_META[sk].fullLabel} from ${displayName(characterKey)}`}
+                    data-testid={`fast-mode-remove-${characterKey}-${sk}`}
+                    onClick={() => onChangeStat(sk, undefined)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div
+            className="gi-fast-mode-inputs-grid"
+            data-testid={`fast-mode-inputs-${characterKey}`}
+          >
+            {FAST_MODE_STAT_KEYS.map((sk) => {
+              const meta = FAST_MODE_STAT_META[sk]
+              const rawVal = fastModeStats?.[sk]
+              return (
+                <label
+                  key={sk}
+                  className={`gi-fast-mode-input-cell${
+                    typeof rawVal === 'number' && rawVal !== 0
+                      ? ' is-filled'
+                      : ''
+                  }`}
+                >
+                  <span className="gi-fast-mode-input-label">
+                    {meta.shortLabel}
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    aria-label={`${displayName(characterKey)} Fast Mode ${meta.shortLabel}`}
+                    data-testid={`fast-mode-input-${characterKey}-${sk}`}
+                    placeholder="0"
+                    value={
+                      typeof rawVal === 'number' &&
+                      Number.isFinite(rawVal) &&
+                      rawVal !== 0
+                        ? String(rawVal)
+                        : ''
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value.trim()
+                      if (raw === '' || raw === '-') {
+                        onChangeStat(sk, undefined)
+                        return
+                      }
+                      const parsed = Number(raw)
+                      if (Number.isFinite(parsed) && parsed !== 0) {
+                        onChangeStat(sk, parsed)
+                      } else {
+                        onChangeStat(sk, undefined)
+                      }
+                    }}
+                  />
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
