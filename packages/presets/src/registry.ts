@@ -31,6 +31,7 @@ import xiaoFfxxPjwsC0 from '../data/akasha/xiao-ffxx-pjws-c0.json'
 import xianglingVapeCatchC6 from '../data/akasha/xiangling-vaporize-catch-c6.json'
 import wriothesleyMeltCashflowC0 from '../data/akasha/wriothesley-melt-cashflow-c0.json'
 import lyneyMonoPyroTfgmC0 from '../data/akasha/lyney-mono-pyro-tfgm-c0.json'
+import yelanDoubleHydroAquaC0 from '../data/akasha/yelan-double-hydro-aqua-c0.json'
 import { presetSchema, type Preset } from './schema'
 
 const RAW_BUNDLED: unknown[] = [
@@ -39,6 +40,7 @@ const RAW_BUNDLED: unknown[] = [
   neuvProtoAmberC0,
   hutaoHomaC1,
   raidenScarletC0,
+  yelanDoubleHydroAquaC0,
   lyneyMonoPyroTfgmC0,
   wriothesleyMeltCashflowC0,
   xianglingVapeCatchC6,
@@ -89,6 +91,7 @@ export const VERIFIED_PRESET_IDS: ReadonlySet<string> = /*#__PURE__*/ new Set([
   'akasha/neuvillette-hypercarry-protoamber-c0',
   'akasha/hutao-double-hydro-homa-c1',
   'akasha/raiden-hypercarry-scarlet-c0',
+  'akasha/yelan-double-hydro-aqua-c0',
   'akasha/lyney-mono-pyro-tfgm-c0',
   'akasha/wriothesley-melt-cashflow-c0',
   'akasha/xiangling-vaporize-catch-c6',
