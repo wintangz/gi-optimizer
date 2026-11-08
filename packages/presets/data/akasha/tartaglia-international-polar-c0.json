@@ -1,0 +1,137 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "akasha/tartaglia-international-polar-c0",
+  "name": "Tartaglia — International Melee Vaporize (Bennett + Xiangling + Kazuha)",
+  "description": "Akasha leaderboard preset for C0 Tartaglia International with Bennett C6 (Aquila + Noblesse 4p), Xiangling C6 (Guoba Chili ATK%), and Kazuha (1000 EM VV + Freedom-Sworn).",
+  "source": "akasha",
+  "author": "akasha.cv",
+  "target": "Tartaglia",
+  "team": [
+    {
+      "key": "Tartaglia",
+      "build": {
+        "type": "fixed",
+        "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 10, "skill": 10, "burst": 10 } },
+        "weapon": { "key": "PolarStar", "level": 90, "ascension": 6, "refinement": 1 }
+      },
+      "requirement": {},
+      "conditional": {
+        "PolarStar": {
+          "GoldenMajesty": "3"
+        },
+        "NymphsDream": {
+          "set4": "3"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Bennett",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "AquilaFavonia", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "enerRech_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "heal_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "enerRech_": 44.0 } },
+            "sets": { "NoblesseOblige": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Bennett": { "activeInArea": "activeInArea" },
+        "NoblesseOblige": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Xiangling",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 6, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "TheCatch", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "enerRech_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "pyro_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 19.8, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "EmblemOfSeveredFate": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Xiangling": { "afterChili": "afterChili" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "KaedeharaKazuha",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 6, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "FreedomSworn", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 33.0 } },
+            "sets": { "ViridescentVenerer": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "KaedeharaKazuha": { "swirlhydro": "hydro" },
+        "ViridescentVenerer": { "swirlhydro": "hydro" },
+        "FreedomSworn": { "MillennialMovement": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "E Stance -> Q Melee Havoc: Obliteration (Vaporize) + 4× N2C Melee Combo",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "stanceDmg"], "count": 1, "label": "Foul Legacy Stance Change DMG", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "meleeDmg"], "count": 1, "label": "Havoc: Obliteration Melee Burst (Vaporize)", "hitMode": "avgHit", "reaction": "vaporize", "bonusStats": {} },
+      { "path": ["burst", "riptideBlastDmg"], "count": 1, "label": "Riptide Blast DMG", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "normal1"], "count": 4, "label": "Foul Legacy 1-Hit (×4)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "normal2"], "count": 4, "label": "Foul Legacy 2-Hit (×4)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "charged1"], "count": 4, "label": "Foul Legacy Charged 1-Hit (×4)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "charged2"], "count": 4, "label": "Foul Legacy Charged 2-Hit (×4)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "riptideSlash"], "count": 4, "label": "Riptide Slash DMG (×4)", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  },
+  "akasha": {
+    "calculationId": "tartaglia-international-polar-c0",
+    "leaderboardUrl": "https://akasha.cv/leaderboards",
+    "label": "Tartaglia — International Melee Vaporize (Polar Star R1, C0)",
+    "retrievedAt": "authored-from-knowledge",
+    "notes": "Source: authored-from-knowledge. Fixed Akasha target spec: Lv.90/90 C0 10/10/10 with Polar Star R1 Lv.90/90 (average 3 Ashen Nightstar stacks). Teammates: Bennett C6 (Aquila R1, 4p Noblesse), Xiangling C6 (Guoba Chili +10% ATK), Kazuha C0 (~1000 EM, Freedom-Sworn R1, 4p VV Hydro Swirl)."
+  }
+}

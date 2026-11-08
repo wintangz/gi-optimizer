@@ -1,0 +1,105 @@
+{
+  "presetId": "akasha/tartaglia-international-polar-c0",
+  "target": "Tartaglia",
+  "total": 450310.2627753414,
+  "instances": [
+    {
+      "label": "Foul Legacy Stance Change DMG",
+      "path": [
+        "skill",
+        "stanceDmg"
+      ],
+      "count": 1,
+      "perHit": 13475.02245399962,
+      "subtotal": 13475.02245399962
+    },
+    {
+      "label": "Havoc: Obliteration Melee Burst (Vaporize)",
+      "path": [
+        "burst",
+        "meleeDmg"
+      ],
+      "count": 1,
+      "perHit": 186958.60493597464,
+      "subtotal": 186958.60493597464
+    },
+    {
+      "label": "Riptide Blast DMG",
+      "path": [
+        "burst",
+        "riptideBlastDmg"
+      ],
+      "count": 1,
+      "perHit": 22458.370756666034,
+      "subtotal": 22458.370756666034
+    },
+    {
+      "label": "Foul Legacy 1-Hit (×4)",
+      "path": [
+        "skill",
+        "normal1"
+      ],
+      "count": 4,
+      "perHit": 8130.090452437777,
+      "subtotal": 32520.361809751106
+    },
+    {
+      "label": "Foul Legacy 2-Hit (×4)",
+      "path": [
+        "skill",
+        "normal2"
+      ],
+      "count": 4,
+      "perHit": 8705.672077389125,
+      "subtotal": 34822.6883095565
+    },
+    {
+      "label": "Foul Legacy Charged 1-Hit (×4)",
+      "path": [
+        "skill",
+        "charged1"
+      ],
+      "count": 4,
+      "perHit": 12590.848045810717,
+      "subtotal": 50363.39218324287
+    },
+    {
+      "label": "Foul Legacy Charged 2-Hit (×4)",
+      "path": [
+        "skill",
+        "charged2"
+      ],
+      "count": 4,
+      "perHit": 15055.05687763367,
+      "subtotal": 60220.22751053468
+    },
+    {
+      "label": "Riptide Slash DMG (×4)",
+      "path": [
+        "skill",
+        "riptideSlash"
+      ],
+      "count": 4,
+      "perHit": 12372.898703903971,
+      "subtotal": 49491.594815615885
+    }
+  ],
+  "stats": {
+    "hp": 19640.253635624762,
+    "atk": 4358.134353597,
+    "def": 1048.8520255446401,
+    "eleMas": 39.629999999999995,
+    "critRate_": 0.820068,
+    "critDMG_": 1.0673,
+    "enerRech_": 1.1166,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 1.15078432,
+    "pyro_dmg_": 0.15,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}
