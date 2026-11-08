@@ -43,6 +43,7 @@ import {
 } from '@gi/presets'
 import {
   extractDamageRowBreakdown,
+  extractFullDamageSections,
   extractStatBreakdowns,
 } from './breakdown'
 import {
@@ -1473,6 +1474,7 @@ export function createSession(good: unknown): EngineSession {
         let primaryStats: Record<string, number> = {}
         let primaryStatBreakdowns: RotationResult['statBreakdowns']
         let primaryMemberStats: RotationResult['memberStats']
+        let primaryFullDamage: RotationResult['fullDamage']
 
         // Ensure primary target is evaluated even if it has 0 rows so stats are populated
         if (!rowsByMember.has(preset.target)) {
@@ -1489,6 +1491,7 @@ export function createSession(good: unknown): EngineSession {
               primaryStats = targetEval.stats
               primaryStatBreakdowns = targetEval.statBreakdowns
               primaryMemberStats = targetEval.memberStats
+              primaryFullDamage = targetEval.fullDamage
             } catch {
               primaryStats = {}
             }
@@ -1532,6 +1535,7 @@ export function createSession(good: unknown): EngineSession {
             primaryStats = subEval.stats
             primaryStatBreakdowns = subEval.statBreakdowns
             primaryMemberStats = subEval.memberStats
+            primaryFullDamage = subEval.fullDamage
           }
           indexedRows.forEach(({ origIdx, rt }, localIdx) => {
             const inst = subEval.instances[localIdx]
@@ -1555,6 +1559,7 @@ export function createSession(good: unknown): EngineSession {
             ? { statBreakdowns: primaryStatBreakdowns }
             : {}),
           ...(primaryMemberStats ? { memberStats: primaryMemberStats } : {}),
+          ...(primaryFullDamage ? { fullDamage: primaryFullDamage } : {}),
         }
       }
       const {
@@ -1755,12 +1760,22 @@ export function createSession(good: unknown): EngineSession {
         }
       }
 
+      const fullDamage = extractFullDamageSections({
+        preset,
+        targetUiData,
+        calc,
+        targetKey,
+        teamKeys,
+        targetWeaponKey: resolvedTargetWeaponKey,
+      })
+
       return {
         total,
         instances,
         stats,
         statBreakdowns,
         memberStats,
+        fullDamage,
       }
     },
 

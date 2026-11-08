@@ -2400,7 +2400,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
           {
             label: 'Kazuha Slash',
             memberKey: 'KaedeharaKazuha',
-            path: ['burst', 'dmg'],
+            path: ['burst', 'dmg'] as [string, string],
             count: 1,
             hitMode: 'avgHit' as const,
             bonusStats: {},
@@ -3783,7 +3783,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         instances: [
           {
             label: 'Musou Shinsetsu Initial Slash',
-            path: ['burst', 'dmg'],
+            path: ['burst', 'dmg'] as [string, string],
             perHit: total,
             count: 1,
             subtotal: total,
@@ -3870,6 +3870,294 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       hookStore.active = false
       hookStore.reset()
       ;(globalThis as unknown as { document: unknown }).document = prevDoc
+    }
+  })
+
+  it('Full Damage section: renders sheet-ordered talent and reaction groups, non-rotation formulas, vs. Current deltas, and expandable formula breakdowns', () => {
+    const sampleBreakdown = {
+      element: 'electro',
+      move: 'normal',
+      hitMode: 'avgHit' as const,
+      baseDmg: 4000,
+      dmgInc: 0,
+      basePlusFlat: 4000,
+      dmgBonus: 0.5,
+      dmgBonusMulti: 1.5,
+      critRate: 0.75,
+      critDMG: 1.333,
+      critMulti: 2.0,
+      ampMulti: 1.0,
+      defMulti: 0.5,
+      resMulti: 0.9,
+      outerMulti: 1.0,
+      reconciledPerHit: 12000,
+      reconciledSubtotal: 12000,
+      factors: [
+        {
+          key: 'baseDamage' as const,
+          label: 'Base Damage',
+          value: 4000,
+          unit: '' as const,
+          formulaSummary: '2,000 ATK × 200%',
+          contributors: [
+            {
+              label: 'Skill Multiplier',
+              value: 2.0,
+              unit: '%' as const,
+              source: 'RaidenShogun',
+              category: 'character' as const,
+            },
+          ],
+        },
+        {
+          key: 'dmgBonus' as const,
+          label: 'DMG Bonus Multiplier',
+          value: 1.5,
+          unit: '×' as const,
+          formulaSummary: '1 + 50.0% Bonus',
+          contributors: [
+            {
+              label: 'Electro DMG Bonus',
+              value: 0.5,
+              unit: '%' as const,
+              source: 'RaidenShogun',
+              category: 'character' as const,
+            },
+          ],
+        },
+        {
+          key: 'crit' as const,
+          label: 'Crit Multiplier (avgHit)',
+          value: 2.0,
+          unit: '×' as const,
+          formulaSummary: '1 + 75.0% CR × 133.3% CD',
+          contributors: [],
+        },
+        {
+          key: 'enemyDef' as const,
+          label: 'Enemy DEF Multiplier',
+          value: 0.5,
+          unit: '×' as const,
+          formulaSummary: 'Lv. 90 vs Lv. 100',
+          contributors: [],
+        },
+        {
+          key: 'enemyRes' as const,
+          label: 'Enemy RES Multiplier',
+          value: 0.9,
+          unit: '×' as const,
+          formulaSummary: '10.0% Electro RES',
+          contributors: [],
+        },
+        {
+          key: 'reaction' as const,
+          label: 'Reaction Multiplier',
+          value: 1.0,
+          unit: '×' as const,
+          formulaSummary: 'No amplifying reaction',
+          contributors: [],
+        },
+      ],
+    }
+
+    const makeFullDamage = (scale: number) => [
+      {
+        sectionKey: 'normal',
+        label: 'Normal Attack',
+        formulas: [
+          {
+            sectionKey: 'normal',
+            key: '0',
+            label: '1-Hit DMG',
+            path: ['normal', '0'] as [string, string],
+            value: 4500 * scale,
+            element: 'physical',
+            move: 'normal',
+            hitMode: 'avgHit' as const,
+            breakdown: {
+              ...sampleBreakdown,
+              reconciledPerHit: 4500 * scale,
+            },
+          },
+        ],
+      },
+      {
+        sectionKey: 'skill',
+        label: 'Elemental Skill',
+        formulas: [
+          {
+            sectionKey: 'skill',
+            key: 'dmg',
+            label: 'Skill DMG',
+            path: ['skill', 'dmg'] as [string, string],
+            value: 9200 * scale,
+            element: 'electro',
+            move: 'skill',
+            hitMode: 'avgHit' as const,
+            breakdown: {
+              ...sampleBreakdown,
+              reconciledPerHit: 9200 * scale,
+            },
+          },
+        ],
+      },
+      {
+        sectionKey: 'burst',
+        label: 'Elemental Burst',
+        formulas: [
+          {
+            sectionKey: 'burst',
+            key: 'dmg',
+            label: 'Musou no Hitotachi Base DMG',
+            path: ['burst', 'dmg'] as [string, string],
+            value: 120000 * scale,
+            element: 'electro',
+            move: 'burst',
+            hitMode: 'avgHit' as const,
+            breakdown: {
+              ...sampleBreakdown,
+              reconciledPerHit: 120000 * scale,
+            },
+          },
+        ],
+      },
+      {
+        sectionKey: 'reaction',
+        label: 'Transformative Reactions',
+        formulas: [
+          {
+            sectionKey: 'reaction',
+            key: 'overloaded',
+            label: 'Overloaded DMG',
+            path: ['reaction', 'overloaded'] as [string, string],
+            value: 6000 * scale,
+            element: 'pyro',
+            move: 'reaction',
+            hitMode: 'avgHit' as const,
+            breakdown: {
+              ...sampleBreakdown,
+              reconciledPerHit: 6000 * scale,
+            },
+          },
+        ],
+      },
+    ]
+
+    const makeEval = (total: number, scale: number) => ({
+      total,
+      stats: {
+        hp: 18000,
+        atk: 2100,
+        def: 850,
+        eleMas: 60,
+        enerRech_: 2.3,
+        critRate_: 0.75,
+        critDMG_: 1.6,
+      },
+      instances: [
+        {
+          label: 'burst.dmg',
+          path: ['burst', 'dmg'],
+          count: 1,
+          perHit: total,
+          subtotal: total,
+          breakdown: {
+            ...sampleBreakdown,
+            reconciledPerHit: total,
+          },
+        },
+      ],
+      fullDamage: makeFullDamage(scale),
+    })
+
+    hookStore.reset()
+    hookStore.active = true
+    const preset = getBundledPreset('official/raiden-hypercarry')!
+    const vnodeText = (node: VNode | string): string => {
+      if (typeof node === 'string') return node
+      return node.children.map(vnodeText).join('')
+    }
+    try {
+      const renderList = () => {
+        hookStore.beginRender()
+        return evaluateTree(
+          <BuildComparisonList
+            preset={preset}
+            artifactById={new Map()}
+            currentBuild={{
+              selection: { artifactIds: {} },
+              evaluation: makeEval(120000, 1.0),
+            }}
+            optimizedBuilds={[
+              {
+                total: 144000,
+                selection: { artifactIds: {} },
+                evaluation: makeEval(144000, 1.2),
+              },
+            ]}
+          />
+        )
+      }
+
+      let tree = renderList()
+      const fullDmgSection = findByTestId(tree, 'comp-full-damage-opt-0')
+      expect(fullDmgSection).toBeDefined()
+
+      // Sheet-ordered groups: normal -> skill -> burst -> reaction
+      const groupNormal = findByTestId(tree, 'comp-full-damage-group-opt-0-normal')
+      const groupSkill = findByTestId(tree, 'comp-full-damage-group-opt-0-skill')
+      const groupBurst = findByTestId(tree, 'comp-full-damage-group-opt-0-burst')
+      const groupReaction = findByTestId(tree, 'comp-full-damage-group-opt-0-reaction')
+      expect(groupNormal).toBeDefined()
+      expect(groupSkill).toBeDefined()
+      expect(groupBurst).toBeDefined()
+      expect(groupReaction).toBeDefined()
+
+      // Non-rotation formulas appear with real values and +20.0% delta vs Current
+      const normalRow = findByTestId(tree, 'comp-full-damage-row-opt-0-normal-0')!
+      expect(normalRow).toBeDefined()
+      expect(vnodeText(normalRow)).toContain('1-Hit DMG')
+      expect(vnodeText(normalRow)).toContain('5,400')
+      expect(vnodeText(normalRow)).toContain('+20.0%')
+
+      const reactionRow = findByTestId(
+        tree,
+        'comp-full-damage-row-opt-0-reaction-overloaded'
+      )!
+      expect(reactionRow).toBeDefined()
+      expect(vnodeText(reactionRow)).toContain('Overloaded DMG')
+      expect(vnodeText(reactionRow)).toContain('7,200')
+      expect(vnodeText(reactionRow)).toContain('+20.0%')
+
+      // Initially no formula breakdown expanded in Full Damage
+      expect(
+        findByTestId(tree, 'comp-full-damage-breakdown-row-opt-0-normal-0')
+      ).toBeUndefined()
+
+      // Click normal.0 row to expand its formula breakdown
+      ;(normalRow.props.onClick as () => void)()
+      tree = renderList()
+      const expandedBreakdown = findByTestId(
+        tree,
+        'comp-full-damage-breakdown-row-opt-0-normal-0'
+      )
+      expect(expandedBreakdown).toBeDefined()
+      expect(vnodeText(expandedBreakdown!)).toContain('Base Damage')
+      expect(vnodeText(expandedBreakdown!)).toContain('DMG Bonus Multiplier')
+
+      // Click again to collapse
+      const normalRowAgain = findByTestId(
+        tree,
+        'comp-full-damage-row-opt-0-normal-0'
+      )!
+      ;(normalRowAgain.props.onClick as () => void)()
+      tree = renderList()
+      expect(
+        findByTestId(tree, 'comp-full-damage-breakdown-row-opt-0-normal-0')
+      ).toBeUndefined()
+    } finally {
+      hookStore.active = false
+      hookStore.reset()
     }
   })
 })

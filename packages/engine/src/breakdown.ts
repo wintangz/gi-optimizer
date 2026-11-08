@@ -3,6 +3,8 @@ import {
   allElementWithPhyKeys,
   type CharacterKey,
 } from '@genshin-optimizer/gi/consts'
+import { translateGOKey } from '@genshin-optimizer/gi/i18n'
+import { KeyMap, transformativeReactions } from '@genshin-optimizer/gi/keymap'
 import type { CalcResult, UIData } from '@genshin-optimizer/gi/uidata'
 import {
   input,
@@ -15,6 +17,7 @@ import {
   ALL_ARTIFACT_SET_KEYS,
   ALL_WEAPON_KEYS,
   displayName,
+  resolveRotationTargetOwner,
   type Preset,
   type RotationTarget,
 } from '@gi/presets'
@@ -30,6 +33,8 @@ import type {
   BreakdownSourceCategory,
   DamageFactorGroup,
   DamageRowBreakdown,
+  FullDamageFormulaEntry,
+  FullDamageSection,
   StatBreakdown,
 } from './types'
 
@@ -630,14 +635,50 @@ export function extractDamageRowBreakdown(opts: {
     }
   }
 
+  return buildHitUiDataBreakdown({
+    hitUiData,
+    ctx,
+    perHit,
+    count: rt.count,
+    repeat,
+    fallbackMove: rt.path[0] || 'skill',
+    fallbackHitMode: rt.hitMode,
+    fallbackReaction: rt.reaction,
+  })
+}
+
+function buildHitUiDataBreakdown(opts: {
+  hitUiData: UIData
+  ctx: BreakdownWalkContext
+  perHit: number
+  count: number
+  repeat: number
+  fallbackMove: string
+  fallbackHitMode?: string
+  fallbackReaction?: string
+}): DamageRowBreakdown {
+  const {
+    hitUiData,
+    ctx,
+    perHit,
+    count,
+    repeat,
+    fallbackMove,
+    fallbackHitMode,
+    fallbackReaction,
+  } = opts
+  const { targetKey } = ctx
+
   const ele = (hitUiData.get(input.hit.ele).value as string) || 'physical'
   const move =
-    (hitUiData.get(input.hit.move).value as string) || rt.path[0] || 'skill'
+    (hitUiData.get(input.hit.move).value as string) || fallbackMove || 'skill'
   const hitMode =
-    (hitUiData.get(input.hit.hitMode).value as string) || rt.hitMode || 'avgHit'
+    (hitUiData.get(input.hit.hitMode).value as string) ||
+    fallbackHitMode ||
+    'avgHit'
   const reaction =
     (hitUiData.get(input.hit.reaction).value as string) ||
-    rt.reaction ||
+    fallbackReaction ||
     undefined
 
   const baseDmgNode = hitUiData.get(input.hit.base)
@@ -683,7 +724,7 @@ export function extractDamageRowBreakdown(opts: {
         : rawOuterMulti
 
   const reconciledPerHit = outerMulti * innerProduct
-  const reconciledSubtotal = reconciledPerHit * rt.count * repeat
+  const reconciledSubtotal = reconciledPerHit * count * repeat
 
   // 1. Base Damage & Flat DMG Increase contributors
   const baseContributors: BreakdownContributor[] = [
@@ -942,4 +983,611 @@ export function extractDamageRowBreakdown(opts: {
     reconciledSubtotal,
     factors,
   }
+}
+
+const EXCLUDED_FULL_DAMAGE_SECTIONS = new Set<string>([
+  'basic',
+  'character',
+  'bonusStats',
+  'custom',
+  'teamBuff',
+  'moonsign',
+])
+
+const FULL_DAMAGE_SECTION_LABELS: Record<string, string> = {
+  normal: 'Normal Attack',
+  charged: 'Charged Attack',
+  plunging: 'Plunging Attack',
+  skill: 'Elemental Skill',
+  burst: 'Elemental Burst',
+  sprint: 'Alternate Sprint',
+  passive: 'Passive',
+  passive1: 'Ascension 1 Passive',
+  passive2: 'Ascension 4 Passive',
+  passive3: 'Utility Passive',
+  lockedPassive: 'Locked Passive',
+  constellation1: 'Constellation 1',
+  constellation2: 'Constellation 2',
+  constellation3: 'Constellation 3',
+  constellation4: 'Constellation 4',
+  constellation5: 'Constellation 5',
+  constellation6: 'Constellation 6',
+  reaction: 'Transformative Reactions',
+  nicole: "Nicole's Astral Projections",
+}
+
+function prettifyFormulaIdentifier(rawKey: string): string {
+  const spaced = rawKey
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b([a-z])/g, (m) => m.toUpperCase())
+  return spaced.replace(/\bDmg\b/g, 'DMG').replace(/\bAtk\b/g, 'ATK')
+}
+
+export function resolveFullDamageSectionLabel(sectionKey: string): string {
+  if (FULL_DAMAGE_SECTION_LABELS[sectionKey]) {
+    return FULL_DAMAGE_SECTION_LABELS[sectionKey]!
+  }
+  if (sectionKey.startsWith('weapon:')) {
+    const wKey = sectionKey.slice(7)
+    return displayName(wKey)
+  }
+  if (sectionKey.startsWith('artifact:')) {
+    const setKey = sectionKey.slice(9)
+    return displayName(setKey)
+  }
+  return prettifyFormulaIdentifier(sectionKey)
+}
+
+function extractNodeInfoText(node: unknown, fallback = ''): string {
+  if (typeof node === 'string' || typeof node === 'number') {
+    return String(node)
+  }
+  if (node && typeof node === 'object') {
+    const props = (node as { props?: Record<string, unknown> }).props
+    if (props) {
+      if (typeof props.key18 === 'string') {
+        const ns = typeof props.ns === 'string' ? props.ns : 'sheet'
+        const k = props.key18
+        const vals = props.values as Record<string, unknown> | undefined
+        let tmpl = translateGOKey(ns, k, vals)
+        if (tmpl !== undefined) {
+          if (vals && typeof vals === 'object') {
+            for (const [vk, vv] of Object.entries(vals)) {
+              const renderedVal = extractNodeInfoText(vv, String(vv))
+              tmpl = tmpl.replaceAll(`{{${vk}}}`, renderedVal)
+            }
+          }
+          const cleaned = tmpl
+            .replace(/<[^>]+>/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+          if (cleaned) return cleaned
+        }
+        return fallback
+      }
+      if (props.children !== undefined) {
+        if (Array.isArray(props.children)) {
+          return props.children
+            .map((c) => extractNodeInfoText(c, ''))
+            .filter(Boolean)
+            .join(' ')
+        }
+        return extractNodeInfoText(props.children, fallback)
+      }
+    }
+  }
+  return fallback
+}
+
+function resolveFullDamageFormulaLabel(
+  sectionKey: string,
+  formulaKey: string,
+  calcRes: CalcResult<number>,
+  rotationLabelByPath: ReadonlyMap<string, string>
+): string {
+  const fromInfoName = extractNodeInfoText(
+    (calcRes.info as { name?: unknown } | undefined)?.name,
+    ''
+  )
+  if (fromInfoName) return fromInfoName
+
+  const infoPath = calcRes.info?.path
+  if (infoPath) {
+    const fromKeyMap = KeyMap.getStr(infoPath)
+    if (fromKeyMap) return fromKeyMap
+  }
+
+  const fromRotation = rotationLabelByPath.get(`${sectionKey}.${formulaKey}`)
+  if (fromRotation) {
+    const stripped = fromRotation.replace(
+      /^(?:Normal|Charged|Plunging|Plunge|Skill|Burst|Passive|Ascension\s*[14]|Constellation\s*[1-6]|C[1-6])\s*[—–-]\s*/i,
+      ''
+    )
+    return stripped || fromRotation
+  }
+
+  if (sectionKey === 'plunging') {
+    if (formulaKey === 'dmg') return 'Plunge DMG'
+    if (formulaKey === 'low') return 'Low Plunge DMG'
+    if (formulaKey === 'high') return 'High Plunge DMG'
+  }
+
+  if (/^\d+$/.test(formulaKey)) {
+    return `${Number(formulaKey) + 1}-Hit DMG`
+  }
+
+  const hitSingleMatch = formulaKey.match(/^hit(\d+)$/i)
+  if (hitSingleMatch) {
+    return `${hitSingleMatch[1]}-Hit DMG`
+  }
+
+  const hitMultiMatch = formulaKey.match(/^hit(\d)(\d)$/i)
+  if (hitMultiMatch) {
+    return `${hitMultiMatch[1]}-${hitMultiMatch[2]} Hit DMG`
+  }
+
+  if (formulaKey === 'dmg') {
+    if (sectionKey === 'charged') return 'Charged Attack DMG'
+    if (sectionKey === 'skill') return 'Skill DMG'
+    if (sectionKey === 'burst') return 'Burst DMG'
+    return 'DMG'
+  }
+
+  return prettifyFormulaIdentifier(formulaKey)
+}
+
+function isPercentageOrNonDamageFormulaNode(
+  sectionKey: string,
+  formulaKey: string,
+  calcRes: CalcResult<number>,
+  hasHitUiData: boolean
+): boolean {
+  const info = calcRes.info
+  if (info?.isTeamBuff) return true
+  if (info?.unit === '%' || info?.unit === 's') return true
+  if (info?.path) {
+    if (info.path.endsWith('_')) {
+      return true
+    }
+    if (
+      sectionKey !== 'reaction' &&
+      (info.path.endsWith('_dmgInc') ||
+        info.path.endsWith('_reactionDmgInc') ||
+        info.path.endsWith('_directDmgInc') ||
+        info.path === 'healInc' ||
+        info.path === 'all_dmgInc' ||
+        info.path === 'atk' ||
+        info.path === 'hp' ||
+        info.path === 'def' ||
+        info.path === 'eleMas')
+    ) {
+      return true
+    }
+  }
+  if (formulaKey.endsWith('_')) return true
+  if (
+    sectionKey !== 'reaction' &&
+    (formulaKey.endsWith('_dmgInc') ||
+      formulaKey.endsWith('DmgBonus') ||
+      formulaKey === 'energyGen' ||
+      formulaKey === 'energyRestore')
+  ) {
+    return true
+  }
+  // Unlabelled percentage decimals (< 1) in passive/constellation/skill sections whose `{ unit: '%' }`
+  // was stripped from `fields: [...]` at bundle time are stat buffs, not flat damage/heal/shield hits.
+  if (!hasHitUiData && sectionKey !== 'reaction' && Math.abs(calcRes.value) < 1) {
+    return true
+  }
+  return false
+}
+
+function findHitUiDataForFormula(
+  uiData: UIData,
+  node: NumNode | StrNode | undefined,
+  visited = new Set<object>()
+): UIData | undefined {
+  if (!node || typeof node !== 'object' || !('operation' in node)) {
+    return undefined
+  }
+  if (visited.has(node)) return undefined
+  visited.add(node)
+
+  if (node.operation === 'data') {
+    const dataNode = node as DataNode<NumNode | StrNode>
+    const parent = dataNode.reset ? uiData.origin : uiData
+    const childUiData = parent.child(dataNode.data)
+    const topData: Data | undefined = childUiData.data[0]
+    if (
+      topData &&
+      topData.hit &&
+      (topData.hit as Record<string, unknown>).base
+    ) {
+      return childUiData
+    }
+    const inner = findHitUiDataForFormula(
+      childUiData,
+      dataNode.operands?.[0] as NumNode | StrNode | undefined,
+      new Set()
+    )
+    if (inner) return inner
+    return findHitUiData(childUiData)
+  }
+
+  if (node.operation === 'threshold') {
+    const [valueNode, thresholdNode, pass, fail] =
+      (node.operands as Array<NumNode | StrNode | undefined>) ?? []
+    if (valueNode && thresholdNode) {
+      const v = uiData.get(valueNode as NumNode).value
+      const t = uiData.get(thresholdNode as NumNode).value
+      const activeBranch = v >= t ? pass : fail
+      return findHitUiDataForFormula(uiData, activeBranch, visited)
+    }
+  }
+
+  if (node.operation === 'match') {
+    const [v1Node, v2Node, matchNode, unmatchNode] =
+      (node.operands as Array<NumNode | StrNode | undefined>) ?? []
+    if (v1Node && v2Node) {
+      const v1 = uiData.get(v1Node as NumNode).value
+      const v2 = uiData.get(v2Node as NumNode).value
+      const activeBranch = v1 === v2 ? matchNode : unmatchNode
+      return findHitUiDataForFormula(uiData, activeBranch, visited)
+    }
+  }
+
+  if (node.operation === 'lookup') {
+    const lookupNode = node as {
+      operands?: Array<NumNode | StrNode | undefined>
+      table?: Record<string, NumNode | StrNode | undefined>
+    }
+    const keyNode = lookupNode.operands?.[0]
+    const keyVal = keyNode
+      ? (uiData.get(keyNode as StrNode).value as string | undefined)
+      : undefined
+    const selected =
+      (keyVal !== undefined ? lookupNode.table?.[keyVal] : undefined) ??
+      lookupNode.operands?.[1]
+    return findHitUiDataForFormula(uiData, selected, visited)
+  }
+
+  if (node.operation === 'read') {
+    const readNode = node as { path?: readonly string[] }
+    if (readNode.path) {
+      for (const d of uiData.data) {
+        const target = objPathValue(d, readNode.path) as
+          | NumNode
+          | StrNode
+          | undefined
+        const found = findHitUiDataForFormula(uiData, target, visited)
+        if (found) return found
+      }
+    }
+    return undefined
+  }
+
+  for (const op of node.operands ?? []) {
+    const found = findHitUiDataForFormula(
+      uiData,
+      op as NumNode | StrNode,
+      visited
+    )
+    if (found) return found
+  }
+  return undefined
+}
+
+function buildNonHitFormulaBreakdown(opts: {
+  ctx: BreakdownWalkContext
+  sectionKey: string
+  formulaKey: string
+  label: string
+  perHit: number
+  calcRes: CalcResult<number>
+}): DamageRowBreakdown {
+  const { ctx, sectionKey, formulaKey, label, perHit, calcRes } = opts
+  const { targetKey, targetUiData } = ctx
+
+  const hitMode =
+    (targetUiData.get(input.hit.hitMode).value as string) || 'avgHit'
+  const charEle =
+    (targetUiData.get(input.charEle).value as string) || 'physical'
+
+  // Determine reaction/element resist when present
+  const swirlMatch = formulaKey.match(/^(pyro|hydro|electro|cryo)Swirl$/)
+  const transMeta = (
+    transformativeReactions as Record<
+      string,
+      { resist?: string; canCrit?: boolean } | undefined
+    >
+  )[formulaKey]
+  const variant = calcRes.info?.variant
+  const variantMeta = variant
+    ? (
+        transformativeReactions as Record<
+          string,
+          { resist?: string; canCrit?: boolean } | undefined
+        >
+      )[variant]
+    : undefined
+
+  let ele =
+    swirlMatch?.[1] ??
+    transMeta?.resist ??
+    variantMeta?.resist ??
+    (variant &&
+    (allElementWithPhyKeys as readonly string[]).includes(variant)
+      ? variant
+      : charEle)
+
+  const resOp =
+    calcRes.meta.op === 'mul'
+      ? calcRes.meta.ops.find((op) => op.meta.op === 'res')
+      : undefined
+  const resMultiRead = (input.enemy as Record<string, NumNode>)[
+    `${ele}_resMulti_`
+  ]
+  const resMultiNode = resMultiRead
+    ? targetUiData.get(resMultiRead)
+    : undefined
+  const resMulti = resOp
+    ? resOp.value
+    : sectionKey === 'reaction' &&
+        resMultiNode &&
+        Number.isFinite(resMultiNode.value)
+      ? resMultiNode.value
+      : 1
+
+  const enemyResRead = (input.total as Record<string, NumNode>)[
+    `${ele}_enemyRes_`
+  ]
+  const enemyResNode = enemyResRead
+    ? targetUiData.get(enemyResRead)
+    : undefined
+  const enemyResContributors =
+    resOp || sectionKey === 'reaction'
+      ? enemyResNode
+        ? collectAdditiveContributors(enemyResNode, ctx, '%', {
+            isEnemyStat: true,
+          })
+        : [
+            {
+              category: 'enemy' as const,
+              sourceKey: 'Enemy',
+              label: 'Enemy Base RES',
+              value: 0.1,
+              unit: '%' as const,
+            },
+          ]
+      : []
+
+  const baseDmg = resMulti > 0 ? perHit / resMulti : perHit
+  const reconciledPerHit = baseDmg * resMulti
+
+  if (!resOp && sectionKey !== 'reaction') {
+    ele = variant === 'heal' ? 'heal' : charEle
+  }
+
+  const factors: DamageFactorGroup[] = [
+    {
+      key: 'baseDamage',
+      label: sectionKey === 'reaction' ? 'Base Reaction DMG' : 'Base Value',
+      value: baseDmg,
+      unit: '',
+      formulaSummary: `${Math.round(baseDmg).toLocaleString()}`,
+      contributors: [
+        {
+          category: 'character',
+          sourceKey: targetKey,
+          label: `${displayName(targetKey)} (${label})`,
+          value: baseDmg,
+          unit: '',
+        },
+      ],
+    },
+    {
+      key: 'dmgBonus',
+      label: 'DMG Bonus Multiplier',
+      value: 1,
+      unit: '×',
+      formulaSummary: '1.000×',
+      contributors: [],
+    },
+    {
+      key: 'crit',
+      label: `Crit Multiplier (${hitMode})`,
+      value: 1,
+      unit: '×',
+      formulaSummary: '1.000×',
+      contributors: [],
+    },
+    {
+      key: 'reaction',
+      label: 'Reaction Multiplier',
+      value: 1,
+      unit: '×',
+      formulaSummary: '1.000×',
+      contributors: [],
+    },
+    {
+      key: 'enemyDef',
+      label: 'Enemy DEF Multiplier',
+      value: 1,
+      unit: '×',
+      formulaSummary: '1.000× (Ignores DEF)',
+      contributors: [],
+    },
+    {
+      key: 'enemyRes',
+      label: `Enemy ${displayName(ele)} RES Multiplier`,
+      value: resMulti,
+      unit: '×',
+      formulaSummary:
+        resOp || sectionKey === 'reaction'
+          ? `Net RES ${((enemyResNode?.value ?? 0.1) * 100).toFixed(1)}% → ${(resMulti * 100).toFixed(1)}%`
+          : '1.000×',
+      contributors: enemyResContributors,
+    },
+  ]
+
+  return {
+    element: ele,
+    move: sectionKey,
+    hitMode,
+    reaction: sectionKey === 'reaction' ? formulaKey : undefined,
+    baseDmg,
+    dmgInc: 0,
+    basePlusFlat: baseDmg,
+    dmgBonus: 0,
+    dmgBonusMulti: 1,
+    critRate: 0,
+    critDMG: 0,
+    critMulti: 1,
+    ampMulti: 1,
+    defMulti: 1,
+    resMulti,
+    outerMulti: 1,
+    reconciledPerHit,
+    reconciledSubtotal: reconciledPerHit,
+    factors,
+  }
+}
+
+export function extractFullDamageSections(opts: {
+  preset: Preset
+  targetUiData: UIData
+  calc: Partial<Record<CharacterKey, { target: UIData }>>
+  targetKey: CharacterKey
+  teamKeys: CharacterKey[]
+  targetWeaponKey?: string
+}): FullDamageSection[] {
+  const { preset, targetUiData, calc, targetKey, teamKeys, targetWeaponKey } =
+    opts
+
+  const ctx: BreakdownWalkContext = {
+    targetKey,
+    targetWeaponKey,
+    teamKeys,
+    calc,
+    targetUiData,
+  }
+
+  const targetMember =
+    preset.team.find((m) => m.key === targetKey) ?? preset.team[0]
+  const defaultHitMode = targetMember?.hitMode ?? 'avgHit'
+  const defaultReaction = targetMember?.reaction
+
+  const rotationLabelByPath = new Map<string, string>()
+  for (const rt of preset.rotation.targets) {
+    const owner = resolveRotationTargetOwner(rt, preset)
+    if (owner.memberKey === targetKey && rt.label && owner.normPath.length >= 2) {
+      const key = `${owner.normPath[0]}.${owner.normPath[1]}`
+      if (!rotationLabelByPath.has(key)) {
+        rotationLabelByPath.set(key, rt.label)
+      }
+    }
+  }
+
+  const display = targetUiData.getDisplay()
+  const sections: FullDamageSection[] = []
+
+  for (const [sectionKey, secObj] of Object.entries(display)) {
+    if (EXCLUDED_FULL_DAMAGE_SECTIONS.has(sectionKey)) continue
+    if (!secObj || typeof secObj !== 'object') continue
+
+    const formulas: FullDamageFormulaEntry[] = []
+    for (const [formulaKey, rawCalcRes] of Object.entries(
+      secObj as Record<string, CalcResult<number> | undefined>
+    )) {
+      if (
+        !rawCalcRes ||
+        typeof rawCalcRes.value !== 'number' ||
+        !Number.isFinite(rawCalcRes.value)
+      ) {
+        continue
+      }
+      if (rawCalcRes.isEmpty) continue
+      if (Math.abs(rawCalcRes.value) <= 1e-9) continue
+
+      let formulaNode: NumNode | undefined
+      for (const d of targetUiData.data) {
+        const candidate = objPathValue(d, [
+          'display',
+          sectionKey,
+          formulaKey,
+        ]) as NumNode | undefined
+        if (candidate) {
+          formulaNode = candidate
+          break
+        }
+      }
+
+      const hitUiData = findHitUiDataForFormula(targetUiData, formulaNode)
+      if (
+        isPercentageOrNonDamageFormulaNode(
+          sectionKey,
+          formulaKey,
+          rawCalcRes,
+          Boolean(hitUiData)
+        )
+      ) {
+        continue
+      }
+
+      const label = resolveFullDamageFormulaLabel(
+        sectionKey,
+        formulaKey,
+        rawCalcRes,
+        rotationLabelByPath
+      )
+      const value = rawCalcRes.value
+
+      const breakdown = hitUiData
+        ? buildHitUiDataBreakdown({
+            hitUiData,
+            ctx,
+            perHit: value,
+            count: 1,
+            repeat: 1,
+            fallbackMove: sectionKey,
+            fallbackHitMode: defaultHitMode,
+            fallbackReaction: defaultReaction,
+          })
+        : buildNonHitFormulaBreakdown({
+            ctx,
+            sectionKey,
+            formulaKey,
+            label,
+            perHit: value,
+            calcRes: rawCalcRes,
+          })
+
+      formulas.push({
+        key: formulaKey,
+        sectionKey,
+        path: [sectionKey, formulaKey],
+        label,
+        value,
+        element: breakdown.element,
+        move: breakdown.move,
+        hitMode: breakdown.hitMode,
+        reaction: breakdown.reaction,
+        breakdown,
+      })
+    }
+
+    if (formulas.length > 0) {
+      sections.push({
+        sectionKey,
+        label: resolveFullDamageSectionLabel(sectionKey),
+        formulas,
+      })
+    }
+  }
+
+  return sections
 }

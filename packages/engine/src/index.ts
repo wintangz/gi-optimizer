@@ -19,7 +19,9 @@ export {
 export {
   STAT_BREAKDOWN_KEYS,
   extractDamageRowBreakdown,
+  extractFullDamageSections,
   extractStatBreakdowns,
+  resolveFullDamageSectionLabel,
   type StatBreakdownKey,
 } from './breakdown'
 export {
@@ -146,6 +148,8 @@ export {
   type EngineSession,
   type FastModeStatKey,
   type FastModeStats,
+  type FullDamageFormulaEntry,
+  type FullDamageSection,
   type InstanceResult,
   type MemberBuildMode,
   type MemberBuildModesMap,

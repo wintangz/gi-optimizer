@@ -4506,3 +4506,23 @@ td {
   cursor: pointer;
 }
 
+.comp-full-damage-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.comp-full-damage-table th.comp-stat-group-header {
+  text-align: left;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-section);
+  background: var(--surface-inset);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+
