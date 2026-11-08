@@ -1401,6 +1401,23 @@ function BuildStatComparisonSection({
   )
 }
 
+function scheduleScrollDetailsIntoView(elementId: string): void {
+  if (typeof document === 'undefined') return
+  const scrollNow = () => {
+    const el = document.getElementById(elementId)
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }
+  scrollNow()
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.requestAnimationFrame === 'function'
+  ) {
+    window.requestAnimationFrame(scrollNow)
+  }
+}
+
 export function BuildComparisonList({
   preset,
   currentBuild,
@@ -1430,14 +1447,13 @@ export function BuildComparisonList({
     initialExpandedStatKey
   )
 
-  useEffect(() => {
-    if (!expandedRowId || typeof window === 'undefined') return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setExpandedRowId(null)
+  function handleToggleRow(rowId: string) {
+    const next = expandedRowId === rowId ? null : rowId
+    setExpandedRowId(next)
+    if (next !== null) {
+      scheduleScrollDetailsIntoView(`comp-details-${next}`)
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [expandedRowId])
+  }
 
   const rows: InternalComparisonRow[] = []
   if (currentBuild) {
@@ -1507,9 +1523,7 @@ export function BuildComparisonList({
           >
             <div
               className="comp-row-summary"
-              onClick={() =>
-                setExpandedRowId((prev) => (prev === row.id ? null : row.id))
-              }
+              onClick={() => handleToggleRow(row.id)}
             >
               {/* Top line: Rank + Big Total + Delta + Proportional Bar + Actions */}
               <div className="comp-row-main">
@@ -1592,9 +1606,7 @@ export function BuildComparisonList({
                   ariaLabel={`${row.rankLabel} build details`}
                   onClick={(e) => {
                     e?.stopPropagation?.()
-                    setExpandedRowId((prev) =>
-                      prev === row.id ? null : row.id
-                    )
+                    handleToggleRow(row.id)
                   }}
                 />
               </div>
@@ -1664,78 +1676,38 @@ export function BuildComparisonList({
               </div>
             </div>
 
-            {/* Build Details Modal */}
+            {/* Expandable Per-Instance Breakdown & Slot Details */}
             {isExpanded && row.evaluation && (
               <div
-                className="gi-modal-backdrop"
-                data-testid={`comp-details-modal-backdrop-${row.id}`}
-                onClick={() => setExpandedRowId(null)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setExpandedRowId(null)
-                }}
+                id={`comp-details-${row.id}`}
+                className="comp-row-details"
+                data-testid={`comp-details-${row.id}`}
               >
-                <div
-                  className="panel gi-card gi-modal-dialog gi-build-details-modal"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label={`Build Details — ${row.rankLabel}`}
-                  data-testid={`comp-details-modal-${row.id}`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="gi-card-header">
-                    <div>
-                      <h3 className="gi-card-title">
-                        Build Details — {row.rankLabel} ({formatNum(row.total)}{' '}
-                        DMG)
-                      </h3>
-                      <p className="gi-card-subtitle">
-                        Per-Instance Rotation Breakdown (Repeat ×
-                        {preset.rotation.repeat ?? 1})
-                      </p>
-                    </div>
-                    <div className="preset-gear-row-md">
-                      {onExportGO && (
-                        <button
-                          type="button"
-                          className="btn-secondary btn-icon"
-                          onClick={() =>
-                            onExportGO(
-                              row.selection,
-                              row.kind === 'current'
-                                ? 'current'
-                                : `opt-rank-${row.rank ?? 1}`
-                            )
-                          }
-                        >
-                          <DownloadIcon size={14} />
-                          <span>Verify GO (.json)</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        data-testid={`close-comp-details-modal-${row.id}`}
-                        aria-label="Close build details"
-                        onClick={() => setExpandedRowId(null)}
-                      >
-                        Done
-                      </button>
-                    </div>
-                  </div>
+                <div className="comp-details-header">
+                  <strong>
+                    Per-Instance Rotation Breakdown (Repeat ×
+                    {preset.rotation.repeat ?? 1})
+                  </strong>
+                  {onExportGO && (
+                    <button
+                      type="button"
+                      className="btn-secondary btn-icon"
+                      onClick={() =>
+                        onExportGO(
+                          row.selection,
+                          row.kind === 'current'
+                            ? 'current'
+                            : `opt-rank-${row.rank ?? 1}`
+                        )
+                      }
+                    >
+                      <DownloadIcon size={14} />
+                      <span>Verify GO (.json)</span>
+                    </button>
+                  )}
+                </div>
 
-                  <div
-                    id={`comp-details-${row.id}`}
-                    className="comp-row-details"
-                    data-testid={`comp-details-${row.id}`}
-                  >
-                    <div className="comp-details-header">
-                      <strong>
-                        Per-Instance Rotation Breakdown (Repeat ×
-                        {preset.rotation.repeat ?? 1})
-                      </strong>
-                    </div>
-
-                    <div className="gi-table-wrap">
+                <div className="gi-table-wrap">
                   <table className="gi-table comp-damage-table">
                     <thead>
                       <tr>
@@ -1919,8 +1891,6 @@ export function BuildComparisonList({
                         />
                       )
                     })}
-                  </div>
-                </div>
                   </div>
                 </div>
               </div>
@@ -2968,14 +2938,13 @@ export function WeaponComparisonList({
   )
   const [expandedStatKey, setExpandedStatKey] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!expandedKey || typeof window === 'undefined') return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setExpandedKey(null)
+  function handleToggleWeaponRow(wKey: string) {
+    const next = expandedKey === wKey ? null : wKey
+    setExpandedKey(next)
+    if (next !== null) {
+      scheduleScrollDetailsIntoView(`weapon-compare-details-${next}`)
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [expandedKey])
+  }
 
   if (result.rows.length === 0) {
     return null
@@ -3111,9 +3080,7 @@ export function WeaponComparisonList({
           >
             <div
               className="comp-row-summary"
-              onClick={() =>
-                setExpandedKey((prev) => (prev === wKey ? null : wKey))
-              }
+              onClick={() => handleToggleWeaponRow(wKey)}
             >
               <div className="comp-row-main">
                 <div className="comp-row-rank-group">
@@ -3200,7 +3167,7 @@ export function WeaponComparisonList({
                   ariaLabel={`${displayName(wKey)} build details`}
                   onClick={(e) => {
                     e?.stopPropagation?.()
-                    setExpandedKey((prev) => (prev === wKey ? null : wKey))
+                    handleToggleWeaponRow(wKey)
                   }}
                 />
               </div>
@@ -3273,64 +3240,25 @@ export function WeaponComparisonList({
 
             {isExpanded && topBuilds.length > 0 && (
               <div
-                className="gi-modal-backdrop"
-                data-testid={`weapon-compare-details-modal-backdrop-${wKey}`}
-                onClick={() => setExpandedKey(null)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setExpandedKey(null)
-                }}
+                id={`weapon-compare-details-${wKey}`}
+                className="comp-row-details"
+                data-testid={`weapon-compare-details-${wKey}`}
               >
+                <div className="comp-details-header">
+                  <strong>
+                    Top {topBuilds.length} Build
+                    {topBuilds.length === 1 ? '' : 's'} for{' '}
+                    {displayName(wKey)} (Repeat ×
+                    {preset.rotation.repeat ?? 1})
+                  </strong>
+                </div>
+
                 <div
-                  className="panel gi-card gi-modal-dialog gi-build-details-modal"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label={`Build Details — ${displayName(wKey)}`}
-                  data-testid={`weapon-compare-details-modal-${wKey}`}
-                  onClick={(e) => e.stopPropagation()}
+                  className="weapon-compare-top-builds"
+                  data-testid={`weapon-compare-top-builds-${wKey}`}
+                  role="list"
+                  aria-label={`Top builds for ${displayName(wKey)}`}
                 >
-                  <div className="gi-card-header">
-                    <div>
-                      <h3 className="gi-card-title">
-                        Build Details — {displayName(wKey)}
-                      </h3>
-                      <p className="gi-card-subtitle">
-                        Top {topBuilds.length} Build
-                        {topBuilds.length === 1 ? '' : 's'} for{' '}
-                        {displayName(wKey)} (Repeat ×
-                        {preset.rotation.repeat ?? 1})
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      data-testid={`close-weapon-compare-details-modal-${wKey}`}
-                      aria-label="Close build details"
-                      onClick={() => setExpandedKey(null)}
-                    >
-                      Done
-                    </button>
-                  </div>
-
-                  <div
-                    id={`weapon-compare-details-${wKey}`}
-                    className="comp-row-details"
-                    data-testid={`weapon-compare-details-${wKey}`}
-                  >
-                    <div className="comp-details-header">
-                      <strong>
-                        Top {topBuilds.length} Build
-                        {topBuilds.length === 1 ? '' : 's'} for{' '}
-                        {displayName(wKey)} (Repeat ×
-                        {preset.rotation.repeat ?? 1})
-                      </strong>
-                    </div>
-
-                    <div
-                      className="weapon-compare-top-builds"
-                      data-testid={`weapon-compare-top-builds-${wKey}`}
-                      role="list"
-                      aria-label={`Top builds for ${displayName(wKey)}`}
-                    >
                   {topBuilds.map((buildEntry, bIdx) => {
                     const buildRank = buildEntry.rank || bIdx + 1
                     const buildSelection = buildEntry.selection
@@ -3705,8 +3633,6 @@ export function WeaponComparisonList({
                       </div>
                     )
                   })}
-                </div>
-                  </div>
                 </div>
               </div>
             )}
@@ -4485,14 +4411,13 @@ export function TeamOptimizationList({
   )
   const [expandedStatKey, setExpandedStatKey] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!expandedMemberKey || typeof window === 'undefined') return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setExpandedMemberKey(null)
+  function handleToggleMemberRow(mKey: string) {
+    const next = expandedMemberKey === mKey ? null : mKey
+    setExpandedMemberKey(next)
+    if (next !== null) {
+      scheduleScrollDetailsIntoView(`team-opt-details-${next}`)
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [expandedMemberKey])
+  }
 
   const teamDelta = formatRelativeDelta(
     result.teamTotal,
@@ -4611,7 +4536,7 @@ export function TeamOptimizationList({
             key={mKey}
             className={`comp-row team-opt-member-row${
               isMemberImproved ? ' comp-row-best is-best' : ''
-            }`}
+            }${isExpanded ? ' comp-row-expanded' : ''}`}
             data-testid={`team-opt-member-${mKey}`}
             data-member-key={mKey}
             data-skipped-solver="false"
@@ -4620,9 +4545,7 @@ export function TeamOptimizationList({
           >
             <div
               className="comp-row-summary"
-              onClick={() =>
-                setExpandedMemberKey((prev) => (prev === mKey ? null : mKey))
-              }
+              onClick={() => handleToggleMemberRow(mKey)}
             >
               <div className="comp-row-main">
                 <div className="comp-row-rank">
@@ -4672,9 +4595,7 @@ export function TeamOptimizationList({
                   ariaLabel={`${displayName(mKey)} build details`}
                   onClick={(e) => {
                     e?.stopPropagation?.()
-                    setExpandedMemberKey((prev) =>
-                      prev === mKey ? null : mKey
-                    )
+                    handleToggleMemberRow(mKey)
                   }}
                 />
               </div>
@@ -4745,55 +4666,18 @@ export function TeamOptimizationList({
 
             {isExpanded && memberRes.evaluation && (
               <div
-                className="gi-modal-backdrop"
-                data-testid={`team-opt-details-modal-backdrop-${mKey}`}
-                onClick={() => setExpandedMemberKey(null)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setExpandedMemberKey(null)
-                }}
+                id={`team-opt-details-${mKey}`}
+                className="comp-row-details"
+                data-testid={`team-opt-details-${mKey}`}
               >
-                <div
-                  className="panel gi-card gi-modal-dialog gi-build-details-modal"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label={`Build Details — ${displayName(mKey)}`}
-                  data-testid={`team-opt-details-modal-${mKey}`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="gi-card-header">
-                    <div>
-                      <h3 className="gi-card-title">
-                        Build Details — {displayName(mKey)}
-                      </h3>
-                      <p className="gi-card-subtitle">
-                        {displayName(mKey)} — Rotation Breakdown (Repeat ×
-                        {preset.rotation.repeat ?? 1})
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      data-testid={`close-team-opt-details-modal-${mKey}`}
-                      aria-label="Close build details"
-                      onClick={() => setExpandedMemberKey(null)}
-                    >
-                      Done
-                    </button>
-                  </div>
+                <div className="comp-details-header">
+                  <strong>
+                    {displayName(mKey)} — Rotation Breakdown (Repeat ×
+                    {preset.rotation.repeat ?? 1})
+                  </strong>
+                </div>
 
-                  <div
-                    id={`team-opt-details-${mKey}`}
-                    className="comp-row-details"
-                    data-testid={`team-opt-details-${mKey}`}
-                  >
-                    <div className="comp-details-header">
-                      <strong>
-                        {displayName(mKey)} — Rotation Breakdown (Repeat ×
-                        {preset.rotation.repeat ?? 1})
-                      </strong>
-                    </div>
-
-                    <div className="gi-table-wrap">
+                <div className="gi-table-wrap">
                   <table className="gi-table comp-damage-table">
                     <thead>
                       <tr>
@@ -4952,8 +4836,6 @@ export function TeamOptimizationList({
                         />
                       )
                     })}
-                  </div>
-                </div>
                   </div>
                 </div>
               </div>

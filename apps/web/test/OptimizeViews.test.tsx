@@ -3680,4 +3680,124 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(closedConstraintsHtml).toContain('data-gi-icon="ChevronIcon"')
     expect(closedConstraintsHtml).toContain('data-chevron-state="closed"')
   })
+
+  it('build-details-inline: renders Build Details inline directly under the build row with accordion behaviour and scrollIntoView across results lists', () => {
+    const preset = getBundledPreset('official/furina-salon-subdps')!
+    const scrolledIds: string[] = []
+    const prevDoc = globalThis.document
+    ;(globalThis as unknown as { document: unknown }).document = {
+      getElementById: (id: string) => ({
+        scrollIntoView: () => {
+          scrolledIds.push(id)
+        },
+      }),
+    }
+
+    try {
+      hookStore.reset()
+      hookStore.active = true
+
+      const makeEval = (total: number) => ({
+        total,
+        stats: {
+          hp: 18000,
+          atk: 2100,
+          def: 900,
+          eleMas: 100,
+          enerRech_: 2.6,
+          critRate_: 0.7,
+          critDMG_: 1.6,
+        },
+        instances: [
+          {
+            label: 'Musou Shinsetsu Initial Slash',
+            path: ['burst', 'dmg'],
+            perHit: total,
+            count: 1,
+            subtotal: total,
+          },
+        ],
+      })
+
+      const renderList = () => {
+        hookStore.beginRender()
+        return evaluateTree(
+          <BuildComparisonList
+            preset={preset}
+            artifactById={new Map()}
+            initialExpandedRowId={null}
+            optimizedBuilds={[
+              {
+                total: 500000,
+                selection: { artifactIds: {} },
+                evaluation: makeEval(500000),
+              },
+              {
+                total: 480000,
+                selection: { artifactIds: {} },
+                evaluation: makeEval(480000),
+              },
+              {
+                total: 460000,
+                selection: { artifactIds: {} },
+                evaluation: makeEval(460000),
+              },
+            ]}
+          />
+        )
+      }
+
+      // Initially all closed when initialExpandedRowId={null}
+      let tree = renderList()
+      expect(findByTestId(tree, 'comp-details-opt-0')).toBeUndefined()
+      expect(findByTestId(tree, 'comp-details-opt-1')).toBeUndefined()
+      expect(findByTestId(tree, 'comp-details-opt-2')).toBeUndefined()
+
+      // Open build 2 (opt-1)
+      const expandBtn2 = findByTestId(tree, 'comp-expand-opt-1')!
+      ;(expandBtn2.props.onClick as (e?: unknown) => void)()
+      tree = renderList()
+
+      expect(findByTestId(tree, 'comp-details-opt-0')).toBeUndefined()
+      expect(findByTestId(tree, 'comp-details-opt-1')).toBeDefined()
+      expect(findByTestId(tree, 'comp-details-opt-2')).toBeUndefined()
+      expect(findByTestId(tree, 'comp-details-modal-opt-1')).toBeUndefined()
+      // Inline inside comparison-row-opt-1
+      const row2 = findByTestId(tree, 'comparison-row-opt-1')!
+      expect(findByTestId([row2], 'comp-details-opt-1')).toBeDefined()
+      expect(scrolledIds).toContain('comp-details-opt-1')
+
+      // Open build 1 (opt-0) -> build 2 closes, build 1 opens and scrolls into view, list order unchanged
+      const expandBtn1 = findByTestId(tree, 'comp-expand-opt-0')!
+      ;(expandBtn1.props.onClick as (e?: unknown) => void)()
+      tree = renderList()
+
+      expect(findByTestId(tree, 'comp-details-opt-0')).toBeDefined()
+      expect(findByTestId(tree, 'comp-details-opt-1')).toBeUndefined()
+      expect(findByTestId(tree, 'comp-details-opt-2')).toBeUndefined()
+      const row1 = findByTestId(tree, 'comparison-row-opt-0')!
+      expect(findByTestId([row1], 'comp-details-opt-0')).toBeDefined()
+      expect(scrolledIds[scrolledIds.length - 1]).toBe('comp-details-opt-0')
+
+      const listEl = findByTestId(tree, 'build-comparison-list')!
+      const allRows = listEl.children.filter(
+        (n): n is VNode => typeof n !== 'string'
+      )
+      expect(allRows.map((r) => r.props['data-testid'])).toEqual([
+        'comparison-row-opt-0',
+        'comparison-row-opt-1',
+        'comparison-row-opt-2',
+      ])
+
+      // Clicking the open build's control again closes it
+      const expandBtn1Again = findByTestId(tree, 'comp-expand-opt-0')!
+      ;(expandBtn1Again.props.onClick as (e?: unknown) => void)()
+      tree = renderList()
+      expect(findByTestId(tree, 'comp-details-opt-0')).toBeUndefined()
+    } finally {
+      hookStore.active = false
+      hookStore.reset()
+      ;(globalThis as unknown as { document: unknown }).document = prevDoc
+    }
+  })
 })
