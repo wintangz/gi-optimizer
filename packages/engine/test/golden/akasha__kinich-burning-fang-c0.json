@@ -1,0 +1,65 @@
+{
+  "presetId": "akasha/kinich-burning-fang-c0",
+  "target": "Kinich",
+  "total": 316275.1490042589,
+  "instances": [
+    {
+      "label": "Loop Shot Hit (×16)",
+      "path": [
+        "skill",
+        "shotDmg"
+      ],
+      "count": 16,
+      "perHit": 3109.474476243391,
+      "subtotal": 49751.59161989426
+    },
+    {
+      "label": "Scalespiker Cannon (×4)",
+      "path": [
+        "skill",
+        "cannonDmg"
+      ],
+      "count": 4,
+      "perHit": 56619.55409977821,
+      "subtotal": 226478.21639911283
+    },
+    {
+      "label": "Hail to the Almighty Dragonlord Cast",
+      "path": [
+        "burst",
+        "skillDmg"
+      ],
+      "count": 1,
+      "perHit": 7274.259424172739,
+      "subtotal": 7274.259424172739
+    },
+    {
+      "label": "Dragonbreath DMG (×5)",
+      "path": [
+        "burst",
+        "laserDmg"
+      ],
+      "count": 5,
+      "perHit": 6554.216312215818,
+      "subtotal": 32771.08156107909
+    }
+  ],
+  "stats": {
+    "hp": 12858.206654000001,
+    "atk": 3080.8505891820005,
+    "def": 801.6022079100001,
+    "eleMas": 100,
+    "critRate_": 0.160256,
+    "critDMG_": 0.884,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0.15,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}
