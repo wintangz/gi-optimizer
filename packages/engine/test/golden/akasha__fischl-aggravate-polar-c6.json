@@ -1,0 +1,85 @@
+{
+  "presetId": "akasha/fischl-aggravate-polar-c6",
+  "target": "Fischl",
+  "total": 479405.0938023336,
+  "instances": [
+    {
+      "label": "Nightrider Summon DMG (Aggravate)",
+      "path": [
+        "skill",
+        "summonDmg"
+      ],
+      "count": 1,
+      "perHit": 53295.253024368496,
+      "subtotal": 53295.253024368496
+    },
+    {
+      "label": "Oz's ATK DMG (Aggravate ×4)",
+      "path": [
+        "skill",
+        "ozDmg"
+      ],
+      "count": 4,
+      "perHit": 30081.32176410504,
+      "subtotal": 120325.28705642016
+    },
+    {
+      "label": "Oz's ATK DMG (No Reaction ×8)",
+      "path": [
+        "skill",
+        "ozDmg"
+      ],
+      "count": 8,
+      "perHit": 17070.53048911467,
+      "subtotal": 136564.24391291736
+    },
+    {
+      "label": "Undone Be Thy Sinful Hex A4 (Aggravate ×6)",
+      "path": [
+        "passive2",
+        "dmg"
+      ],
+      "count": 6,
+      "perHit": 20247.900120401995,
+      "subtotal": 121487.40072241197
+    },
+    {
+      "label": "Evernight Raven C6 Joint Attack (Aggravate ×2)",
+      "path": [
+        "constellation6",
+        "ozActiveCharDmg"
+      ],
+      "count": 2,
+      "perHit": 15724.707092019731,
+      "subtotal": 31449.414184039462
+    },
+    {
+      "label": "Evernight Raven C6 Joint Attack (No Reaction ×6)",
+      "path": [
+        "constellation6",
+        "ozActiveCharDmg"
+      ],
+      "count": 6,
+      "perHit": 2713.9158170293585,
+      "subtotal": 16283.494902176151
+    }
+  ],
+  "stats": {
+    "hp": 15256.35769086728,
+    "atk": 2491.57339052,
+    "def": 720.798249558575,
+    "eleMas": 359.93,
+    "critRate_": 1.088368,
+    "critDMG_": 1.4013,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0.8787843200000001,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}
