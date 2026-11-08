@@ -552,28 +552,13 @@ export function ArtifactRvBadge({
         display: 'inline-flex',
         alignItems: 'center',
         gap: '0.2rem',
-        padding: compact ? '0.06rem 0.34rem' : '0.1rem 0.42rem',
-        borderRadius: '4px',
+        padding: compact ? '0.08rem 0.36rem' : '0.12rem 0.42rem',
+        borderRadius: 'var(--radius-xs)',
         fontSize: compact ? '0.78rem' : '0.82rem',
-        fontWeight: 700,
-        background:
-          rv.totalRv >= 600
-            ? 'rgba(76, 195, 138, 0.16)'
-            : rv.totalRv >= 450
-              ? 'rgba(122, 162, 255, 0.16)'
-              : '#232736',
-        color:
-          rv.totalRv >= 600
-            ? 'var(--ok)'
-            : rv.totalRv >= 450
-              ? 'var(--accent)'
-              : 'var(--fg)',
-        border:
-          rv.totalRv >= 600
-            ? '1px solid rgba(76, 195, 138, 0.45)'
-            : rv.totalRv >= 450
-              ? '1px solid rgba(122, 162, 255, 0.45)'
-              : '1px solid var(--border)',
+        fontWeight: 600,
+        background: 'var(--surface-inset)',
+        color: 'var(--text-muted)',
+        border: '1px solid var(--border-subtle)',
         whiteSpace: 'nowrap',
         fontVariantNumeric: 'tabular-nums',
       }}
@@ -840,15 +825,27 @@ export function ArtifactPieceRow({
   lock,
   compact = false,
 }: ArtifactPieceRowProps) {
+  const [failedKey, setFailedKey] = useState<string | null>(null)
+  const pieceKey = `${setKey}-${slotKey}`
+  const imageFailed = failedKey === pieceKey
+  const iconUrl = getCdnArtifactIconUrl(setKey, slotKey)
   const rvInfo = computeArtifactRollValue({
     rarity,
     level,
     substats,
   })
   const artMeta = getArtifactMeta({ setKey, slotKey, rarity })
+  const starsText = formatRarityStars(artMeta.rarity)
   const ownerDisplayName = location
     ? getCharacterMeta(location).displayName
     : null
+  const mainStatHasGlyph = hasStatIcon(mainStatKey)
+  const mainStatEle = resolveStatElement(mainStatKey)
+  const mainStatEleColor =
+    mainStatEle && mainStatEle !== 'physical'
+      ? getElementColor(mainStatEle as IdentifierElement).fg
+      : undefined
+  const mainStatLabel = shortStatLabel(mainStatKey)
 
   return (
     <div
@@ -860,34 +857,52 @@ export function ArtifactPieceRow({
         className="artifact-piece-header"
         data-testid="artifact-piece-header"
       >
-        <div className="artifact-piece-identity">
-          <span
-            className="artifact-piece-slot-icon"
-            data-testid="artifact-piece-slot-icon"
-            title={artMeta.slotDisplayName}
-          >
-            <SlotIcon slotKey={slotKey} iconProps={{ size: 13 }} />
-          </span>
-          <ArtifactBadge
-            setKey={setKey}
-            slotKey={slotKey}
-            rarity={rarity}
-            compact
-          />
-        </div>
         <span
-          className="artifact-piece-level"
-          data-testid="artifact-piece-level"
+          className="artifact-piece-icon-box"
+          data-testid="artifact-slot-strip"
+          title={`${artMeta.setDisplayName} · ${artMeta.slotDisplayName} (${starsText})`}
+          style={{
+            borderColor: artMeta.rarityColor.border,
+          }}
         >
-          +{level}
+          {iconUrl && !imageFailed ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={iconUrl}
+              alt={`${artMeta.setDisplayName} · ${artMeta.slotDisplayName}`}
+              width={40}
+              height={40}
+              loading="lazy"
+              decoding="async"
+              onError={() => setFailedKey(pieceKey)}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+          ) : (
+            <SlotIcon slotKey={slotKey} iconProps={{ size: 22 }} />
+          )}
         </span>
-      </div>
 
-      <div
-        className="artifact-piece-rv-row"
-        data-testid="artifact-piece-rv-row"
-      >
-        <ArtifactRvBadge rv={rvInfo} compact={compact} />
+        <div className="artifact-piece-identity">
+          <strong
+            className="artifact-piece-set-name"
+            data-testid="artifact-set-chip"
+            title={artMeta.setDisplayName}
+          >
+            {artMeta.setDisplayName}
+          </strong>
+          <span
+            className="artifact-piece-level"
+            data-testid="artifact-piece-level"
+          >
+            +{level}
+          </span>
+        </div>
+
         {lock && (
           <span
             className="artifact-piece-lock"
@@ -904,7 +919,34 @@ export function ArtifactPieceRow({
         className="artifact-piece-main-row"
         data-testid="artifact-piece-main-row"
       >
-        <StatChip statKey={mainStatKey} isMain compact />
+        <span
+          className="artifact-piece-main-stat"
+          data-testid="stat-chip"
+          data-stat-key={mainStatKey}
+          title={mainStatLabel}
+        >
+          {mainStatHasGlyph && (
+            <span
+              className="artifact-piece-main-stat-icon"
+              style={mainStatEleColor ? { color: mainStatEleColor } : undefined}
+            >
+              <StatIcon statKey={mainStatKey} iconProps={{ size: 16 }} />
+            </span>
+          )}
+          <strong
+            className="artifact-piece-main-stat-label"
+            style={mainStatEleColor ? { color: mainStatEleColor } : undefined}
+          >
+            {mainStatLabel}
+          </strong>
+        </span>
+
+        <span
+          className="artifact-piece-rv-row"
+          data-testid="artifact-piece-rv-row"
+        >
+          <ArtifactRvBadge rv={rvInfo} compact={compact} />
+        </span>
       </div>
 
       <div
@@ -930,7 +972,7 @@ export function ArtifactPieceRow({
             >
               {hasStatIcon(s.key) && (
                 <span className="artifact-substat-icon">
-                  <StatIcon statKey={s.key} iconProps={{ size: 12 }} />
+                  <StatIcon statKey={s.key} iconProps={{ size: 14 }} />
                 </span>
               )}
               <span className="artifact-substat-label">{sLabel}</span>

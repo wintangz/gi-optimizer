@@ -628,7 +628,7 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
       'CD% 15.5%: 2 rolls (7.77 + 7.77 / max 7.77%) = 200% RV'
     )
     expect(pieceHtml).toContain('class="artifact-piece-card"')
-    expect(pieceHtml).toContain('class="artifact-piece-slot-icon"')
+    expect(pieceHtml).not.toContain('artifact-piece-slot-icon')
     expect(pieceHtml).toContain('class="artifact-substat-line"')
     expect(pieceHtml).toContain(
       'data-testid="artifact-piece-owner" title="Equipped on Furina in imported GOOD data"'
@@ -638,7 +638,7 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
     expect(substatsSection).not.toContain('gi-stat-chip')
   })
 
-  it('renders ArtifactPieceRow with a fixed 5-zone template (header with +level pinned top-right, RV row, main stat row, substats grid, and owner/Unequipped row) for both short and long set names like Shimenawa Reminiscence (visual-design-pass)', () => {
+  it('renders ArtifactPieceRow with a fixed-zone template (40px piece icon, plain bold set title + plain +level + lock in header, prominent main stat + quiet RV badge in main row, substats list, and bottom-pinned owner/Unequipped row) for both short and long set names like Shimenawa Reminiscence (visual-design-pass & artifact-card-redesign)', () => {
     const shimenawaHtml = renderToStaticMarkup(
       <ArtifactPieceRow
         setKey="ShimenawasReminiscence"
@@ -656,31 +656,47 @@ describe('Shared Visual Identifier Components (visual-identifiers & cdn-icon-ima
       />
     )
 
-    // All 5 fixed zones exist in strict top-to-bottom order
+    // Fixed zones exist in strict top-to-bottom order
     const headerIdx = shimenawaHtml.indexOf('data-testid="artifact-piece-header"')
-    const rvRowIdx = shimenawaHtml.indexOf('data-testid="artifact-piece-rv-row"')
     const mainRowIdx = shimenawaHtml.indexOf('data-testid="artifact-piece-main-row"')
+    const rvRowIdx = shimenawaHtml.indexOf('data-testid="artifact-piece-rv-row"')
     const substatsIdx = shimenawaHtml.indexOf('data-testid="artifact-piece-substats"')
     const ownerRowIdx = shimenawaHtml.indexOf('data-testid="artifact-piece-owner-row"')
 
     expect(headerIdx).toBeGreaterThan(-1)
-    expect(rvRowIdx).toBeGreaterThan(headerIdx)
-    expect(mainRowIdx).toBeGreaterThan(rvRowIdx)
-    expect(substatsIdx).toBeGreaterThan(mainRowIdx)
+    expect(mainRowIdx).toBeGreaterThan(headerIdx)
+    expect(rvRowIdx).toBeGreaterThan(mainRowIdx)
+    expect(substatsIdx).toBeGreaterThan(rvRowIdx)
     expect(ownerRowIdx).toBeGreaterThan(substatsIdx)
 
-    // Long set name and +level are both inside the header zone (+level is a direct child of header, separate from identity)
-    expect(shimenawaHtml).toContain('Shimenawa&#x27;s Reminiscence')
-    const headerSlice = shimenawaHtml.slice(headerIdx, rvRowIdx)
-    expect(headerSlice).toContain('class="artifact-piece-identity"')
-    expect(headerSlice).toContain('data-testid="artifact-piece-level">+20<')
+    // 1. Only the 40x40 rarity-bordered piece icon in header; no grey slot glyph next to it
+    const headerSlice = shimenawaHtml.slice(headerIdx, mainRowIdx)
+    expect(headerSlice).toContain('class="artifact-piece-icon-box"')
+    expect(headerSlice).toContain('width="40" height="40"')
+    expect(shimenawaHtml).not.toContain('artifact-piece-slot-icon')
 
-    // RV badge and lock sit in the RV row
-    const rvSlice = shimenawaHtml.slice(rvRowIdx, mainRowIdx)
-    expect(rvSlice).toContain('data-testid="artifact-rv-badge"')
-    expect(rvSlice).toContain('data-testid="artifact-piece-lock"')
+    // 2. Plain bold set title + plain +20 beside it + lock icon at right edge of header row
+    expect(headerSlice).toContain(
+      '<strong class="artifact-piece-set-name" data-testid="artifact-set-chip" title="Shimenawa&#x27;s Reminiscence">Shimenawa&#x27;s Reminiscence</strong>'
+    )
+    expect(headerSlice).toContain(
+      '<span class="artifact-piece-level" data-testid="artifact-piece-level">+20</span>'
+    )
+    expect(headerSlice).toContain('data-testid="artifact-piece-lock"')
 
-    // Unequipped piece still renders the fixed owner row with Unequipped placeholder
+    // 3. Prominent main stat + quiet muted RV badge in the main stat row
+    const mainSlice = shimenawaHtml.slice(mainRowIdx, substatsIdx)
+    expect(mainSlice).toContain('class="artifact-piece-main-stat"')
+    expect(mainSlice).toContain('class="artifact-piece-main-stat-label"')
+    expect(mainSlice).toContain('data-testid="artifact-rv-badge"')
+    expect(mainSlice).toContain('color:var(--text-muted)')
+
+    // 4. Clean substats list with icon, label, and emphasised +value
+    const substatsSlice = shimenawaHtml.slice(substatsIdx, ownerRowIdx)
+    expect(substatsSlice).toContain('<span class="artifact-substat-label">CR%</span>')
+    expect(substatsSlice).toContain('<strong class="artifact-substat-val">+10.5%</strong>')
+
+    // 5. Unequipped piece still renders the fixed owner row with Unequipped placeholder
     expect(shimenawaHtml).toContain('data-testid="artifact-piece-unequipped">Unequipped<')
   })
 })
