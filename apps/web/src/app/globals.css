@@ -3840,6 +3840,10 @@ td {
   width: min(1140px, 96vw);
 }
 
+.gi-modal-dialog.gi-stage4-modal {
+  width: min(920px, 96vw);
+}
+
 .gi-collapsible-section,
 [data-stage] .gi-card:not(.gi-modal-dialog) {
   display: flex;
@@ -3851,7 +3855,7 @@ td {
   border: 1px solid var(--border);
 }
 
-[data-testid="constraints-card"][data-expanded="false"] .gi-card-header {
+[data-testid="constraints-card"].gi-collapsible-section > .gi-card-header {
   padding-bottom: 0;
   border-bottom: none;
 }

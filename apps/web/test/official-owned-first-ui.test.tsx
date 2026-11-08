@@ -964,16 +964,78 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(findByTestId([stage3], 'resonance-master-toggle')).toBeDefined()
     expect(findByTestId([stage5], 'top-n-builds-select')).toBeDefined()
 
-    // (3) Expand Pool Filters -> Main-Stat Assumption Level lives inside Pool Filters
+    // (3) Open Pool Filters modal via Edit button -> Main-Stat Assumption Level lives inside Pool Filters modal
+    expect(findByTestId(tree1, 'pool-filters-edit-btn')).toBeDefined()
+    expect(findByTestId(tree1, 'pool-filters-modal')).toBeUndefined()
     ;(poolToggle.props.onClick as () => void)()
     const treePoolExpanded = renderPass()
+    const poolModal = findByTestId(treePoolExpanded, 'pool-filters-modal')!
+    expect(poolModal).toBeDefined()
+    expect(poolModal.props.role).toBe('dialog')
+    expect(poolModal.props['aria-modal']).toBe('true')
     const poolBody = findByTestId(treePoolExpanded, 'solver-pool-filters-body')!
     expect(poolBody).toBeDefined()
     expect(
       findByTestId([poolBody], 'pool-filter-main-stat-assumption')
     ).toBeDefined()
+    // Close Pool Filters modal via Done button
+    ;(
+      findByTestId(treePoolExpanded, 'close-pool-filters-modal-btn')!.props
+        .onClick as () => void
+    )()
+    const treePoolClosed = renderPass()
+    expect(findByTestId(treePoolClosed, 'pool-filters-modal')).toBeUndefined()
 
-    // (4) Non-default settings start open on fresh mount, and collapsed sections update their summary live
+    // (4) Open Stat Constraints modal via Edit button -> add ER >= 200% live and verify summary row updates
+    expect(findByTestId(treePoolClosed, 'constraints-edit-btn')).toBeDefined()
+    expect(findByTestId(treePoolClosed, 'constraints-modal')).toBeUndefined()
+    ;(
+      findByTestId(treePoolClosed, 'constraints-collapsible-toggle')!.props
+        .onClick as () => void
+    )()
+    const treeConstraintsModal = renderPass()
+    const constraintsModal = findByTestId(
+      treeConstraintsModal,
+      'constraints-modal'
+    )!
+    expect(constraintsModal).toBeDefined()
+    expect(constraintsModal.props.role).toBe('dialog')
+    expect(constraintsModal.props['aria-modal']).toBe('true')
+    ;(
+      findByTestId(treeConstraintsModal, 'add-constraint-btn')!.props
+        .onClick as () => void
+    )()
+    const treeWithPicker = renderPass()
+    ;(
+      findByTestId(treeWithPicker, 'picker-stat-enerRech_')!.props
+        .onClick as () => void
+    )()
+    const treeWithErRow = renderPass()
+    ;(
+      findByTestId(treeWithErRow, 'constraint-min-enerRech_')!.props
+        .onChange as (e: { target: { value: string } }) => void
+    )({ target: { value: '200' } })
+    const treeWithEr200 = renderPass()
+    expect(
+      collectText([
+        findByTestId(treeWithEr200, 'constraints-collapsible-summary')!,
+      ])
+    ).toBe('Stat Constraints — ER ≥ 200%')
+    ;(
+      findByTestId(treeWithEr200, 'close-constraints-modal-btn')!.props
+        .onClick as () => void
+    )()
+    const treeAfterModalClose = renderPass()
+    expect(
+      findByTestId(treeAfterModalClose, 'constraints-modal')
+    ).toBeUndefined()
+    expect(
+      collectText([
+        findByTestId(treeAfterModalClose, 'constraints-collapsible-summary')!,
+      ])
+    ).toBe('Stat Constraints — ER ≥ 200%')
+
+    // (5) Non-default settings: remaining Set Filter + Protected Characters collapsible starts open on fresh mount, while modal editors stay closed with live summary rows
     hookStore.reset()
     resetSolverPoolFiltersExpandedSession()
     mockSettings = {
@@ -999,7 +1061,10 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       findByTestId(treeNonDefault, 'solver-pool-filters-toggle')!.props[
         'aria-expanded'
       ]
-    ).toBe(true)
+    ).toBe(false)
+    expect(
+      findByTestId(treeNonDefault, 'pool-filters-modal')
+    ).toBeUndefined()
     expect(
       collectText([
         findByTestId(treeNonDefault, 'solver-pool-filters-summary')!,
@@ -1010,26 +1075,13 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       findByTestId(treeNonDefault, 'constraints-collapsible-toggle')!.props[
         'aria-expanded'
       ]
-    ).toBe(true)
+    ).toBe(false)
+    expect(findByTestId(treeNonDefault, 'constraints-modal')).toBeUndefined()
     expect(
       collectText([
         findByTestId(treeNonDefault, 'constraints-collapsible-summary')!,
       ])
     ).toBe('Stat Constraints — ER ≥ 200%')
-
-    // Collapse Stat Constraints manually -> body hides, and changing settings updates the collapsed summary live
-    ;(
-      findByTestId(treeNonDefault, 'constraints-collapsible-toggle')!.props
-        .onClick as () => void
-    )()
-    const treeCollapsedConstraints = renderPass()
-    expect(
-      findByTestId(treeCollapsedConstraints, 'constraints-collapsible-toggle')!
-        .props['aria-expanded']
-    ).toBe(false)
-    expect(
-      findByTestId(treeCollapsedConstraints, 'constraints-collapsible-body')
-    ).toBeUndefined()
 
     mockSettings = {
       ...mockSettings,

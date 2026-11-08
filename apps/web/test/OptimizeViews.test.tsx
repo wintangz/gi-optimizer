@@ -1282,6 +1282,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
         return evaluateTree(
           <SolverPoolFiltersPanel
             settings={latestSettings}
+            defaultOpen
             onChange={(next) => {
               latestSettings = next
             }}
@@ -3049,6 +3050,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     resetSolverPoolFiltersExpandedSession()
     const levelOnlyHtml = renderToStaticMarkup(
       <SolverPoolFiltersPanel
+        defaultOpen
         settings={{
           ...DEFAULT_OPTIMIZER_SETTINGS,
           levelLow: 16,
@@ -3101,6 +3103,7 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     resetSolverPoolFiltersExpandedSession()
     const gobletHtml = renderToStaticMarkup(
       <SolverPoolFiltersPanel
+        defaultOpen
         settings={{
           ...DEFAULT_OPTIMIZER_SETTINGS,
           mainStatKeys: { goblet: ['hydro_dmg_'] },

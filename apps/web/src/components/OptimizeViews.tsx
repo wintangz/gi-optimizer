@@ -575,8 +575,9 @@ export interface ConstraintsCardProps {
   settings: OptimizerSettings
   onChange: (next: OptimizerSettings) => void
   initialPickerOpen?: boolean
-  /** When true, renders as a Wikipedia-style collapsible section (open when constraints exist, closed when empty). */
+  /** When true, renders as a summary row with an Edit button that opens a modal editor. */
   collapsible?: boolean
+  defaultOpen?: boolean
 }
 
 export function ConstraintsCard({
@@ -584,6 +585,7 @@ export function ConstraintsCard({
   onChange,
   initialPickerOpen = false,
   collapsible = false,
+  defaultOpen = false,
 }: ConstraintsCardProps) {
   const [pickerOpen, setPickerOpen] = useState(initialPickerOpen)
   const [draftBounds, setDraftBounds] = useState<Record<string, string>>({})
@@ -595,8 +597,21 @@ export function ConstraintsCard({
     ? true
     : manualExpanded !== null
       ? manualExpanded
-      : hasNonDefault
+      : Boolean(defaultOpen)
   const summaryText = summarizeStatConstraints(constraints)
+
+  useEffect(() => {
+    if (!collapsible || !isExpanded || typeof window === 'undefined') return
+    if (typeof document !== 'undefined') {
+      const dialog = document.getElementById('constraints-modal')
+      dialog?.focus?.()
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setManualExpanded(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [collapsible, isExpanded])
 
   function getBoundDraftKey(stat: StatConstraintKey, field: 'min' | 'max') {
     return `${stat}:${field}`
@@ -702,6 +717,180 @@ export function ConstraintsCard({
     })
   }
 
+  const editorBody = (
+    <div
+      id="constraints-collapsible-body"
+      className="gi-collapsible-body"
+      data-testid="constraints-collapsible-body"
+    >
+      {pickerOpen && (
+        <div
+          className="constraint-picker-panel"
+          data-testid="constraint-stat-picker"
+          role="group"
+          aria-label="Select a stat to constrain"
+        >
+          <div className="constraint-picker-header">
+            <span className="muted">Choose a final stat to bound:</span>
+            <button
+              type="button"
+              className="btn-ghost-sm"
+              onClick={() => setPickerOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+          <div className="constraint-picker-grid">
+            {STAT_PICKER_OPTIONS.map((opt) => {
+              const isAdded = usedStats.has(opt.key)
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  className={`constraint-picker-item${
+                    isAdded ? ' is-disabled' : ''
+                  }`}
+                  data-testid={`picker-stat-${opt.key}`}
+                  disabled={isAdded}
+                  onClick={() => handleAddStat(opt.key)}
+                  title={
+                    isAdded
+                      ? `${opt.label} constraint already added`
+                      : `Add ${opt.label} constraint`
+                  }
+                >
+                  <StatChip statKey={opt.key} showLabel />
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {constraints.length === 0 ? (
+        <div
+          className="constraint-empty-line"
+          data-testid="constraints-empty-state"
+        >
+          No constraints. Add one to set floors or caps, e.g. ER at least 160%.
+        </div>
+      ) : (
+        <div className="constraint-rows" data-testid="constraint-rows">
+          {constraints.map((c, idx) => {
+            const isPct = isPercentStatConstraintKey(c.stat)
+            const label = shortStatLabel(c.stat)
+            const minKey = getBoundDraftKey(c.stat, 'min')
+            const maxKey = getBoundDraftKey(c.stat, 'max')
+            const minDisplay =
+              minKey in draftBounds
+                ? draftBounds[minKey]!
+                : formatDisplayBoundValue(c.min)
+            const maxDisplay =
+              maxKey in draftBounds
+                ? draftBounds[maxKey]!
+                : formatDisplayBoundValue(c.max)
+
+            return (
+              <div
+                key={`${c.stat}-${idx}`}
+                className="constraint-row"
+                data-testid={`constraint-row-${c.stat}`}
+              >
+                <div className="constraint-row-chip">
+                  <StatChip statKey={c.stat} showLabel isMain />
+                </div>
+
+                <div className="constraint-row-inputs">
+                  <label className="constraint-bound-field">
+                    <span className="constraint-bound-tag">Min</span>
+                    <div className="constraint-input-wrap">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        data-testid={`constraint-min-${c.stat}`}
+                        aria-label={`${label} Min`}
+                        placeholder="—"
+                        value={minDisplay}
+                        onFocus={() =>
+                          handleFocusBound(c.stat, 'min', c.min)
+                        }
+                        onChange={(e) =>
+                          handleChangeBound(
+                            idx,
+                            c.stat,
+                            'min',
+                            e.target.value
+                          )
+                        }
+                        onBlur={() => handleBlurBound(idx, c.stat, 'min')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur()
+                          }
+                        }}
+                      />
+                      {isPct && (
+                        <span className="constraint-unit" aria-hidden="true">
+                          %
+                        </span>
+                      )}
+                    </div>
+                  </label>
+
+                  <label className="constraint-bound-field">
+                    <span className="constraint-bound-tag">Max</span>
+                    <div className="constraint-input-wrap">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        data-testid={`constraint-max-${c.stat}`}
+                        aria-label={`${label} Max`}
+                        placeholder="—"
+                        value={maxDisplay}
+                        onFocus={() =>
+                          handleFocusBound(c.stat, 'max', c.max)
+                        }
+                        onChange={(e) =>
+                          handleChangeBound(
+                            idx,
+                            c.stat,
+                            'max',
+                            e.target.value
+                          )
+                        }
+                        onBlur={() => handleBlurBound(idx, c.stat, 'max')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur()
+                          }
+                        }}
+                      />
+                      {isPct && (
+                        <span className="constraint-unit" aria-hidden="true">
+                          %
+                        </span>
+                      )}
+                    </div>
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-icon-only btn-danger-ghost"
+                  aria-label={`Remove ${label} constraint`}
+                  title={`Remove ${label} constraint`}
+                  onClick={() => handleRemove(idx)}
+                >
+                  <TrashIcon size={14} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <section
       className={`panel gi-card${collapsible ? ' gi-collapsible-section' : ''}`}
@@ -715,12 +904,15 @@ export function ConstraintsCard({
           <p
             className="gi-card-subtitle"
             data-testid="constraints-collapsible-summary"
+            style={{
+              color: hasNonDefault ? 'var(--warn)' : 'var(--ok)',
+            }}
           >
             {summaryText}
           </p>
         </div>
         <div className="preset-gear-row-md">
-          {isExpanded && (
+          {!collapsible && isExpanded && (
             <button
               type="button"
               className="btn-secondary btn-icon"
@@ -734,188 +926,69 @@ export function ConstraintsCard({
           )}
           {collapsible && (
             <ChevronToggle
+              label={<span data-testid="constraints-edit-btn">Edit</span>}
               expanded={isExpanded}
-              className="gi-collapsible-toggle-btn"
+              className="btn-secondary gi-collapsible-toggle-btn"
               data-testid="constraints-collapsible-toggle"
               ariaControls="constraints-collapsible-body"
-              ariaLabel="Toggle Stat Constraints"
+              ariaLabel="Edit Stat Constraints"
               onClick={() => setManualExpanded(!isExpanded)}
             />
           )}
         </div>
       </div>
 
-      {isExpanded && (
+      {!collapsible && isExpanded && editorBody}
+
+      {collapsible && isExpanded && (
         <div
-          id="constraints-collapsible-body"
-          className="gi-collapsible-body"
-          data-testid="constraints-collapsible-body"
+          className="gi-modal-backdrop"
+          data-testid="constraints-modal-backdrop"
+          onClick={() => setManualExpanded(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setManualExpanded(false)
+          }}
         >
-          {pickerOpen && (
-            <div
-              className="constraint-picker-panel"
-              data-testid="constraint-stat-picker"
-              role="group"
-              aria-label="Select a stat to constrain"
-            >
-              <div className="constraint-picker-header">
-                <span className="muted">Choose a final stat to bound:</span>
+          <div
+            id="constraints-modal"
+            className="panel gi-card gi-modal-dialog gi-stage4-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Stat Constraints"
+            data-testid="constraints-modal"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="gi-card-header">
+              <div>
+                <h3 className="gi-card-title">Stat Constraints</h3>
+                <p className="gi-card-subtitle">{summaryText}</p>
+              </div>
+              <div className="preset-gear-row-md">
                 <button
                   type="button"
-                  className="btn-ghost-sm"
-                  onClick={() => setPickerOpen(false)}
+                  className="btn-secondary btn-icon"
+                  data-testid="add-constraint-btn"
+                  aria-expanded={pickerOpen}
+                  onClick={() => setPickerOpen((prev) => !prev)}
+                  disabled={usedStats.size >= STAT_CONSTRAINT_KEYS.length}
                 >
-                  Close
+                  <span>+ Add constraint</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  data-testid="close-constraints-modal-btn"
+                  aria-label="Close Stat Constraints modal"
+                  onClick={() => setManualExpanded(false)}
+                >
+                  Done
                 </button>
               </div>
-              <div className="constraint-picker-grid">
-                {STAT_PICKER_OPTIONS.map((opt) => {
-                  const isAdded = usedStats.has(opt.key)
-                  return (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      className={`constraint-picker-item${
-                        isAdded ? ' is-disabled' : ''
-                      }`}
-                      data-testid={`picker-stat-${opt.key}`}
-                      disabled={isAdded}
-                      onClick={() => handleAddStat(opt.key)}
-                      title={
-                        isAdded
-                          ? `${opt.label} constraint already added`
-                          : `Add ${opt.label} constraint`
-                      }
-                    >
-                      <StatChip statKey={opt.key} showLabel />
-                    </button>
-                  )
-                })}
-              </div>
             </div>
-          )}
 
-          {constraints.length === 0 ? (
-            <div
-              className="constraint-empty-line"
-              data-testid="constraints-empty-state"
-            >
-              No constraints. Add one to set floors or caps, e.g. ER at least 160%.
-            </div>
-          ) : (
-            <div className="constraint-rows" data-testid="constraint-rows">
-              {constraints.map((c, idx) => {
-                const isPct = isPercentStatConstraintKey(c.stat)
-                const label = shortStatLabel(c.stat)
-                const minKey = getBoundDraftKey(c.stat, 'min')
-                const maxKey = getBoundDraftKey(c.stat, 'max')
-                const minDisplay =
-                  minKey in draftBounds
-                    ? draftBounds[minKey]!
-                    : formatDisplayBoundValue(c.min)
-                const maxDisplay =
-                  maxKey in draftBounds
-                    ? draftBounds[maxKey]!
-                    : formatDisplayBoundValue(c.max)
-
-                return (
-                  <div
-                    key={`${c.stat}-${idx}`}
-                    className="constraint-row"
-                    data-testid={`constraint-row-${c.stat}`}
-                  >
-                    <div className="constraint-row-chip">
-                      <StatChip statKey={c.stat} showLabel isMain />
-                    </div>
-
-                    <div className="constraint-row-inputs">
-                      <label className="constraint-bound-field">
-                        <span className="constraint-bound-tag">Min</span>
-                        <div className="constraint-input-wrap">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            data-testid={`constraint-min-${c.stat}`}
-                            aria-label={`${label} Min`}
-                            placeholder="—"
-                            value={minDisplay}
-                            onFocus={() =>
-                              handleFocusBound(c.stat, 'min', c.min)
-                            }
-                            onChange={(e) =>
-                              handleChangeBound(
-                                idx,
-                                c.stat,
-                                'min',
-                                e.target.value
-                              )
-                            }
-                            onBlur={() => handleBlurBound(idx, c.stat, 'min')}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.currentTarget.blur()
-                              }
-                            }}
-                          />
-                          {isPct && (
-                            <span className="constraint-unit" aria-hidden="true">
-                              %
-                            </span>
-                          )}
-                        </div>
-                      </label>
-
-                      <label className="constraint-bound-field">
-                        <span className="constraint-bound-tag">Max</span>
-                        <div className="constraint-input-wrap">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            data-testid={`constraint-max-${c.stat}`}
-                            aria-label={`${label} Max`}
-                            placeholder="—"
-                            value={maxDisplay}
-                            onFocus={() =>
-                              handleFocusBound(c.stat, 'max', c.max)
-                            }
-                            onChange={(e) =>
-                              handleChangeBound(
-                                idx,
-                                c.stat,
-                                'max',
-                                e.target.value
-                              )
-                            }
-                            onBlur={() => handleBlurBound(idx, c.stat, 'max')}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.currentTarget.blur()
-                              }
-                            }}
-                          />
-                          {isPct && (
-                            <span className="constraint-unit" aria-hidden="true">
-                              %
-                            </span>
-                          )}
-                        </div>
-                      </label>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="btn-icon-only btn-danger-ghost"
-                      aria-label={`Remove ${label} constraint`}
-                      title={`Remove ${label} constraint`}
-                      onClick={() => handleRemove(idx)}
-                    >
-                      <TrashIcon size={14} />
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+            {editorBody}
+          </div>
         </div>
       )}
     </section>
@@ -3773,11 +3846,13 @@ export function resetSolverPoolFiltersExpandedSession(): void {
 export interface SolverPoolFiltersPanelProps {
   settings: OptimizerSettings
   onChange: (next: OptimizerSettings) => void
+  defaultOpen?: boolean
 }
 
 export function SolverPoolFiltersPanel({
   settings,
   onChange,
+  defaultOpen = false,
 }: SolverPoolFiltersPanelProps) {
   const [draftValues, setDraftValues] = useState<
     Partial<Record<'levelLow' | 'levelHigh' | 'minRv', string>>
@@ -3790,7 +3865,7 @@ export function SolverPoolFiltersPanel({
   const assumptionFilterActive = mainStatAssumptionLevel > 0
   const isPoolUnrestricted = summary.isUnrestricted && !assumptionFilterActive
   const isExpanded =
-    sessionExpanded !== null ? sessionExpanded : !isPoolUnrestricted
+    sessionExpanded !== null ? sessionExpanded : Boolean(defaultOpen)
   const mainStatKeys: MainStatAllowlistMap = settings.mainStatKeys ?? {}
   const requiredSubstats: string[] = settings.requiredSubstats ?? []
   const requiredSubstatsMode: RequiredSubstatsMode =
@@ -3804,10 +3879,31 @@ export function SolverPoolFiltersPanel({
   const rvFilterActive = minRv > 0
   const substatsFilterActive = requiredSubstats.length > 0
 
+  useEffect(() => {
+    if (!isExpanded || typeof window === 'undefined') return
+    if (typeof document !== 'undefined') {
+      const dialog = document.getElementById('pool-filters-modal')
+      dialog?.focus?.()
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        writePoolFiltersSessionExpanded(false)
+        setSessionExpanded(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isExpanded])
+
   function toggleExpanded() {
     const next = !isExpanded
     writePoolFiltersSessionExpanded(next)
     setSessionExpanded(next)
+  }
+
+  function closeExpanded() {
+    writePoolFiltersSessionExpanded(false)
+    setSessionExpanded(false)
   }
 
   function handleFocusNumericField(
@@ -3951,7 +4047,7 @@ export function SolverPoolFiltersPanel({
               : ''}
             {isPoolUnrestricted ? <span>)</span> : null}
           </span>
-          {!isPoolUnrestricted && (
+          {!isPoolUnrestricted && !isExpanded && (
             <button
               type="button"
               data-testid="solver-pool-filters-reset"
@@ -3969,11 +4065,12 @@ export function SolverPoolFiltersPanel({
             </button>
           )}
           <ChevronToggle
+            label={<span data-testid="pool-filters-edit-btn">Edit</span>}
             expanded={isExpanded}
-            className="gi-collapsible-toggle-btn"
+            className="btn-secondary gi-collapsible-toggle-btn"
             data-testid="solver-pool-filters-toggle"
             ariaControls="solver-pool-filters-body"
-            ariaLabel="Toggle Artifact Pool Filters"
+            ariaLabel="Edit Artifact Pool Filters"
             onClick={toggleExpanded}
           />
         </div>
@@ -3981,10 +4078,73 @@ export function SolverPoolFiltersPanel({
 
       {isExpanded && (
         <div
-          id="solver-pool-filters-body"
-          className="opt-pool-filters-body"
-          data-testid="solver-pool-filters-body"
+          className="gi-modal-backdrop"
+          data-testid="pool-filters-modal-backdrop"
+          onClick={closeExpanded}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') closeExpanded()
+          }}
         >
+          <div
+            id="pool-filters-modal"
+            className="panel gi-card gi-modal-dialog gi-stage4-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Artifact Pool Filters"
+            data-testid="pool-filters-modal"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="gi-card-header">
+              <div>
+                <h3 className="gi-card-title">
+                  Artifact Pool Filters (Main Stats · Substats · Rarity · RV)
+                </h3>
+                <p className="gi-card-subtitle">
+                  {isPoolUnrestricted
+                    ? `Pool Filters — unrestricted (${summary.text})`
+                    : `Pool Filters — ${summary.text}${
+                        assumptionFilterActive
+                          ? ` · Assume Lv. ${mainStatAssumptionLevel}+`
+                          : ''
+                      }`}
+                </p>
+              </div>
+              <div className="preset-gear-row-md">
+                {!isPoolUnrestricted && (
+                  <button
+                    type="button"
+                    data-testid="solver-pool-filters-reset"
+                    className="btn-secondary"
+                    style={{ padding: '0.2rem 0.6rem', fontSize: '0.82rem' }}
+                    onClick={() => {
+                      setDraftValues({})
+                      onChange({
+                        ...resetSolverPoolFilters(settings),
+                        mainStatAssumptionLevel: 0,
+                      })
+                    }}
+                  >
+                    Reset Pool Filters
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  data-testid="close-pool-filters-modal-btn"
+                  aria-label="Close Artifact Pool Filters modal"
+                  onClick={closeExpanded}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="solver-pool-filters-body"
+              className="opt-pool-filters-body"
+              data-testid="solver-pool-filters-body"
+            >
           {/* 1. Main-Stat Allowlist per Slot */}
           <div className="opt-pool-filters-section">
             <div className="opt-pool-filters-subtitle">
@@ -4376,6 +4536,8 @@ export function SolverPoolFiltersPanel({
                   <option value={20}>Assume Full Level (Lv. 20)</option>
                 </select>
               </div>
+            </div>
+          </div>
             </div>
           </div>
         </div>
