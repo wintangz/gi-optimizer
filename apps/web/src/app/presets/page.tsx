@@ -818,7 +818,7 @@ export default function PresetsPage() {
                                       )
                                     }}
                                     style={{
-                                      fontSize: '0.74rem',
+                                      fontSize: '0.82rem',
                                       padding: '0.16rem 0.45rem',
                                       lineHeight: 1.2,
                                     }}

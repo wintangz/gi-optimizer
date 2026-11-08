@@ -138,7 +138,7 @@ export function CharacterBadge({
           alignItems: 'center',
           justifyContent: 'center',
           fontWeight: 700,
-          fontSize: compact ? '0.68rem' : '0.76rem',
+          fontSize: compact ? '0.78rem' : '0.82rem',
           letterSpacing: '0.02em',
           userSelect: 'none',
         }}
@@ -190,9 +190,9 @@ export function CharacterBadge({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              padding: compact ? '0.05rem 0.35rem' : '0.1rem 0.45rem',
+              padding: compact ? '0.06rem 0.38rem' : '0.12rem 0.48rem',
               borderRadius: '4px',
-              fontSize: compact ? '0.68rem' : '0.72rem',
+              fontSize: compact ? '0.78rem' : '0.82rem',
               fontWeight: 700,
               letterSpacing: '0.03em',
               background: 'rgba(245, 185, 66, 0.14)',
@@ -211,9 +211,9 @@ export function CharacterBadge({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              padding: compact ? '0.05rem 0.35rem' : '0.1rem 0.45rem',
+              padding: compact ? '0.06rem 0.38rem' : '0.12rem 0.48rem',
               borderRadius: '4px',
-              fontSize: compact ? '0.68rem' : '0.72rem',
+              fontSize: compact ? '0.78rem' : '0.82rem',
               fontWeight: 700,
               letterSpacing: '0.03em',
               background: 'rgba(92, 219, 149, 0.15)',
@@ -232,9 +232,9 @@ export function CharacterBadge({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              padding: compact ? '0.05rem 0.35rem' : '0.1rem 0.45rem',
+              padding: compact ? '0.06rem 0.38rem' : '0.12rem 0.48rem',
               borderRadius: '4px',
-              fontSize: compact ? '0.68rem' : '0.72rem',
+              fontSize: compact ? '0.78rem' : '0.82rem',
               fontWeight: 700,
               letterSpacing: '0.03em',
               background: 'rgba(122, 162, 247, 0.15)',
@@ -249,7 +249,7 @@ export function CharacterBadge({
         {subtitle && (
           <span
             className="muted"
-            style={{ fontSize: compact ? '0.8rem' : '0.85rem' }}
+            style={{ fontSize: compact ? '0.82rem' : '0.86rem' }}
           >
             {subtitle}
           </span>
@@ -333,7 +333,7 @@ export function WeaponBadge({
           color: 'var(--fg)',
           border: `1px solid ${meta.rarityColor.border}`,
           fontWeight: 700,
-          fontSize: compact ? '0.8rem' : '0.86rem',
+          fontSize: compact ? '0.82rem' : '0.88rem',
           lineHeight: 1.2,
         }}
       >
@@ -370,7 +370,7 @@ export function WeaponBadge({
       {subtitle && (
         <span
           className="muted"
-          style={{ fontSize: compact ? '0.76rem' : '0.82rem' }}
+          style={{ fontSize: compact ? '0.82rem' : '0.86rem' }}
         >
           {subtitle}
         </span>
@@ -472,7 +472,7 @@ export function ArtifactBadge({
             background: ITEM_DARK_SURFACE_BG,
             color: 'var(--fg)',
             border: `1px solid ${meta.rarityColor.border}`,
-            fontSize: compact ? '0.76rem' : '0.82rem',
+            fontSize: compact ? '0.82rem' : '0.86rem',
             fontWeight: 600,
             lineHeight: 1.2,
             whiteSpace: 'nowrap',
@@ -485,7 +485,7 @@ export function ArtifactBadge({
       {subtitle && (
         <span
           className="muted"
-          style={{ fontSize: compact ? '0.76rem' : '0.82rem' }}
+          style={{ fontSize: compact ? '0.82rem' : '0.86rem' }}
         >
           {subtitle}
         </span>
@@ -554,7 +554,7 @@ export function ArtifactRvBadge({
         gap: '0.2rem',
         padding: compact ? '0.06rem 0.34rem' : '0.1rem 0.42rem',
         borderRadius: '4px',
-        fontSize: compact ? '0.72rem' : '0.76rem',
+        fontSize: compact ? '0.78rem' : '0.82rem',
         fontWeight: 700,
         background:
           rv.totalRv >= 600
@@ -640,7 +640,7 @@ export function StatChip({
         border: isMain
           ? '1px solid rgba(122, 162, 255, 0.45)'
           : '1px solid var(--border)',
-        fontSize: compact ? '0.74rem' : '0.8rem',
+        fontSize: compact ? '0.82rem' : '0.86rem',
         fontWeight: isMain ? 700 : 500,
         lineHeight: 1.2,
         whiteSpace: 'nowrap',
@@ -692,7 +692,7 @@ export function ElementBadge({
         gap: '0.25rem',
         color,
         fontWeight: 600,
-        fontSize: compact ? '0.76rem' : '0.82rem',
+        fontSize: compact ? '0.82rem' : '0.86rem',
       }}
     >
       <ElementIcon ele={element} iconProps={{ size: compact ? 13 : 15 }} />
@@ -743,7 +743,7 @@ export function RotationReactionBadge({
         style={{
           display: 'inline-flex',
           alignItems: 'center',
-          fontSize: compact ? '0.73rem' : '0.78rem',
+          fontSize: compact ? '0.8rem' : '0.84rem',
           whiteSpace: 'nowrap',
         }}
       >
@@ -766,12 +766,12 @@ export function RotationReactionBadge({
         display: 'inline-flex',
         alignItems: 'center',
         gap: '0.24rem',
-        padding: compact ? '0.08rem 0.38rem' : '0.12rem 0.45rem',
+        padding: compact ? '0.1rem 0.42rem' : '0.14rem 0.48rem',
         borderRadius: '999px',
         background: ec ? ec.bg : '#1d2130',
         color: ec ? ec.fg : 'var(--fg)',
         border: `1px solid ${ec ? ec.border : 'var(--border)'}`,
-        fontSize: compact ? '0.73rem' : '0.78rem',
+        fontSize: compact ? '0.82rem' : '0.86rem',
         fontWeight: 700,
         lineHeight: 1.2,
         whiteSpace: 'nowrap',
@@ -801,12 +801,12 @@ export function RotationHitModeBadge({
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        padding: compact ? '0.08rem 0.36rem' : '0.12rem 0.42rem',
+        padding: compact ? '0.1rem 0.4rem' : '0.14rem 0.46rem',
         borderRadius: '5px',
         background: '#1d2130',
         color: 'var(--fg)',
         border: '1px solid var(--border)',
-        fontSize: compact ? '0.73rem' : '0.78rem',
+        fontSize: compact ? '0.82rem' : '0.86rem',
         fontWeight: 600,
         lineHeight: 1.2,
         whiteSpace: 'nowrap',
@@ -1019,7 +1019,7 @@ export function BuildComparisonBars({
         >
           <span
             className="muted"
-            style={{ fontSize: '0.8rem', fontWeight: 600 }}
+            style={{ fontSize: '0.84rem', fontWeight: 600 }}
             title="Your currently equipped build"
           >
             Current
@@ -1059,7 +1059,7 @@ export function BuildComparisonBars({
             gap: '0.65rem',
           }}
         >
-          <span className="ok" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+          <span className="ok" style={{ fontSize: '0.84rem', fontWeight: 700 }}>
             Optimised #{rank}
           </span>
           <div
@@ -1096,7 +1096,7 @@ export function BuildComparisonBars({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            fontSize: '0.8rem',
+            fontSize: '0.84rem',
             paddingTop: '0.15rem',
             borderTop: '1px solid var(--border)',
           }}

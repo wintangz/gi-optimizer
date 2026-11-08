@@ -3185,7 +3185,7 @@ export function SolverPoolFiltersPanel({
               type="button"
               data-testid="solver-pool-filters-reset"
               className="secondary"
-              style={{ padding: '0.18rem 0.55rem', fontSize: '0.75rem' }}
+              style={{ padding: '0.2rem 0.6rem', fontSize: '0.82rem' }}
               onClick={() => {
                 setDraftValues({})
                 onChange(resetSolverPoolFilters(settings))
@@ -3215,6 +3215,28 @@ export function SolverPoolFiltersPanel({
                 const slotOptions = ART_SLOT_MAIN_KEYS[slot]
                 const selectedForSlot = mainStatKeys[slot] ?? []
                 const slotActive = selectedForSlot.length > 0
+                const coreOptions = slotOptions.filter(
+                  (statKey) => !statKey.endsWith('_dmg_')
+                )
+                const dmgOptions = slotOptions.filter((statKey) =>
+                  statKey.endsWith('_dmg_')
+                )
+                const renderChip = (statKey: string) => {
+                  const isSelected = selectedForSlot.includes(statKey)
+                  return (
+                    <button
+                      key={statKey}
+                      type="button"
+                      data-testid={`mainstat-chip-${slot}-${statKey}`}
+                      aria-pressed={isSelected}
+                      className={`constraint-picker-chip${isSelected ? ' is-selected' : ''}`}
+                      onClick={() => toggleSlotMainStat(slot, statKey)}
+                    >
+                      <StatIcon statKey={statKey} iconProps={{ size: 13 }} />
+                      <span>{shortStatLabel(statKey)}</span>
+                    </button>
+                  )
+                }
                 return (
                   <div
                     key={slot}
@@ -3233,7 +3255,7 @@ export function SolverPoolFiltersPanel({
                             slotActive ? 'opt-pool-active-pill' : 'muted'
                           }
                           style={
-                            slotActive ? undefined : { fontSize: '0.75rem' }
+                            slotActive ? undefined : { fontSize: '0.82rem' }
                           }
                           data-testid={`mainstat-summary-${slot}`}
                         >
@@ -3253,27 +3275,26 @@ export function SolverPoolFiltersPanel({
                         )}
                       </div>
                     </div>
-                    <div className="opt-pool-chip-wrap">
-                      {slotOptions.map((statKey) => {
-                        const isSelected = selectedForSlot.includes(statKey)
-                        return (
-                          <button
-                            key={statKey}
-                            type="button"
-                            data-testid={`mainstat-chip-${slot}-${statKey}`}
-                            aria-pressed={isSelected}
-                            className={`constraint-picker-chip${isSelected ? ' is-selected' : ''}`}
-                            onClick={() => toggleSlotMainStat(slot, statKey)}
-                          >
-                            <StatIcon
-                              statKey={statKey}
-                              iconProps={{ size: 13 }}
-                            />
-                            <span>{shortStatLabel(statKey)}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
+                    {dmgOptions.length > 0 ? (
+                      <div className="opt-pool-chip-groups">
+                        <div
+                          className="opt-pool-chip-subgroup"
+                          data-testid={`mainstat-core-subgroup-${slot}`}
+                        >
+                          {coreOptions.map(renderChip)}
+                        </div>
+                        <div
+                          className="opt-pool-chip-subgroup-dmg"
+                          data-testid={`mainstat-dmg-subgroup-${slot}`}
+                        >
+                          {dmgOptions.map(renderChip)}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="opt-pool-chip-wrap">
+                        {slotOptions.map(renderChip)}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -3522,7 +3543,7 @@ export function SolverPoolFiltersPanel({
                   }}
                   style={{ width: '76px' }}
                 />
-                <span className="muted" style={{ fontSize: '0.78rem' }}>
+                <span className="muted" style={{ fontSize: '0.82rem' }}>
                   % RV min
                 </span>
               </div>
@@ -3696,7 +3717,7 @@ export function TeamOptimizationList({
                     {displayName(mKey)}
                   </span>
                   <CharacterBadge characterKey={mKey} compact />
-                  <span className="muted" style={{ fontSize: '0.78rem' }}>
+                  <span className="muted" style={{ fontSize: '0.82rem' }}>
                     {memberRes.rotationRowCount} rotation{' '}
                     {memberRes.rotationRowCount === 1 ? 'row' : 'rows'}
                   </span>

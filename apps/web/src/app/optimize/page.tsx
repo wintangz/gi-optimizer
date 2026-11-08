@@ -1098,7 +1098,7 @@ function OptimizeInner() {
                         setOptimisedEvals([])
                       }}
                       style={{
-                        fontSize: '0.74rem',
+                        fontSize: '0.82rem',
                         padding: '0.18rem 0.48rem',
                         lineHeight: 1.2,
                       }}
@@ -1272,7 +1272,7 @@ function OptimizeInner() {
                             className="btn-secondary"
                             data-testid="reset-target-weapon-btn"
                             style={{
-                              fontSize: '0.75rem',
+                              fontSize: '0.82rem',
                               padding: '0.16rem 0.48rem',
                             }}
                             onClick={() => {

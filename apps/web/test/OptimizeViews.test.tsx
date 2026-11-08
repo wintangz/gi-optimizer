@@ -4,6 +4,8 @@ import {
   type OptimizerSettings,
 } from '@gi/presets'
 import type { IArtifact } from '@gi/good'
+import fs from 'node:fs'
+import path from 'node:path'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -3048,6 +3050,49 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     )
     expect(levelOnlyHtml).toContain(
       'class="opt-pool-filter-field" data-testid="pool-filter-field-rv" data-active="false"'
+    )
+  })
+
+  it('enforces full-width stat table, readable global type scale floors, and balanced Goblet DMG% chip sub-group without orphan chips (visual-design-followup)', () => {
+    const cssPath = path.resolve(__dirname, '../src/app/globals.css')
+    const cssText = fs.readFileSync(cssPath, 'utf-8')
+
+    // 1. Stat table spans full width (no max-width: 680px)
+    const statTableBlockMatch = cssText.match(
+      /\.comp-stat-diff-table\s*\{([^}]*)\}/
+    )
+    expect(statTableBlockMatch).not.toBeNull()
+    expect(statTableBlockMatch![1]).toContain('width: 100%')
+    expect(statTableBlockMatch![1]).not.toContain('max-width')
+
+    // 2. Global type scale floors in globals.css:
+    //    - --font-body is 0.95rem
+    //    - no font-size declaration in globals.css is below 0.78rem
+    expect(cssText).toContain('--font-body: 0.95rem;')
+    const fontSizeMatches = [
+      ...cssText.matchAll(/font-size:\s*([0-9.]+)rem/g),
+    ]
+    expect(fontSizeMatches.length).toBeGreaterThan(20)
+    for (const m of fontSizeMatches) {
+      const remVal = Number(m[1])
+      expect(remVal).toBeGreaterThanOrEqual(0.78)
+    }
+
+    // 3. Goblet main-stat row balances core stats (4 chips) and elemental/physical DMG% stats (8 chips in 4-col grid)
+    resetSolverPoolFiltersExpandedSession()
+    const gobletHtml = renderToStaticMarkup(
+      <SolverPoolFiltersPanel
+        settings={{
+          ...DEFAULT_OPTIMIZER_SETTINGS,
+          mainStatKeys: { goblet: ['hydro_dmg_'] },
+        }}
+        onChange={() => {}}
+      />
+    )
+    expect(gobletHtml).toContain('data-testid="mainstat-core-subgroup-goblet"')
+    expect(gobletHtml).toContain('data-testid="mainstat-dmg-subgroup-goblet"')
+    expect(gobletHtml).toContain(
+      'data-testid="mainstat-chip-goblet-hydro_dmg_" aria-pressed="true" class="constraint-picker-chip is-selected"'
     )
   })
 })

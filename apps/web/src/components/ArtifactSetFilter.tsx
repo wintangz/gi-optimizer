@@ -228,7 +228,7 @@ export function ArtifactSetFilter({
             className="muted"
             style={{
               gridColumn: '1 / -1',
-              fontSize: '0.8rem',
+              fontSize: '0.84rem',
               padding: '0.4rem',
               textAlign: 'center',
             }}

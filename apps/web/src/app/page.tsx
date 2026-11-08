@@ -92,7 +92,7 @@ export default function Home() {
                 <span
                   className="ok"
                   data-testid="home-step-1-done-pill"
-                  style={{ fontSize: '0.76rem', fontWeight: 700 }}
+                  style={{ fontSize: '0.82rem', fontWeight: 700 }}
                 >
                   Done
                 </span>

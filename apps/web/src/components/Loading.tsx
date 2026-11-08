@@ -29,7 +29,7 @@ export function Spinner({
         gap: '0.5rem',
         color: 'var(--accent)',
         fontWeight: 500,
-        fontSize: size === 'sm' ? '0.8rem' : size === 'lg' ? '1rem' : '0.88rem',
+        fontSize: size === 'sm' ? '0.82rem' : size === 'lg' ? '1rem' : '0.9rem',
       }}
     >
       <svg

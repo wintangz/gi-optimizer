@@ -101,7 +101,7 @@ export function WeaponTilePicker({
             data-testid="weapon-picker-empty"
             style={{
               gridColumn: '1 / -1',
-              fontSize: '0.8rem',
+              fontSize: '0.84rem',
               padding: '0.4rem',
               textAlign: 'center',
             }}
@@ -283,7 +283,7 @@ export function CharacterTilePicker({
             data-testid="character-picker-empty"
             style={{
               gridColumn: '1 / -1',
-              fontSize: '0.8rem',
+              fontSize: '0.84rem',
               padding: '0.4rem',
               textAlign: 'center',
             }}
@@ -538,7 +538,7 @@ export function ArtifactSetTilePicker({
             data-testid="artifact-set-picker-empty"
             style={{
               gridColumn: '1 / -1',
-              fontSize: '0.8rem',
+              fontSize: '0.84rem',
               padding: '0.4rem',
               textAlign: 'center',
             }}

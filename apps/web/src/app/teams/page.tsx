@@ -984,7 +984,7 @@ function TeamsInner() {
                 <div className="preset-card-top">
                   <span
                     className={isTarget ? 'ok' : isSim ? 'warn' : 'muted'}
-                    style={{ fontSize: '0.8rem', fontWeight: 600 }}
+                    style={{ fontSize: '0.82rem', fontWeight: 600 }}
                   >
                     {isTarget
                       ? 'Slot 1 · Your Character · Target'
@@ -999,7 +999,7 @@ function TeamsInner() {
                       onClick={() => removeTeammate(idx)}
                       style={{
                         padding: '0.1rem 0.4rem',
-                        fontSize: '0.8rem',
+                        fontSize: '0.82rem',
                       }}
                     >
                       Remove
@@ -1087,7 +1087,7 @@ function TeamsInner() {
                       paddingTop: '0.5rem',
                     }}
                   >
-                    <div className="muted" style={{ fontSize: '0.78rem' }}>
+                    <div className="muted" style={{ fontSize: '0.82rem' }}>
                       Editable Assumed Stats (Simulated — does not use your
                       scanned character):
                     </div>

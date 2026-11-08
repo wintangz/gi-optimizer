@@ -717,7 +717,7 @@ export function ConditionalTogglePanel({
             className="btn-secondary"
             data-testid="reset-all-conditionals"
             onClick={handleResetAll}
-            style={{ fontSize: '0.8rem', padding: '0.28rem 0.65rem' }}
+            style={{ fontSize: '0.82rem', padding: '0.28rem 0.65rem' }}
           >
             Reset All to Defaults
           </button>
@@ -836,7 +836,7 @@ export function ConditionalTogglePanel({
                 onClick={() => handleResetMember(activeEntry.mKey)}
                 title={`Reset ${displayName(activeEntry.mKey)} buffs & passives to derived defaults`}
                 style={{
-                  fontSize: '0.74rem',
+                  fontSize: '0.82rem',
                   padding: '0.18rem 0.5rem',
                   lineHeight: 1.2,
                 }}
@@ -861,7 +861,7 @@ export function ConditionalTogglePanel({
                   <span>Weapon Passive</span>
                 </span>
                 {activeEntry.memberWeaponKey && (
-                  <span className="muted" style={{ fontSize: '0.76rem' }}>
+                  <span className="muted" style={{ fontSize: '0.82rem' }}>
                     {displayName(activeEntry.memberWeaponKey)}
                   </span>
                 )}
