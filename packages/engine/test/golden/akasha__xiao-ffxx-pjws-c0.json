@@ -1,0 +1,55 @@
+{
+  "presetId": "akasha/xiao-ffxx-pjws-c0",
+  "target": "Xiao",
+  "total": 1846024.5588347816,
+  "instances": [
+    {
+      "label": "Lemniscatic Wind Cycling (×2)",
+      "path": [
+        "skill",
+        "press"
+      ],
+      "count": 2,
+      "perHit": 79580.17377036864,
+      "subtotal": 159160.34754073728
+    },
+    {
+      "label": "Bane of All Evil High Plunge DMG (×12)",
+      "path": [
+        "plunging",
+        "high"
+      ],
+      "count": 12,
+      "perHit": 128058.85279560147,
+      "subtotal": 1536706.2335472177
+    },
+    {
+      "label": "Bane of All Evil Plunge Collision (×4)",
+      "path": [
+        "plunging",
+        "dmg"
+      ],
+      "count": 4,
+      "perHit": 37539.49443670663,
+      "subtotal": 150157.9777468265
+    }
+  ],
+  "stats": {
+    "hp": 20295.106741709445,
+    "atk": 3569.75447087662,
+    "def": 877.9965448000002,
+    "eleMas": 134.97,
+    "critRate_": 0.859012,
+    "critDMG_": 1.6658,
+    "enerRech_": 1.1554,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0.9984999999999999,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}

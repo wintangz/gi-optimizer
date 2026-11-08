@@ -27,6 +27,7 @@ import mualaniVapeSurfsUpC0 from '../data/akasha/mualani-vaporize-surfsup-c0.jso
 import kinichBurningFangC0 from '../data/akasha/kinich-burning-fang-c0.json'
 import alhaithamSpreadFoliarC0 from '../data/akasha/alhaitham-spread-foliar-c0.json'
 import ayakaFreezeMistsplitterC0 from '../data/akasha/ayaka-freeze-mistsplitter-c0.json'
+import xiaoFfxxPjwsC0 from '../data/akasha/xiao-ffxx-pjws-c0.json'
 import { presetSchema, type Preset } from './schema'
 
 const RAW_BUNDLED: unknown[] = [
@@ -35,6 +36,7 @@ const RAW_BUNDLED: unknown[] = [
   neuvProtoAmberC0,
   hutaoHomaC1,
   raidenScarletC0,
+  xiaoFfxxPjwsC0,
   ayakaFreezeMistsplitterC0,
   alhaithamSpreadFoliarC0,
   kinichBurningFangC0,
@@ -81,6 +83,7 @@ export const VERIFIED_PRESET_IDS: ReadonlySet<string> = /*#__PURE__*/ new Set([
   'akasha/neuvillette-hypercarry-protoamber-c0',
   'akasha/hutao-double-hydro-homa-c1',
   'akasha/raiden-hypercarry-scarlet-c0',
+  'akasha/xiao-ffxx-pjws-c0',
   'akasha/ayaka-freeze-mistsplitter-c0',
   'akasha/alhaitham-spread-foliar-c0',
   'akasha/kinich-burning-fang-c0',

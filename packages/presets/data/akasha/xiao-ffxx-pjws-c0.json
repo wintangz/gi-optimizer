@@ -1,0 +1,151 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "akasha/xiao-ffxx-pjws-c0",
+  "name": "Xiao — FFXX Plunge Hypercarry (Faruzan C6 + Furina + Xianyun)",
+  "description": "Akasha leaderboard preset for C0 Xiao FFXX Plunge Hypercarry with Faruzan C6 (Elegy + Tenacity 4p), Furina (250 Fanfare + Golden Troupe 4p), and Xianyun (TTDS + Noblesse 4p + A1/A4 Plunge buffs).",
+  "source": "akasha",
+  "author": "akasha.cv",
+  "target": "Xiao",
+  "team": [
+    {
+      "key": "Xiao",
+      "build": {
+        "type": "fixed",
+        "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 10, "skill": 10, "burst": 10 } },
+        "weapon": { "key": "PrimordialJadeWingedSpear", "level": 90, "ascension": 6, "refinement": 1 }
+      },
+      "requirement": {},
+      "conditional": {
+        "Xiao": {
+          "inBurst": "inBurst",
+          "a1BurstStack": "3",
+          "a4SkillStack": "2"
+        },
+        "PrimordialJadeWingedSpear": {
+          "stack": "7"
+        },
+        "VermillionHereafter": {
+          "afterBurst": "on",
+          "stacks": "4"
+        },
+        "MarechausseeHunter": {
+          "set4": "3"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Faruzan",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "ElegyForTheEnd", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "enerRech_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "anemo_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "TenacityOfTheMillelith": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Faruzan": {
+          "burstBenefit": "on",
+          "burstHit": "on",
+          "a4Active": "on",
+          "c6Crit": "on"
+        },
+        "ElegyForTheEnd": { "ThePartingRefrain": "on" },
+        "TenacityOfTheMillelith": { "skill": "cast" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Furina",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 10 } },
+          "weapon": { "key": "FavoniusSword", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "GoldenTroupe": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Furina": { "burstFanfare": "250" },
+        "GoldenTroupe": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Xianyun",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "ThrillingTalesOfDragonSlayers", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "atk_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "enerRech_": 44.0 } },
+            "sets": { "NoblesseOblige": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Xianyun": {
+          "a1Stacks": "4",
+          "a4HasStacks": "on"
+        },
+        "ThrillingTalesOfDragonSlayers": { "Heritage": "on" },
+        "NoblesseOblige": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "2× E -> Q Bane of All Evil -> 12× High Plunge + 4× Plunge Collision",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "press"], "count": 2, "label": "Lemniscatic Wind Cycling (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["plunging", "high"], "count": 12, "label": "Bane of All Evil High Plunge DMG (×12)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["plunging", "dmg"], "count": 4, "label": "Bane of All Evil Plunge Collision (×4)", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  },
+  "akasha": {
+    "calculationId": "xiao-ffxx-pjws-c0",
+    "leaderboardUrl": "https://akasha.cv/leaderboards",
+    "label": "Xiao — FFXX Plunge Hypercarry (Primordial Jade Winged-Spear R1, C0)",
+    "retrievedAt": "authored-from-knowledge",
+    "notes": "Source: authored-from-knowledge. Fixed Akasha target spec: Lv.90/90 C0 10/10/10 with Primordial Jade Winged-Spear R1 Lv.90/90 (7 stacks) in Bane of All Evil at average 20% A1 DMG Bonus (stack 3). Teammates: Faruzan C6 (Elegy R1, 4p Tenacity), Furina C0 (250 Fanfare), Xianyun C0 (TTDS R5, 4p Noblesse, A1 4 stacks + A4 Starwicker)."
+  }
+}
