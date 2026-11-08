@@ -1,0 +1,145 @@
+{
+  "presetId": "akasha/keqing-aggravate-mistsplitter-c0",
+  "target": "Keqing",
+  "total": 456024.6349659122,
+  "instances": [
+    {
+      "label": "Lightning Stiletto DMG (Aggravate ×2)",
+      "path": [
+        "skill",
+        "stiletto"
+      ],
+      "count": 2,
+      "perHit": 19754.50870661543,
+      "subtotal": 39509.01741323086
+    },
+    {
+      "label": "Slashing DMG (Aggravate ×2)",
+      "path": [
+        "skill",
+        "slash"
+      ],
+      "count": 2,
+      "perHit": 36135.52201702811,
+      "subtotal": 72271.04403405622
+    },
+    {
+      "label": "Starward Sword Initial DMG (Aggravate)",
+      "path": [
+        "burst",
+        "initial"
+      ],
+      "count": 1,
+      "perHit": 24991.975547359623,
+      "subtotal": 24991.975547359623
+    },
+    {
+      "label": "Consecutive Slash DMG (Aggravate ×2)",
+      "path": [
+        "burst",
+        "slash"
+      ],
+      "count": 2,
+      "perHit": 16077.138371624837,
+      "subtotal": 32154.276743249673
+    },
+    {
+      "label": "Consecutive Slash DMG (No Reaction ×6)",
+      "path": [
+        "burst",
+        "slash"
+      ],
+      "count": 6,
+      "perHit": 3343.0639409005457,
+      "subtotal": 20058.383645403275
+    },
+    {
+      "label": "Last Attack DMG (Aggravate)",
+      "path": [
+        "burst",
+        "final"
+      ],
+      "count": 1,
+      "perHit": 39032.844099141905,
+      "subtotal": 39032.844099141905
+    },
+    {
+      "label": "Electro-Infused 1-Hit (Aggravate ×2)",
+      "path": [
+        "normal",
+        "0"
+      ],
+      "count": 2,
+      "perHit": 21550.649354685465,
+      "subtotal": 43101.29870937093
+    },
+    {
+      "label": "Electro-Infused 1-Hit (No Reaction ×2)",
+      "path": [
+        "normal",
+        "0"
+      ],
+      "count": 2,
+      "perHit": 7114.147044198501,
+      "subtotal": 14228.294088397002
+    },
+    {
+      "label": "Charged Attack 1-Hit (Aggravate ×2)",
+      "path": [
+        "charged",
+        "dmg1"
+      ],
+      "count": 2,
+      "perHit": 27755.020781072413,
+      "subtotal": 55510.04156214483
+    },
+    {
+      "label": "Charged Attack 1-Hit (No Reaction ×2)",
+      "path": [
+        "charged",
+        "dmg1"
+      ],
+      "count": 2,
+      "perHit": 13318.518470585459,
+      "subtotal": 26637.036941170918
+    },
+    {
+      "label": "Charged Attack 2-Hit (Aggravate ×2)",
+      "path": [
+        "charged",
+        "dmg2"
+      ],
+      "count": 2,
+      "perHit": 29350.856700840217,
+      "subtotal": 58701.713401680434
+    },
+    {
+      "label": "Charged Attack 2-Hit (No Reaction ×2)",
+      "path": [
+        "charged",
+        "dmg2"
+      ],
+      "count": 2,
+      "perHit": 14914.354390353257,
+      "subtotal": 29828.708780706515
+    }
+  ],
+  "stats": {
+    "hp": 18779.3746236,
+    "atk": 2437.4833555316,
+    "def": 994.6435104855201,
+    "eleMas": 471.59000000000003,
+    "critRate_": 0.6121,
+    "critDMG_": 2.3588240000000003,
+    "enerRech_": 1.1952999999999998,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0.12,
+    "geo_dmg_": 0.12,
+    "electro_dmg_": 1.3187843200000002,
+    "hydro_dmg_": 0.12,
+    "pyro_dmg_": 0.12,
+    "cryo_dmg_": 0.12,
+    "dendro_dmg_": 0.12
+  }
+}
