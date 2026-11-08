@@ -1,0 +1,95 @@
+{
+  "presetId": "akasha/arlecchino-mono-pyro-cms-c0",
+  "target": "Arlecchino",
+  "total": 1584856.48389041,
+  "instances": [
+    {
+      "label": "All Is Ash Spike DMG",
+      "path": [
+        "skill",
+        "spikeDmg"
+      ],
+      "count": 1,
+      "perHit": 5283.649173378745,
+      "subtotal": 5283.649173378745
+    },
+    {
+      "label": "All Is Ash Cleave DMG",
+      "path": [
+        "skill",
+        "finalDmg"
+      ],
+      "count": 1,
+      "perHit": 47552.842560408695,
+      "subtotal": 47552.842560408695
+    },
+    {
+      "label": "Masque 1-Hit (×3)",
+      "path": [
+        "normal",
+        "0"
+      ],
+      "count": 3,
+      "perHit": 83458.12561539,
+      "subtotal": 250374.37684617
+    },
+    {
+      "label": "Masque 2-Hit (×3)",
+      "path": [
+        "normal",
+        "1"
+      ],
+      "count": 3,
+      "perHit": 85342.0045979532,
+      "subtotal": 256026.0137938596
+    },
+    {
+      "label": "Masque 3-Hit (×3)",
+      "path": [
+        "normal",
+        "2"
+      ],
+      "count": 3,
+      "perHit": 90774.47131107005,
+      "subtotal": 272323.4139332102
+    },
+    {
+      "label": "Masque 4-Hit (×6)",
+      "path": [
+        "normal",
+        "3"
+      ],
+      "count": 6,
+      "perHit": 79222.12434012514,
+      "subtotal": 475332.7460407509
+    },
+    {
+      "label": "Masque 5-Hit (×3)",
+      "path": [
+        "normal",
+        "4"
+      ],
+      "count": 3,
+      "perHit": 92654.4805142106,
+      "subtotal": 277963.44154263183
+    }
+  ],
+  "stats": {
+    "hp": 18689.7546236,
+    "atk": 4156.9318703855,
+    "def": 764.7115981500001,
+    "eleMas": 254.1,
+    "critRate_": 0.8226120000000001,
+    "critDMG_": 1.5834000000000001,
+    "enerRech_": 1.1101,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 1.5627843200000002,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}

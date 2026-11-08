@@ -17,6 +17,7 @@ import skirkFreeze from '../data/official/skirk-freeze.json'
 import vesnaStellarSwirl from '../data/official/vesna-stellar-swirl.json'
 import zibaiLunarCrystallize from '../data/official/zibai-lunar-crystallize.json'
 import arlecchinoVapeCmsC0 from '../data/akasha/arlecchino-vaporize-cms-c0.json'
+import arlecchinoMonoPyroCmsC0 from '../data/akasha/arlecchino-mono-pyro-cms-c0.json'
 import { presetSchema, type Preset } from './schema'
 
 const RAW_BUNDLED: unknown[] = [
@@ -25,6 +26,7 @@ const RAW_BUNDLED: unknown[] = [
   neuvProtoAmberC0,
   hutaoHomaC1,
   raidenScarletC0,
+  arlecchinoMonoPyroCmsC0,
   arlecchinoVapeCmsC0,
   neuvHyper,
   furinaSubdps,
@@ -61,6 +63,7 @@ export const VERIFIED_PRESET_IDS: ReadonlySet<string> = /*#__PURE__*/ new Set([
   'akasha/neuvillette-hypercarry-protoamber-c0',
   'akasha/hutao-double-hydro-homa-c1',
   'akasha/raiden-hypercarry-scarlet-c0',
+  'akasha/arlecchino-mono-pyro-cms-c0',
   'akasha/arlecchino-vaporize-cms-c0',
   'official/neuvillette-hypercarry',
   'official/furina-salon-subdps',
