@@ -1,0 +1,145 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "akasha/mavuika-overload-blazingsuns-c0",
+  "name": "Mavuika — Overload (Chevreuse C6 + Ororon C6 + Bennett)",
+  "description": "Akasha leaderboard preset for C0 Mavuika Overload with Chevreuse C6 (Pyro/Electro RES shred + ATK% + C6 Pyro DMG%), Ororon C6 (Scroll 4p + Elegy + C6 ATK%), and Bennett C6 (Aquila + Noblesse 4p) at 200 Fighting Spirit.",
+  "source": "akasha",
+  "author": "akasha.cv",
+  "target": "Mavuika",
+  "team": [
+    {
+      "key": "Mavuika",
+      "build": {
+        "type": "fixed",
+        "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 10, "skill": 10, "burst": 10 } },
+        "weapon": { "key": "AThousandBlazingSuns", "level": 90, "ascension": 6, "refinement": 1 }
+      },
+      "requirement": {},
+      "conditional": {
+        "Mavuika": {
+          "burstSpirit": "200",
+          "a1NsBurst": "on",
+          "a4TimeSinceBurst": "0"
+        },
+        "AThousandBlazingSuns": {
+          "passive": "on",
+          "nightsoul": "on"
+        },
+        "ObsidianCodex": {
+          "2NightsoulBlessing": "on",
+          "4NightsoulConsume": "on"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Chevreuse",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "FavoniusLance", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "hp_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "hp": 1195, "enerRech_": 33.0 } },
+            "sets": { "SongOfDaysPast": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Chevreuse": {
+          "a1AfterOverload": "on",
+          "a4AfterBall": "on",
+          "c6AfterHealStacks": "3"
+        },
+        "SongOfDaysPast": { "healing": "15000" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Ororon",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "ElegyForTheEnd", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "electro_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 19.8, "critRate_": 31.1, "enerRech_": 33.0 } },
+            "sets": { "ScrollOfTheHeroOfCinderCity": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Ororon": { "c6Stacks": "3" },
+        "ScrollOfTheHeroOfCinderCity": { "react_pyro": "pyro", "nightsoul_pyro": "pyro" },
+        "ElegyForTheEnd": { "ThePartingRefrain": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Bennett",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 6, "talent": { "auto": 1, "skill": 9, "burst": 10 } },
+          "weapon": { "key": "AquilaFavonia", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "enerRech_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "heal_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "enerRech_": 44.0 } },
+            "sets": { "NoblesseOblige": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Bennett": { "activeInArea": "activeInArea" },
+        "NoblesseOblige": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "E -> Q Sunfell Slice + 8× Flamestrider Charged",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "skillDmg"], "count": 1, "label": "The Named Moment Skill Cast", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "skillDmg"], "count": 1, "label": "Hour of Burning Skies: Sunfell Slice", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "chargedCyclicDmg"], "count": 8, "label": "Flamestrider Charged Cyclic (×8)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["skill", "chargedFinalDmg"], "count": 1, "label": "Flamestrider Charged Final DMG", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  },
+  "akasha": {
+    "calculationId": "mavuika-overload-blazingsuns-c0",
+    "leaderboardUrl": "https://akasha.cv/leaderboards",
+    "label": "Mavuika — Overload (A Thousand Blazing Suns R1, C0)",
+    "retrievedAt": "authored-from-knowledge",
+    "notes": "Source: authored-from-knowledge. Fixed Akasha target spec: Lv.90/90 C0 10/10/10 with A Thousand Blazing Suns R1 Lv.90/90 (Scorching Brilliance + Nightsoul's Blessing active) at 200 Fighting Spirit. Teammates: Chevreuse C6 (40k+ HP, 4p Song of Days Past), Ororon C6 (Elegy R1, 4p Scroll Pyro), Bennett C6 (Aquila R1, 4p Noblesse)."
+  }
+}
