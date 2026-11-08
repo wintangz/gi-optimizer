@@ -43,7 +43,7 @@ describe('matchAccount & bundled presets', () => {
 
   it('bypasses account gating for all Akasha presets even when characters and weapons are empty (akasha-artifact-only-mode)', () => {
     const akashaPresets = listBundledPresets({ source: 'akasha' })
-    expect(akashaPresets).toHaveLength(10)
+    expect(akashaPresets).toHaveLength(11)
     for (const preset of akashaPresets) {
       const reportEmpty = matchAccount(preset, { characters: [], weapons: [] })
       expect(reportEmpty.canRun).toBe(true)

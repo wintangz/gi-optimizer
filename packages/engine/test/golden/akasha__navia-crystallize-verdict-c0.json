@@ -1,0 +1,95 @@
+{
+  "presetId": "akasha/navia-crystallize-verdict-c0",
+  "target": "Navia",
+  "total": 805233.4324947487,
+  "instances": [
+    {
+      "label": "As the Sunlit Sky's Singing Salute Cast",
+      "path": [
+        "burst",
+        "skillDmg"
+      ],
+      "count": 1,
+      "perHit": 19957.01862428305,
+      "subtotal": 19957.01862428305
+    },
+    {
+      "label": "Cannon Fire Support (×12)",
+      "path": [
+        "burst",
+        "supportDmg"
+      ],
+      "count": 12,
+      "perHit": 11451.400979226246,
+      "subtotal": 137416.81175071496
+    },
+    {
+      "label": "Rosula Shardshot (6 Charges, 11 Pellets ×2)",
+      "path": [
+        "skill",
+        "totalShardDmg"
+      ],
+      "count": 2,
+      "perHit": 173858.07651999482,
+      "subtotal": 347716.15303998964
+    },
+    {
+      "label": "Surging Blade DMG (×2)",
+      "path": [
+        "skill",
+        "bladeDmg"
+      ],
+      "count": 2,
+      "perHit": 13211.100039513283,
+      "subtotal": 26422.200079026567
+    },
+    {
+      "label": "Geo-Infused 1-Hit (×4)",
+      "path": [
+        "normal",
+        "0"
+      ],
+      "count": 4,
+      "perHit": 32407.8725212115,
+      "subtotal": 129631.490084846
+    },
+    {
+      "label": "Geo-Infused 2-Hit (×4)",
+      "path": [
+        "normal",
+        "1"
+      ],
+      "count": 4,
+      "perHit": 29977.796171120382,
+      "subtotal": 119911.18468448153
+    },
+    {
+      "label": "Geo-Infused 3-Hit (×2)",
+      "path": [
+        "normal",
+        "2"
+      ],
+      "count": 2,
+      "perHit": 12089.28711570349,
+      "subtotal": 24178.57423140698
+    }
+  ],
+  "stats": {
+    "hp": 17908.035800060003,
+    "atk": 4821.16136877504,
+    "def": 881.1081098400001,
+    "eleMas": 41.959999999999994,
+    "critRate_": 0.900412,
+    "critDMG_": 1.7543000000000002,
+    "enerRech_": 1.4209,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0.966,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0.15,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0
+  }
+}

@@ -25,7 +25,7 @@ describe('Preset Conditional GO Alignment & Permanent Catalogue Guard (preset-co
 
   it('validates every bundled preset (akasha + official) against the authoritative GO conditional catalogue with zero unknown keys or values', () => {
     const presets = listBundledPresets()
-    expect(presets).toHaveLength(23)
+    expect(presets).toHaveLength(24)
 
     for (const preset of presets) {
       const issues = validatePresetConditionalsAgainstGO(preset)
