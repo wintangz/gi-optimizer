@@ -520,7 +520,125 @@ describe('Weapon Comparison Mode (weapon-compare)', () => {
     const splendorRow = strictErRes.rows.find(
       (r) => r.candidate.weaponKey === 'SplendorOfTranquilWaters'
     )!
+    expect(splendorRow.status).toBe('ok' === splendorRow.status ? 'ok' : 'unmet')
     expect(splendorRow.status).toBe('unmet')
     expect(splendorRow.topBuilds).toEqual([])
+  })
+
+  it('(5) applies each candidate’s own targetConditionals (weapon passive, target character/constellation, and artifact-set conditionals) independently while keeping Candidates 1 & 3 bit-identical when Candidate 2 is modified (weapon-compare-effects-setup)', async () => {
+    const preset = getBundledPreset('akasha/furina-salon-pjc-c0')!
+    const session = createSession(deterministicGood)
+
+    const baseCandidates = [
+      {
+        weaponKey: 'FavoniusSword',
+        level: 90,
+        ascension: 6,
+        refinement: 5,
+        isOwned: true,
+        ownedWeaponId: 'w_fav_equipped',
+        isEquippedBaseline: true,
+        targetConditionals: {},
+        seededTargetConditionals: {},
+      },
+      {
+        weaponKey: 'SplendorOfTranquilWaters',
+        level: 90,
+        ascension: 6,
+        refinement: 1,
+        isOwned: false,
+        isEquippedBaseline: false,
+        targetConditionals: {},
+        seededTargetConditionals: {},
+      },
+      {
+        weaponKey: 'FleuveCendreFerryman',
+        level: 90,
+        ascension: 6,
+        refinement: 5,
+        isOwned: true,
+        ownedWeaponId: 'w_fleuve_inv',
+        isEquippedBaseline: false,
+        targetConditionals: {},
+        seededTargetConditionals: {},
+      },
+    ]
+
+    const baselineRes = await session.compareWeapons(
+      preset,
+      DEFAULT_OPTIMIZER_SETTINGS,
+      baseCandidates,
+      { maxWorkers: 1 }
+    )
+
+    const getRow = (res: typeof baselineRes, key: string) =>
+      res.rows.find((r) => r.candidate.weaponKey === key)!
+
+    const baseCand1 = getRow(baselineRes, 'FavoniusSword')
+    const baseCand2 = getRow(baselineRes, 'SplendorOfTranquilWaters')
+    const baseCand3 = getRow(baselineRes, 'FleuveCendreFerryman')
+
+    expect(baseCand1.status).toBe('ok')
+    expect(baseCand2.status).toBe('ok')
+    expect(baseCand3.status).toBe('ok')
+
+    // Step A: Configure Candidate 2's weapon passive stacks only (SplendorOfTranquilWaters.selfHpChange = '1' instead of max '3')
+    const cand2WeaponChanged = baseCandidates.map((c, idx) =>
+      idx === 1
+        ? {
+            ...c,
+            targetConditionals: {
+              SplendorOfTranquilWaters: { selfHpChange: '1' },
+            },
+          }
+        : c
+    )
+    const weaponOnlyRes = await session.compareWeapons(
+      preset,
+      DEFAULT_OPTIMIZER_SETTINGS,
+      cand2WeaponChanged,
+      { maxWorkers: 1 }
+    )
+    const wepCand1 = getRow(weaponOnlyRes, 'FavoniusSword')
+    const wepCand2 = getRow(weaponOnlyRes, 'SplendorOfTranquilWaters')
+    const wepCand3 = getRow(weaponOnlyRes, 'FleuveCendreFerryman')
+
+    expect(wepCand1.total).toBe(baseCand1.total)
+    expect(wepCand3.total).toBe(baseCand3.total)
+    expect(wepCand2.total!).toBeLessThan(baseCand2.total!)
+
+    // Step B: Configure Candidate 2's weapon passive stacks AND artifact-set conditional (GoldenTroupe.set4 = 'off')
+    const cand2BothChanged = baseCandidates.map((c, idx) =>
+      idx === 1
+        ? {
+            ...c,
+            targetConditionals: {
+              SplendorOfTranquilWaters: { selfHpChange: '1' },
+              GoldenTroupe: { set4: 'off' },
+            },
+          }
+        : c
+    )
+    const bothChangedRes = await session.compareWeapons(
+      preset,
+      DEFAULT_OPTIMIZER_SETTINGS,
+      cand2BothChanged,
+      { maxWorkers: 1 }
+    )
+    const bothCand1 = getRow(bothChangedRes, 'FavoniusSword')
+    const bothCand2 = getRow(bothChangedRes, 'SplendorOfTranquilWaters')
+    const bothCand3 = getRow(bothChangedRes, 'FleuveCendreFerryman')
+
+    // Acceptance check: Candidates 1 and 3 return bit-identical totals; Candidate 2 reflects both changes
+    expect(bothCand1.total).toBe(baseCand1.total)
+    expect(bothCand1.topBuilds!.map((b) => b.evaluation.total)).toEqual(
+      baseCand1.topBuilds!.map((b) => b.evaluation.total)
+    )
+    expect(bothCand3.total).toBe(baseCand3.total)
+    expect(bothCand3.topBuilds!.map((b) => b.evaluation.total)).toEqual(
+      baseCand3.topBuilds!.map((b) => b.evaluation.total)
+    )
+    expect(bothCand2.total!).toBeLessThan(wepCand2.total!)
+    expect(bothCand2.total!).toBeLessThan(baseCand2.total!)
   })
 })

@@ -2,10 +2,12 @@ import {
   DEFAULT_OPTIMIZER_SETTINGS,
   FAST_MODE_STAT_KEYS,
   STAT_CONSTRAINT_KEYS,
+  cloneMemberConditionalsMap,
   getPresetConditionalOverrides,
   getPresetFastMode,
   getPresetMemberBuildModes,
   getPresetResonanceEnabled,
+  getPresetWeaponCompareCandidates,
   hasMemberConditionalOverrides,
   hasMemberFastMode,
   hasPresetFastMode,
@@ -17,13 +19,17 @@ import {
   normalizeStatConstraintValue,
   resetMemberConditionalOverrides,
   resetPresetMemberFastMode,
+  resetPresetWeaponCompareCandidates,
+  resolveCandidateMemberConditionals,
   resolveEffectiveFastMode,
   resolvePresetMemberBuildMode,
+  seedCandidateTargetConditionals,
   setMemberConditionalOverride,
   setPresetMemberBuildMode,
   setPresetMemberFastMode,
   setPresetMemberFastModeStat,
   setPresetResonanceEnabled,
+  setPresetWeaponCompareCandidates,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
   type FastModeStatKey,
@@ -40,16 +46,19 @@ import {
   type SetPieceCount,
   type StatConstraint,
   type StatConstraintKey,
+  type WeaponCompareCandidateSpec,
 } from '@gi/presets'
 
 export {
   DEFAULT_OPTIMIZER_SETTINGS,
   FAST_MODE_STAT_KEYS,
   STAT_CONSTRAINT_KEYS,
+  cloneMemberConditionalsMap,
   getPresetConditionalOverrides,
   getPresetFastMode,
   getPresetMemberBuildModes,
   getPresetResonanceEnabled,
+  getPresetWeaponCompareCandidates,
   hasMemberConditionalOverrides,
   hasMemberFastMode,
   hasPresetFastMode,
@@ -61,13 +70,17 @@ export {
   normalizeStatConstraintValue,
   resetMemberConditionalOverrides,
   resetPresetMemberFastMode,
+  resetPresetWeaponCompareCandidates,
+  resolveCandidateMemberConditionals,
   resolveEffectiveFastMode,
   resolvePresetMemberBuildMode,
+  seedCandidateTargetConditionals,
   setMemberConditionalOverride,
   setPresetMemberBuildMode,
   setPresetMemberFastMode,
   setPresetMemberFastModeStat,
   setPresetResonanceEnabled,
+  setPresetWeaponCompareCandidates,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
   type FastModeStatKey,
@@ -83,6 +96,7 @@ export {
   type SetPieceCount,
   type StatConstraint,
   type StatConstraintKey,
+  type WeaponCompareCandidateSpec,
 }
 
 export type ArtifactSlot = 'flower' | 'plume' | 'sands' | 'goblet' | 'circlet'
@@ -226,6 +240,17 @@ export interface WeaponCompareCandidate {
   ownedWeaponId?: string
   /** Whether this weapon is currently equipped on the target character in GOOD */
   isEquippedBaseline?: boolean
+  /**
+   * Independent copy of the target character's (`preset.target` / slot 0) conditional
+   * overrides for this candidate: candidate weapon passives, target character/constellation
+   * passives, and target artifact-set conditionals.
+   */
+  targetConditionals?: MemberConditionalsMap
+  /**
+   * Snapshot of the target character's effective conditional overrides at the time this
+   * candidate was added or seeded, used to detect and explain "Setup differs" in the UI.
+   */
+  seededTargetConditionals?: MemberConditionalsMap
 }
 
 export const WEAPON_COMPARE_TOP_N = 5

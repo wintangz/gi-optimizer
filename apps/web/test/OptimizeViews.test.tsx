@@ -51,6 +51,11 @@ vi.mock('react', async (importOriginal) => {
       }
       return factory()
     },
+    useEffect(fn: () => void | (() => void), deps?: readonly unknown[]) {
+      if (!hookStore.active) {
+        return actual.useEffect(fn, deps)
+      }
+    },
   }
 })
 
@@ -3094,5 +3099,304 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
     expect(gobletHtml).toContain(
       'data-testid="mainstat-chip-goblet-hydro_dmg_" aria-pressed="true" class="constraint-picker-chip is-selected"'
     )
+  })
+
+  it('supports per-candidate Effects expander, independent target conditional toggles, Setup differs indicator with detailed tooltip, and Reset Effects in weapon comparison (weapon-compare-effects-setup)', () => {
+    const preset = getBundledPreset('akasha/furina-salon-pjc-c0')!
+    const furinaCatalog = [
+      {
+        sheet: 'SplendorOfTranquilWaters',
+        key: 'selfHpChange',
+        name: 'Splendor of Tranquil Waters — After HP changes',
+        states: [
+          { key: '1', name: '1 Time' },
+          { key: '2', name: '2 Times' },
+          { key: '3', name: '3 Times' },
+        ],
+        canShow: true,
+        category: 'weapon' as const,
+      },
+      {
+        sheet: 'GoldenTroupe',
+        key: 'set4',
+        name: 'Golden Troupe — Character is off-field',
+        states: [{ key: 'on', name: 'Active (On)' }],
+        canShow: true,
+        category: 'artifact' as const,
+      },
+      {
+        sheet: 'Furina',
+        key: 'burstFanfare',
+        name: 'Furina — Fanfare',
+        states: [
+          { key: '150', name: '150 Stacks' },
+          { key: '300', name: '300 Stacks' },
+        ],
+        canShow: true,
+        category: 'character' as const,
+      },
+      {
+        sheet: 'Furina',
+        key: 'c2Overstack',
+        name: 'Furina — Fanfare above the limit',
+        states: [{ key: '400', name: '400 Stacks' }],
+        canShow: true,
+        category: 'constellation' as const,
+      },
+    ]
+
+    const goodWithGoldenTroupe = {
+      format: 'GOOD' as const,
+      version: 2,
+      source: 'test',
+      characters: [
+        {
+          key: 'Furina',
+          level: 90,
+          constellation: 0,
+          ascension: 6,
+          talent: { auto: 1, skill: 10, burst: 10 },
+        },
+      ],
+      weapons: [
+        {
+          id: 'w_fav',
+          key: 'FavoniusSword',
+          level: 90,
+          ascension: 6,
+          refinement: 5,
+          location: 'Furina',
+          lock: true,
+        },
+      ],
+      artifacts: [
+        {
+          id: 'a1',
+          setKey: 'GoldenTroupe',
+          slotKey: 'flower' as const,
+          level: 20,
+          rarity: 5,
+          mainStatKey: 'hp',
+          location: 'Furina',
+          lock: true,
+          substats: [],
+        },
+        {
+          id: 'a2',
+          setKey: 'GoldenTroupe',
+          slotKey: 'plume' as const,
+          level: 20,
+          rarity: 5,
+          mainStatKey: 'atk',
+          location: 'Furina',
+          lock: true,
+          substats: [],
+        },
+      ],
+    }
+
+    let candidates = [
+      resolveWeaponCompareCandidate(
+        'FavoniusSword',
+        'Furina',
+        goodWithGoldenTroupe,
+        {}
+      ),
+      resolveWeaponCompareCandidate(
+        'SplendorOfTranquilWaters',
+        'Furina',
+        goodWithGoldenTroupe,
+        {}
+      ),
+      resolveWeaponCompareCandidate(
+        'FleuveCendreFerryman',
+        'Furina',
+        goodWithGoldenTroupe,
+        {}
+      ),
+    ]
+
+    hookStore.reset()
+    const renderPanel = () => {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        return evaluateTree(
+          <WeaponComparisonPanel
+            targetCharacterKey="Furina"
+            good={goodWithGoldenTroupe}
+            preset={preset}
+            settings={DEFAULT_OPTIMIZER_SETTINGS}
+            conditionalsByChar={{ Furina: furinaCatalog }}
+            selectedCandidates={candidates}
+            onChangeCandidates={(next) => {
+              candidates = next
+            }}
+          />
+        )
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    // 1. Initially all 3 candidates match their seeded state -> no Setup differs badges
+    let tree = renderPanel()
+    expect(
+      findByTestId(tree, 'weapon-compare-setup-differs-FavoniusSword')
+    ).toBeUndefined()
+    expect(
+      findByTestId(
+        tree,
+        'weapon-compare-setup-differs-SplendorOfTranquilWaters'
+      )
+    ).toBeUndefined()
+    expect(
+      findByTestId(tree, 'weapon-compare-setup-differs-FleuveCendreFerryman')
+    ).toBeUndefined()
+
+    // 2. Open Effects expander on Candidate 2 (SplendorOfTranquilWaters)
+    const effectsBtn2 = findByTestId(
+      tree,
+      'weapon-compare-effects-toggle-SplendorOfTranquilWaters'
+    )!
+    expect(effectsBtn2.props['aria-expanded']).toBe(false)
+    ;(effectsBtn2.props.onClick as () => void)()
+
+    tree = renderPanel()
+    expect(
+      findByTestId(
+        tree,
+        'weapon-compare-effects-panel-SplendorOfTranquilWaters'
+      )
+    ).toBeDefined()
+    expect(
+      findByTestId(
+        tree,
+        'weapon-compare-effects-weapon-SplendorOfTranquilWaters'
+      )
+    ).toBeDefined()
+    expect(
+      findByTestId(
+        tree,
+        'weapon-compare-effects-artifact-SplendorOfTranquilWaters'
+      )
+    ).toBeDefined()
+    expect(
+      findByTestId(
+        tree,
+        'weapon-compare-effects-character-SplendorOfTranquilWaters'
+      )
+    ).toBeDefined()
+    expect(
+      findByTestId(
+        tree,
+        'weapon-compare-effects-constellation-SplendorOfTranquilWaters'
+      )
+    ).toBeDefined()
+
+    // 3. Configure Candidate 2's weapon stacks (SplendorOfTranquilWaters.selfHpChange -> '1')
+    //    AND artifact-set conditional (GoldenTroupe.set4 -> 'off')
+    const wepSelect = findByTestId(
+      tree,
+      'weapon-compare-cond-SplendorOfTranquilWaters-select-Furina-SplendorOfTranquilWaters-selfHpChange'
+    )!
+    ;(
+      wepSelect.props.onChange as (e: { target: { value: string } }) => void
+    )({ target: { value: '1' } })
+
+    tree = renderPanel()
+    const artToggle = findByTestId(
+      tree,
+      'weapon-compare-cond-SplendorOfTranquilWaters-toggle-Furina-GoldenTroupe-set4'
+    )!
+    ;(artToggle.props.onClick as () => void)()
+
+    tree = renderPanel()
+
+    // Candidates 1 and 3 remain untouched; Candidate 2 has both overrides
+    expect(candidates[0]!.targetConditionals).toEqual({})
+    expect(candidates[2]!.targetConditionals).toEqual({})
+    expect(candidates[1]!.targetConditionals).toEqual({
+      SplendorOfTranquilWaters: { selfHpChange: '1' },
+      GoldenTroupe: { set4: 'off' },
+    })
+
+    // 4. Setup differs badge appears ONLY on Candidate 2 with tooltip listing both differences
+    expect(
+      findByTestId(tree, 'weapon-compare-setup-differs-FavoniusSword')
+    ).toBeUndefined()
+    expect(
+      findByTestId(tree, 'weapon-compare-setup-differs-FleuveCendreFerryman')
+    ).toBeUndefined()
+
+    const differsBadge2 = findByTestId(
+      tree,
+      'weapon-compare-setup-differs-SplendorOfTranquilWaters'
+    )!
+    expect(differsBadge2).toBeDefined()
+    const tooltipText = String(differsBadge2.props.title ?? '')
+    expect(tooltipText).toContain('Setup differs from seeded Buffs & Passives state:')
+    expect(tooltipText).toContain(
+      'Splendor of Tranquil Waters — After HP changes: 1 Time (seeded: 3 Times)'
+    )
+    expect(tooltipText).toContain(
+      'Golden Troupe — Character is off-field: Off (seeded: Active (On))'
+    )
+
+    // 5. WeaponComparisonList also renders the Setup differs indicator on Candidate 2's result row
+    const rankedResult = rankWeaponComparisonRows(
+      candidates.map((cand, idx) => ({
+        candidate: cand,
+        status: 'ok' as const,
+        rank: null,
+        total: 400000 - idx * 20000,
+        percentBehindLeader: null,
+        bestBuild: { artifactIds: {}, total: 400000 - idx * 20000 },
+        evaluation: {
+          total: 400000 - idx * 20000,
+          stats: {},
+          instances: [],
+        },
+        tested: 10,
+        skipped: 0,
+        durationMs: 1,
+      }))
+    )
+    const listHtml = renderToStaticMarkup(
+      <WeaponComparisonList
+        preset={preset}
+        result={rankedResult}
+        artifactById={new Map()}
+        settings={DEFAULT_OPTIMIZER_SETTINGS}
+        good={goodWithGoldenTroupe}
+        conditionalsByChar={{ Furina: furinaCatalog }}
+      />
+    )
+    expect(listHtml).toContain(
+      'data-testid="weapon-compare-result-setup-differs-SplendorOfTranquilWaters"'
+    )
+    expect(listHtml).not.toContain(
+      'data-testid="weapon-compare-result-setup-differs-FavoniusSword"'
+    )
+    expect(listHtml).not.toContain(
+      'data-testid="weapon-compare-result-setup-differs-FleuveCendreFerryman"'
+    )
+
+    // 6. Clicking Reset Effects on Candidate 2 restores seeded state and clears Setup differs
+    const resetEffectsBtn2 = findByTestId(
+      tree,
+      'weapon-compare-effects-reset-SplendorOfTranquilWaters'
+    )!
+    expect(resetEffectsBtn2.props.disabled).toBe(false)
+    ;(resetEffectsBtn2.props.onClick as () => void)()
+
+    tree = renderPanel()
+    expect(candidates[1]!.targetConditionals).toEqual({})
+    expect(
+      findByTestId(
+        tree,
+        'weapon-compare-setup-differs-SplendorOfTranquilWaters'
+      )
+    ).toBeUndefined()
   })
 })

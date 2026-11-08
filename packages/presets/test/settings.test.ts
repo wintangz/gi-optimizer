@@ -8,6 +8,7 @@ import {
   FAST_MODE_STAT_KEYS,
   getPresetFastMode,
   getPresetResonanceEnabled,
+  getPresetWeaponCompareCandidates,
   hasMemberFastMode,
   hasPresetFastMode,
   invertSets,
@@ -17,19 +18,24 @@ import {
   normalizeStatConstraintValue,
   resetMemberConditionalOverrides,
   resetPresetMemberFastMode,
+  resetPresetWeaponCompareCandidates,
   resetSolverPoolFilters,
   resolveArtSetExclusion,
+  resolveCandidateMemberConditionals,
   resolveEffectiveFastMode,
   resolveEffectiveSetFilter,
+  seedCandidateTargetConditionals,
   selectAllSets,
   setMemberConditionalOverride,
   setPresetMemberFastMode,
   setPresetMemberFastModeStat,
   setPresetResonanceEnabled,
+  setPresetWeaponCompareCandidates,
   STAT_CONSTRAINT_KEYS,
   summarizeArtSetFilter,
   summarizeSolverPoolFilters,
   type OptimizerSettings,
+  type WeaponCompareCandidateSpec,
 } from '../src/index'
 
 describe('Artifact Set Filter Translation & Helpers (artifact-set-filter)', () => {
@@ -501,5 +507,133 @@ describe('Fast Mode Per-Preset Settings & Resolution (fast-mode)', () => {
     })
     next = resetPresetMemberFastMode(next, presetId)
     expect(getPresetFastMode(next, presetId)).toEqual({})
+  })
+})
+
+describe('Weapon Compare Candidate Effect Setup & Persistence (weapon-compare-effects-setup)', () => {
+  it('seeds candidate targetConditionals from panel overrides while stripping other weapons and keeping independent copies', () => {
+    const targetOverrides = {
+      Furina: { burstFanfare: '300' },
+      GoldenTroupe: { set4: 'off' },
+      SplendorOfTranquilWaters: { selfHpChange: '1' },
+      KeyOfKhajNisut: { afterSkill: '2' },
+    }
+
+    const seededSplendor = seedCandidateTargetConditionals(
+      targetOverrides,
+      'SplendorOfTranquilWaters'
+    )
+    expect(seededSplendor).toEqual({
+      Furina: { burstFanfare: '300' },
+      GoldenTroupe: { set4: 'off' },
+      SplendorOfTranquilWaters: { selfHpChange: '1' },
+    })
+
+    const seededFavonius = seedCandidateTargetConditionals(
+      targetOverrides,
+      'FavoniusSword'
+    )
+    expect(seededFavonius).toEqual({
+      Furina: { burstFanfare: '300' },
+      GoldenTroupe: { set4: 'off' },
+    })
+
+    // Mutating seededSplendor does not mutate targetOverrides or seededFavonius
+    seededSplendor.GoldenTroupe!.set4 = 'on'
+    expect(targetOverrides.GoldenTroupe.set4).toBe('off')
+    expect(seededFavonius.GoldenTroupe?.set4).toBe('off')
+  })
+
+  it('resolves candidate memberConditionals by replacing target entry while keeping non-target teammate conditionals', () => {
+    const sharedMemberConditionals = {
+      Furina: {
+        GoldenTroupe: { set4: 'on' },
+      },
+      KaedeharaKazuha: {
+        ViridescentVenerer: { swirlHydro: 'hydro' },
+      },
+    }
+
+    // When targetConditionals is undefined, falls back to sharedMemberConditionals
+    expect(
+      resolveCandidateMemberConditionals(
+        'Furina',
+        { targetConditionals: undefined },
+        sharedMemberConditionals
+      )
+    ).toBe(sharedMemberConditionals)
+
+    // When targetConditionals is defined, replaces Furina entry while preserving Kazuha
+    const resolved = resolveCandidateMemberConditionals(
+      'Furina',
+      {
+        targetConditionals: {
+          SplendorOfTranquilWaters: { selfHpChange: '1' },
+          GoldenTroupe: { set4: 'off' },
+        },
+      },
+      sharedMemberConditionals
+    )
+    expect(resolved).toEqual({
+      Furina: {
+        SplendorOfTranquilWaters: { selfHpChange: '1' },
+        GoldenTroupe: { set4: 'off' },
+      },
+      KaedeharaKazuha: {
+        ViridescentVenerer: { swirlHydro: 'hydro' },
+      },
+    })
+  })
+
+  it('persists and resets per-preset weapon compare candidates with independent targetConditionals', () => {
+    const presetId = 'official/furina-sub-dps'
+    expect(
+      getPresetWeaponCompareCandidates(DEFAULT_OPTIMIZER_SETTINGS, presetId)
+    ).toBeUndefined()
+
+    const candidates: WeaponCompareCandidateSpec[] = [
+      {
+        weaponKey: 'FavoniusSword',
+        level: 90,
+        ascension: 6,
+        refinement: 5,
+        isOwned: true,
+        isEquippedBaseline: true,
+        targetConditionals: { GoldenTroupe: { set4: 'on' } },
+        seededTargetConditionals: { GoldenTroupe: { set4: 'on' } },
+      },
+      {
+        weaponKey: 'SplendorOfTranquilWaters',
+        level: 90,
+        ascension: 6,
+        refinement: 1,
+        isOwned: false,
+        targetConditionals: {
+          SplendorOfTranquilWaters: { selfHpChange: '1' },
+          GoldenTroupe: { set4: 'off' },
+        },
+        seededTargetConditionals: { GoldenTroupe: { set4: 'on' } },
+      },
+    ]
+
+    const saved = setPresetWeaponCompareCandidates(
+      DEFAULT_OPTIMIZER_SETTINGS,
+      presetId,
+      candidates
+    )
+    const loaded = getPresetWeaponCompareCandidates(saved, presetId)
+    expect(loaded).toEqual(candidates)
+
+    // Deep clone verification
+    loaded![1]!.targetConditionals!.GoldenTroupe!.set4 = 'on'
+    expect(
+      getPresetWeaponCompareCandidates(saved, presetId)?.[1]?.targetConditionals
+        ?.GoldenTroupe?.set4
+    ).toBe('off')
+
+    const reset = resetPresetWeaponCompareCandidates(saved, presetId)
+    expect(
+      getPresetWeaponCompareCandidates(reset, presetId)
+    ).toBeUndefined()
   })
 })

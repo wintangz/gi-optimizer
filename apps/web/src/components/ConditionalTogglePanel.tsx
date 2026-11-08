@@ -28,6 +28,7 @@ import {
   readEffectiveConditionalValue,
   resetMemberConditionalOverrides,
   resolvePresetMemberBuildMode,
+  seedCandidateTargetConditionals,
   setMemberConditionalOverride,
   setPresetResonanceEnabled,
   type MemberBuildMode,
@@ -358,7 +359,7 @@ function deriveDefaultArtSetConditionalsFromCatalog(
   return out
 }
 
-function deriveDefaultMemberConditionalsInUi(opts: {
+export function deriveDefaultMemberConditionalsInUi(opts: {
   preset: Preset
   memberIndex: number
   resolvedMode: MemberBuildMode
@@ -1084,14 +1085,340 @@ export function ConditionalTogglePanel({
   )
 }
 
-function renderConditionalRow(opts: {
+export interface CandidateEffectDiff {
+  sheet: string
+  key: string
+  sheetLabel: string
+  condLabel: string
+  currentValue: string
+  currentLabel: string
+  seededValue: string
+  seededLabel: string
+  summary: string
+}
+
+function formatConditionalStateValue(
+  sheetKey: string,
+  condKey: string,
+  stateValue: string,
+  desc?: ConditionalDescriptor
+): { sheetLabel: string; condLabel: string; stateLabel: string } {
+  const sheetLabel = displayName(sheetKey)
+  if (desc) {
+    const condLabel = cleanConditionalLabel(desc, sheetLabel)
+    if (!stateValue || stateValue === 'off') {
+      return { sheetLabel, condLabel, stateLabel: 'Off' }
+    }
+    const stateDesc = desc.states.find((s) => s.key === stateValue)
+    const stateLabel = stateDesc
+      ? formatStateOptionLabel(stateDesc)
+      : formatStateOptionLabel({ key: stateValue, name: stateValue })
+    return { sheetLabel, condLabel, stateLabel }
+  }
+
+  const staticEntry = STATIC_GO_CONDITIONAL_LABELS[`${sheetKey}.${condKey}`]
+  if (staticEntry) {
+    const condLabel = staticEntry.label
+    if (!stateValue || stateValue === 'off') {
+      return { sheetLabel, condLabel, stateLabel: 'Off' }
+    }
+    const stateLabel =
+      staticEntry.states?.[stateValue] ??
+      formatStateOptionLabel({ key: stateValue, name: stateValue })
+    return { sheetLabel, condLabel, stateLabel }
+  }
+
+  const condLabel =
+    condKey === 'set4'
+      ? '4-Piece Bonus'
+      : condKey === 'set2'
+        ? '2-Piece Bonus'
+        : prettifyConditionalKey(condKey)
+  const stateLabel =
+    !stateValue || stateValue === 'off'
+      ? 'Off'
+      : formatStateOptionLabel({ key: stateValue, name: stateValue })
+  return { sheetLabel, condLabel, stateLabel }
+}
+
+export function formatCandidateEffectDiffsTooltip(
+  diffs: readonly CandidateEffectDiff[]
+): string {
+  if (diffs.length === 0) return ''
+  return `Setup differs from seeded Buffs & Passives state:\n${diffs
+    .map((d) => `• ${d.summary}`)
+    .join('\n')}`
+}
+
+export interface CandidateTargetConditionalsEntry {
+  targetKey: string
+  charMeta: ReturnType<typeof getCharacterMeta>
+  weaponKey: string
+  weaponConditionals: ConditionalDescriptor[]
+  visibleArtifactConditionals: ConditionalDescriptor[]
+  characterConditionals: ConditionalDescriptor[]
+  constellationConditionals: ConditionalDescriptor[]
+  defaultMap: MemberConditionalsMap
+  effectiveOverrides: MemberConditionalsMap
+  seededOverrides: MemberConditionalsMap
+  effectiveMap: MemberConditionalsMap
+  seededEffectiveMap: MemberConditionalsMap
+  activeCount: number
+  diffs: CandidateEffectDiff[]
+  setupDiffers: boolean
+  setupDiffersTooltip: string
+}
+
+export function deriveCandidateTargetConditionalsEntry(opts: {
+  preset: Preset
+  weaponKey: string
+  targetConditionals?: MemberConditionalsMap
+  seededTargetConditionals?: MemberConditionalsMap
+  settings?: OptimizerSettings
+  good?: IGOOD | null
+  memberCatalog?: ConditionalDescriptor[]
+}): CandidateTargetConditionalsEntry {
+  const {
+    preset,
+    weaponKey,
+    targetConditionals,
+    seededTargetConditionals,
+    settings,
+    good,
+    memberCatalog = [],
+  } = opts
+
+  const member = preset.team[0]
+  const targetKey = member?.key ?? preset.target
+  const charMeta = getCharacterMeta(targetKey)
+  const locKey = targetKey.startsWith('Traveler') ? 'Traveler' : targetKey
+
+  const ownedCharKeys = new Set((good?.characters ?? []).map((c) => c.key))
+  const memberBuildModes = getPresetMemberBuildModes(settings, preset.id)
+  const resolvedBuild = resolvePresetMemberBuildMode({
+    presetSource: preset.source,
+    isTarget: true,
+    memberBuildType: member?.build.type ?? 'owned',
+    characterKey: targetKey,
+    ownedCharKeys,
+    overrideMode: memberBuildModes[targetKey],
+  })
+
+  const equippedGoodWeaponKey = (good?.weapons ?? []).find(
+    (w) => w.location === locKey
+  )?.key
+
+  const fallbackPanelTargetOverrides = getPresetConditionalOverrides(
+    settings,
+    preset.id
+  )[targetKey]
+
+  const effectiveOverrides =
+    targetConditionals !== undefined
+      ? targetConditionals
+      : seedCandidateTargetConditionals(fallbackPanelTargetOverrides, weaponKey)
+
+  const seededOverrides =
+    seededTargetConditionals !== undefined
+      ? seededTargetConditionals
+      : seedCandidateTargetConditionals(fallbackPanelTargetOverrides, weaponKey)
+
+  const defaultMap = deriveDefaultMemberConditionalsInUi({
+    preset,
+    memberIndex: 0,
+    resolvedMode: resolvedBuild.mode,
+    activeTargetWeaponKey: weaponKey,
+    memberOwnedWeaponKey: equippedGoodWeaponKey,
+    memberCatalog,
+  })
+
+  const effectiveMap = applyMemberConditionalOverrides(
+    defaultMap,
+    effectiveOverrides
+  )
+  const seededEffectiveMap = applyMemberConditionalOverrides(
+    defaultMap,
+    seededOverrides
+  )
+
+  // 1. Candidate weapon conditionals
+  const weaponConditionals = memberCatalog.filter(
+    (c) => c.category === 'weapon' && c.sheet === weaponKey
+  )
+
+  // 2. Relevant artifact set conditionals for the target character
+  const relevantSetKeys = new Set<string>()
+  const memberArtSets: Record<string, number> = {}
+  for (const art of good?.artifacts ?? []) {
+    if (art.location === locKey && art.setKey) {
+      memberArtSets[art.setKey] = (memberArtSets[art.setKey] ?? 0) + 1
+    }
+  }
+  for (const [sk, cnt] of Object.entries(memberArtSets)) {
+    if (cnt >= 2) relevantSetKeys.add(sk)
+  }
+  if (member?.build.type === 'tc') {
+    for (const [sk, cnt] of Object.entries(
+      member.build.tc.artifact.sets ?? {}
+    )) {
+      if (typeof cnt === 'number' && cnt >= 2) relevantSetKeys.add(sk)
+    }
+  }
+  for (const sk of Object.keys(member?.conditional ?? {})) {
+    relevantSetKeys.add(sk)
+  }
+  for (const sk of Object.keys(effectiveOverrides)) {
+    relevantSetKeys.add(sk)
+  }
+  for (const sk of Object.keys(seededOverrides)) {
+    relevantSetKeys.add(sk)
+  }
+  if (relevantSetKeys.size === 0) {
+    const poolSetCounts: Record<string, number> = {}
+    for (const art of good?.artifacts ?? []) {
+      if (art.setKey) {
+        poolSetCounts[art.setKey] = (poolSetCounts[art.setKey] ?? 0) + 1
+      }
+    }
+    for (const [sk, cnt] of Object.entries(poolSetCounts)) {
+      if (cnt >= 2) relevantSetKeys.add(sk)
+    }
+  }
+
+  const visibleArtifactConditionals = memberCatalog.filter(
+    (c) => c.category === 'artifact' && relevantSetKeys.has(c.sheet)
+  )
+
+  // 3. Target character passives & talents
+  const characterConditionals = memberCatalog.filter(
+    (c) =>
+      c.category === 'character' &&
+      (c.sheet === targetKey || c.sheet.startsWith('Traveler'))
+  )
+
+  // 4. Target constellation conditionals
+  const constellationConditionals = memberCatalog.filter(
+    (c) =>
+      c.category === 'constellation' &&
+      (c.sheet === targetKey || c.sheet.startsWith('Traveler'))
+  )
+
+  const checkPool = [
+    ...weaponConditionals,
+    ...visibleArtifactConditionals,
+    ...characterConditionals,
+    ...constellationConditionals,
+  ]
+
+  const activeCount = checkPool.filter(
+    (c) => readEffectiveConditionalValue(effectiveMap, c.sheet, c.key) !== 'off'
+  ).length
+
+  const diffs: CandidateEffectDiff[] = []
+  const seenPairs = new Set<string>()
+
+  const checkPair = (
+    sheet: string,
+    key: string,
+    desc?: ConditionalDescriptor
+  ) => {
+    const pairId = `${sheet}:${key}`
+    if (seenPairs.has(pairId)) return
+    seenPairs.add(pairId)
+
+    let currentValue = readEffectiveConditionalValue(effectiveMap, sheet, key)
+    let seededValue = readEffectiveConditionalValue(
+      seededEffectiveMap,
+      sheet,
+      key
+    )
+
+    // Fallback when catalog was not loaded yet and defaultMap lacked default 'on' / max-stack state
+    if (
+      !desc &&
+      memberCatalog.length === 0 &&
+      currentValue === seededValue &&
+      effectiveOverrides[sheet]?.[key] !== seededOverrides[sheet]?.[key]
+    ) {
+      const rawCur = effectiveOverrides[sheet]?.[key]
+      const rawSeed = seededOverrides[sheet]?.[key]
+      currentValue = rawCur ?? 'on'
+      seededValue = rawSeed ?? 'on'
+    }
+
+    if (currentValue === seededValue) return
+
+    const curFmt = formatConditionalStateValue(sheet, key, currentValue, desc)
+    const seedFmt = formatConditionalStateValue(sheet, key, seededValue, desc)
+    diffs.push({
+      sheet,
+      key,
+      sheetLabel: curFmt.sheetLabel,
+      condLabel: curFmt.condLabel,
+      currentValue,
+      currentLabel: curFmt.stateLabel,
+      seededValue,
+      seededLabel: seedFmt.stateLabel,
+      summary: `${curFmt.sheetLabel} — ${curFmt.condLabel}: ${curFmt.stateLabel} (seeded: ${seedFmt.stateLabel})`,
+    })
+  }
+
+  for (const cond of checkPool) {
+    checkPair(cond.sheet, cond.key, cond)
+  }
+  for (const [sheet, sheetMap] of Object.entries(effectiveOverrides)) {
+    for (const key of Object.keys(sheetMap ?? {})) {
+      const desc = memberCatalog.find(
+        (c) => c.sheet === sheet && c.key === key
+      )
+      checkPair(sheet, key, desc)
+    }
+  }
+  for (const [sheet, sheetMap] of Object.entries(seededOverrides)) {
+    for (const key of Object.keys(sheetMap ?? {})) {
+      const desc = memberCatalog.find(
+        (c) => c.sheet === sheet && c.key === key
+      )
+      checkPair(sheet, key, desc)
+    }
+  }
+
+  return {
+    targetKey,
+    charMeta,
+    weaponKey,
+    weaponConditionals,
+    visibleArtifactConditionals,
+    characterConditionals,
+    constellationConditionals,
+    defaultMap,
+    effectiveOverrides,
+    seededOverrides,
+    effectiveMap,
+    seededEffectiveMap,
+    activeCount,
+    diffs,
+    setupDiffers: diffs.length > 0,
+    setupDiffersTooltip: formatCandidateEffectDiffsTooltip(diffs),
+  }
+}
+
+export function renderConditionalRow(opts: {
   characterKey: string
   cond: ConditionalDescriptor
   effectiveMap: MemberConditionalsMap
   showSetBadge?: boolean
+  testIdPrefix?: string
   onSetState: (nextVal: string) => void
 }) {
-  const { characterKey, cond, effectiveMap, showSetBadge, onSetState } = opts
+  const {
+    characterKey,
+    cond,
+    effectiveMap,
+    showSetBadge,
+    testIdPrefix = 'cond',
+    onSetState,
+  } = opts
   const currentValue = readEffectiveConditionalValue(
     effectiveMap,
     cond.sheet,
@@ -1111,7 +1438,7 @@ function renderConditionalRow(opts: {
     <div
       key={`${cond.sheet}:${cond.key}`}
       className={`gi-buff-row gi-buff-cell${isOn ? ' is-on' : ''}`}
-      data-testid={`cond-row-${characterKey}-${cond.sheet}-${cond.key}`}
+      data-testid={`${testIdPrefix}-row-${characterKey}-${cond.sheet}-${cond.key}`}
       data-conditional-sheet={cond.sheet}
       data-conditional-key={cond.key}
       data-conditional-state={currentValue}
@@ -1151,7 +1478,7 @@ function renderConditionalRow(opts: {
         {isMultiState && (
           <select
             aria-label={`${displayName(characterKey)} ${sheetName} ${label} state`}
-            data-testid={`cond-select-${characterKey}-${cond.sheet}-${cond.key}`}
+            data-testid={`${testIdPrefix}-select-${characterKey}-${cond.sheet}-${cond.key}`}
             className="gi-buff-select"
             value={isOn ? currentValue : 'off'}
             onChange={(e) => onSetState(e.target.value)}
@@ -1170,7 +1497,7 @@ function renderConditionalRow(opts: {
           role="switch"
           aria-checked={isOn}
           aria-label={`Toggle ${displayName(characterKey)} ${sheetName} ${label}`}
-          data-testid={`cond-toggle-${characterKey}-${cond.sheet}-${cond.key}`}
+          data-testid={`${testIdPrefix}-toggle-${characterKey}-${cond.sheet}-${cond.key}`}
           data-state-value={currentValue}
           className={`gi-buff-switch${isOn ? ' is-on' : ''}`}
           onClick={() => onSetState(isOn ? 'off' : defaultOnKey)}

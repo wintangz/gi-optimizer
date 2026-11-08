@@ -2664,14 +2664,25 @@ td {
 
 .weapon-compare-config-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: var(--space-3);
   padding: 0.5rem 0.65rem;
   border-radius: var(--radius-sm);
   background: var(--surface-panel);
   border: 1px solid var(--border);
+}
+
+.weapon-compare-config-row.is-effects-open {
+  border-color: var(--accent-border);
+}
+
+.weapon-compare-config-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .weapon-compare-config-identity {
@@ -2686,6 +2697,71 @@ td {
   align-items: center;
   gap: 0.55rem;
   flex-wrap: wrap;
+}
+
+.weapon-compare-effects-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  font-size: 0.8rem;
+  padding: 0.24rem 0.58rem;
+}
+
+.weapon-compare-effects-btn.is-open,
+.weapon-compare-effects-btn.is-modified {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.weapon-compare-effects-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+  width: 100%;
+}
+
+.weapon-compare-effects-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.weapon-compare-effects-diff-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.38rem 0.55rem;
+  border-radius: var(--radius-xs);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+}
+
+.weapon-compare-effects-diff-chip {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--warn);
+}
+
+.gi-setup-differs-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  vertical-align: middle;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--warn-bg);
+  color: var(--warn);
+  border: 1px solid var(--warn-border);
+  white-space: nowrap;
+  cursor: help;
 }
 
 .comp-baseline-tag,

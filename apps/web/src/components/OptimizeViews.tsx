@@ -1,6 +1,10 @@
 'use client'
 
 import {
+  deriveCandidateTargetConditionalsEntry,
+  renderConditionalRow,
+} from '@/components/ConditionalTogglePanel'
+import {
   ArtifactBadge,
   ArtifactPieceRow,
   CharacterBadge,
@@ -12,10 +16,14 @@ import {
 import { WeaponTilePicker } from '@/components/TilePickers'
 import {
   DownloadIcon,
+  ElementIcon,
+  SetEmblemIcon,
   SlotIcon,
   StatIcon,
   TrashIcon,
+  WeaponTypeIcon,
 } from '@/components/SvgIcons'
+import { getCatalogInWorker } from '@/lib/engine/workerClient'
 import { shortStatLabel } from '@/lib/itemMeta'
 import {
   WEAPON_COMPARE_TOP_N,
@@ -23,6 +31,7 @@ import {
   type BreakdownContributor,
   type BreakdownSourceCategory,
   type BuildSelection,
+  type ConditionalDescriptor,
   type DamageRowBreakdown,
   type OptimizerSettings,
   type RotationResult,
@@ -41,25 +50,29 @@ import {
   type ParseIssue,
 } from '@gi/good'
 import {
+  cloneMemberConditionalsMap,
   displayName,
   getCharacterMeta,
+  getPresetConditionalOverrides,
   getWeaponMeta,
   isPercentStatConstraintKey,
   listWeaponsForType,
   resetSolverPoolFilters,
   resolveRotationTargetOwner,
+  seedCandidateTargetConditionals,
   STAT_CONSTRAINT_KEYS,
   summarizeSolverPoolFilters,
   VARIABLE_MAIN_STAT_SLOTS,
   type IdentifierSlotKey,
   type MainStatAllowlistMap,
+  type MemberConditionalsMap,
   type Preset,
   type RequiredSubstatsMode,
   type StatConstraint,
   type StatConstraintKey,
   type VariableMainStatSlotKey,
 } from '@gi/presets'
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 
 export const OPTIMIZE_SLOTS: ArtifactSlot[] = [
   'flower',
@@ -1731,12 +1744,27 @@ export function BuildComparisonList({
 export function resolveWeaponCompareCandidate(
   weaponKey: string,
   targetCharKey: string,
-  good?: IGOOD | null
+  good?: IGOOD | null,
+  seedTargetOverrides?: MemberConditionalsMap
 ): WeaponCompareCandidate {
   const wMeta = getWeaponMeta(weaponKey)
   const isLowRarity = wMeta.rarity <= 2
   const maxLvl = isLowRarity ? 70 : 90
   const maxAsc = isLowRarity ? 4 : 6
+
+  const seededFields =
+    seedTargetOverrides !== undefined
+      ? {
+          targetConditionals: seedCandidateTargetConditionals(
+            seedTargetOverrides,
+            weaponKey
+          ),
+          seededTargetConditionals: seedCandidateTargetConditionals(
+            seedTargetOverrides,
+            weaponKey
+          ),
+        }
+      : {}
 
   const weapons = good?.weapons ?? []
   const equippedOnTarget = weapons.find(
@@ -1762,6 +1790,7 @@ export function resolveWeaponCompareCandidate(
       isOwned: true,
       ownedWeaponId: match.id,
       isEquippedBaseline: match.location === targetCharKey,
+      ...seededFields,
     }
   }
 
@@ -1772,6 +1801,7 @@ export function resolveWeaponCompareCandidate(
     refinement: 1,
     isOwned: false,
     isEquippedBaseline: false,
+    ...seededFields,
   }
 }
 
@@ -1843,6 +1873,14 @@ export interface WeaponComparisonPanelProps {
   good?: IGOOD | null
   selectedCandidates: WeaponCompareCandidate[]
   onChangeCandidates: (next: WeaponCompareCandidate[]) => void
+  /** Optional active preset to derive candidate target conditional controls (weapon, set, character, constellation). */
+  preset?: Preset
+  /** Optional current OptimizerSettings used to seed new candidates from the target's current panel overrides. */
+  settings?: OptimizerSettings
+  /** Optional pre-loaded conditional catalog (used in unit tests or SSR). */
+  conditionalsByChar?: Record<string, ConditionalDescriptor[]>
+  /** Optional handler to reset the compare candidate setup back to defaults. */
+  onResetCandidates?: () => void
 }
 
 export function WeaponComparisonPanel({
@@ -1850,16 +1888,104 @@ export function WeaponComparisonPanel({
   good,
   selectedCandidates,
   onChangeCandidates,
+  preset,
+  settings,
+  conditionalsByChar: providedCatalog,
+  onResetCandidates,
 }: WeaponComparisonPanelProps) {
   const [draftLevels, setDraftLevels] = useState<Record<string, string>>({})
+  const [expandedEffectsByWeapon, setExpandedEffectsByWeapon] = useState<
+    Record<string, boolean>
+  >({})
+  const [loadedCatalog, setLoadedCatalog] = useState<
+    Record<string, ConditionalDescriptor[]>
+  >({})
+
+  const effectivePreset: Preset = useMemo(
+    () =>
+      preset ?? {
+        schema: 'gi-optimizer/preset@1',
+        id: `__weapon_compare_${targetCharacterKey}`,
+        name: targetCharacterKey,
+        description: '',
+        author: '',
+        source: 'official',
+        target: targetCharacterKey,
+        enemy: {
+          level: 100,
+          overrides: {},
+        },
+        teamConditional: {
+          resonance: {},
+          reaction: {},
+        },
+        team: [
+          {
+            key: targetCharacterKey,
+            build: { type: 'owned' },
+            requirement: {},
+            conditional: {},
+            bonusStats: {},
+            hitMode: 'avgHit',
+          },
+        ],
+        rotation: {
+          name: '',
+          repeat: 1,
+          targets: [],
+        },
+      },
+    [preset, targetCharacterKey]
+  )
+
+  useEffect(() => {
+    if (providedCatalog) return
+    if (typeof getCatalogInWorker !== 'function') return
+    let cancelled = false
+    void Promise.resolve(getCatalogInWorker([targetCharacterKey])).then(
+      (res) => {
+        if (!cancelled && res?.conditionalsByChar) {
+          setLoadedCatalog((prev) => ({
+            ...prev,
+            ...res.conditionalsByChar,
+          }))
+        }
+      }
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [targetCharacterKey, providedCatalog])
+
+  const catalogByChar = providedCatalog ?? loadedCatalog
+  const targetCatalog = useMemo(
+    () => catalogByChar[targetCharacterKey] ?? [],
+    [catalogByChar, targetCharacterKey]
+  )
+
   const charMeta = getCharacterMeta(targetCharacterKey)
   const allWeaponsForType = listWeaponsForType(charMeta.weaponType)
   const selectedKeys = selectedCandidates.map((c) => c.weaponKey)
+  const targetCharKey = targetCharacterKey
+
+  const currentPanelTargetOverrides = useMemo(
+    () =>
+      getPresetConditionalOverrides(settings, effectivePreset.id)[
+        targetCharKey
+      ],
+    [settings, effectivePreset.id, targetCharKey]
+  )
 
   function handleToggleWeapon(weaponKey: string) {
     const exists = selectedCandidates.some((c) => c.weaponKey === weaponKey)
     if (exists) {
       setDraftLevels((prev) => {
+        if (!(weaponKey in prev)) return prev
+        const next = { ...prev }
+        delete next[weaponKey]
+        return next
+      })
+      setExpandedEffectsByWeapon((prev) => {
         if (!(weaponKey in prev)) return prev
         const next = { ...prev }
         delete next[weaponKey]
@@ -1872,13 +1998,92 @@ export function WeaponComparisonPanel({
       const nextCand = resolveWeaponCompareCandidate(
         weaponKey,
         targetCharKey,
-        good
+        good,
+        currentPanelTargetOverrides ?? {}
       )
       onChangeCandidates([...selectedCandidates, nextCand])
     }
   }
 
-  const targetCharKey = targetCharacterKey
+  function handleSetCandidateCondState(
+    weaponKey: string,
+    sheetKey: string,
+    condKey: string,
+    nextValue: string
+  ) {
+    onChangeCandidates(
+      selectedCandidates.map((cand) => {
+        if (cand.weaponKey !== weaponKey) return cand
+        const baseTargetOverrides =
+          cand.targetConditionals !== undefined
+            ? cloneMemberConditionalsMap(cand.targetConditionals)
+            : seedCandidateTargetConditionals(
+                currentPanelTargetOverrides,
+                weaponKey
+              )
+        const baseSeededOverrides =
+          cand.seededTargetConditionals !== undefined
+            ? cloneMemberConditionalsMap(cand.seededTargetConditionals)
+            : seedCandidateTargetConditionals(
+                currentPanelTargetOverrides,
+                weaponKey
+              )
+        const nextSheet = { ...(baseTargetOverrides[sheetKey] ?? {}) }
+        nextSheet[condKey] = nextValue
+        return {
+          ...cand,
+          targetConditionals: {
+            ...baseTargetOverrides,
+            [sheetKey]: nextSheet,
+          },
+          seededTargetConditionals: baseSeededOverrides,
+        }
+      })
+    )
+  }
+
+  function handleResetCandidateEffects(weaponKey: string) {
+    onChangeCandidates(
+      selectedCandidates.map((cand) => {
+        if (cand.weaponKey !== weaponKey) return cand
+        const seeded =
+          cand.seededTargetConditionals !== undefined
+            ? cloneMemberConditionalsMap(cand.seededTargetConditionals)
+            : seedCandidateTargetConditionals(
+                currentPanelTargetOverrides,
+                weaponKey
+              )
+        return {
+          ...cand,
+          targetConditionals: seeded,
+          seededTargetConditionals: cloneMemberConditionalsMap(seeded),
+        }
+      })
+    )
+  }
+
+  function handleResetCompareSetup() {
+    if (onResetCandidates) {
+      onResetCandidates()
+      return
+    }
+    onChangeCandidates(
+      selectedCandidates.map((cand) => {
+        const seeded =
+          cand.seededTargetConditionals !== undefined
+            ? cloneMemberConditionalsMap(cand.seededTargetConditionals)
+            : seedCandidateTargetConditionals(
+                currentPanelTargetOverrides,
+                cand.weaponKey
+              )
+        return {
+          ...cand,
+          targetConditionals: seeded,
+          seededTargetConditionals: cloneMemberConditionalsMap(seeded),
+        }
+      })
+    )
+  }
 
   function handleUpdateCandidate(
     weaponKey: string,
@@ -1953,6 +2158,29 @@ export function WeaponComparisonPanel({
     handleUpdateCandidate(weaponKey, { level: clamped })
   }
 
+  const candidateEffectEntriesByWeapon = useMemo(() => {
+    const out: Record<
+      string,
+      ReturnType<typeof deriveCandidateTargetConditionalsEntry>
+    > = {}
+    for (const cand of selectedCandidates) {
+      out[cand.weaponKey] = deriveCandidateTargetConditionalsEntry({
+        preset: effectivePreset,
+        weaponKey: cand.weaponKey,
+        targetConditionals: cand.targetConditionals,
+        seededTargetConditionals: cand.seededTargetConditionals,
+        settings,
+        good,
+        memberCatalog: targetCatalog,
+      })
+    }
+    return out
+  }, [selectedCandidates, effectivePreset, settings, good, targetCatalog])
+
+  const anySetupDiffers = Object.values(candidateEffectEntriesByWeapon).some(
+    (e) => e.setupDiffers
+  )
+
   return (
     <div
       className="weapon-compare-panel"
@@ -1971,18 +2199,38 @@ export function WeaponComparisonPanel({
             unowned weapons default to Lv.90 / A6 / R1.
           </p>
         </div>
-        <span
-          className="opt-filter-panel-summary"
-          data-testid="weapon-compare-selected-count"
+        <div
           style={{
-            color:
-              selectedCandidates.length >= 2 ? 'var(--ok)' : 'var(--warn)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--sp-2)',
+            flexWrap: 'wrap',
           }}
         >
-          {selectedCandidates.length < 2
-            ? `${selectedCandidates.length} selected (select at least 2 to compare)`
-            : `${selectedCandidates.length} selected`}
-        </span>
+          {(onResetCandidates || anySetupDiffers) && (
+            <button
+              type="button"
+              className="btn-secondary"
+              data-testid="weapon-compare-reset-setup"
+              onClick={handleResetCompareSetup}
+              style={{ fontSize: '0.78rem', padding: '0.24rem 0.6rem' }}
+            >
+              Reset Setup
+            </button>
+          )}
+          <span
+            className="opt-filter-panel-summary"
+            data-testid="weapon-compare-selected-count"
+            style={{
+              color:
+                selectedCandidates.length >= 2 ? 'var(--ok)' : 'var(--warn)',
+            }}
+          >
+            {selectedCandidates.length < 2
+              ? `${selectedCandidates.length} selected (select at least 2 to compare)`
+              : `${selectedCandidates.length} selected`}
+          </span>
+        </div>
       </div>
 
       <WeaponTilePicker
@@ -2038,129 +2286,394 @@ export function WeaponComparisonPanel({
             const maxLvl = isLowRarity ? 70 : 90
             const maxAsc = isLowRarity ? 4 : 6
             const ascValues = Array.from({ length: maxAsc + 1 }, (_, i) => i)
+            const candEffects =
+              candidateEffectEntriesByWeapon[cand.weaponKey] ??
+              deriveCandidateTargetConditionalsEntry({
+                preset: effectivePreset,
+                weaponKey: cand.weaponKey,
+                targetConditionals: cand.targetConditionals,
+                seededTargetConditionals: cand.seededTargetConditionals,
+                settings,
+                good,
+                memberCatalog: targetCatalog,
+              })
+            const isEffectsExpanded = Boolean(
+              expandedEffectsByWeapon[cand.weaponKey]
+            )
 
             return (
               <div
                 key={cand.weaponKey}
-                className="weapon-compare-config-row"
+                className={`weapon-compare-config-row${
+                  isEffectsExpanded ? ' is-effects-open' : ''
+                }`}
                 data-testid={`weapon-compare-config-${cand.weaponKey}`}
                 data-weapon-key={cand.weaponKey}
                 data-is-owned={cand.isOwned ? 'true' : 'false'}
                 data-is-baseline={cand.isEquippedBaseline ? 'true' : 'false'}
+                data-setup-differs={candEffects.setupDiffers ? 'true' : 'false'}
               >
-                <div className="weapon-compare-config-identity">
-                  <WeaponBadge
-                    weaponKey={cand.weaponKey}
-                    subtitle={`Lv.${cand.level} A${cand.ascension} · R${cand.refinement}`}
-                  />
-                  {cand.isEquippedBaseline ? (
-                    <span
-                      className="comp-baseline-tag"
-                      data-testid={`weapon-compare-config-baseline-${cand.weaponKey}`}
-                      title="Your currently equipped build"
-                    >
-                      Current
-                    </span>
-                  ) : cand.isOwned ? (
-                    <span
-                      className="comp-owned-tag"
-                      data-testid={`weapon-compare-config-owned-${cand.weaponKey}`}
-                    >
-                      Owned
-                    </span>
-                  ) : (
-                    <span
-                      className="comp-sim-tag"
-                      data-testid={`weapon-compare-config-unowned-${cand.weaponKey}`}
-                    >
-                      Unowned (Simulated)
-                    </span>
-                  )}
-                </div>
-
-                <div className="weapon-compare-config-controls">
-                  <label className="presets-filter-label-sm">
-                    <span className="muted">Lv.</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      aria-label={`${wMeta.displayName} Level`}
-                      data-testid={`weapon-compare-level-${cand.weaponKey}`}
-                      value={
-                        cand.weaponKey in draftLevels
-                          ? draftLevels[cand.weaponKey]!
-                          : String(cand.level)
-                      }
-                      onFocus={() =>
-                        handleFocusLevel(cand.weaponKey, cand.level)
-                      }
-                      onChange={(e) =>
-                        handleChangeLevel(cand.weaponKey, e.target.value)
-                      }
-                      onBlur={() =>
-                        handleBlurLevel(cand.weaponKey, cand.level, maxLvl)
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.currentTarget.blur()
-                        }
-                      }}
-                      style={{ width: '64px' }}
+                <div className="weapon-compare-config-main">
+                  <div className="weapon-compare-config-identity">
+                    <WeaponBadge
+                      weaponKey={cand.weaponKey}
+                      subtitle={`Lv.${cand.level} A${cand.ascension} · R${cand.refinement}`}
                     />
-                  </label>
+                    {cand.isEquippedBaseline ? (
+                      <span
+                        className="comp-baseline-tag"
+                        data-testid={`weapon-compare-config-baseline-${cand.weaponKey}`}
+                        title="Your currently equipped build"
+                      >
+                        Current
+                      </span>
+                    ) : cand.isOwned ? (
+                      <span
+                        className="comp-owned-tag"
+                        data-testid={`weapon-compare-config-owned-${cand.weaponKey}`}
+                      >
+                        Owned
+                      </span>
+                    ) : (
+                      <span
+                        className="comp-sim-tag"
+                        data-testid={`weapon-compare-config-unowned-${cand.weaponKey}`}
+                      >
+                        Unowned (Simulated)
+                      </span>
+                    )}
+                    {candEffects.setupDiffers && (
+                      <span
+                        className="gi-setup-differs-badge"
+                        data-testid={`weapon-compare-setup-differs-${cand.weaponKey}`}
+                        title={candEffects.setupDiffersTooltip}
+                      >
+                        Setup differs
+                      </span>
+                    )}
+                  </div>
 
-                  <label className="presets-filter-label-sm">
-                    <span className="muted">Asc.</span>
-                    <select
-                      aria-label={`${wMeta.displayName} Ascension`}
-                      data-testid={`weapon-compare-ascension-${cand.weaponKey}`}
-                      value={cand.ascension}
-                      onChange={(e) =>
-                        handleUpdateCandidate(cand.weaponKey, {
-                          ascension: Number(e.target.value),
-                        })
+                  <div className="weapon-compare-config-controls">
+                    <label className="presets-filter-label-sm">
+                      <span className="muted">Lv.</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        aria-label={`${wMeta.displayName} Level`}
+                        data-testid={`weapon-compare-level-${cand.weaponKey}`}
+                        value={
+                          cand.weaponKey in draftLevels
+                            ? draftLevels[cand.weaponKey]!
+                            : String(cand.level)
+                        }
+                        onFocus={() =>
+                          handleFocusLevel(cand.weaponKey, cand.level)
+                        }
+                        onChange={(e) =>
+                          handleChangeLevel(cand.weaponKey, e.target.value)
+                        }
+                        onBlur={() =>
+                          handleBlurLevel(cand.weaponKey, cand.level, maxLvl)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur()
+                          }
+                        }}
+                        style={{ width: '64px' }}
+                      />
+                    </label>
+
+                    <label className="presets-filter-label-sm">
+                      <span className="muted">Asc.</span>
+                      <select
+                        aria-label={`${wMeta.displayName} Ascension`}
+                        data-testid={`weapon-compare-ascension-${cand.weaponKey}`}
+                        value={cand.ascension}
+                        onChange={(e) =>
+                          handleUpdateCandidate(cand.weaponKey, {
+                            ascension: Number(e.target.value),
+                          })
+                        }
+                      >
+                        {ascValues.map((a) => (
+                          <option key={a} value={a}>
+                            A{a}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="presets-filter-label-sm">
+                      <span className="muted">Ref.</span>
+                      <select
+                        aria-label={`${wMeta.displayName} Refinement`}
+                        data-testid={`weapon-compare-refinement-${cand.weaponKey}`}
+                        value={cand.refinement}
+                        disabled={isLowRarity}
+                        onChange={(e) =>
+                          handleUpdateCandidate(cand.weaponKey, {
+                            refinement: Number(e.target.value),
+                          })
+                        }
+                      >
+                        {[1, 2, 3, 4, 5].map((r) => (
+                          <option key={r} value={r}>
+                            R{r}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <button
+                      type="button"
+                      className={`btn-secondary weapon-compare-effects-btn${
+                        isEffectsExpanded ? ' is-open' : ''
+                      }${candEffects.setupDiffers ? ' is-modified' : ''}`}
+                      aria-expanded={isEffectsExpanded}
+                      aria-label={`${
+                        isEffectsExpanded ? 'Hide' : 'Configure'
+                      } ${wMeta.displayName} effects`}
+                      data-testid={`weapon-compare-effects-toggle-${cand.weaponKey}`}
+                      onClick={() =>
+                        setExpandedEffectsByWeapon((prev) => ({
+                          ...prev,
+                          [cand.weaponKey]: !prev[cand.weaponKey],
+                        }))
                       }
                     >
-                      {ascValues.map((a) => (
-                        <option key={a} value={a}>
-                          A{a}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      <span>Effects ({candEffects.activeCount})</span>
+                      <span aria-hidden="true">
+                        {isEffectsExpanded ? '▲' : '▼'}
+                      </span>
+                    </button>
 
-                  <label className="presets-filter-label-sm">
-                    <span className="muted">Ref.</span>
-                    <select
-                      aria-label={`${wMeta.displayName} Refinement`}
-                      data-testid={`weapon-compare-refinement-${cand.weaponKey}`}
-                      value={cand.refinement}
-                      disabled={isLowRarity}
-                      onChange={(e) =>
-                        handleUpdateCandidate(cand.weaponKey, {
-                          refinement: Number(e.target.value),
-                        })
-                      }
+                    <button
+                      type="button"
+                      className="btn-icon-only btn-danger-ghost"
+                      aria-label={`Remove ${wMeta.displayName}`}
+                      title={`Remove ${wMeta.displayName}`}
+                      data-testid={`weapon-compare-remove-${cand.weaponKey}`}
+                      onClick={() => handleToggleWeapon(cand.weaponKey)}
                     >
-                      {[1, 2, 3, 4, 5].map((r) => (
-                        <option key={r} value={r}>
-                          R{r}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <button
-                    type="button"
-                    className="btn-icon-only btn-danger-ghost"
-                    aria-label={`Remove ${wMeta.displayName}`}
-                    title={`Remove ${wMeta.displayName}`}
-                    data-testid={`weapon-compare-remove-${cand.weaponKey}`}
-                    onClick={() => handleToggleWeapon(cand.weaponKey)}
-                  >
-                    <TrashIcon size={14} />
-                  </button>
+                      <TrashIcon size={14} />
+                    </button>
+                  </div>
                 </div>
+
+                {isEffectsExpanded && (
+                  <div
+                    className="weapon-compare-effects-drawer"
+                    data-testid={`weapon-compare-effects-panel-${cand.weaponKey}`}
+                  >
+                    <div className="weapon-compare-effects-header">
+                      <div>
+                        <strong>
+                          Target Effects for {wMeta.displayName} (
+                          {displayName(candEffects.targetKey)})
+                        </strong>
+                        <p
+                          className="muted"
+                          style={{ fontSize: '0.78rem', margin: 0 }}
+                        >
+                          Configure weapon passives, artifact set effects, and
+                          character/constellation buffs for this candidate only.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        data-testid={`weapon-compare-effects-reset-${cand.weaponKey}`}
+                        disabled={!candEffects.setupDiffers}
+                        onClick={() =>
+                          handleResetCandidateEffects(cand.weaponKey)
+                        }
+                        style={{
+                          fontSize: '0.78rem',
+                          padding: '0.2rem 0.55rem',
+                        }}
+                      >
+                        Reset Effects
+                      </button>
+                    </div>
+
+                    {candEffects.setupDiffers && (
+                      <div
+                        className="weapon-compare-effects-diff-banner"
+                        data-testid={`weapon-compare-effects-diff-list-${cand.weaponKey}`}
+                      >
+                        {candEffects.diffs.map((d) => (
+                          <span
+                            key={`${d.sheet}:${d.key}`}
+                            className="weapon-compare-effects-diff-chip"
+                          >
+                            {d.summary}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="gi-buffs-groups">
+                      {/* 1. Candidate Weapon Passive */}
+                      <div
+                        className="gi-buffs-group"
+                        data-testid={`weapon-compare-effects-weapon-${cand.weaponKey}`}
+                      >
+                        <div className="gi-buffs-group-header">
+                          <span className="gi-buffs-group-title">
+                            <WeaponTypeIcon
+                              weaponType={candEffects.charMeta.weaponType}
+                              iconProps={{ size: 14 }}
+                            />
+                            <span>Weapon Passive</span>
+                          </span>
+                          <span className="muted" style={{ fontSize: '0.8rem' }}>
+                            {wMeta.displayName}
+                          </span>
+                        </div>
+                        {candEffects.weaponConditionals.length > 0 ? (
+                          <div className="gi-buffs-rows gi-buffs-grid">
+                            {candEffects.weaponConditionals.map((cond) =>
+                              renderConditionalRow({
+                                characterKey: candEffects.targetKey,
+                                cond,
+                                effectiveMap: candEffects.effectiveMap,
+                                testIdPrefix: `weapon-compare-cond-${cand.weaponKey}`,
+                                onSetState: (val) =>
+                                  handleSetCandidateCondState(
+                                    cand.weaponKey,
+                                    cond.sheet,
+                                    cond.key,
+                                    val
+                                  ),
+                              })
+                            )}
+                          </div>
+                        ) : (
+                          <div className="gi-buffs-empty">
+                            No toggleable passive on {wMeta.displayName}.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2. Target Artifact Set Effects */}
+                      <div
+                        className="gi-buffs-group"
+                        data-testid={`weapon-compare-effects-artifact-${cand.weaponKey}`}
+                      >
+                        <div className="gi-buffs-group-header">
+                          <span className="gi-buffs-group-title">
+                            <SetEmblemIcon size={14} />
+                            <span>Artifact Set Effects</span>
+                          </span>
+                        </div>
+                        {candEffects.visibleArtifactConditionals.length > 0 ? (
+                          <div className="gi-buffs-rows gi-buffs-grid">
+                            {candEffects.visibleArtifactConditionals.map(
+                              (cond) =>
+                                renderConditionalRow({
+                                  characterKey: candEffects.targetKey,
+                                  cond,
+                                  effectiveMap: candEffects.effectiveMap,
+                                  showSetBadge: true,
+                                  testIdPrefix: `weapon-compare-cond-${cand.weaponKey}`,
+                                  onSetState: (val) =>
+                                    handleSetCandidateCondState(
+                                      cand.weaponKey,
+                                      cond.sheet,
+                                      cond.key,
+                                      val
+                                    ),
+                                })
+                            )}
+                          </div>
+                        ) : (
+                          <div className="gi-buffs-empty">
+                            No toggleable artifact set conditionals.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3. Target Character Passives & Talents */}
+                      <div
+                        className="gi-buffs-group"
+                        data-testid={`weapon-compare-effects-character-${cand.weaponKey}`}
+                      >
+                        <div className="gi-buffs-group-header">
+                          <span className="gi-buffs-group-title">
+                            <ElementIcon
+                              ele={candEffects.charMeta.element}
+                              iconProps={{ size: 14 }}
+                            />
+                            <span>Character Passives &amp; Talents</span>
+                          </span>
+                        </div>
+                        {candEffects.characterConditionals.length > 0 ? (
+                          <div className="gi-buffs-rows gi-buffs-grid">
+                            {candEffects.characterConditionals.map((cond) =>
+                              renderConditionalRow({
+                                characterKey: candEffects.targetKey,
+                                cond,
+                                effectiveMap: candEffects.effectiveMap,
+                                testIdPrefix: `weapon-compare-cond-${cand.weaponKey}`,
+                                onSetState: (val) =>
+                                  handleSetCandidateCondState(
+                                    cand.weaponKey,
+                                    cond.sheet,
+                                    cond.key,
+                                    val
+                                  ),
+                              })
+                            )}
+                          </div>
+                        ) : (
+                          <div className="gi-buffs-empty">
+                            No toggleable talent passives.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. Target Constellation Effects */}
+                      <div
+                        className="gi-buffs-group"
+                        data-testid={`weapon-compare-effects-constellation-${cand.weaponKey}`}
+                      >
+                        <div className="gi-buffs-group-header">
+                          <span className="gi-buffs-group-title">
+                            <ElementIcon
+                              ele={candEffects.charMeta.element}
+                              iconProps={{ size: 14 }}
+                            />
+                            <span>Constellation Effects</span>
+                          </span>
+                        </div>
+                        {candEffects.constellationConditionals.length > 0 ? (
+                          <div className="gi-buffs-rows gi-buffs-grid">
+                            {candEffects.constellationConditionals.map((cond) =>
+                              renderConditionalRow({
+                                characterKey: candEffects.targetKey,
+                                cond,
+                                effectiveMap: candEffects.effectiveMap,
+                                testIdPrefix: `weapon-compare-cond-${cand.weaponKey}`,
+                                onSetState: (val) =>
+                                  handleSetCandidateCondState(
+                                    cand.weaponKey,
+                                    cond.sheet,
+                                    cond.key,
+                                    val
+                                  ),
+                              })
+                            )}
+                          </div>
+                        ) : (
+                          <div className="gi-buffs-empty">
+                            No toggleable constellation conditionals.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })}
@@ -2181,6 +2694,9 @@ export interface WeaponComparisonListProps {
   } | null
   onExportGO?: (selection: BuildSelection, label: string) => void
   initialExpandedWeaponKey?: string | null
+  settings?: OptimizerSettings
+  good?: IGOOD | null
+  conditionalsByChar?: Record<string, ConditionalDescriptor[]>
 }
 
 export function WeaponComparisonList({
@@ -2190,6 +2706,9 @@ export function WeaponComparisonList({
   currentBuild,
   onExportGO,
   initialExpandedWeaponKey,
+  settings,
+  good,
+  conditionalsByChar,
 }: WeaponComparisonListProps) {
   const firstOkKey =
     result.rows.find((r) => r.status === 'ok')?.candidate.weaponKey ?? null
@@ -2231,6 +2750,15 @@ export function WeaponComparisonList({
         const wKey = row.candidate.weaponKey
         const specSubtitle = `Lv.${row.candidate.level} A${row.candidate.ascension} · R${row.candidate.refinement}`
         const isBaseline = Boolean(row.candidate.isEquippedBaseline)
+        const candEffects = deriveCandidateTargetConditionalsEntry({
+          preset,
+          weaponKey: wKey,
+          targetConditionals: row.candidate.targetConditionals,
+          seededTargetConditionals: row.candidate.seededTargetConditionals,
+          settings,
+          good,
+          memberCatalog: conditionalsByChar?.[preset.target] ?? [],
+        })
 
         if (row.status === 'unmet') {
           return (
@@ -2241,6 +2769,7 @@ export function WeaponComparisonList({
               data-weapon-key={wKey}
               data-status="unmet"
               data-baseline={isBaseline ? 'true' : 'false'}
+              data-setup-differs={candEffects.setupDiffers ? 'true' : 'false'}
               className="comp-row comp-row-unmet"
             >
               <div className="comp-row-summary">
@@ -2260,6 +2789,15 @@ export function WeaponComparisonList({
                         title="Your currently equipped build"
                       >
                         Current
+                      </span>
+                    )}
+                    {candEffects.setupDiffers && (
+                      <span
+                        className="gi-setup-differs-badge"
+                        data-testid={`weapon-compare-result-setup-differs-${wKey}`}
+                        title={candEffects.setupDiffersTooltip}
+                      >
+                        Setup differs
                       </span>
                     )}
                   </div>
@@ -2312,6 +2850,7 @@ export function WeaponComparisonList({
             data-rank={String(row.rank)}
             data-best-weapon={isBest ? 'true' : 'false'}
             data-baseline={isBaseline ? 'true' : 'false'}
+            data-setup-differs={candEffects.setupDiffers ? 'true' : 'false'}
             className={`comp-row${isBest ? ' comp-row-best' : ''}${
               isBaseline ? ' comp-row-current' : ''
             }${isExpanded ? ' comp-row-expanded' : ''}`}
@@ -2348,6 +2887,15 @@ export function WeaponComparisonList({
                       title="Your currently equipped build"
                     >
                       Current
+                    </span>
+                  )}
+                  {candEffects.setupDiffers && (
+                    <span
+                      className="gi-setup-differs-badge"
+                      data-testid={`weapon-compare-result-setup-differs-${wKey}`}
+                      title={candEffects.setupDiffersTooltip}
+                    >
+                      Setup differs
                     </span>
                   )}
                 </div>

@@ -22,9 +22,11 @@ import {
   applyMemberConditionalOverrides,
   getPresetResonanceEnabled,
   readEffectiveConditionalValue,
+  resolveCandidateMemberConditionals,
   resolveEffectiveFastMode,
   resolvePresetMemberBuildMode,
   resolveRotationTargetOwner,
+  seedCandidateTargetConditionals,
   type MemberBuildMode,
   type MemberConditionalsMap,
   type Preset,
@@ -875,12 +877,27 @@ export function hydrateTeamIntoDb(
 export function resolveDefaultWeaponCompareCandidate(
   weaponKey: string,
   targetCharKey: string,
-  goodData?: unknown
+  goodData?: unknown,
+  seedTargetOverrides?: MemberConditionalsMap
 ): WeaponCompareCandidate {
   const rarity = getWeaponStat(weaponKey as WeaponKey)?.rarity ?? 5
   const isLowRarity = rarity <= 2
   const maxLvl = isLowRarity ? 70 : 90
   const maxAsc = isLowRarity ? 4 : 6
+
+  const seededFields =
+    seedTargetOverrides !== undefined
+      ? {
+          targetConditionals: seedCandidateTargetConditionals(
+            seedTargetOverrides,
+            weaponKey
+          ),
+          seededTargetConditionals: seedCandidateTargetConditionals(
+            seedTargetOverrides,
+            weaponKey
+          ),
+        }
+      : {}
 
   const goodObj =
     typeof goodData === 'object' && goodData !== null
@@ -928,6 +945,7 @@ export function resolveDefaultWeaponCompareCandidate(
       isOwned: true,
       ownedWeaponId: match.id,
       isEquippedBaseline: match.location === targetCharKey,
+      ...seededFields,
     }
   }
 
@@ -938,6 +956,7 @@ export function resolveDefaultWeaponCompareCandidate(
     refinement: 1,
     isOwned: false,
     isEquippedBaseline: false,
+    ...seededFields,
   }
 }
 
@@ -1051,13 +1070,18 @@ export async function compareWeapons(
       ascension: candidate.ascension,
       refinement: candidate.refinement,
     }
+    const candidateMemberConditionals = resolveCandidateMemberConditionals(
+      preset.target,
+      candidate,
+      effectiveMemberConditionals
+    )
 
     let optRes: OptimizeResult
     try {
       optRes = await session.optimize(preset, compareSettings, {
         weaponOverride,
         memberBuildModes: effectiveMemberBuildModes,
-        memberConditionals: effectiveMemberConditionals,
+        memberConditionals: candidateMemberConditionals,
         resonanceEnabled: effectiveResonanceEnabled,
         fastMode: effectiveFastMode,
         signal: opts?.signal,
@@ -1115,9 +1139,9 @@ export async function compareWeapons(
           Object.keys(effectiveMemberBuildModes).length > 0
             ? { memberBuildModes: effectiveMemberBuildModes }
             : {}),
-          ...(effectiveMemberConditionals &&
-          Object.keys(effectiveMemberConditionals).length > 0
-            ? { memberConditionals: effectiveMemberConditionals }
+          ...(candidateMemberConditionals &&
+          Object.keys(candidateMemberConditionals).length > 0
+            ? { memberConditionals: candidateMemberConditionals }
             : {}),
           ...(effectiveResonanceEnabled === false
             ? { resonanceEnabled: false }

@@ -65,6 +65,7 @@ import {
   getPresetConditionalOverrides,
   getPresetMemberBuildModes,
   getPresetResonanceEnabled,
+  getPresetWeaponCompareCandidates,
   getWeaponMeta,
   hasMemberConditionalOverrides,
   listBundledPresets,
@@ -72,10 +73,13 @@ import {
   matchAccount,
   normalizeFastModeStats,
   resetPresetMemberFastMode,
+  resetPresetWeaponCompareCandidates,
+  resolveCandidateMemberConditionals,
   resolveEffectiveFastMode,
   resolvePresetMemberBuildMode,
   setPresetMemberBuildMode,
   setPresetMemberFastModeStat,
+  setPresetWeaponCompareCandidates,
   type FastModeStatKey,
   type MemberBuildMode,
   type Preset,
@@ -331,6 +335,11 @@ function OptimizeInner() {
     if (!activePreset) return []
     const explicit = compareCandidatesByPreset[activePreset.id]
     if (explicit) return explicit
+    const persisted = getPresetWeaponCompareCandidates(
+      settings,
+      activePreset.id
+    )
+    if (persisted) return persisted
 
     const seededKeys: string[] = []
     const targetWeaponType = getCharacterMeta(activePreset.target).weaponType
@@ -348,10 +357,22 @@ function OptimizeInner() {
     ) {
       seededKeys.push(activePreset.team[0].build.weapon.key)
     }
+    const targetOverrides = activeMemberConditionals[activePreset.target] ?? {}
     return seededKeys.map((wk) =>
-      resolveWeaponCompareCandidate(wk, activePreset.target, record?.good)
+      resolveWeaponCompareCandidate(
+        wk,
+        activePreset.target,
+        record?.good,
+        targetOverrides
+      )
     )
-  }, [activePreset, compareCandidatesByPreset, record])
+  }, [
+    activePreset,
+    compareCandidatesByPreset,
+    settings,
+    record,
+    activeMemberConditionals,
+  ])
 
   const matchReport = useMemo(() => {
     if (!activePreset || !record?.good || isAkashaPreset) return null
@@ -764,6 +785,12 @@ function OptimizeInner() {
           ascension: cand.ascension,
           refinement: cand.refinement,
         }
+        const candidateMemberConditionals =
+          resolveCandidateMemberConditionals(
+            activePreset.target,
+            cand,
+            activeMemberConditionals
+          ) ?? activeMemberConditionals
 
         setCompareProgress({
           weaponIndex: i,
@@ -775,6 +802,10 @@ function OptimizeInner() {
         const compareSettings = {
           ...settings,
           topN: WEAPON_COMPARE_TOP_N,
+          memberConditionalOverrides: {
+            ...(settings.memberConditionalOverrides ?? {}),
+            [activePreset.id]: candidateMemberConditionals,
+          },
         }
 
         let optRes: OptimizeResult
@@ -829,6 +860,9 @@ function OptimizeInner() {
         } else {
           const goodSnapshot = record.good
           const importedAtSnapshot = record.importedAt
+          const hasCandidateConditionals =
+            candidateMemberConditionals &&
+            Object.keys(candidateMemberConditionals).length > 0
           const rawEntries = await Promise.all(
             candidateBuilds.map(async (b) => {
               const selectionForEval: BuildSelection = {
@@ -838,8 +872,8 @@ function OptimizeInner() {
                 Object.keys(activeMemberBuildModes).length > 0
                   ? { memberBuildModes: activeMemberBuildModes }
                   : {}),
-                ...(hasActiveConditionalOverrides
-                  ? { memberConditionals: activeMemberConditionals }
+                ...(hasCandidateConditionals
+                  ? { memberConditionals: candidateMemberConditionals }
                   : {}),
                 ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
                 ...(hasActiveFastMode ? { fastMode: activeFastMode } : {}),
@@ -1344,12 +1378,32 @@ function OptimizeInner() {
             <WeaponComparisonPanel
               targetCharacterKey={activePreset.target}
               good={record?.good}
+              preset={activePreset}
+              settings={settings}
               selectedCandidates={activeCompareCandidates}
               onChangeCandidates={(next) => {
                 setCompareCandidatesByPreset((prev) => ({
                   ...prev,
                   [activePreset.id]: next,
                 }))
+                void updateSettings(
+                  setPresetWeaponCompareCandidates(
+                    settings,
+                    activePreset.id,
+                    next
+                  )
+                )
+                setCompareResult(null)
+              }}
+              onResetCandidates={() => {
+                setCompareCandidatesByPreset((prev) => {
+                  const next = { ...prev }
+                  delete next[activePreset.id]
+                  return next
+                })
+                void updateSettings(
+                  resetPresetWeaponCompareCandidates(settings, activePreset.id)
+                )
                 setCompareResult(null)
               }}
             />
@@ -1950,6 +2004,8 @@ function OptimizeInner() {
                 preset={activePreset}
                 result={compareResult}
                 artifactById={artifactById}
+                settings={settings}
+                good={record?.good}
                 currentBuild={
                   showCurrentComparison && currentSelection && currentEval
                     ? {

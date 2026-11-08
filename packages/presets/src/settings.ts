@@ -1,4 +1,4 @@
-import { ALL_ARTIFACT_SET_KEYS } from './names'
+import { ALL_ARTIFACT_SET_KEYS, ALL_WEAPON_KEYS } from './names'
 import {
   FAST_MODE_STAT_KEYS,
   isFastModeStatKey,
@@ -47,6 +47,27 @@ export type PresetMemberConditionalOverrides = Record<
   string,
   MemberConditionalsMap
 >
+
+export interface WeaponCompareCandidateSpec {
+  weaponKey: string
+  level: number
+  ascension: number
+  refinement: number
+  isOwned?: boolean
+  ownedWeaponId?: string
+  isEquippedBaseline?: boolean
+  /**
+   * Independent copy of the target character's (`preset.target` / slot 0) conditional
+   * overrides for this candidate: candidate weapon passives, target character/constellation
+   * passives, and target artifact-set conditionals.
+   */
+  targetConditionals?: MemberConditionalsMap
+  /**
+   * Snapshot of the target character's effective conditional overrides at the time this
+   * candidate was added or seeded, used to detect and explain "Setup differs" in the UI.
+   */
+  seededTargetConditionals?: MemberConditionalsMap
+}
 
 export interface ResolvedMemberBuild {
   characterKey: string
@@ -177,6 +198,12 @@ export interface OptimizerSettings {
    * `[presetId][characterKey][statKey]`.
    */
   fastModeByPreset?: Record<string, PresetFastModeMap>
+  /**
+   * Per-preset weapon comparison candidate list (`[presetId] => WeaponCompareCandidateSpec[]`),
+   * persisting each candidate's weapon investment and per-candidate `targetConditionals` /
+   * `seededTargetConditionals` setup.
+   */
+  weaponCompareCandidatesByPreset?: Record<string, WeaponCompareCandidateSpec[]>
   topN: number
 }
 
@@ -200,6 +227,7 @@ export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
   memberConditionalOverrides: {},
   resonanceEnabledByPreset: {},
   fastModeByPreset: {},
+  weaponCompareCandidatesByPreset: {},
   topN: 5,
 }
 
@@ -643,6 +671,130 @@ export function applyMemberConditionalOverrides(
   }
 
   return out
+}
+
+const ALL_WEAPON_KEYS_SET = new Set<string>(ALL_WEAPON_KEYS)
+
+export function cloneMemberConditionalsMap(
+  map: MemberConditionalsMap | undefined
+): MemberConditionalsMap {
+  if (!map) return {}
+  const out: MemberConditionalsMap = {}
+  for (const [sheetKey, sheetMap] of Object.entries(map)) {
+    if (sheetMap && typeof sheetMap === 'object') {
+      out[sheetKey] = { ...sheetMap }
+    }
+  }
+  return out
+}
+
+/**
+ * Seeds a weapon comparison candidate's `targetConditionals` from the target character's
+ * current effective conditional overrides, stripping any sheet overrides belonging to
+ * weapons other than `weaponKey`.
+ */
+export function seedCandidateTargetConditionals(
+  targetOverrides: MemberConditionalsMap | undefined,
+  weaponKey: string,
+  otherWeaponKeysToStrip: ReadonlySet<string> = ALL_WEAPON_KEYS_SET
+): MemberConditionalsMap {
+  if (!targetOverrides) return {}
+  const out: MemberConditionalsMap = {}
+  for (const [sheetKey, sheetMap] of Object.entries(targetOverrides)) {
+    if (!sheetMap || typeof sheetMap !== 'object') continue
+    if (otherWeaponKeysToStrip.has(sheetKey) && sheetKey !== weaponKey) {
+      continue
+    }
+    const copy = { ...sheetMap }
+    if (Object.keys(copy).length > 0) {
+      out[sheetKey] = copy
+    }
+  }
+  return out
+}
+
+/**
+ * Resolves the per-member conditional overrides map for a single weapon comparison candidate:
+ * replaces the target character's entry (`[targetCharKey]`) with `candidate.targetConditionals`
+ * when defined while preserving all non-target teammate conditional overrides from
+ * `sharedMemberConditionals`.
+ */
+export function resolveCandidateMemberConditionals(
+  targetCharKey: string,
+  candidate: Pick<WeaponCompareCandidateSpec, 'targetConditionals'>,
+  sharedMemberConditionals?: Record<string, MemberConditionalsMap>
+): Record<string, MemberConditionalsMap> | undefined {
+  if (candidate.targetConditionals === undefined) {
+    return sharedMemberConditionals
+  }
+  const out: Record<string, MemberConditionalsMap> = {}
+  if (sharedMemberConditionals) {
+    for (const [memberKey, memberMap] of Object.entries(
+      sharedMemberConditionals
+    )) {
+      if (memberKey === targetCharKey) continue
+      if (memberMap) {
+        out[memberKey] = cloneMemberConditionalsMap(memberMap)
+      }
+    }
+  }
+  out[targetCharKey] = cloneMemberConditionalsMap(candidate.targetConditionals)
+  return out
+}
+
+function cloneWeaponCompareCandidateSpec(
+  cand: WeaponCompareCandidateSpec
+): WeaponCompareCandidateSpec {
+  return {
+    ...cand,
+    ...(cand.targetConditionals !== undefined
+      ? {
+          targetConditionals: cloneMemberConditionalsMap(
+            cand.targetConditionals
+          ),
+        }
+      : {}),
+    ...(cand.seededTargetConditionals !== undefined
+      ? {
+          seededTargetConditionals: cloneMemberConditionalsMap(
+            cand.seededTargetConditionals
+          ),
+        }
+      : {}),
+  }
+}
+
+export function getPresetWeaponCompareCandidates(
+  settings: Pick<OptimizerSettings, 'weaponCompareCandidatesByPreset'> | undefined,
+  presetId: string
+): WeaponCompareCandidateSpec[] | undefined {
+  const list = settings?.weaponCompareCandidatesByPreset?.[presetId]
+  if (!Array.isArray(list)) return undefined
+  return list.map(cloneWeaponCompareCandidateSpec)
+}
+
+export function setPresetWeaponCompareCandidates(
+  settings: OptimizerSettings,
+  presetId: string,
+  candidates: WeaponCompareCandidateSpec[] | undefined
+): OptimizerSettings {
+  const currentAll = { ...(settings.weaponCompareCandidatesByPreset ?? {}) }
+  if (!candidates) {
+    delete currentAll[presetId]
+  } else {
+    currentAll[presetId] = candidates.map(cloneWeaponCompareCandidateSpec)
+  }
+  return {
+    ...settings,
+    weaponCompareCandidatesByPreset: currentAll,
+  }
+}
+
+export function resetPresetWeaponCompareCandidates(
+  settings: OptimizerSettings,
+  presetId: string
+): OptimizerSettings {
+  return setPresetWeaponCompareCandidates(settings, presetId, undefined)
 }
 
 /**
