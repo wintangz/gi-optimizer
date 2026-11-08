@@ -311,4 +311,44 @@ describe('presetSchema (zero-dependency validator)', () => {
       },
     })
   })
+
+  it('validates TeamMember.fastMode on non-target teammates and strips fastMode from slot 0 (target)', () => {
+    const parsed = presetSchema.parse({
+      ...minimal,
+      team: [
+        {
+          key: 'Furina',
+          build: { type: 'owned' },
+          fastMode: { hp_: 25, critRate_: 10 },
+        },
+        {
+          key: 'KaedeharaKazuha',
+          build: { type: 'owned' },
+          fastMode: { eleMas: 40, enerRech_: -15, hp: 0 },
+        },
+      ],
+    })
+    // Slot 0 (target) can never receive a virtual piece
+    expect(parsed.team[0]?.fastMode).toBeUndefined()
+    // Non-target teammate preserves non-zero Fast Mode stats and strips 0 values
+    expect(parsed.team[1]?.fastMode).toEqual({
+      eleMas: 40,
+      enerRech_: -15,
+    })
+
+    // Rejects unknown stat keys or non-finite values in fastMode
+    expect(
+      presetSchema.safeParse({
+        ...minimal,
+        team: [
+          { key: 'Furina', build: { type: 'owned' } },
+          {
+            key: 'KaedeharaKazuha',
+            build: { type: 'owned' },
+            fastMode: { pyro_dmg_: 46.6 },
+          },
+        ],
+      }).success
+    ).toBe(false)
+  })
 })

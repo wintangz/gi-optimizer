@@ -5,18 +5,26 @@ import {
   createDefaultTcTeammate,
   DEFAULT_OPTIMIZER_SETTINGS,
   DEFAULT_TC_TEAMMATE_CONDITIONAL,
+  FAST_MODE_STAT_KEYS,
+  getPresetFastMode,
   getPresetResonanceEnabled,
+  hasMemberFastMode,
+  hasPresetFastMode,
   invertSets,
   isActiveStatConstraint,
   isPercentStatConstraintKey,
   migrateOptimizerSettings,
   normalizeStatConstraintValue,
   resetMemberConditionalOverrides,
+  resetPresetMemberFastMode,
   resetSolverPoolFilters,
   resolveArtSetExclusion,
+  resolveEffectiveFastMode,
   resolveEffectiveSetFilter,
   selectAllSets,
   setMemberConditionalOverride,
+  setPresetMemberFastMode,
+  setPresetMemberFastModeStat,
   setPresetResonanceEnabled,
   STAT_CONSTRAINT_KEYS,
   summarizeArtSetFilter,
@@ -376,5 +384,122 @@ describe('Master Elemental Resonance Toggle Settings (resonance-master-toggle)',
     // Toggle back ON explicitly
     const onAgain = setPresetResonanceEnabled(offA, presetA, true)
     expect(getPresetResonanceEnabled(onAgain, presetA)).toBe(true)
+  })
+})
+
+describe('Fast Mode Per-Preset Settings & Resolution (fast-mode)', () => {
+  it('supports all 10 artifact stat keys, positive/negative values, per-member reset, and never applies to target', () => {
+    expect(FAST_MODE_STAT_KEYS).toEqual([
+      'hp',
+      'hp_',
+      'atk',
+      'atk_',
+      'def',
+      'def_',
+      'eleMas',
+      'enerRech_',
+      'critRate_',
+      'critDMG_',
+    ])
+
+    const presetId = 'official/neuvillette-hypercarry'
+    const mockPreset = {
+      id: presetId,
+      target: 'Neuvillette',
+      team: [
+        {
+          key: 'Neuvillette',
+          build: { type: 'owned' as const },
+          requirement: {},
+          conditional: {},
+          bonusStats: {},
+          hitMode: 'avgHit' as const,
+          // Even if someone forces fastMode onto target object in memory, resolveEffectiveFastMode ignores slot 0 / target
+          fastMode: { hp_: 50 },
+        },
+        {
+          key: 'Furina',
+          build: { type: 'owned' as const },
+          requirement: {},
+          conditional: {},
+          bonusStats: {},
+          hitMode: 'avgHit' as const,
+        },
+        {
+          key: 'KaedeharaKazuha',
+          build: { type: 'owned' as const },
+          requirement: {},
+          conditional: {},
+          bonusStats: {},
+          hitMode: 'avgHit' as const,
+          fastMode: { eleMas: 40 },
+        },
+      ],
+    }
+
+    // Without settings overrides, resolves Kazuha's preset fastMode and ignores Neuvillette (target)
+    expect(
+      resolveEffectiveFastMode(mockPreset, DEFAULT_OPTIMIZER_SETTINGS)
+    ).toEqual({
+      KaedeharaKazuha: { eleMas: 40 },
+    })
+    expect(hasPresetFastMode(mockPreset, DEFAULT_OPTIMIZER_SETTINGS)).toBe(true)
+
+    // Layer settings overrides for Furina (+20% HP, -10% ER) and target Neuvillette (ignored)
+    let next = setPresetMemberFastModeStat(
+      DEFAULT_OPTIMIZER_SETTINGS,
+      presetId,
+      'Furina',
+      'hp_',
+      20
+    )
+    next = setPresetMemberFastModeStat(
+      next,
+      presetId,
+      'Furina',
+      'enerRech_',
+      -10
+    )
+    next = setPresetMemberFastModeStat(
+      next,
+      presetId,
+      'Neuvillette',
+      'critDMG_',
+      80
+    )
+
+    expect(getPresetFastMode(next, presetId).Furina).toEqual({
+      hp_: 20,
+      enerRech_: -10,
+    })
+    expect(hasMemberFastMode(getPresetFastMode(next, presetId).Furina)).toBe(
+      true
+    )
+
+    // Resolved effective Fast Mode includes Furina and Kazuha, never target Neuvillette
+    expect(resolveEffectiveFastMode(mockPreset, next)).toEqual({
+      Furina: { hp_: 20, enerRech_: -10 },
+      KaedeharaKazuha: { eleMas: 40 },
+    })
+
+    // Setting a stat to 0 removes that stat key
+    next = setPresetMemberFastModeStat(next, presetId, 'Furina', 'hp_', 0)
+    expect(getPresetFastMode(next, presetId).Furina).toEqual({
+      enerRech_: -10,
+    })
+
+    // Per-member reset clears Furina
+    next = resetPresetMemberFastMode(next, presetId, 'Furina')
+    expect(getPresetFastMode(next, presetId).Furina).toBeUndefined()
+
+    // Full preset reset clears all settings entries for presetId
+    next = setPresetMemberFastMode(next, presetId, 'KaedeharaKazuha', {
+      eleMas: 80,
+    })
+    expect(getPresetFastMode(next, presetId).KaedeharaKazuha).toEqual({
+      eleMas: 80,
+    })
+    next = resetPresetMemberFastMode(next, presetId)
+    expect(getPresetFastMode(next, presetId)).toEqual({})
   })
 })

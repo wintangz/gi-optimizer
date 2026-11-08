@@ -2,6 +2,7 @@
 
 import TeamsLoading from './loading'
 import { formatHumanConditionalEntry } from '@/components/ConditionalTogglePanel'
+import { TeammateFastModeCard } from '@/components/TeammateFastModePanel'
 import {
   ArtifactBadge,
   CharacterBadge,
@@ -54,11 +55,13 @@ import {
   getWeaponMeta,
   listBundledPresets,
   normalizeEnemyOverrides,
+  normalizeFastModeStats,
   parsePresetJson,
   resolveRotationTargetOwner,
   serializePresetJson,
   shortStatLabel,
   validatePreset,
+  type FastModeStatKey,
   type Preset,
   type RotationTarget,
   type TeamMember,
@@ -420,6 +423,46 @@ function TeamsInner() {
       const nextTc = structuredClone(m.build.tc)
       updater(nextTc)
       nextTeam[idx] = { ...m, build: { type: 'tc', tc: nextTc } }
+      return { ...prev, team: nextTeam }
+    })
+  }
+
+  function updateMemberFastModeStat(
+    idx: number,
+    statKey: FastModeStatKey,
+    value: number | undefined
+  ) {
+    if (idx === 0) return
+    startEngine()
+    setDraft((prev) => {
+      const nextTeam = [...prev.team]
+      const m = nextTeam[idx]
+      if (!m) return prev
+      const nextStats = normalizeFastModeStats({
+        ...(m.fastMode ?? {}),
+        [statKey]: value,
+      })
+      const updatedMember: TeamMember = { ...m }
+      if (nextStats) {
+        updatedMember.fastMode = nextStats
+      } else {
+        delete updatedMember.fastMode
+      }
+      nextTeam[idx] = updatedMember
+      return { ...prev, team: nextTeam }
+    })
+  }
+
+  function resetMemberFastMode(idx: number) {
+    if (idx === 0) return
+    startEngine()
+    setDraft((prev) => {
+      const nextTeam = [...prev.team]
+      const m = nextTeam[idx]
+      if (!m) return prev
+      const updatedMember: TeamMember = { ...m }
+      delete updatedMember.fastMode
+      nextTeam[idx] = updatedMember
       return { ...prev, team: nextTeam }
     })
   }
@@ -1197,6 +1240,21 @@ function TeamsInner() {
                       />
                     </div>
                   </div>
+                )}
+
+                {/* Teammate Base & Final Stats + Fast Mode (Virtual 6th Artifact) */}
+                {!isTarget && (
+                  <TeammateFastModeCard
+                    characterKey={member.key}
+                    isSimulated={isSim}
+                    memberStats={livePreview.result?.memberStats?.[member.key]}
+                    fastModeStats={member.fastMode}
+                    fastModeAvailable={true}
+                    onChangeStat={(statKey, val) =>
+                      updateMemberFastModeStat(idx, statKey, val)
+                    }
+                    onResetMember={() => resetMemberFastMode(idx)}
+                  />
                 )}
 
                 {/* Active Conditionals for this Member */}

@@ -35,6 +35,45 @@ import {
   mergeData,
   percent,
 } from '@genshin-optimizer/gi/wr'
+import {
+  normalizeFastModeStats,
+  type FastModeStats,
+  type PresetFastModeMap,
+} from '@gi/presets'
+
+const dbFastModeByChar = new WeakMap<object, PresetFastModeMap>()
+
+export function setDbFastMode(
+  db: ArtCharDatabase,
+  fastMode: PresetFastModeMap | undefined
+): void {
+  if (!fastMode || Object.keys(fastMode).length === 0) {
+    dbFastModeByChar.delete(db as object)
+  } else {
+    dbFastModeByChar.set(db as object, fastMode)
+  }
+}
+
+export function getDbFastMode(
+  db: ArtCharDatabase
+): PresetFastModeMap | undefined {
+  return dbFastModeByChar.get(db as object)
+}
+
+export function getFastModeArtifactData(
+  fastMode: FastModeStats | undefined
+): Data | undefined {
+  const norm = normalizeFastModeStats(fastMode)
+  if (!norm) return undefined
+  const decimalStats = objMap(norm, (v: number, k: SubstatKey) =>
+    toDecimal(v, k)
+  )
+  return {
+    art: objMap(decimalStats, (v: number, k: string) =>
+      k.endsWith('_') ? percent(v) : constant(v)
+    ),
+  }
+}
 
 declare module '@genshin-optimizer/common/util' {
   export const objMap: any
@@ -128,7 +167,10 @@ export type TeamDataBundle = {
   teamBundle: Partial<Record<CharacterKey, CharBundle>>
 }
 
-export function getBuildTcArtifactData(buildTc: BuildTc): Data {
+export function getBuildTcArtifactData(
+  buildTc: BuildTc,
+  fastMode?: FastModeStats
+): Data {
   const {
     artifact: {
       slots,
@@ -136,8 +178,20 @@ export function getBuildTcArtifactData(buildTc: BuildTc): Data {
       sets,
     },
   } = buildTc
+  const normFast = normalizeFastModeStats(fastMode)
+  const combinedSubstats: Record<string, number> = normFast
+    ? (() => {
+        const merged: Record<string, number> = { ...substats }
+        for (const [k, v] of Object.entries(normFast)) {
+          if (typeof v === 'number' && Number.isFinite(v) && v !== 0) {
+            merged[k] = (merged[k] ?? 0) + v
+          }
+        }
+        return merged
+      })()
+    : substats
   const allStats: Partial<Record<MainStatKey | SubstatKey, number>> = objMap(
-    substats,
+    combinedSubstats,
     (v: number, k: SubstatKey) => toDecimal(v, k)
   )
   ;(
@@ -409,6 +463,9 @@ export function getTeamData(
       if (!dbChar) return undefined
 
       const isActiveTeamChar = teamCharId === activeTeamCharId
+      const memberFastMode = !isActiveTeamChar
+        ? getDbFastMode(database)?.[characterKey]
+        : undefined
 
       let char: Omit<ICharacter, 'key'> = dbChar
       if (overrideChar && isActiveTeamChar) char = overrideChar
@@ -427,7 +484,10 @@ export function getTeamData(
       const arts = (() => {
         if (overrideArt && isActiveTeamChar) return overrideArt
         if (buildType === 'tc' && buildTcId)
-          return getBuildTcArtifactData(database.buildTcs.get(buildTcId)!)
+          return getBuildTcArtifactData(
+            database.buildTcs.get(buildTcId)!,
+            memberFastMode
+          )
         return Object.values(
           database.teams.getLoadoutArtifacts(loadoutDatum)
         ).filter(notEmpty) as ICachedArtifact[]
@@ -460,7 +520,8 @@ export function getTeamData(
         },
         weapon,
         arts,
-        smallTeamEleCounts
+        smallTeamEleCounts,
+        memberFastMode
       )
     })
     .filter((bundle) => bundle) as CharBundle[]
@@ -482,7 +543,8 @@ function getCharDataBundle(
   charInfo: CharInfo,
   weapon: ICachedWeapon,
   artifacts: ICachedArtifact[] | Data,
-  smallTeamEleCounts?: Record<string, number>
+  smallTeamEleCounts?: Record<string, number>,
+  memberFastMode?: FastModeStats
 ): CharBundle | undefined {
   const character = database.chars.get(charInfo.key)!
   const characterSheet = getCharSheet(charInfo.key, database.gender)
@@ -506,8 +568,15 @@ function getCharDataBundle(
     weaponSheetsData,
     allArtifactData,
   ])
+  const fastModeArtData =
+    !useCustom && Array.isArray(artifacts)
+      ? getFastModeArtifactData(memberFastMode)
+      : undefined
   const artifactData = Array.isArray(artifacts)
-    ? artifacts.map((a) => dataObjForArtifact(a, mainStatAssumptionLevel))
+    ? [
+        ...artifacts.map((a) => dataObjForArtifact(a, mainStatAssumptionLevel)),
+        ...(fastModeArtData ? [fastModeArtData] : []),
+      ]
     : [artifacts]
   const effectiveResonanceData = inferInfoMut(
     getEffectiveResonanceData(

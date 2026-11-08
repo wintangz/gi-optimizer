@@ -22,11 +22,13 @@ import {
   applyMemberConditionalOverrides,
   getPresetResonanceEnabled,
   readEffectiveConditionalValue,
+  resolveEffectiveFastMode,
   resolvePresetMemberBuildMode,
   resolveRotationTargetOwner,
   type MemberBuildMode,
   type MemberConditionalsMap,
   type Preset,
+  type PresetFastModeMap,
   type PresetMemberConditionalOverrides,
   type ResolvedMemberBuild,
   type RotationTarget,
@@ -44,13 +46,14 @@ import {
   listWeaponConditionals,
 } from './catalog'
 import { runSolver } from './solver'
-import { getTeamData, getTeamDataCalc } from './teamData'
+import { getTeamData, getTeamDataCalc, setDbFastMode } from './teamData'
 import {
   WEAPON_COMPARE_TOP_N,
   type ArtifactSlot,
   type BuildSelection,
   type EngineSession,
   type InstanceResult,
+  type MemberStatSummary,
   type OptimizeProgress,
   type OptimizeResult,
   type OptimizerSettings,
@@ -263,6 +266,8 @@ export interface HydratePresetTeamOptions {
   memberBuildModes?: Record<string, MemberBuildMode>
   memberConditionals?: PresetMemberConditionalOverrides
   resonanceEnabled?: boolean
+  fastMode?: PresetFastModeMap
+  disableFastMode?: boolean
 }
 
 export function computeDefaultMemberConditionals(opts: {
@@ -517,7 +522,8 @@ function presetTeamFingerprint(
   activeWeaponKey: string | undefined,
   effectiveMemberModes: MemberBuildMode[],
   memberConditionals?: PresetMemberConditionalOverrides,
-  resonanceEnabled?: boolean
+  resonanceEnabled?: boolean,
+  fastMode?: PresetFastModeMap
 ): string {
   return JSON.stringify({
     id: preset.id,
@@ -531,6 +537,7 @@ function presetTeamFingerprint(
     effectiveMemberModes,
     memberConditionals: memberConditionals ?? {},
     resonanceEnabled: resonanceEnabled !== false,
+    fastMode: fastMode ?? {},
   })
 }
 
@@ -551,6 +558,11 @@ export function hydratePresetTeam(
     ownedCharKeys = new Set<string>(db.chars.keys as string[])
     dbImportedCharKeys.set(db as object, ownedCharKeys)
   }
+
+  const effectiveFastMode: PresetFastModeMap = opts?.disableFastMode
+    ? {}
+    : resolveEffectiveFastMode(preset, opts?.fastMode)
+  setDbFastMode(db, effectiveFastMode)
 
   const targetMember = preset.team[0]
   const resolvedMembers = preset.team
@@ -578,7 +590,8 @@ export function hydratePresetTeam(
     resolvedWeaponKey,
     resolvedMembers.map((m) => m.mode),
     opts?.memberConditionals,
-    opts?.resonanceEnabled
+    opts?.resonanceEnabled,
+    effectiveFastMode
   )
   const cached = dbPresetCache.get(db as object)
   if (
@@ -796,6 +809,7 @@ export function hydrateTeamIntoDb(
       memberBuildModes: selection?.memberBuildModes,
       memberConditionals: selection?.memberConditionals,
       resonanceEnabled: selection?.resonanceEnabled,
+      fastMode: selection?.fastMode,
     }
   )
   const targetCharKey = preset.target as CharacterKey
@@ -999,6 +1013,7 @@ export async function compareWeapons(
     memberBuildModes?: Record<string, MemberBuildMode>
     memberConditionals?: PresetMemberConditionalOverrides
     resonanceEnabled?: boolean
+    fastMode?: PresetFastModeMap
     onProgress?: (p: WeaponCompareProgress) => void
     signal?: AbortSignal
     maxWorkers?: number
@@ -1013,6 +1028,10 @@ export async function compareWeapons(
     opts?.memberConditionals ?? settings.memberConditionalOverrides?.[preset.id]
   const effectiveResonanceEnabled =
     opts?.resonanceEnabled ?? getPresetResonanceEnabled(settings, preset.id)
+  const effectiveFastMode = resolveEffectiveFastMode(
+    preset,
+    opts?.fastMode ?? settings
+  )
 
   const compareSettings: OptimizerSettings = {
     ...settings,
@@ -1040,6 +1059,7 @@ export async function compareWeapons(
         memberBuildModes: effectiveMemberBuildModes,
         memberConditionals: effectiveMemberConditionals,
         resonanceEnabled: effectiveResonanceEnabled,
+        fastMode: effectiveFastMode,
         signal: opts?.signal,
         maxWorkers: opts?.maxWorkers,
         onProgress: (solverProgress) => {
@@ -1101,6 +1121,9 @@ export async function compareWeapons(
             : {}),
           ...(effectiveResonanceEnabled === false
             ? { resonanceEnabled: false }
+            : {}),
+          ...(Object.keys(effectiveFastMode).length > 0
+            ? { fastMode: effectiveFastMode }
             : {}),
         }
         const evaluation = session.evaluate(preset, selectionForEval)
@@ -1252,7 +1275,8 @@ export function createSession(good: unknown): EngineSession {
     preset: Preset,
     memberKey: string,
     memberRows: RotationTarget[],
-    effectiveMemberBuildModes?: Record<string, MemberBuildMode>
+    effectiveMemberBuildModes?: Record<string, MemberBuildMode>,
+    stripFastMode = false
   ): Preset => {
     const memberIdx = preset.team.findIndex((m) => m.key === memberKey)
     const normalizedTargets: RotationTarget[] = memberRows.map((rt) => ({
@@ -1264,6 +1288,9 @@ export function createSession(good: unknown): EngineSession {
     if (memberIdx <= 0) {
       return {
         ...preset,
+        team: stripFastMode
+          ? preset.team.map(({ fastMode: _fm, ...rest }) => rest)
+          : preset.team,
         rotation: {
           ...preset.rotation,
           targets: normalizedTargets,
@@ -1296,22 +1323,33 @@ export function createSession(good: unknown): EngineSession {
       }
     }
 
+    const { fastMode: _promotedFastMode, ...memberWithoutFastMode } = member
     const promotedMember: TeamMember = {
-      ...member,
+      ...memberWithoutFastMode,
       build: promotedBuild,
     }
 
     const otherMembers: TeamMember[] = preset.team
       .filter((_, idx) => idx !== memberIdx)
       .map((m, idx) => {
-        if (idx === 0 && m.build.type === 'fixed' && !goodCharKeys.has(m.key)) {
+        const cleanedMember: TeamMember = stripFastMode
+          ? (() => {
+              const { fastMode: _fm, ...rest } = m
+              return rest
+            })()
+          : m
+        if (
+          idx === 0 &&
+          cleanedMember.build.type === 'fixed' &&
+          !goodCharKeys.has(cleanedMember.key)
+        ) {
           return {
-            ...m,
+            ...cleanedMember,
             build: {
               type: 'tc',
               tc: {
-                character: m.build.character,
-                weapon: m.build.weapon,
+                character: cleanedMember.build.character,
+                weapon: cleanedMember.build.weapon,
                 artifact: {
                   slots: {
                     flower: { statKey: 'hp', level: 20, rarity: 5 },
@@ -1327,7 +1365,7 @@ export function createSession(good: unknown): EngineSession {
             },
           }
         }
-        return m
+        return cleanedMember
       })
 
     return {
@@ -1369,6 +1407,7 @@ export function createSession(good: unknown): EngineSession {
         )
         let primaryStats: Record<string, number> = {}
         let primaryStatBreakdowns: RotationResult['statBreakdowns']
+        let primaryMemberStats: RotationResult['memberStats']
 
         // Ensure primary target is evaluated even if it has 0 rows so stats are populated
         if (!rowsByMember.has(preset.target)) {
@@ -1384,6 +1423,7 @@ export function createSession(good: unknown): EngineSession {
               const targetEval = this.evaluate(targetSub, selection)
               primaryStats = targetEval.stats
               primaryStatBreakdowns = targetEval.statBreakdowns
+              primaryMemberStats = targetEval.memberStats
             } catch {
               primaryStats = {}
             }
@@ -1415,11 +1455,15 @@ export function createSession(good: unknown): EngineSession {
                   ...(typeof selection?.resonanceEnabled === 'boolean'
                     ? { resonanceEnabled: selection.resonanceEnabled }
                     : {}),
+                  ...(selection?.fastMode
+                    ? { fastMode: selection.fastMode }
+                    : {}),
                 }
           const subEval = this.evaluate(subPreset, memberSel)
           if (memberKey === preset.target) {
             primaryStats = subEval.stats
             primaryStatBreakdowns = subEval.statBreakdowns
+            primaryMemberStats = subEval.memberStats
           }
           indexedRows.forEach(({ origIdx, rt }, localIdx) => {
             const inst = subEval.instances[localIdx]
@@ -1442,6 +1486,7 @@ export function createSession(good: unknown): EngineSession {
           ...(primaryStatBreakdowns
             ? { statBreakdowns: primaryStatBreakdowns }
             : {}),
+          ...(primaryMemberStats ? { memberStats: primaryMemberStats } : {}),
         }
       }
       const {
@@ -1470,6 +1515,7 @@ export function createSession(good: unknown): EngineSession {
           memberBuildModes: selection?.memberBuildModes,
           memberConditionals: selection?.memberConditionals,
           resonanceEnabled: selection?.resonanceEnabled,
+          fastMode: selection?.fastMode,
         }
       )
       const targetKey = preset.target as CharacterKey
@@ -1582,11 +1628,50 @@ export function createSession(good: unknown): EngineSession {
         resolvedTargetWeaponKey
       )
 
+      const memberStats: Record<string, MemberStatSummary> = {}
+      const nonHpAtkDefKeys = [
+        'eleMas',
+        'enerRech_',
+        'critRate_',
+        'critDMG_',
+      ] as const
+      for (const mKey of teamKeys) {
+        const memberUi = calc[mKey]?.target
+        if (!memberUi) continue
+        const teamBuffPremod = (memberUi.getTeamBuff() as any)?.premod ?? {}
+        const base: Record<string, number> = {
+          hp: memberUi.get(input.base.hp).value,
+          atk: memberUi.get(input.base.atk).value,
+          def: memberUi.get(input.base.def).value,
+        }
+        for (const k of nonHpAtkDefKeys) {
+          const premodVal = memberUi.get(input.premod[k]).value
+          const artVal = memberUi.get(input.art[k]).value
+          const tbVal =
+            typeof teamBuffPremod[k]?.value === 'number' &&
+            Number.isFinite(teamBuffPremod[k].value)
+              ? teamBuffPremod[k].value
+              : 0
+          base[k] = premodVal - artVal - tbVal
+        }
+        const final: Record<string, number> = {
+          hp: memberUi.get(input.total.hp).value,
+          atk: memberUi.get(input.total.atk).value,
+          def: memberUi.get(input.total.def).value,
+          eleMas: memberUi.get(input.total.eleMas).value,
+          enerRech_: memberUi.get(input.total.enerRech_).value,
+          critRate_: memberUi.get(input.total.critRate_).value,
+          critDMG_: memberUi.get(input.total.critDMG_).value,
+        }
+        memberStats[mKey] = { base, final }
+      }
+
       return {
         total,
         instances,
         stats,
         statBreakdowns,
+        memberStats,
       }
     },
 
@@ -1599,6 +1684,7 @@ export function createSession(good: unknown): EngineSession {
         memberBuildModes?: Record<string, MemberBuildMode>
         memberConditionals?: PresetMemberConditionalOverrides
         resonanceEnabled?: boolean
+        fastMode?: PresetFastModeMap
         onProgress?: (p: OptimizeProgress) => void
         signal?: AbortSignal
         maxWorkers?: number
@@ -1611,6 +1697,10 @@ export function createSession(good: unknown): EngineSession {
         settings.memberConditionalOverrides?.[preset.id]
       const effectiveResonanceEnabled =
         opts?.resonanceEnabled ?? getPresetResonanceEnabled(settings, preset.id)
+      const effectiveFastMode = resolveEffectiveFastMode(
+        preset,
+        opts?.fastMode ?? settings
+      )
 
       const {
         isFixedTarget,
@@ -1638,6 +1728,7 @@ export function createSession(good: unknown): EngineSession {
           memberBuildModes: effectiveMemberBuildModes,
           memberConditionals: effectiveMemberConditionals,
           resonanceEnabled: effectiveResonanceEnabled,
+          fastMode: effectiveFastMode,
         }
       )
 
@@ -1648,6 +1739,7 @@ export function createSession(good: unknown): EngineSession {
         memberBuildModes: effectiveMemberBuildModes,
         memberConditionals: effectiveMemberConditionals,
         resonanceEnabled: effectiveResonanceEnabled,
+        fastMode: effectiveFastMode,
         onProgress: opts?.onProgress,
         signal: opts?.signal,
         maxWorkers: opts?.maxWorkers,
@@ -1732,7 +1824,8 @@ export function createSession(good: unknown): EngineSession {
           preset,
           memberKey,
           memberRows,
-          effectiveMemberBuildModes
+          effectiveMemberBuildModes,
+          true
         )
 
         const {
@@ -1766,6 +1859,7 @@ export function createSession(good: unknown): EngineSession {
             memberBuildModes: effectiveMemberBuildModes,
             memberConditionals: effectiveMemberConditionals,
             resonanceEnabled: effectiveResonanceEnabled,
+            disableFastMode: true,
           }
         )
 
@@ -1913,6 +2007,7 @@ export function createSession(good: unknown): EngineSession {
         memberBuildModes?: Record<string, MemberBuildMode>
         memberConditionals?: PresetMemberConditionalOverrides
         resonanceEnabled?: boolean
+        fastMode?: PresetFastModeMap
         onProgress?: (p: WeaponCompareProgress) => void
         signal?: AbortSignal
         maxWorkers?: number

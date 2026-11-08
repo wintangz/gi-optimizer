@@ -13,6 +13,7 @@ import {
   DEFAULT_OPTIMIZER_SETTINGS,
   getDefaultTargetArtifactSetConditionals,
   resolveDefaultWeaponCompareCandidate,
+  setPresetMemberFastModeStat,
   setPresetResonanceEnabled,
 } from '../src'
 
@@ -493,5 +494,268 @@ describe('Buff Coverage Fixes (buff-coverage-fixes)', () => {
     })
     expect(gdOn.stats.eleMas! - gdOff.stats.eleMas!).toBeCloseTo(100, 5)
     expect(gdOn.total).toBeGreaterThan(gdOff.total)
+  })
+
+  it('Fast Mode acceptance: adding +40 EM to a Kazuha teammate changes target total by the exact same amount as a real +40 EM artifact change (both TC and Owned builds)', () => {
+    const neuvPreset = getBundledPreset('official/neuvillette-hypercarry')!
+    expect(neuvPreset).toBeDefined()
+    const baseSel = session.currentBuild(neuvPreset)
+
+    // 1. Simulated (TC) Kazuha teammate: Fast Mode +40 EM vs manual TC +40 EM substat
+    const tcModes = { KaedeharaKazuha: 'tc' as const }
+    const baselineTc = session.evaluate(neuvPreset, {
+      ...baseSel,
+      memberBuildModes: tcModes,
+    })
+    const fastModeTc = session.evaluate(neuvPreset, {
+      ...baseSel,
+      memberBuildModes: tcModes,
+      fastMode: {
+        KaedeharaKazuha: { eleMas: 40 },
+      },
+    })
+
+    const manualTcPreset: Preset = {
+      ...neuvPreset,
+      team: neuvPreset.team.map((m) => {
+        if (m.key === 'KaedeharaKazuha' && m.build.type === 'tc') {
+          return {
+            ...m,
+            build: {
+              type: 'tc',
+              tc: {
+                ...m.build.tc,
+                artifact: {
+                  ...m.build.tc.artifact,
+                  substats: {
+                    ...m.build.tc.artifact.substats,
+                    stats: {
+                      ...m.build.tc.artifact.substats.stats,
+                      eleMas:
+                        (m.build.tc.artifact.substats.stats.eleMas ?? 0) + 40,
+                    },
+                  },
+                },
+              },
+            },
+          }
+        }
+        return m
+      }),
+    }
+    const manualTc = session.evaluate(manualTcPreset, {
+      ...baseSel,
+      memberBuildModes: tcModes,
+    })
+
+    // Base EM stays identical; Final EM increases by +40; Target Hydro DMG% increases by 40 * 0.04% = 1.6%
+    expect(fastModeTc.memberStats?.KaedeharaKazuha?.base.eleMas).toBeCloseTo(
+      baselineTc.memberStats!.KaedeharaKazuha!.base.eleMas!,
+      6
+    )
+    expect(
+      fastModeTc.memberStats!.KaedeharaKazuha!.final.eleMas! -
+        baselineTc.memberStats!.KaedeharaKazuha!.final.eleMas!
+    ).toBeCloseTo(40, 6)
+    expect(
+      fastModeTc.stats.hydro_dmg_! - baselineTc.stats.hydro_dmg_!
+    ).toBeCloseTo(40 * 0.0004, 6)
+
+    // Exact rotation total & per-instance parity against manual +40 EM TC build
+    expect(fastModeTc.total).toBeGreaterThan(baselineTc.total)
+    expect(fastModeTc.total).toBe(manualTc.total)
+    expect(
+      fastModeTc.total - baselineTc.total
+    ).toBe(manualTc.total - baselineTc.total)
+
+    // 2. Owned Kazuha teammate: Fast Mode +40 EM vs real GOOD artifact +40 EM substat change
+    const ownedModes = { KaedeharaKazuha: 'owned' as const }
+    const kazuhaSwirlCond = {
+      KaedeharaKazuha: {
+        KaedeharaKazuha: { swirlhydro: 'hydro' },
+      },
+    }
+    const baseOwnedGood = structuredClone(smallGood)
+    baseOwnedGood.artifacts.push(
+      {
+        id: 'kazuha_test_flower',
+        setKey: 'ViridescentVenerer',
+        slotKey: 'flower',
+        level: 20,
+        rarity: 5,
+        mainStatKey: 'hp',
+        location: 'KaedeharaKazuha',
+        lock: false,
+        substats: [{ key: 'eleMas', value: 25 }],
+      },
+      {
+        id: 'kazuha_test_plume',
+        setKey: 'WanderersTroupe',
+        slotKey: 'plume',
+        level: 20,
+        rarity: 5,
+        mainStatKey: 'atk',
+        location: 'KaedeharaKazuha',
+        lock: false,
+        substats: [{ key: 'eleMas', value: 25 }],
+      },
+      {
+        id: 'kazuha_test_sands',
+        setKey: 'GladiatorsFinale',
+        slotKey: 'sands',
+        level: 20,
+        rarity: 5,
+        mainStatKey: 'hp_',
+        location: 'KaedeharaKazuha',
+        lock: false,
+        substats: [],
+      }
+    )
+    const baseOwnedSession = createSession(baseOwnedGood)
+    const baseOwnedSel = baseOwnedSession.currentBuild(neuvPreset)
+    const baselineOwned = baseOwnedSession.evaluate(neuvPreset, {
+      ...baseOwnedSel,
+      memberBuildModes: ownedModes,
+      memberConditionals: kazuhaSwirlCond,
+    })
+    const fastModeOwned = baseOwnedSession.evaluate(neuvPreset, {
+      ...baseOwnedSel,
+      memberBuildModes: ownedModes,
+      memberConditionals: kazuhaSwirlCond,
+      fastMode: {
+        KaedeharaKazuha: { eleMas: 40 },
+      },
+    })
+
+    // Clone baseOwnedGood and add +40 EM across KaedeharaKazuha's equipped artifacts (25+25+0 = 50 -> 30+30+30 = 90)
+    const manualOwnedGood = structuredClone(baseOwnedGood)
+    const kazuhaFlower = manualOwnedGood.artifacts.find(
+      (a: any) => a.id === 'kazuha_test_flower'
+    )
+    const kazuhaPlume = manualOwnedGood.artifacts.find(
+      (a: any) => a.id === 'kazuha_test_plume'
+    )
+    const kazuhaSands = manualOwnedGood.artifacts.find(
+      (a: any) => a.id === 'kazuha_test_sands'
+    )
+    kazuhaFlower.substats = [{ key: 'eleMas', value: 30 }]
+    kazuhaPlume.substats = [{ key: 'eleMas', value: 30 }]
+    kazuhaSands.substats = [{ key: 'eleMas', value: 30 }]
+
+    const manualOwnedSession = createSession(manualOwnedGood)
+    const manualOwnedSel = manualOwnedSession.currentBuild(neuvPreset)
+    const manualOwned = manualOwnedSession.evaluate(neuvPreset, {
+      ...manualOwnedSel,
+      memberBuildModes: ownedModes,
+      memberConditionals: kazuhaSwirlCond,
+    })
+
+    expect(
+      fastModeOwned.memberStats!.KaedeharaKazuha!.final.eleMas! -
+        baselineOwned.memberStats!.KaedeharaKazuha!.final.eleMas!
+    ).toBeCloseTo(40, 6)
+    expect(fastModeOwned.total).toBeGreaterThan(baselineOwned.total)
+    expect(fastModeOwned.total).toBe(manualOwned.total)
+    expect(
+      fastModeOwned.total - baselineOwned.total
+    ).toBe(manualOwned.total - baselineOwned.total)
+  })
+
+  it('supports negative Fast Mode values, percentage stats, target immunity, single/compare optimize, and suppresses Fast Mode in optimizeTeam', async () => {
+    const skirkPreset = getBundledPreset('official/skirk-freeze')!
+    const tcModes = { Shenhe: 'tc' as const }
+    const baseSel = {
+      ...session.currentBuild(skirkPreset),
+      memberBuildModes: tcModes,
+    }
+    const evalBase = session.evaluate(skirkPreset, baseSel)
+
+    // 1. Target immunity: Fast Mode on slot 0 (Skirk) has zero effect
+    const evalTargetAttempt = session.evaluate(skirkPreset, {
+      ...baseSel,
+      fastMode: {
+        Skirk: { atk_: 100, critDMG_: 200 },
+      },
+    })
+    expect(evalTargetAttempt.total).toBe(evalBase.total)
+    expect(evalTargetAttempt.stats.atk).toBe(evalBase.stats.atk)
+
+    // 2. Percentage & negative stats on non-target teammate (Shenhe atk_ +30% vs -30%)
+    const evalShenhePlus = session.evaluate(skirkPreset, {
+      ...baseSel,
+      fastMode: {
+        Shenhe: { atk_: 30 },
+      },
+    })
+    const evalShenheMinus = session.evaluate(skirkPreset, {
+      ...baseSel,
+      fastMode: {
+        Shenhe: { atk_: -30 },
+      },
+    })
+    // Base ATK on Shenhe is unchanged; Final ATK increases by Base ATK * 0.30
+    const shenheBaseAtk = evalBase.memberStats!.Shenhe!.base.atk!
+    expect(evalShenhePlus.memberStats!.Shenhe!.base.atk).toBe(shenheBaseAtk)
+    expect(
+      evalShenhePlus.memberStats!.Shenhe!.final.atk! -
+        evalBase.memberStats!.Shenhe!.final.atk!
+    ).toBeCloseTo(shenheBaseAtk * 0.3, 4)
+    expect(evalShenhePlus.total).toBeGreaterThan(evalBase.total)
+    expect(evalShenheMinus.total).toBeLessThan(evalBase.total)
+
+    // 3. Single optimize & weapon-compare honor Fast Mode; optimizeTeam suppresses Fast Mode
+    const baseSettings = {
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      topN: 1,
+      memberBuildModes: {
+        [skirkPreset.id]: tcModes,
+      },
+    }
+    const fastSettings = setPresetMemberFastModeStat(
+      baseSettings,
+      skirkPreset.id,
+      'Shenhe',
+      'atk_',
+      40
+    )
+
+    const optBase = await session.optimize(skirkPreset, baseSettings)
+    const optFast = await session.optimize(skirkPreset, fastSettings)
+    expect(optFast.builds[0]!.fastMode).toEqual({
+      Shenhe: { atk_: 40 },
+    })
+    expect(optFast.builds[0]!.total).toBeGreaterThan(optBase.builds[0]!.total)
+    const reEvalFast = session.evaluate(skirkPreset, optFast.builds[0]!)
+    expect(
+      Math.abs(optFast.builds[0]!.total - reEvalFast.total) / reEvalFast.total
+    ).toBeLessThanOrEqual(1e-5)
+
+    const candidate = resolveDefaultWeaponCompareCandidate(
+      'Azurelight',
+      'Skirk',
+      smallGood
+    )
+    const cmpBase = await session.compareWeapons(skirkPreset, baseSettings, [
+      candidate,
+    ])
+    const cmpFast = await session.compareWeapons(skirkPreset, fastSettings, [
+      candidate,
+    ])
+    expect(cmpFast.leaderTotal!).toBeGreaterThan(cmpBase.leaderTotal!)
+
+    // optimizeTeam ignores both settings.fastModeByPreset and user preset member.fastMode
+    const presetWithSavedFastMode: Preset = {
+      ...skirkPreset,
+      team: skirkPreset.team.map((m, idx) =>
+        idx === 0 ? m : { ...m, fastMode: { atk_: 80 } }
+      ),
+    }
+    const teamBase = await session.optimizeTeam(skirkPreset, baseSettings)
+    const teamWithFast = await session.optimizeTeam(
+      presetWithSavedFastMode,
+      fastSettings
+    )
+    expect(teamWithFast.teamTotal).toBe(teamBase.teamTotal)
+    expect(teamWithFast.currentTeamTotal).toBe(teamBase.currentTeamTotal)
   })
 })

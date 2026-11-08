@@ -5,6 +5,7 @@ import { ArtifactSetFilter } from '@/components/ArtifactSetFilter'
 import { ConditionalTogglePanel } from '@/components/ConditionalTogglePanel'
 import { CharacterBadge, WeaponBadge } from '@/components/Identifier'
 import { ProgressBar, ResultsSkeleton, Spinner } from '@/components/Loading'
+import { TeammateFastModePanel } from '@/components/TeammateFastModePanel'
 import {
   BuildComparisonList,
   ConstraintsCard,
@@ -45,6 +46,7 @@ import {
 import {
   WEAPON_COMPARE_TOP_N,
   type BuildSelection,
+  type MemberStatSummary,
   type OptimizeProgress,
   type OptimizeResult,
   type RotationResult,
@@ -68,8 +70,13 @@ import {
   listBundledPresets,
   listWeaponsForType,
   matchAccount,
+  normalizeFastModeStats,
+  resetPresetMemberFastMode,
+  resolveEffectiveFastMode,
   resolvePresetMemberBuildMode,
   setPresetMemberBuildMode,
+  setPresetMemberFastModeStat,
+  type FastModeStatKey,
   type MemberBuildMode,
   type Preset,
 } from '@gi/presets'
@@ -85,7 +92,11 @@ function OptimizeInner() {
   const refinementParam = searchParams.get('refinement')
 
   const { record, loading: goodLoading } = useGoodStorage()
-  const { presets: userPresets, loading: presetsLoading } = useUserPresets()
+  const {
+    presets: userPresets,
+    loading: presetsLoading,
+    save: saveUserPreset,
+  } = useUserPresets()
   const {
     settings,
     loading: settingsLoading,
@@ -129,6 +140,9 @@ function OptimizeInner() {
   const [currentSelection, setCurrentSelection] =
     useState<BuildSelection | null>(null)
   const [currentEval, setCurrentEval] = useState<RotationResult | null>(null)
+  const [teamMemberStats, setTeamMemberStats] = useState<
+    Record<string, MemberStatSummary>
+  >({})
   const [optimisedEvals, setOptimisedEvals] = useState<
     Array<RotationResult | null>
   >([])
@@ -225,6 +239,19 @@ function OptimizeInner() {
         ? getPresetResonanceEnabled(settings, activePreset.id)
         : true,
     [activePreset, settings]
+  )
+
+  const activeFastMode = useMemo(
+    () =>
+      activePreset && optimizeMode !== 'team'
+        ? resolveEffectiveFastMode(activePreset, settings)
+        : {},
+    [activePreset, settings, optimizeMode]
+  )
+
+  const hasActiveFastMode = useMemo(
+    () => Object.keys(activeFastMode).length > 0,
+    [activeFastMode]
   )
 
   const akashaWeaponSpec: SimulatedWeaponSpec | undefined = useMemo(() => {
@@ -454,6 +481,7 @@ function OptimizeInner() {
         if (!cancelled) {
           setCurrentSelection(null)
           setCurrentEval(null)
+          setTeamMemberStats({})
         }
       })
       return () => {
@@ -489,6 +517,7 @@ function OptimizeInner() {
                 ? { memberConditionals: activeMemberConditionals }
                 : {}),
               ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
+              ...(hasActiveFastMode ? { fastMode: activeFastMode } : {}),
             }
           : {
               ...(baseRes.currentBuild.weaponOverride
@@ -506,15 +535,9 @@ function OptimizeInner() {
                 ? { memberConditionals: activeMemberConditionals }
                 : {}),
               ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
+              ...(hasActiveFastMode ? { fastMode: activeFastMode } : {}),
             }
         setCurrentSelection(effectiveCurrent)
-
-        // For Akasha presets, if the target character is not owned or has no artifacts equipped,
-        // do not evaluate a current build — show the optimised result without a current build.
-        if (isAkashaPreset && !hasEquipped) {
-          setCurrentEval(null)
-          return
-        }
 
         const hasOfficialMemberModeOverrides =
           activePreset.source === 'official' &&
@@ -524,6 +547,7 @@ function OptimizeInner() {
           ? Boolean(
               hasActiveConditionalOverrides ||
                 !activeResonanceEnabled ||
+                hasActiveFastMode ||
                 (targetWeaponOverrideSpec &&
                   (targetWeaponOverrideSpec.key !==
                     baseRes.currentBuild.weaponOverride?.key ||
@@ -536,8 +560,30 @@ function OptimizeInner() {
                   effectiveWeaponId !== baseRes.currentBuild.weaponId) ||
                 hasOfficialMemberModeOverrides ||
                 hasActiveConditionalOverrides ||
-                !activeResonanceEnabled
+                !activeResonanceEnabled ||
+                hasActiveFastMode
             )
+
+        // For Akasha presets, if the target character is not owned or has no artifacts equipped,
+        // do not evaluate a current build — show the optimised result without a current build.
+        if (isAkashaPreset && !hasEquipped) {
+          if (needsReEval) {
+            const overrideRes = await evaluatePresetInWorker({
+              datasetKey: record.importedAt,
+              good: record.good,
+              preset: activePreset,
+              selection: effectiveCurrent,
+            })
+            if (cancelled) return
+            setTeamMemberStats(
+              overrideRes.result.memberStats ?? baseRes.result.memberStats ?? {}
+            )
+          } else {
+            setTeamMemberStats(baseRes.result.memberStats ?? {})
+          }
+          setCurrentEval(null)
+          return
+        }
 
         if (needsReEval) {
           const overrideRes = await evaluatePresetInWorker({
@@ -548,12 +594,17 @@ function OptimizeInner() {
           })
           if (cancelled) return
           setCurrentEval(overrideRes.result)
+          setTeamMemberStats(
+            overrideRes.result.memberStats ?? baseRes.result.memberStats ?? {}
+          )
         } else {
           setCurrentEval(baseRes.result)
+          setTeamMemberStats(baseRes.result.memberStats ?? {})
         }
       } catch {
         if (!cancelled) {
           setCurrentEval(null)
+          setTeamMemberStats({})
         }
       } finally {
         if (!cancelled) {
@@ -577,6 +628,8 @@ function OptimizeInner() {
     activeMemberConditionals,
     hasActiveConditionalOverrides,
     activeResonanceEnabled,
+    activeFastMode,
+    hasActiveFastMode,
   ])
 
   // Off-main-thread evaluation of all returned Top-N Optimised Builds via the shared worker session
@@ -612,6 +665,7 @@ function OptimizeInner() {
                   ? { memberConditionals: activeMemberConditionals }
                   : {}),
                 ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
+                ...(hasActiveFastMode ? { fastMode: activeFastMode } : {}),
               },
             })
             return res.result
@@ -643,6 +697,8 @@ function OptimizeInner() {
     activeMemberConditionals,
     hasActiveConditionalOverrides,
     activeResonanceEnabled,
+    activeFastMode,
+    hasActiveFastMode,
   ])
 
   async function startOptimization() {
@@ -786,6 +842,7 @@ function OptimizeInner() {
                   ? { memberConditionals: activeMemberConditionals }
                   : {}),
                 ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
+                ...(hasActiveFastMode ? { fastMode: activeFastMode } : {}),
               }
               const evalRes = await evaluatePresetInWorker({
                 datasetKey: importedAtSnapshot,
@@ -887,6 +944,68 @@ function OptimizeInner() {
   function cancelTeamOptimization() {
     cancelOptimizationInWorker()
     setTeamRunning(false)
+  }
+
+  function handleChangeMemberFastModeStat(
+    characterKey: string,
+    statKey: FastModeStatKey,
+    value: number | undefined
+  ) {
+    if (!activePreset) return
+    if (characterKey === activePreset.target) return
+    if (activePreset.source === 'user') {
+      const updatedPreset = {
+        ...activePreset,
+        team: activePreset.team.map((m, idx) => {
+          if (idx === 0 || m.key !== characterKey) return m
+          const nextStats = normalizeFastModeStats({
+            ...(m.fastMode ?? {}),
+            [statKey]: value,
+          })
+          return {
+            ...m,
+            fastMode: nextStats,
+          }
+        }),
+      }
+      void saveUserPreset(updatedPreset)
+    } else {
+      void updateSettings(
+        setPresetMemberFastModeStat(
+          settings,
+          activePreset.id,
+          characterKey,
+          statKey,
+          value
+        )
+      )
+    }
+    setOptResult(null)
+    setOptimisedEvals([])
+    setCompareResult(null)
+  }
+
+  function handleResetMemberFastMode(characterKey: string) {
+    if (!activePreset) return
+    if (activePreset.source === 'user') {
+      const updatedPreset = {
+        ...activePreset,
+        team: activePreset.team.map((m, idx) => {
+          if (idx === 0 || m.key !== characterKey) return m
+          const next = { ...m }
+          delete next.fastMode
+          return next
+        }),
+      }
+      void saveUserPreset(updatedPreset)
+    } else {
+      void updateSettings(
+        resetPresetMemberFastMode(settings, activePreset.id, characterKey)
+      )
+    }
+    setOptResult(null)
+    setOptimisedEvals([])
+    setCompareResult(null)
   }
 
   async function handleExportGO(
@@ -1131,6 +1250,19 @@ function OptimizeInner() {
               )
             })}
           </div>
+        )}
+
+        {activePreset && (
+          <TeammateFastModePanel
+            preset={activePreset}
+            ownedCharKeys={ownedCharKeys}
+            memberBuildModes={activeMemberBuildModes}
+            memberStats={teamMemberStats}
+            effectiveFastMode={activeFastMode}
+            optimizeMode={optimizeMode}
+            onChangeMemberStat={handleChangeMemberFastModeStat}
+            onResetMember={handleResetMemberFastMode}
+          />
         )}
 
         {activePreset && <PresetRotationSummary preset={activePreset} />}

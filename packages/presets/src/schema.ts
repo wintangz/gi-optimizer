@@ -124,6 +124,11 @@ export interface FixedBuild {
   weapon: TcWeapon
 }
 
+export const FAST_MODE_STAT_KEYS = ALL_SUBSTAT_KEYS
+export type FastModeStatKey = (typeof FAST_MODE_STAT_KEYS)[number]
+export type FastModeStats = Partial<Record<FastModeStatKey, number>>
+export type PresetFastModeMap = Record<string, FastModeStats>
+
 export interface TeamMember {
   key: string
   build:
@@ -136,6 +141,8 @@ export interface TeamMember {
   infusionAura?: InfusionAuraKey
   hitMode: HitModeKey
   reaction?: ReactionKey
+  /** Optional Fast Mode virtual 6th artifact stat lines (non-target members only). */
+  fastMode?: FastModeStats
 }
 
 export interface TeamMemberInput {
@@ -150,6 +157,8 @@ export interface TeamMemberInput {
   infusionAura?: InfusionAuraKey
   hitMode?: HitModeKey
   reaction?: ReactionKey
+  /** Optional Fast Mode virtual 6th artifact stat lines (non-target members only). */
+  fastMode?: FastModeStats
 }
 
 export interface RotationTarget {
@@ -908,12 +917,50 @@ function parseTeamMember(
     }
   }
 
+  let fastMode: FastModeStats | undefined
+  let fastModeValid = true
+  if (input.fastMode !== undefined) {
+    if (!isPlainObject(input.fastMode)) {
+      issues.push({
+        code: 'invalid_type',
+        path: [...path, 'fastMode'],
+        message: 'Expected fastMode object mapping artifact stat keys to numbers',
+      })
+      fastModeValid = false
+    } else {
+      const fmOut: FastModeStats = {}
+      for (const [k, v] of Object.entries(input.fastMode)) {
+        if (!SUBSTAT_SET.has(k)) {
+          issues.push({
+            code: 'invalid_enum_value',
+            path: [...path, 'fastMode', k],
+            message: `Invalid Fast Mode stat key '${k}'`,
+          })
+          fastModeValid = false
+        } else if (typeof v !== 'number' || !Number.isFinite(v)) {
+          issues.push({
+            code: 'invalid_type',
+            path: [...path, 'fastMode', k],
+            message: 'Expected a finite number for Fast Mode stat value',
+          })
+          fastModeValid = false
+        } else if (v !== 0) {
+          fmOut[k as FastModeStatKey] = v
+        }
+      }
+      if (fastModeValid && Object.keys(fmOut).length > 0) {
+        fastMode = fmOut
+      }
+    }
+  }
+
   if (
     !validKey ||
     !build ||
     !requirement ||
     !conditional ||
-    !bonusStats
+    !bonusStats ||
+    !fastModeValid
   ) {
     return undefined
   }
@@ -928,7 +975,26 @@ function parseTeamMember(
   }
   if (infusionAura !== undefined) out.infusionAura = infusionAura
   if (reaction !== undefined) out.reaction = reaction
+  if (fastMode !== undefined) out.fastMode = fastMode
   return out
+}
+
+export function isFastModeStatKey(k: string): k is FastModeStatKey {
+  return SUBSTAT_SET.has(k)
+}
+
+export function normalizeFastModeStats(
+  raw: FastModeStats | undefined
+): FastModeStats | undefined {
+  if (!raw || !isPlainObject(raw)) return undefined
+  const out: FastModeStats = {}
+  for (const k of FAST_MODE_STAT_KEYS) {
+    const v = raw[k]
+    if (typeof v === 'number' && Number.isFinite(v) && v !== 0) {
+      out[k] = v
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 function parseRotationTarget(
@@ -1308,7 +1374,14 @@ function parsePreset(
     const members: TeamMember[] = []
     for (let i = 0; i < input.team.length; i++) {
       const m = parseTeamMember(input.team[i], [...path, 'team', i], issues)
-      if (m) members.push(m)
+      if (m) {
+        if (i === 0 && m.fastMode !== undefined) {
+          const { fastMode: _ignoredTargetFastMode, ...targetMemberWithoutFastMode } = m
+          members.push(targetMemberWithoutFastMode)
+        } else {
+          members.push(m)
+        }
+      }
     }
     if (
       input.team.length >= 1 &&

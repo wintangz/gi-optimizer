@@ -1,5 +1,23 @@
 import { ALL_ARTIFACT_SET_KEYS } from './names'
-import type { PresetSource } from './schema'
+import {
+  FAST_MODE_STAT_KEYS,
+  isFastModeStatKey,
+  normalizeFastModeStats,
+  type FastModeStatKey,
+  type FastModeStats,
+  type Preset,
+  type PresetFastModeMap,
+  type PresetSource,
+} from './schema'
+
+export {
+  FAST_MODE_STAT_KEYS,
+  isFastModeStatKey,
+  normalizeFastModeStats,
+  type FastModeStatKey,
+  type FastModeStats,
+  type PresetFastModeMap,
+}
 
 export type SetPieceCount = 2 | 4
 export type SetFilterMode = 'all' | 'exclude' | 'include'
@@ -154,6 +172,11 @@ export interface OptimizerSettings {
    * Used when `resonanceEnabledByPreset[presetId]` is not set.
    */
   resonanceEnabled?: boolean
+  /**
+   * Per-preset Fast Mode virtual 6th artifact stat lines keyed by
+   * `[presetId][characterKey][statKey]`.
+   */
+  fastModeByPreset?: Record<string, PresetFastModeMap>
   topN: number
 }
 
@@ -176,6 +199,7 @@ export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
   memberBuildModes: {},
   memberConditionalOverrides: {},
   resonanceEnabledByPreset: {},
+  fastModeByPreset: {},
   topN: 5,
 }
 
@@ -351,6 +375,140 @@ export function setPresetResonanceEnabled(
       [presetId]: enabled,
     },
   }
+}
+
+export function getPresetFastMode(
+  settings: Pick<OptimizerSettings, 'fastModeByPreset'> | undefined,
+  presetId: string
+): PresetFastModeMap {
+  const map = settings?.fastModeByPreset
+  if (!map) return {}
+  if (map[presetId]) return map[presetId]
+  const subIdx = presetId.indexOf('__member_')
+  if (subIdx > 0) {
+    const rootPresetId = presetId.slice(0, subIdx)
+    if (map[rootPresetId]) return map[rootPresetId]
+  }
+  return {}
+}
+
+export function hasMemberFastMode(stats: FastModeStats | undefined): boolean {
+  const norm = normalizeFastModeStats(stats)
+  return norm !== undefined && Object.keys(norm).length > 0
+}
+
+export function resolveEffectiveFastMode(
+  preset: Pick<Preset, 'id' | 'target' | 'team'>,
+  settingsOrOverride?: Pick<OptimizerSettings, 'fastModeByPreset'> | PresetFastModeMap
+): PresetFastModeMap {
+  let overrideByMember: PresetFastModeMap = {}
+  if (settingsOrOverride && typeof settingsOrOverride === 'object') {
+    if ('fastModeByPreset' in settingsOrOverride) {
+      overrideByMember = getPresetFastMode(
+        settingsOrOverride as Pick<OptimizerSettings, 'fastModeByPreset'>,
+        preset.id
+      )
+    } else {
+      overrideByMember = settingsOrOverride as PresetFastModeMap
+    }
+  }
+
+  const out: PresetFastModeMap = {}
+  for (let i = 1; i < Math.min(4, preset.team.length); i++) {
+    const member = preset.team[i]!
+    const mKey = member.key
+    if (!mKey || mKey === preset.target) continue
+    const baseStats = member.fastMode
+    const overrideStats = overrideByMember?.[mKey]
+    const merged: FastModeStats = {
+      ...(baseStats ?? {}),
+      ...(overrideStats ?? {}),
+    }
+    const norm = normalizeFastModeStats(merged)
+    if (norm) {
+      out[mKey] = norm
+    }
+  }
+  return out
+}
+
+export function hasPresetFastMode(
+  preset: Pick<Preset, 'id' | 'target' | 'team'>,
+  settingsOrOverride?: Pick<OptimizerSettings, 'fastModeByPreset'> | PresetFastModeMap
+): boolean {
+  const effective = resolveEffectiveFastMode(preset, settingsOrOverride)
+  return Object.keys(effective).length > 0
+}
+
+export function setPresetMemberFastMode(
+  settings: OptimizerSettings,
+  presetId: string,
+  characterKey: string,
+  stats: FastModeStats | undefined
+): OptimizerSettings {
+  const currentAll = { ...(settings.fastModeByPreset ?? {}) }
+  const currentPresetMap = { ...(currentAll[presetId] ?? {}) }
+  const norm = normalizeFastModeStats(stats)
+  if (!norm) {
+    delete currentPresetMap[characterKey]
+  } else {
+    currentPresetMap[characterKey] = norm
+  }
+  if (Object.keys(currentPresetMap).length === 0) {
+    delete currentAll[presetId]
+  } else {
+    currentAll[presetId] = currentPresetMap
+  }
+  return {
+    ...settings,
+    fastModeByPreset: currentAll,
+  }
+}
+
+export function setPresetMemberFastModeStat(
+  settings: OptimizerSettings,
+  presetId: string,
+  characterKey: string,
+  statKey: FastModeStatKey,
+  value: number | undefined | null
+): OptimizerSettings {
+  if (!FAST_MODE_STAT_KEYS.includes(statKey)) return settings
+  const currentMemberStats: FastModeStats = {
+    ...(settings.fastModeByPreset?.[presetId]?.[characterKey] ?? {}),
+  }
+  if (
+    value === undefined ||
+    value === null ||
+    typeof value !== 'number' ||
+    !Number.isFinite(value) ||
+    value === 0
+  ) {
+    delete currentMemberStats[statKey]
+  } else {
+    currentMemberStats[statKey] = value
+  }
+  return setPresetMemberFastMode(
+    settings,
+    presetId,
+    characterKey,
+    currentMemberStats
+  )
+}
+
+export function resetPresetMemberFastMode(
+  settings: OptimizerSettings,
+  presetId: string,
+  characterKey?: string
+): OptimizerSettings {
+  const currentAll = { ...(settings.fastModeByPreset ?? {}) }
+  if (!characterKey) {
+    delete currentAll[presetId]
+    return {
+      ...settings,
+      fastModeByPreset: currentAll,
+    }
+  }
+  return setPresetMemberFastMode(settings, presetId, characterKey, undefined)
 }
 
 export function resetMemberConditionalOverrides(

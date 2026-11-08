@@ -2985,3 +2985,205 @@ td {
     grid-template-columns: 1fr;
   }
 }
+
+/* Teammate Base & Final Stats + Fast Mode (Virtual 6th Artifact) */
+.gi-teammate-cards-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.gi-teammate-cards-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.gi-teammate-cards-title {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.gi-teammate-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 0.75rem;
+}
+
+.gi-teammate-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-raised, #191d28);
+  border: 1px solid var(--border, #262b3a);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gi-teammate-card.is-fast-mode {
+  border-color: var(--accent, #58a6ff);
+  box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.25);
+}
+
+.gi-teammate-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.gi-teammate-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.gi-fast-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: rgba(88, 166, 255, 0.18);
+  color: #79c0ff;
+  border: 1px solid rgba(88, 166, 255, 0.45);
+}
+
+.gi-fast-mode-reset-btn {
+  padding: 0.18rem 0.55rem;
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.gi-teammate-stats-wrap {
+  overflow-x: auto;
+}
+
+.gi-teammate-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.gi-teammate-stats-table th,
+.gi-teammate-stats-table td {
+  padding: 0.26rem 0.38rem;
+  text-align: right;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+
+.gi-teammate-stats-table th:first-child,
+.gi-teammate-stats-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+
+.gi-fast-mode-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.45rem;
+  border-top: 1px dashed var(--border, #2a3042);
+}
+
+.gi-fast-mode-editor-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.gi-fast-mode-editor-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.gi-fast-mode-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.gi-fast-mode-line-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.14rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: rgba(63, 185, 80, 0.16);
+  color: #7ee787;
+  border: 1px solid rgba(63, 185, 80, 0.38);
+}
+
+.gi-fast-mode-line-pill.is-negative {
+  background: rgba(210, 153, 34, 0.16);
+  color: #e3b341;
+  border-color: rgba(210, 153, 34, 0.38);
+}
+
+.gi-fast-mode-line-pill button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0 0.12rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gi-fast-mode-inputs-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.38rem;
+}
+
+@media (max-width: 520px) {
+  .gi-fast-mode-inputs-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.gi-fast-mode-input-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.25rem 0.35rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--border, #262b3a);
+}
+
+.gi-fast-mode-input-cell.is-filled {
+  border-color: rgba(88, 166, 255, 0.55);
+  background: rgba(88, 166, 255, 0.08);
+}
+
+.gi-fast-mode-input-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted, #8b949e);
+}
+
+.gi-fast-mode-input-cell input {
+  width: 100%;
+  padding: 0.18rem 0.28rem;
+  font-size: 0.8rem;
+}

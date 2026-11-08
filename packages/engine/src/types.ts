@@ -1,26 +1,39 @@
 import {
   DEFAULT_OPTIMIZER_SETTINGS,
+  FAST_MODE_STAT_KEYS,
   STAT_CONSTRAINT_KEYS,
   getPresetConditionalOverrides,
+  getPresetFastMode,
   getPresetMemberBuildModes,
   getPresetResonanceEnabled,
   hasMemberConditionalOverrides,
+  hasMemberFastMode,
+  hasPresetFastMode,
   isActiveStatConstraint,
+  isFastModeStatKey,
   isPercentStatConstraintKey,
   migrateOptimizerSettings,
+  normalizeFastModeStats,
   normalizeStatConstraintValue,
   resetMemberConditionalOverrides,
+  resetPresetMemberFastMode,
+  resolveEffectiveFastMode,
   resolvePresetMemberBuildMode,
   setMemberConditionalOverride,
   setPresetMemberBuildMode,
+  setPresetMemberFastMode,
+  setPresetMemberFastModeStat,
   setPresetResonanceEnabled,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
+  type FastModeStatKey,
+  type FastModeStats,
   type MemberBuildMode,
   type MemberBuildModesMap,
   type MemberConditionalsMap,
   type OptimizerSettings,
   type Preset,
+  type PresetFastModeMap,
   type PresetMemberConditionalOverrides,
   type ResolvedMemberBuild,
   type SetFilterMode,
@@ -31,26 +44,39 @@ import {
 
 export {
   DEFAULT_OPTIMIZER_SETTINGS,
+  FAST_MODE_STAT_KEYS,
   STAT_CONSTRAINT_KEYS,
   getPresetConditionalOverrides,
+  getPresetFastMode,
   getPresetMemberBuildModes,
   getPresetResonanceEnabled,
   hasMemberConditionalOverrides,
+  hasMemberFastMode,
+  hasPresetFastMode,
   isActiveStatConstraint,
+  isFastModeStatKey,
   isPercentStatConstraintKey,
   migrateOptimizerSettings,
+  normalizeFastModeStats,
   normalizeStatConstraintValue,
   resetMemberConditionalOverrides,
+  resetPresetMemberFastMode,
+  resolveEffectiveFastMode,
   resolvePresetMemberBuildMode,
   setMemberConditionalOverride,
   setPresetMemberBuildMode,
+  setPresetMemberFastMode,
+  setPresetMemberFastModeStat,
   setPresetResonanceEnabled,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
+  type FastModeStatKey,
+  type FastModeStats,
   type MemberBuildMode,
   type MemberBuildModesMap,
   type MemberConditionalsMap,
   type OptimizerSettings,
+  type PresetFastModeMap,
   type PresetMemberConditionalOverrides,
   type ResolvedMemberBuild,
   type SetFilterMode,
@@ -78,6 +104,8 @@ export interface BuildSelection {
   memberConditionals?: PresetMemberConditionalOverrides
   /** Optional master Elemental Resonance override (`true` = enabled, `false` = disabled). */
   resonanceEnabled?: boolean
+  /** Optional per-teammate Fast Mode virtual 6th artifact stat lines (`[characterKey][statKey]`). */
+  fastMode?: PresetFastModeMap
 }
 
 export type BreakdownSourceCategory =
@@ -157,11 +185,17 @@ export interface InstanceResult {
   breakdown?: DamageRowBreakdown
 }
 
+export interface MemberStatSummary {
+  base: Record<string, number>
+  final: Record<string, number>
+}
+
 export interface RotationResult {
   total: number
   instances: InstanceResult[]
   stats: Record<string, number>
   statBreakdowns?: Record<string, StatBreakdown>
+  memberStats?: Record<string, MemberStatSummary>
 }
 
 export interface OptimizeProgress {
@@ -358,6 +392,7 @@ export interface EngineSession {
       memberBuildModes?: Record<string, MemberBuildMode>
       memberConditionals?: PresetMemberConditionalOverrides
       resonanceEnabled?: boolean
+      fastMode?: PresetFastModeMap
       onProgress?: (p: OptimizeProgress) => void
       signal?: AbortSignal
       maxWorkers?: number
@@ -371,6 +406,7 @@ export interface EngineSession {
       memberBuildModes?: Record<string, MemberBuildMode>
       memberConditionals?: PresetMemberConditionalOverrides
       resonanceEnabled?: boolean
+      fastMode?: PresetFastModeMap
       onProgress?: (p: WeaponCompareProgress) => void
       signal?: AbortSignal
       maxWorkers?: number

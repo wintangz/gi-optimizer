@@ -51,6 +51,7 @@ import type {
   OptimizeProgress,
   OptimizeResult,
   OptimizerSettings,
+  PresetFastModeMap,
   PresetMemberConditionalOverrides,
   SimulatedWeaponSpec,
 } from './types'
@@ -401,6 +402,7 @@ export async function runSolver(
     memberBuildModes?: Record<string, MemberBuildMode>
     memberConditionals?: PresetMemberConditionalOverrides
     resonanceEnabled?: boolean
+    fastMode?: PresetFastModeMap
     excludedArtifactIds?: ReadonlySet<string>
     onProgress?: (p: OptimizeProgress) => void
     signal?: AbortSignal
@@ -637,6 +639,9 @@ export async function runSolver(
           : {}),
         ...(opts?.resonanceEnabled === false
           ? { resonanceEnabled: false }
+          : {}),
+        ...(opts?.fastMode && Object.keys(opts.fastMode).length > 0
+          ? { fastMode: opts.fastMode }
           : {}),
         artifactIds,
         total: b.value * repeat,
