@@ -1,0 +1,135 @@
+{
+  "presetId": "akasha/alhaitham-spread-foliar-c0",
+  "target": "Alhaitham",
+  "total": 226598.85772297296,
+  "instances": [
+    {
+      "label": "Particular Field Fetters (Spread ×4)",
+      "path": [
+        "burst",
+        "instanceDmg"
+      ],
+      "count": 4,
+      "perHit": 9243.455431922132,
+      "subtotal": 36973.821727688526
+    },
+    {
+      "label": "Particular Field Fetters (No Reaction ×6)",
+      "path": [
+        "burst",
+        "instanceDmg"
+      ],
+      "count": 6,
+      "perHit": 4065.420381309615,
+      "subtotal": 24392.52228785769
+    },
+    {
+      "label": "Universality Rush DMG (Spread)",
+      "path": [
+        "skill",
+        "rushDmg"
+      ],
+      "count": 1,
+      "perHit": 8937.640316457597,
+      "subtotal": 8937.640316457597
+    },
+    {
+      "label": "Chisel-Light Mirror Projection (Spread ×6)",
+      "path": [
+        "skill",
+        "mirrorDmg1"
+      ],
+      "count": 6,
+      "perHit": 8943.190148800233,
+      "subtotal": 53659.1408928014
+    },
+    {
+      "label": "Chisel-Light Mirror Projection (No Reaction ×12)",
+      "path": [
+        "skill",
+        "mirrorDmg1"
+      ],
+      "count": 12,
+      "perHit": 3765.155098187717,
+      "subtotal": 45181.861178252606
+    },
+    {
+      "label": "Dendro-Infused 1-Hit (Spread ×4)",
+      "path": [
+        "normal",
+        "0"
+      ],
+      "count": 4,
+      "perHit": 5241.169125197293,
+      "subtotal": 20964.676500789174
+    },
+    {
+      "label": "Dendro-Infused 2-Hit (×4)",
+      "path": [
+        "normal",
+        "1"
+      ],
+      "count": 4,
+      "perHit": 1514.6719649759357,
+      "subtotal": 6058.687859903743
+    },
+    {
+      "label": "Dendro-Infused 3-Hit (Spread ×4)",
+      "path": [
+        "normal",
+        "2"
+      ],
+      "count": 4,
+      "perHit": 4933.664734678632,
+      "subtotal": 19734.65893871453
+    },
+    {
+      "label": "Dendro-Infused 3-Hit (No Reaction ×4)",
+      "path": [
+        "normal",
+        "2"
+      ],
+      "count": 4,
+      "perHit": 1182.6472176994866,
+      "subtotal": 4730.588870797947
+    },
+    {
+      "label": "Dendro-Infused Charged (Spread ×1)",
+      "path": [
+        "charged",
+        "dmg"
+      ],
+      "count": 1,
+      "perHit": 4858.13833334445,
+      "subtotal": 4858.13833334445
+    },
+    {
+      "label": "Dendro-Infused Charged (No Reaction ×1)",
+      "path": [
+        "charged",
+        "dmg"
+      ],
+      "count": 1,
+      "perHit": 1107.120816365305,
+      "subtotal": 1107.120816365305
+    }
+  ],
+  "stats": {
+    "hp": 13348.0427932,
+    "atk": 1197.2148073199999,
+    "def": 781.6197942900001,
+    "eleMas": 490,
+    "critRate_": 0.09,
+    "critDMG_": 1.3820480000000002,
+    "enerRech_": 1,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0,
+    "geo_dmg_": 0,
+    "electro_dmg_": 0,
+    "hydro_dmg_": 0,
+    "pyro_dmg_": 0,
+    "cryo_dmg_": 0,
+    "dendro_dmg_": 0.288
+  }
+}
