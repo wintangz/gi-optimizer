@@ -1,0 +1,147 @@
+{
+  "schema": "gi-optimizer/preset@1",
+  "id": "akasha/ayaka-freeze-mistsplitter-c0",
+  "name": "Kamisato Ayaka — Freeze Soumetsu Combo (Shenhe + Kazuha + Kokomi)",
+  "description": "Akasha leaderboard preset for C0 Kamisato Ayaka Freeze with Shenhe (Icy Quills + Cryo DMG%/RES shred + Noblesse 4p), Kazuha (1000 EM VV + Freedom-Sworn), and Kokomi (TTDS + Tenacity 4p).",
+  "source": "akasha",
+  "author": "akasha.cv",
+  "target": "KamisatoAyaka",
+  "team": [
+    {
+      "key": "KamisatoAyaka",
+      "build": {
+        "type": "fixed",
+        "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 10, "skill": 10, "burst": 10 } },
+        "weapon": { "key": "MistsplitterReforged", "level": 90, "ascension": 6, "refinement": 1 }
+      },
+      "requirement": {},
+      "conditional": {
+        "KamisatoAyaka": {
+          "afterSprint": "afterSprint",
+          "afterSkillA1": "afterSkill",
+          "afterApplySprint": "afterApplySprint"
+        },
+        "MistsplitterReforged": {
+          "MistsplittersEmblem": "3"
+        },
+        "BlizzardStrayer": {
+          "state": "frozen"
+        }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Shenhe",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 10, "burst": 10 } },
+          "weapon": { "key": "CalamityQueller", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "atk_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "enerRech_": 44.0 } },
+            "sets": { "NoblesseOblige": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "Shenhe": {
+          "quill": "quill",
+          "burst": "burst",
+          "asc1": "field",
+          "asc4Hold": "hold"
+        },
+        "CalamityQueller": { "stack": "6" },
+        "NoblesseOblige": { "set4": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "KaedeharaKazuha",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 6, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "FreedomSworn", "level": 90, "ascension": 6, "refinement": 1 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "eleMas", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "eleMas", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "eleMas": 118.8, "enerRech_": 33.0 } },
+            "sets": { "ViridescentVenerer": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "KaedeharaKazuha": { "swirlcryo": "cryo" },
+        "ViridescentVenerer": { "swirlcryo": "cryo" },
+        "FreedomSworn": { "MillennialMovement": "on" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "SangonomiyaKokomi",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 1, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "ThrillingTalesOfDragonSlayers", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "enerRech_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "hp_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "heal_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "enerRech_": 33.0 } },
+            "sets": { "TenacityOfTheMillelith": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {
+        "ThrillingTalesOfDragonSlayers": { "Heritage": "on" },
+        "TenacityOfTheMillelith": { "skill": "cast" }
+      },
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    }
+  ],
+  "enemy": { "level": 100, "overrides": {} },
+  "teamConditional": { "resonance": {}, "reaction": {} },
+  "rotation": {
+    "name": "Dash -> N1 -> E -> Q Soumetsu (19× Cutting + Bloom) -> 2× N2C",
+    "repeat": 1,
+    "targets": [
+      { "path": ["skill", "press"], "count": 2, "label": "Kamisato Art: Hyouka (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "cutting"], "count": 19, "label": "Soumetsu Cutting DMG (×19)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["burst", "bloom"], "count": 1, "label": "Soumetsu Bloom DMG", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["normal", "0"], "count": 3, "label": "Cryo-Infused 1-Hit (×3)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["normal", "1"], "count": 2, "label": "Cryo-Infused 2-Hit (×2)", "hitMode": "avgHit", "bonusStats": {} },
+      { "path": ["charged", "dmg1"], "count": 6, "label": "Cryo-Infused Charged Hit (3×2)", "hitMode": "avgHit", "bonusStats": {} }
+    ]
+  },
+  "akasha": {
+    "calculationId": "ayaka-freeze-mistsplitter-c0",
+    "leaderboardUrl": "https://akasha.cv/leaderboards",
+    "label": "Kamisato Ayaka — Freeze Soumetsu Combo (Mistsplitter Reforged R1, C0)",
+    "retrievedAt": "authored-from-knowledge",
+    "notes": "Source: authored-from-knowledge. Fixed Akasha target spec: Lv.90/90 C0 10/10/10 with Mistsplitter Reforged R1 Lv.90/90 (3 Mistsplitter's Emblem stacks), Senho Cryo infusion + A1/A4 active, and Frozen enemy state for 4p Blizzard Strayer. Teammates: Shenhe C0 (Calamity Queller R1, 4p Noblesse), Kazuha C0 (~1000 EM, Freedom-Sworn R1, 4p VV Cryo Swirl), Kokomi C0 (TTDS R5, 4p Tenacity)."
+  }
+}

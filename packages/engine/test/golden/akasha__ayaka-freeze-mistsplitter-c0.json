@@ -1,0 +1,85 @@
+{
+  "presetId": "akasha/ayaka-freeze-mistsplitter-c0",
+  "target": "KamisatoAyaka",
+  "total": 1919163.9419975444,
+  "instances": [
+    {
+      "label": "Kamisato Art: Hyouka (×2)",
+      "path": [
+        "skill",
+        "press"
+      ],
+      "count": 2,
+      "perHit": 100693.44087091164,
+      "subtotal": 201386.88174182328
+    },
+    {
+      "label": "Soumetsu Cutting DMG (×19)",
+      "path": [
+        "burst",
+        "cutting"
+      ],
+      "count": 19,
+      "perHit": 58300.7948643845,
+      "subtotal": 1107715.1024233056
+    },
+    {
+      "label": "Soumetsu Bloom DMG",
+      "path": [
+        "burst",
+        "bloom"
+      ],
+      "count": 1,
+      "perHit": 77058.45501620875,
+      "subtotal": 77058.45501620875
+    },
+    {
+      "label": "Cryo-Infused 1-Hit (×3)",
+      "path": [
+        "normal",
+        "0"
+      ],
+      "count": 3,
+      "perHit": 45914.04992571706,
+      "subtotal": 137742.14977715118
+    },
+    {
+      "label": "Cryo-Infused 2-Hit (×2)",
+      "path": [
+        "normal",
+        "1"
+      ],
+      "count": 2,
+      "perHit": 47241.1508454644,
+      "subtotal": 94482.3016909288
+    },
+    {
+      "label": "Cryo-Infused Charged Hit (3×2)",
+      "path": [
+        "charged",
+        "dmg1"
+      ],
+      "count": 6,
+      "perHit": 50129.84189135444,
+      "subtotal": 300779.0513481266
+    }
+  ],
+  "stats": {
+    "hp": 18686.590101928203,
+    "atk": 3247.78163923072,
+    "def": 807.0754574000001,
+    "eleMas": 20.98,
+    "critRate_": 1.1522000000000001,
+    "critDMG_": 2.491024,
+    "enerRech_": 1.3173,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0.12,
+    "geo_dmg_": 0.12,
+    "electro_dmg_": 0.12,
+    "hydro_dmg_": 0.12,
+    "pyro_dmg_": 0.12,
+    "cryo_dmg_": 1.7427843200000002,
+    "dendro_dmg_": 0.12
+  }
+}
