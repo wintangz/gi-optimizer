@@ -1,0 +1,45 @@
+{
+  "presetId": "akasha/yaemiko-aggravate-kagura-c0",
+  "target": "YaeMiko",
+  "total": 326914.7809924687,
+  "instances": [
+    {
+      "label": "Sesshou Sakura Lv.3 DMG (Aggravate ×5)",
+      "path": [
+        "skill",
+        "dmg3"
+      ],
+      "count": 5,
+      "perHit": 34130.69068396318,
+      "subtotal": 170653.4534198159
+    },
+    {
+      "label": "Sesshou Sakura Lv.3 DMG (No Reaction ×10)",
+      "path": [
+        "skill",
+        "dmg3"
+      ],
+      "count": 10,
+      "perHit": 15626.132757265283,
+      "subtotal": 156261.32757265284
+    }
+  ],
+  "stats": {
+    "hp": 15361.41646756,
+    "atk": 2155.77557719024,
+    "def": 688.5528823983601,
+    "eleMas": 574.16,
+    "critRate_": 0.7123999999999999,
+    "critDMG_": 1.8609360000000001,
+    "enerRech_": 1.272,
+    "heal_": 0,
+    "physical_dmg_": 0,
+    "anemo_dmg_": 0.12,
+    "geo_dmg_": 0.12,
+    "electro_dmg_": 1.0387843200000002,
+    "hydro_dmg_": 0.12,
+    "pyro_dmg_": 0.12,
+    "cryo_dmg_": 0.12,
+    "dendro_dmg_": 0.12
+  }
+}
