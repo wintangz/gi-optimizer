@@ -1,3 +1,7 @@
+import elementalResonanceGenEn from '../../../vendor/genshin-optimizer/libs/gi/dm-localization/assets/locales/en/elementalResonance_gen.json'
+import elementalResonanceEn from '../../../vendor/genshin-optimizer/libs/gi/localization/assets/locales/en/elementalResonance.json'
+import sheetEn from '../../../vendor/genshin-optimizer/libs/gi/localization/assets/locales/en/sheet.json'
+import { getCharacterMeta, type IdentifierElement } from './metadata'
 import { ALL_ARTIFACT_SET_KEYS, ALL_WEAPON_KEYS } from './names'
 import {
   FAST_MODE_STAT_KEYS,
@@ -17,6 +21,244 @@ export {
   type FastModeStatKey,
   type FastModeStats,
   type PresetFastModeMap,
+}
+
+export const RESONANCE_EFFECT_KEYS = [
+  'ProtectiveCanopy',
+  'FerventFlames',
+  'SoothingWater',
+  'ShatteringIce',
+  'HighVoltage',
+  'ImpetuousWinds',
+  'EnduringRock',
+  'SprawlingGreenery',
+] as const
+
+export type ResonanceEffectKey = (typeof RESONANCE_EFFECT_KEYS)[number]
+
+export type ResonanceEffectsStateMap = Partial<
+  Record<ResonanceEffectKey, boolean>
+>
+
+export interface TriggeredResonanceDescriptor {
+  key: ResonanceEffectKey
+  element: IdentifierElement | 'all'
+  /** Exact name from vendored GO elementalResonance_gen.json (e.g. "Shattering Ice", "Soothing Water"). */
+  name: string
+  /** Exact description from vendored GO elementalResonance_gen.json. */
+  desc: string
+  /** Plain-language summary line stating what the resonance gives and any secondary condition. */
+  plainSummary: string
+  /** Secondary trigger condition text when applicable (Cryo Frozen/Cryo, Geo shield/Moondrifts, Dendro reactions). */
+  conditionText?: string
+  /** GO teamConditional.resonance keys associated with this resonance's secondary triggers, if any. */
+  triggerConditionalKeys: readonly string[]
+}
+
+function stripGoTags(raw: string): string {
+  return raw.replace(/<\/?[a-z]+>/gi, '').trim()
+}
+
+export const ELEMENT_TO_RESONANCE_KEY: Record<
+  IdentifierElement,
+  ResonanceEffectKey
+> = {
+  pyro: 'FerventFlames',
+  hydro: 'SoothingWater',
+  cryo: 'ShatteringIce',
+  electro: 'HighVoltage',
+  anemo: 'ImpetuousWinds',
+  geo: 'EnduringRock',
+  dendro: 'SprawlingGreenery',
+}
+
+export const RESONANCE_KEY_TO_ELEMENT: Record<
+  ResonanceEffectKey,
+  IdentifierElement | 'all'
+> = {
+  ProtectiveCanopy: 'all',
+  FerventFlames: 'pyro',
+  SoothingWater: 'hydro',
+  ShatteringIce: 'cryo',
+  HighVoltage: 'electro',
+  ImpetuousWinds: 'anemo',
+  EnduringRock: 'geo',
+  SprawlingGreenery: 'dendro',
+}
+
+const RESONANCE_KEY_ALIASES: Record<string, ResonanceEffectKey> = {
+  ProtectiveCanopy: 'ProtectiveCanopy',
+  protectivecanopy: 'ProtectiveCanopy',
+  all: 'ProtectiveCanopy',
+  FerventFlames: 'FerventFlames',
+  ferventflames: 'FerventFlames',
+  Pyro: 'FerventFlames',
+  pyro: 'FerventFlames',
+  SoothingWater: 'SoothingWater',
+  SoothingWaters: 'SoothingWater',
+  soothingwater: 'SoothingWater',
+  soothingwaters: 'SoothingWater',
+  Hydro: 'SoothingWater',
+  hydro: 'SoothingWater',
+  ShatteringIce: 'ShatteringIce',
+  shatteringice: 'ShatteringIce',
+  Cryo: 'ShatteringIce',
+  cryo: 'ShatteringIce',
+  HighVoltage: 'HighVoltage',
+  highvoltage: 'HighVoltage',
+  Electro: 'HighVoltage',
+  electro: 'HighVoltage',
+  ImpetuousWinds: 'ImpetuousWinds',
+  impetuouswinds: 'ImpetuousWinds',
+  Anemo: 'ImpetuousWinds',
+  anemo: 'ImpetuousWinds',
+  EnduringRock: 'EnduringRock',
+  enduringrock: 'EnduringRock',
+  Geo: 'EnduringRock',
+  geo: 'EnduringRock',
+  SprawlingGreenery: 'SprawlingGreenery',
+  SprawlingCanopy: 'SprawlingGreenery',
+  sprawlinggreenery: 'SprawlingGreenery',
+  sprawlingcanopy: 'SprawlingGreenery',
+  Dendro: 'SprawlingGreenery',
+  dendro: 'SprawlingGreenery',
+}
+
+export function normalizeResonanceEffectKey(
+  rawKey: string | undefined | null
+): ResonanceEffectKey | undefined {
+  if (!rawKey) return undefined
+  return (
+    RESONANCE_KEY_ALIASES[rawKey] ?? RESONANCE_KEY_ALIASES[rawKey.toLowerCase()]
+  )
+}
+
+export const GO_RESONANCE_CATALOG: Record<
+  ResonanceEffectKey,
+  TriggeredResonanceDescriptor
+> = {
+  ProtectiveCanopy: {
+    key: 'ProtectiveCanopy',
+    element: 'all',
+    name: elementalResonanceGenEn.ProtectiveCanopy.name,
+    desc: elementalResonanceGenEn.ProtectiveCanopy.desc,
+    plainSummary: '+15% All Elemental RES, +15% Physical RES',
+    triggerConditionalKeys: [],
+  },
+  FerventFlames: {
+    key: 'FerventFlames',
+    element: 'pyro',
+    name: elementalResonanceGenEn.FerventFlames.name,
+    desc: elementalResonanceGenEn.FerventFlames.desc,
+    plainSummary: '+25% ATK',
+    triggerConditionalKeys: [],
+  },
+  SoothingWater: {
+    key: 'SoothingWater',
+    element: 'hydro',
+    name: elementalResonanceGenEn.SoothingWater.name,
+    desc: elementalResonanceGenEn.SoothingWater.desc,
+    plainSummary: '+25% Max HP',
+    triggerConditionalKeys: [],
+  },
+  ShatteringIce: {
+    key: 'ShatteringIce',
+    element: 'cryo',
+    name: elementalResonanceGenEn.ShatteringIce.name,
+    desc: elementalResonanceGenEn.ShatteringIce.desc,
+    plainSummary: '+15% CRIT Rate against Frozen or Cryo-affected enemies',
+    conditionText: stripGoTags(sheetEn.enemyAffected.frozenOrCryo),
+    triggerConditionalKeys: ['ShatteringIce'],
+  },
+  HighVoltage: {
+    key: 'HighVoltage',
+    element: 'electro',
+    name: elementalResonanceGenEn.HighVoltage.name,
+    desc: elementalResonanceGenEn.HighVoltage.desc,
+    plainSummary:
+      '100% chance to generate 1 Electro Elemental Particle on Electro reactions (CD: 5s)',
+    triggerConditionalKeys: [],
+  },
+  ImpetuousWinds: {
+    key: 'ImpetuousWinds',
+    element: 'anemo',
+    name: elementalResonanceGenEn.ImpetuousWinds.name,
+    desc: elementalResonanceGenEn.ImpetuousWinds.desc,
+    plainSummary: '-15% Stamina Consumption, +10% Movement SPD, -5% Skill CD',
+    triggerConditionalKeys: [],
+  },
+  EnduringRock: {
+    key: 'EnduringRock',
+    element: 'geo',
+    name: elementalResonanceGenEn.EnduringRock.name,
+    desc: elementalResonanceGenEn.EnduringRock.desc,
+    plainSummary:
+      '+15% Shield Strength; +15% DMG dealt and -20% enemy Geo RES (15s) while shielded or near Lunar-Crystallize Moondrifts',
+    conditionText: `${stripGoTags(elementalResonanceEn.EnduringRock.baseCond)} · ${stripGoTags(elementalResonanceEn.EnduringRock.hitCond)}`,
+    triggerConditionalKeys: ['EnduringRock', 'EnduringRockHit'],
+  },
+  SprawlingGreenery: {
+    key: 'SprawlingGreenery',
+    element: 'dendro',
+    name: elementalResonanceGenEn.SprawlingGreenery.name,
+    desc: elementalResonanceGenEn.SprawlingGreenery.desc,
+    plainSummary:
+      '+50 EM base; +30 EM after Burning/Quicken/Bloom/Lunar-Bloom (6s); +20 EM after Aggravate/Spread/Hyperbloom/Burgeon (6s)',
+    conditionText: `${stripGoTags(elementalResonanceEn.SprawlingGreenery.cond2ele)} · ${stripGoTags(elementalResonanceEn.SprawlingGreenery.cond3ele)}`,
+    triggerConditionalKeys: ['SprawlingCanopy2ele', 'SprawlingCanopy3ele'],
+  },
+}
+
+/**
+ * Derives the ordered list of elemental resonances triggered by a team composition
+ * (matching Genshin Optimizer's `resonanceSheets` order and trigger rules).
+ */
+export function listTriggeredResonances(
+  teamOrPreset:
+    | Pick<Preset, 'team'>
+    | ReadonlyArray<
+        { key?: string; characterKey?: string } | string | undefined
+      >
+): TriggeredResonanceDescriptor[] {
+  const rawMembers = Array.isArray(teamOrPreset)
+    ? teamOrPreset
+    : (teamOrPreset as Pick<Preset, 'team'>)?.team ?? []
+  const activeCharKeys: string[] = []
+  for (let i = 0; i < Math.min(4, rawMembers.length); i++) {
+    const item = rawMembers[i]
+    const k =
+      typeof item === 'string'
+        ? item
+        : item?.key ?? (item as { characterKey?: string } | undefined)?.characterKey
+    if (k && typeof k === 'string') {
+      activeCharKeys.push(k)
+    }
+  }
+  if (activeCharKeys.length === 0) return []
+
+  const eleCounts: Partial<Record<IdentifierElement, number>> = {}
+  for (const ck of activeCharKeys) {
+    const ele = getCharacterMeta(ck).element
+    if (ele) {
+      eleCounts[ele] = (eleCounts[ele] ?? 0) + 1
+    }
+  }
+
+  const triggered: TriggeredResonanceDescriptor[] = []
+  const distinctElements = Object.keys(eleCounts).length
+  if (activeCharKeys.length >= 4 && distinctElements >= 4) {
+    triggered.push(GO_RESONANCE_CATALOG.ProtectiveCanopy)
+  }
+
+  for (const resKey of RESONANCE_EFFECT_KEYS) {
+    if (resKey === 'ProtectiveCanopy') continue
+    const desc = GO_RESONANCE_CATALOG[resKey]
+    if (desc.element !== 'all' && (eleCounts[desc.element] ?? 0) >= 2) {
+      triggered.push(desc)
+    }
+  }
+
+  return triggered
 }
 
 export type SetPieceCount = 2 | 4
@@ -194,6 +436,16 @@ export interface OptimizerSettings {
    */
   resonanceEnabled?: boolean
   /**
+   * Per-preset, per-effect Elemental Resonance on/off overrides (`[presetId][effectKey] => boolean`).
+   * Defaults to `true` (ON) for every effect when omitted. Applied only while that resonance is
+   * triggered by the team composition.
+   */
+  resonanceEffectsByPreset?: Record<string, ResonanceEffectsStateMap>
+  /**
+   * Optional run-level per-effect Elemental Resonance overrides (`[effectKey] => boolean`).
+   */
+  resonanceEffects?: ResonanceEffectsStateMap
+  /**
    * Per-preset Fast Mode virtual 6th artifact stat lines keyed by
    * `[presetId][characterKey][statKey]`.
    */
@@ -226,6 +478,7 @@ export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
   memberBuildModes: {},
   memberConditionalOverrides: {},
   resonanceEnabledByPreset: {},
+  resonanceEffectsByPreset: {},
   fastModeByPreset: {},
   weaponCompareCandidatesByPreset: {},
   topN: 5,
@@ -396,12 +649,124 @@ export function setPresetResonanceEnabled(
   presetId: string,
   enabled: boolean
 ): OptimizerSettings {
-  return {
+  const nextSettings: OptimizerSettings = {
     ...settings,
     resonanceEnabledByPreset: {
       ...(settings.resonanceEnabledByPreset ?? {}),
       [presetId]: enabled,
     },
+  }
+  if (enabled && settings.resonanceEffectsByPreset?.[presetId]) {
+    const currentEffectsAll = { ...settings.resonanceEffectsByPreset }
+    delete currentEffectsAll[presetId]
+    nextSettings.resonanceEffectsByPreset = currentEffectsAll
+  }
+  return nextSettings
+}
+
+export function normalizeResonanceEffectsMap(
+  raw: Record<string, boolean | undefined> | undefined
+): ResonanceEffectsStateMap {
+  if (!raw || typeof raw !== 'object') return {}
+  const out: ResonanceEffectsStateMap = {}
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v !== 'boolean') continue
+    const normKey = normalizeResonanceEffectKey(k)
+    if (normKey) {
+      out[normKey] = v
+    }
+  }
+  return out
+}
+
+export function getPresetResonanceEffects(
+  settings:
+    | Pick<OptimizerSettings, 'resonanceEffectsByPreset' | 'resonanceEffects'>
+    | undefined,
+  presetId: string
+): ResonanceEffectsStateMap {
+  const baseRunEffects = normalizeResonanceEffectsMap(
+    settings?.resonanceEffects
+  )
+  const map = settings?.resonanceEffectsByPreset
+  if (!map) return baseRunEffects
+  let presetEffects = map[presetId]
+  if (!presetEffects) {
+    const subIdx = presetId.indexOf('__member_')
+    if (subIdx > 0) {
+      const rootPresetId = presetId.slice(0, subIdx)
+      presetEffects = map[rootPresetId]
+    }
+  }
+  if (!presetEffects) return baseRunEffects
+  return {
+    ...baseRunEffects,
+    ...normalizeResonanceEffectsMap(presetEffects),
+  }
+}
+
+export function hasDisabledResonanceEffects(
+  effects: ResonanceEffectsStateMap | undefined,
+  teamOrPreset?:
+    | Pick<Preset, 'team'>
+    | ReadonlyArray<{ key: string } | string | undefined>
+): boolean {
+  if (!effects) return false
+  const norm = normalizeResonanceEffectsMap(effects)
+  if (teamOrPreset) {
+    const triggered = listTriggeredResonances(teamOrPreset)
+    return triggered.some((t) => norm[t.key] === false)
+  }
+  return Object.values(norm).some((v) => v === false)
+}
+
+export function isPresetResonanceEffectEnabled(
+  settings:
+    | Pick<
+        OptimizerSettings,
+        | 'resonanceEnabledByPreset'
+        | 'resonanceEnabled'
+        | 'resonanceEffectsByPreset'
+        | 'resonanceEffects'
+      >
+    | undefined,
+  presetId: string,
+  effectKey: string
+): boolean {
+  if (!getPresetResonanceEnabled(settings, presetId)) {
+    return false
+  }
+  const normKey = normalizeResonanceEffectKey(effectKey)
+  if (!normKey) return true
+  const effects = getPresetResonanceEffects(settings, presetId)
+  return effects[normKey] !== false
+}
+
+export function setPresetResonanceEffectEnabled(
+  settings: OptimizerSettings,
+  presetId: string,
+  effectKey: string,
+  enabled: boolean
+): OptimizerSettings {
+  const normKey = normalizeResonanceEffectKey(effectKey)
+  if (!normKey) return settings
+  const currentAll = { ...(settings.resonanceEffectsByPreset ?? {}) }
+  const currentPresetMap: ResonanceEffectsStateMap = {
+    ...(currentAll[presetId] ?? {}),
+  }
+  if (enabled) {
+    delete currentPresetMap[normKey]
+  } else {
+    currentPresetMap[normKey] = false
+  }
+  if (Object.keys(currentPresetMap).length === 0) {
+    delete currentAll[presetId]
+  } else {
+    currentAll[presetId] = currentPresetMap
+  }
+  return {
+    ...settings,
+    resonanceEffectsByPreset: currentAll,
   }
 }
 
@@ -547,19 +912,27 @@ export function resetMemberConditionalOverrides(
   const currentAll = { ...(settings.memberConditionalOverrides ?? {}) }
   if (!characterKey) {
     delete currentAll[presetId]
-    if (settings.resonanceEnabledByPreset?.[presetId] !== undefined) {
-      const currentRes = { ...settings.resonanceEnabledByPreset }
-      delete currentRes[presetId]
-      return {
-        ...settings,
-        memberConditionalOverrides: currentAll,
-        resonanceEnabledByPreset: currentRes,
-      }
-    }
-    return {
+    let nextSettings: OptimizerSettings = {
       ...settings,
       memberConditionalOverrides: currentAll,
     }
+    if (settings.resonanceEnabledByPreset?.[presetId] !== undefined) {
+      const currentRes = { ...settings.resonanceEnabledByPreset }
+      delete currentRes[presetId]
+      nextSettings = {
+        ...nextSettings,
+        resonanceEnabledByPreset: currentRes,
+      }
+    }
+    if (settings.resonanceEffectsByPreset?.[presetId] !== undefined) {
+      const currentResEffects = { ...settings.resonanceEffectsByPreset }
+      delete currentResEffects[presetId]
+      nextSettings = {
+        ...nextSettings,
+        resonanceEffectsByPreset: currentResEffects,
+      }
+    }
+    return nextSettings
   }
   const currentPresetMap = { ...(currentAll[presetId] ?? {}) }
   delete currentPresetMap[characterKey]

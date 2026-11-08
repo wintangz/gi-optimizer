@@ -20,7 +20,10 @@ import { uiDataForTeam } from '@genshin-optimizer/gi/uidata'
 import { input } from '@genshin-optimizer/gi/wr'
 import {
   applyMemberConditionalOverrides,
+  getPresetResonanceEffects,
   getPresetResonanceEnabled,
+  hasDisabledResonanceEffects,
+  listTriggeredResonances,
   readEffectiveConditionalValue,
   resolveCandidateMemberConditionals,
   resolveEffectiveFastMode,
@@ -33,6 +36,7 @@ import {
   type PresetFastModeMap,
   type PresetMemberConditionalOverrides,
   type ResolvedMemberBuild,
+  type ResonanceEffectsStateMap,
   type RotationTarget,
   type TcCharacter,
   type TeamMember,
@@ -268,6 +272,7 @@ export interface HydratePresetTeamOptions {
   memberBuildModes?: Record<string, MemberBuildMode>
   memberConditionals?: PresetMemberConditionalOverrides
   resonanceEnabled?: boolean
+  resonanceEffects?: ResonanceEffectsStateMap
   fastMode?: PresetFastModeMap
   disableFastMode?: boolean
 }
@@ -525,6 +530,7 @@ function presetTeamFingerprint(
   effectiveMemberModes: MemberBuildMode[],
   memberConditionals?: PresetMemberConditionalOverrides,
   resonanceEnabled?: boolean,
+  disabledTriggeredResonanceKeys?: string[],
   fastMode?: PresetFastModeMap
 ): string {
   return JSON.stringify({
@@ -539,6 +545,7 @@ function presetTeamFingerprint(
     effectiveMemberModes,
     memberConditionals: memberConditionals ?? {},
     resonanceEnabled: resonanceEnabled !== false,
+    disabledResonances: disabledTriggeredResonanceKeys ?? [],
     fastMode: fastMode ?? {},
   })
 }
@@ -565,6 +572,11 @@ export function hydratePresetTeam(
     ? {}
     : resolveEffectiveFastMode(preset, opts?.fastMode)
   setDbFastMode(db, effectiveFastMode)
+
+  const triggeredResonances = listTriggeredResonances(preset)
+  const disabledTriggeredResonanceKeys = triggeredResonances
+    .filter((res) => opts?.resonanceEffects?.[res.key] === false)
+    .map((res) => res.key)
 
   const targetMember = preset.team[0]
   const resolvedMembers = preset.team
@@ -593,6 +605,7 @@ export function hydratePresetTeam(
     resolvedMembers.map((m) => m.mode),
     opts?.memberConditionals,
     opts?.resonanceEnabled,
+    disabledTriggeredResonanceKeys,
     effectiveFastMode
   )
   const cached = dbPresetCache.get(db as object)
@@ -756,6 +769,21 @@ export function hydratePresetTeam(
         }
       }
     }
+    for (const res of triggeredResonances) {
+      if (opts?.resonanceEffects?.[res.key] === false) {
+        effectiveResonance[`__effectOff_${res.key}`] = 'off'
+        effectiveResonance[res.key] = 'off'
+        if (res.element !== 'all') {
+          const capEle =
+            res.element.charAt(0).toUpperCase() + res.element.slice(1)
+          effectiveResonance[capEle] = 'off'
+          effectiveResonance[res.element] = 'off'
+        }
+        for (const condKey of res.triggerConditionalKeys) {
+          effectiveResonance[condKey] = 'off'
+        }
+      }
+    }
   }
 
   const teamId = db.teams.new({
@@ -811,6 +839,7 @@ export function hydrateTeamIntoDb(
       memberBuildModes: selection?.memberBuildModes,
       memberConditionals: selection?.memberConditionals,
       resonanceEnabled: selection?.resonanceEnabled,
+      resonanceEffects: selection?.resonanceEffects,
       fastMode: selection?.fastMode,
     }
   )
@@ -1032,6 +1061,7 @@ export async function compareWeapons(
     memberBuildModes?: Record<string, MemberBuildMode>
     memberConditionals?: PresetMemberConditionalOverrides
     resonanceEnabled?: boolean
+    resonanceEffects?: ResonanceEffectsStateMap
     fastMode?: PresetFastModeMap
     onProgress?: (p: WeaponCompareProgress) => void
     signal?: AbortSignal
@@ -1047,6 +1077,12 @@ export async function compareWeapons(
     opts?.memberConditionals ?? settings.memberConditionalOverrides?.[preset.id]
   const effectiveResonanceEnabled =
     opts?.resonanceEnabled ?? getPresetResonanceEnabled(settings, preset.id)
+  const effectiveResonanceEffects =
+    opts?.resonanceEffects ?? getPresetResonanceEffects(settings, preset.id)
+  const hasDisabledEffects = hasDisabledResonanceEffects(
+    effectiveResonanceEffects,
+    preset
+  )
   const effectiveFastMode = resolveEffectiveFastMode(
     preset,
     opts?.fastMode ?? settings
@@ -1083,6 +1119,7 @@ export async function compareWeapons(
         memberBuildModes: effectiveMemberBuildModes,
         memberConditionals: candidateMemberConditionals,
         resonanceEnabled: effectiveResonanceEnabled,
+        resonanceEffects: effectiveResonanceEffects,
         fastMode: effectiveFastMode,
         signal: opts?.signal,
         maxWorkers: opts?.maxWorkers,
@@ -1145,6 +1182,9 @@ export async function compareWeapons(
             : {}),
           ...(effectiveResonanceEnabled === false
             ? { resonanceEnabled: false }
+            : {}),
+          ...(hasDisabledEffects
+            ? { resonanceEffects: { ...effectiveResonanceEffects } }
             : {}),
           ...(Object.keys(effectiveFastMode).length > 0
             ? { fastMode: effectiveFastMode }
@@ -1479,6 +1519,9 @@ export function createSession(good: unknown): EngineSession {
                   ...(typeof selection?.resonanceEnabled === 'boolean'
                     ? { resonanceEnabled: selection.resonanceEnabled }
                     : {}),
+                  ...(selection?.resonanceEffects
+                    ? { resonanceEffects: selection.resonanceEffects }
+                    : {}),
                   ...(selection?.fastMode
                     ? { fastMode: selection.fastMode }
                     : {}),
@@ -1539,6 +1582,7 @@ export function createSession(good: unknown): EngineSession {
           memberBuildModes: selection?.memberBuildModes,
           memberConditionals: selection?.memberConditionals,
           resonanceEnabled: selection?.resonanceEnabled,
+          resonanceEffects: selection?.resonanceEffects,
           fastMode: selection?.fastMode,
         }
       )
@@ -1718,6 +1762,7 @@ export function createSession(good: unknown): EngineSession {
         memberBuildModes?: Record<string, MemberBuildMode>
         memberConditionals?: PresetMemberConditionalOverrides
         resonanceEnabled?: boolean
+        resonanceEffects?: ResonanceEffectsStateMap
         fastMode?: PresetFastModeMap
         onProgress?: (p: OptimizeProgress) => void
         signal?: AbortSignal
@@ -1731,6 +1776,8 @@ export function createSession(good: unknown): EngineSession {
         settings.memberConditionalOverrides?.[preset.id]
       const effectiveResonanceEnabled =
         opts?.resonanceEnabled ?? getPresetResonanceEnabled(settings, preset.id)
+      const effectiveResonanceEffects =
+        opts?.resonanceEffects ?? getPresetResonanceEffects(settings, preset.id)
       const effectiveFastMode = resolveEffectiveFastMode(
         preset,
         opts?.fastMode ?? settings
@@ -1762,6 +1809,7 @@ export function createSession(good: unknown): EngineSession {
           memberBuildModes: effectiveMemberBuildModes,
           memberConditionals: effectiveMemberConditionals,
           resonanceEnabled: effectiveResonanceEnabled,
+          resonanceEffects: effectiveResonanceEffects,
           fastMode: effectiveFastMode,
         }
       )
@@ -1773,6 +1821,7 @@ export function createSession(good: unknown): EngineSession {
         memberBuildModes: effectiveMemberBuildModes,
         memberConditionals: effectiveMemberConditionals,
         resonanceEnabled: effectiveResonanceEnabled,
+        resonanceEffects: effectiveResonanceEffects,
         fastMode: effectiveFastMode,
         onProgress: opts?.onProgress,
         signal: opts?.signal,
@@ -1798,6 +1847,12 @@ export function createSession(good: unknown): EngineSession {
         settings.memberConditionalOverrides?.[preset.id]
       const effectiveResonanceEnabled =
         opts?.resonanceEnabled ?? getPresetResonanceEnabled(settings, preset.id)
+      const effectiveResonanceEffects =
+        opts?.resonanceEffects ?? getPresetResonanceEffects(settings, preset.id)
+      const hasDisabledEffects = hasDisabledResonanceEffects(
+        effectiveResonanceEffects,
+        preset
+      )
 
       const totalMembers = Math.min(4, preset.team.length)
 
@@ -1832,6 +1887,9 @@ export function createSession(good: unknown): EngineSession {
               : baseCurrentSelection),
           ...(effectiveResonanceEnabled === false
             ? { resonanceEnabled: false }
+            : {}),
+          ...(hasDisabledEffects
+            ? { resonanceEffects: { ...effectiveResonanceEffects } }
             : {}),
         }
 
@@ -1893,6 +1951,7 @@ export function createSession(good: unknown): EngineSession {
             memberBuildModes: effectiveMemberBuildModes,
             memberConditionals: effectiveMemberConditionals,
             resonanceEnabled: effectiveResonanceEnabled,
+            resonanceEffects: effectiveResonanceEffects,
             disableFastMode: true,
           }
         )
@@ -1929,6 +1988,7 @@ export function createSession(good: unknown): EngineSession {
             memberBuildModes: effectiveMemberBuildModes,
             memberConditionals: effectiveMemberConditionals,
             resonanceEnabled: effectiveResonanceEnabled,
+            resonanceEffects: effectiveResonanceEffects,
             excludedArtifactIds: assignedArtifactIds,
             onProgress: (solverProgress) => {
               opts?.onProgress?.({
@@ -1961,6 +2021,9 @@ export function createSession(good: unknown): EngineSession {
               ...(effectiveResonanceEnabled === false
                 ? { resonanceEnabled: false }
                 : {}),
+              ...(hasDisabledEffects
+                ? { resonanceEffects: { ...effectiveResonanceEffects } }
+                : {}),
             }
           : {
               ...currentSelection,
@@ -1974,6 +2037,9 @@ export function createSession(good: unknown): EngineSession {
                 : {}),
               ...(effectiveResonanceEnabled === false
                 ? { resonanceEnabled: false }
+                : {}),
+              ...(hasDisabledEffects
+                ? { resonanceEffects: { ...effectiveResonanceEffects } }
                 : {}),
             }
 
@@ -1996,6 +2062,9 @@ export function createSession(good: unknown): EngineSession {
             : {}),
           ...(effectiveResonanceEnabled === false
             ? { resonanceEnabled: false }
+            : {}),
+          ...(hasDisabledEffects
+            ? { resonanceEffects: { ...effectiveResonanceEffects } }
             : {}),
         })
 
@@ -2041,6 +2110,7 @@ export function createSession(good: unknown): EngineSession {
         memberBuildModes?: Record<string, MemberBuildMode>
         memberConditionals?: PresetMemberConditionalOverrides
         resonanceEnabled?: boolean
+        resonanceEffects?: ResonanceEffectsStateMap
         fastMode?: PresetFastModeMap
         onProgress?: (p: WeaponCompareProgress) => void
         signal?: AbortSignal

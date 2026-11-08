@@ -1,9 +1,10 @@
 import { notEmpty, objMap, toDecimal } from '@genshin-optimizer/common/util'
-import type {
-  CharacterKey,
-  GenderKey,
-  MainStatKey,
-  SubstatKey,
+import {
+  allElementWithPhyKeys,
+  type CharacterKey,
+  type GenderKey,
+  type MainStatKey,
+  type SubstatKey,
 } from '@genshin-optimizer/gi/consts'
 import type {
   ArtCharDatabase,
@@ -36,6 +37,7 @@ import {
   percent,
 } from '@genshin-optimizer/gi/wr'
 import {
+  ELEMENT_TO_RESONANCE_KEY,
   normalizeFastModeStats,
   type FastModeStats,
   type PresetFastModeMap,
@@ -270,7 +272,13 @@ function isResonanceExplicitlyOff(
 ): boolean {
   if (!resCond) return false
   const capEle = ele.charAt(0).toUpperCase() + ele.slice(1)
-  const val = resCond[capEle] ?? resCond[ele]
+  const resKey =
+    ELEMENT_TO_RESONANCE_KEY[ele as keyof typeof ELEMENT_TO_RESONANCE_KEY]
+  const effectOffVal = resKey ? resCond[`__effectOff_${resKey}`] : undefined
+  if (effectOffVal !== undefined && effectOffVal !== 'on') return true
+  const directResVal =
+    resKey && resKey !== 'EnduringRock' ? resCond[resKey] : undefined
+  const val = directResVal ?? resCond[capEle] ?? resCond[ele]
   return val !== undefined && val !== 'on'
 }
 
@@ -279,8 +287,14 @@ function isResonanceExplicitlyOn(
   ele: string
 ): boolean {
   if (!resCond) return false
+  if (isResonanceExplicitlyOff(resCond, ele)) return false
   const capEle = ele.charAt(0).toUpperCase() + ele.slice(1)
-  const val = resCond[capEle] ?? resCond[ele]
+  const resKey =
+    ELEMENT_TO_RESONANCE_KEY[ele as keyof typeof ELEMENT_TO_RESONANCE_KEY]
+  const val =
+    resCond[capEle] ??
+    resCond[ele] ??
+    (resKey ? resCond[resKey] : undefined)
   return val === 'on'
 }
 
@@ -301,6 +315,13 @@ function getEffectiveResonanceData(
     return {} as Data
   }
 
+  const offProtectiveCanopy = Boolean(
+    resCond &&
+      ((resCond.__effectOff_ProtectiveCanopy !== undefined &&
+        resCond.__effectOff_ProtectiveCanopy !== 'on') ||
+        (resCond.ProtectiveCanopy !== undefined &&
+          resCond.ProtectiveCanopy !== 'on'))
+  )
   const offPyro = isResonanceExplicitlyOff(resCond, 'pyro')
   const offHydro = isResonanceExplicitlyOff(resCond, 'hydro')
   const offCryo = isResonanceExplicitlyOff(resCond, 'cryo')
@@ -314,6 +335,7 @@ function getEffectiveResonanceData(
     Object.values(smallTeamEleCounts).some((c) => c >= 2)
 
   if (
+    !offProtectiveCanopy &&
     !offPyro &&
     !offHydro &&
     !offCryo &&
@@ -332,6 +354,11 @@ function getEffectiveResonanceData(
     ...(resonanceData.teamBuff?.total ?? {}),
   }
 
+  if (offProtectiveCanopy) {
+    for (const e of allElementWithPhyKeys) {
+      delete premod[`${e}_res_`]
+    }
+  }
   if (offPyro) delete premod.atk_
   if (offHydro) delete premod.hp_
   if (offCryo) delete total.critRate_

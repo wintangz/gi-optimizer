@@ -67,9 +67,11 @@ import {
   getCharacterMeta,
   getPresetConditionalOverrides,
   getPresetMemberBuildModes,
+  getPresetResonanceEffects,
   getPresetResonanceEnabled,
   getPresetWeaponCompareCandidates,
   getWeaponMeta,
+  hasDisabledResonanceEffects,
   hasMemberConditionalOverrides,
   listBundledPresets,
   listWeaponsForType,
@@ -256,6 +258,22 @@ function OptimizeInner() {
         ? getPresetResonanceEnabled(settings, activePreset.id)
         : true,
     [activePreset, settings]
+  )
+
+  const activeResonanceEffects = useMemo(
+    () =>
+      activePreset
+        ? getPresetResonanceEffects(settings, activePreset.id)
+        : {},
+    [activePreset, settings]
+  )
+
+  const hasDisabledActiveResonanceEffects = useMemo(
+    () =>
+      activePreset
+        ? hasDisabledResonanceEffects(activeResonanceEffects, activePreset)
+        : false,
+    [activePreset, activeResonanceEffects]
   )
 
   const activeFastMode = useMemo(
@@ -901,6 +919,9 @@ function OptimizeInner() {
                 ? { memberConditionals: activeMemberConditionals }
                 : {}),
               ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
+              ...(hasDisabledActiveResonanceEffects
+                ? { resonanceEffects: activeResonanceEffects }
+                : {}),
               ...(hasActiveFastMode ? { fastMode: activeFastMode } : {}),
             }
           : {
@@ -919,6 +940,9 @@ function OptimizeInner() {
                 ? { memberConditionals: activeMemberConditionals }
                 : {}),
               ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
+              ...(hasDisabledActiveResonanceEffects
+                ? { resonanceEffects: activeResonanceEffects }
+                : {}),
               ...(hasActiveFastMode ? { fastMode: activeFastMode } : {}),
             }
         setCurrentSelection(effectiveCurrent)
@@ -931,6 +955,7 @@ function OptimizeInner() {
           ? Boolean(
               hasActiveConditionalOverrides ||
                 !activeResonanceEnabled ||
+                hasDisabledActiveResonanceEffects ||
                 hasActiveFastMode ||
                 (targetWeaponOverrideSpec &&
                   (targetWeaponOverrideSpec.key !==
@@ -946,6 +971,7 @@ function OptimizeInner() {
                 hasOfficialMemberModeOverrides ||
                 hasActiveConditionalOverrides ||
                 !activeResonanceEnabled ||
+                hasDisabledActiveResonanceEffects ||
                 hasActiveFastMode
             )
 
@@ -1017,6 +1043,8 @@ function OptimizeInner() {
     activeMemberConditionals,
     hasActiveConditionalOverrides,
     activeResonanceEnabled,
+    activeResonanceEffects,
+    hasDisabledActiveResonanceEffects,
     activeFastMode,
     hasActiveFastMode,
   ])
@@ -1054,6 +1082,9 @@ function OptimizeInner() {
                   ? { memberConditionals: activeMemberConditionals }
                   : {}),
                 ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
+                ...(hasDisabledActiveResonanceEffects
+                  ? { resonanceEffects: activeResonanceEffects }
+                  : {}),
                 ...(hasActiveFastMode ? { fastMode: activeFastMode } : {}),
               },
             })
@@ -1089,6 +1120,8 @@ function OptimizeInner() {
     activeMemberConditionals,
     hasActiveConditionalOverrides,
     activeResonanceEnabled,
+    activeResonanceEffects,
+    hasDisabledActiveResonanceEffects,
     activeFastMode,
     hasActiveFastMode,
   ])
@@ -1247,6 +1280,9 @@ function OptimizeInner() {
                   ? { memberConditionals: candidateMemberConditionals }
                   : {}),
                 ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
+                ...(hasDisabledActiveResonanceEffects
+                  ? { resonanceEffects: activeResonanceEffects }
+                  : {}),
                 ...(hasActiveFastMode ? { fastMode: activeFastMode } : {}),
               }
               const evalRes = await evaluatePresetInWorker({

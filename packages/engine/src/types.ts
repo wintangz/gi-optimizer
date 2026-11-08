@@ -1,21 +1,31 @@
 import {
   DEFAULT_OPTIMIZER_SETTINGS,
+  ELEMENT_TO_RESONANCE_KEY,
   FAST_MODE_STAT_KEYS,
+  GO_RESONANCE_CATALOG,
+  RESONANCE_EFFECT_KEYS,
+  RESONANCE_KEY_TO_ELEMENT,
   STAT_CONSTRAINT_KEYS,
   cloneMemberConditionalsMap,
   getPresetConditionalOverrides,
   getPresetFastMode,
   getPresetMemberBuildModes,
+  getPresetResonanceEffects,
   getPresetResonanceEnabled,
   getPresetWeaponCompareCandidates,
+  hasDisabledResonanceEffects,
   hasMemberConditionalOverrides,
   hasMemberFastMode,
   hasPresetFastMode,
   isActiveStatConstraint,
   isFastModeStatKey,
   isPercentStatConstraintKey,
+  isPresetResonanceEffectEnabled,
+  listTriggeredResonances,
   migrateOptimizerSettings,
   normalizeFastModeStats,
+  normalizeResonanceEffectKey,
+  normalizeResonanceEffectsMap,
   normalizeStatConstraintValue,
   resetMemberConditionalOverrides,
   resetPresetMemberFastMode,
@@ -28,6 +38,7 @@ import {
   setPresetMemberBuildMode,
   setPresetMemberFastMode,
   setPresetMemberFastModeStat,
+  setPresetResonanceEffectEnabled,
   setPresetResonanceEnabled,
   setPresetWeaponCompareCandidates,
   type ArtSetExclusionMap,
@@ -42,31 +53,44 @@ import {
   type PresetFastModeMap,
   type PresetMemberConditionalOverrides,
   type ResolvedMemberBuild,
+  type ResonanceEffectKey,
+  type ResonanceEffectsStateMap,
   type SetFilterMode,
   type SetPieceCount,
   type StatConstraint,
   type StatConstraintKey,
+  type TriggeredResonanceDescriptor,
   type WeaponCompareCandidateSpec,
 } from '@gi/presets'
 
 export {
   DEFAULT_OPTIMIZER_SETTINGS,
+  ELEMENT_TO_RESONANCE_KEY,
   FAST_MODE_STAT_KEYS,
+  GO_RESONANCE_CATALOG,
+  RESONANCE_EFFECT_KEYS,
+  RESONANCE_KEY_TO_ELEMENT,
   STAT_CONSTRAINT_KEYS,
   cloneMemberConditionalsMap,
   getPresetConditionalOverrides,
   getPresetFastMode,
   getPresetMemberBuildModes,
+  getPresetResonanceEffects,
   getPresetResonanceEnabled,
   getPresetWeaponCompareCandidates,
+  hasDisabledResonanceEffects,
   hasMemberConditionalOverrides,
   hasMemberFastMode,
   hasPresetFastMode,
   isActiveStatConstraint,
   isFastModeStatKey,
   isPercentStatConstraintKey,
+  isPresetResonanceEffectEnabled,
+  listTriggeredResonances,
   migrateOptimizerSettings,
   normalizeFastModeStats,
+  normalizeResonanceEffectKey,
+  normalizeResonanceEffectsMap,
   normalizeStatConstraintValue,
   resetMemberConditionalOverrides,
   resetPresetMemberFastMode,
@@ -79,6 +103,7 @@ export {
   setPresetMemberBuildMode,
   setPresetMemberFastMode,
   setPresetMemberFastModeStat,
+  setPresetResonanceEffectEnabled,
   setPresetResonanceEnabled,
   setPresetWeaponCompareCandidates,
   type ArtSetExclusionMap,
@@ -92,10 +117,13 @@ export {
   type PresetFastModeMap,
   type PresetMemberConditionalOverrides,
   type ResolvedMemberBuild,
+  type ResonanceEffectKey,
+  type ResonanceEffectsStateMap,
   type SetFilterMode,
   type SetPieceCount,
   type StatConstraint,
   type StatConstraintKey,
+  type TriggeredResonanceDescriptor,
   type WeaponCompareCandidateSpec,
 }
 
@@ -118,6 +146,8 @@ export interface BuildSelection {
   memberConditionals?: PresetMemberConditionalOverrides
   /** Optional master Elemental Resonance override (`true` = enabled, `false` = disabled). */
   resonanceEnabled?: boolean
+  /** Optional per-effect Elemental Resonance overrides (`[resonanceKey]: boolean`). */
+  resonanceEffects?: ResonanceEffectsStateMap
   /** Optional per-teammate Fast Mode virtual 6th artifact stat lines (`[characterKey][statKey]`). */
   fastMode?: PresetFastModeMap
 }
@@ -357,6 +387,7 @@ export interface TeamOptimizeOptions {
   memberBuildModes?: Record<string, MemberBuildMode>
   memberConditionals?: PresetMemberConditionalOverrides
   resonanceEnabled?: boolean
+  resonanceEffects?: ResonanceEffectsStateMap
   onProgress?: (p: TeamOptimizeProgress) => void
   signal?: AbortSignal
   maxWorkers?: number
@@ -417,6 +448,7 @@ export interface EngineSession {
       memberBuildModes?: Record<string, MemberBuildMode>
       memberConditionals?: PresetMemberConditionalOverrides
       resonanceEnabled?: boolean
+      resonanceEffects?: ResonanceEffectsStateMap
       fastMode?: PresetFastModeMap
       onProgress?: (p: OptimizeProgress) => void
       signal?: AbortSignal
@@ -431,6 +463,7 @@ export interface EngineSession {
       memberBuildModes?: Record<string, MemberBuildMode>
       memberConditionals?: PresetMemberConditionalOverrides
       resonanceEnabled?: boolean
+      resonanceEffects?: ResonanceEffectsStateMap
       fastMode?: PresetFastModeMap
       onProgress?: (p: WeaponCompareProgress) => void
       signal?: AbortSignal

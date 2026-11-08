@@ -36,12 +36,14 @@ import {
 import { computeArtifactRollValue } from '@gi/good'
 import {
   ALL_ARTIFACT_SET_KEYS,
+  hasDisabledResonanceEffects,
   isActiveStatConstraint,
   migrateOptimizerSettings,
   normalizeStatConstraintValue,
   resolveArtSetExclusion,
   type MainStatFilterSlotKey,
   type Preset,
+  type ResonanceEffectsStateMap,
   type TcCharacter,
 } from '@gi/presets'
 import { getTeamData } from './teamData'
@@ -402,6 +404,7 @@ export async function runSolver(
     memberBuildModes?: Record<string, MemberBuildMode>
     memberConditionals?: PresetMemberConditionalOverrides
     resonanceEnabled?: boolean
+    resonanceEffects?: ResonanceEffectsStateMap
     fastMode?: PresetFastModeMap
     excludedArtifactIds?: ReadonlySet<string>
     onProgress?: (p: OptimizeProgress) => void
@@ -639,6 +642,9 @@ export async function runSolver(
           : {}),
         ...(opts?.resonanceEnabled === false
           ? { resonanceEnabled: false }
+          : {}),
+        ...(hasDisabledResonanceEffects(opts?.resonanceEffects, preset)
+          ? { resonanceEffects: { ...opts!.resonanceEffects } }
           : {}),
         ...(opts?.fastMode && Object.keys(opts.fastMode).length > 0
           ? { fastMode: opts.fastMode }

@@ -6,14 +6,20 @@ import {
   DEFAULT_OPTIMIZER_SETTINGS,
   DEFAULT_TC_TEAMMATE_CONDITIONAL,
   FAST_MODE_STAT_KEYS,
+  getBundledPreset,
   getPresetFastMode,
+  getPresetResonanceEffects,
   getPresetResonanceEnabled,
   getPresetWeaponCompareCandidates,
+  GO_RESONANCE_CATALOG,
+  hasDisabledResonanceEffects,
   hasMemberFastMode,
   hasPresetFastMode,
   invertSets,
   isActiveStatConstraint,
   isPercentStatConstraintKey,
+  isPresetResonanceEffectEnabled,
+  listTriggeredResonances,
   migrateOptimizerSettings,
   normalizeStatConstraintValue,
   resetMemberConditionalOverrides,
@@ -29,6 +35,7 @@ import {
   setMemberConditionalOverride,
   setPresetMemberFastMode,
   setPresetMemberFastModeStat,
+  setPresetResonanceEffectEnabled,
   setPresetResonanceEnabled,
   setPresetWeaponCompareCandidates,
   STAT_CONSTRAINT_KEYS,
@@ -637,3 +644,141 @@ describe('Weapon Compare Candidate Effect Setup & Persistence (weapon-compare-ef
     ).toBeUndefined()
   })
 })
+
+describe('Per-Effect Elemental Resonance Derivation & Settings (resonance-effects)', () => {
+  it('derives ShatteringIce from official/skirk-freeze with vendored GO name and Frozen condition description', () => {
+    const preset = getBundledPreset('official/skirk-freeze')!
+    const triggered = listTriggeredResonances(preset)
+    expect(triggered.map((r) => r.key)).toContain('ShatteringIce')
+    const shatteringIce = triggered.find((r) => r.key === 'ShatteringIce')!
+    expect(shatteringIce.name).toBe('Shattering Ice')
+    expect(shatteringIce.plainSummary).toContain('+15% CRIT Rate')
+    expect(shatteringIce.plainSummary).toContain('Frozen')
+    expect(shatteringIce.desc).toContain('Frozen')
+    expect(shatteringIce.desc).toContain(
+      'Increases CRIT Rate against opponents that are Frozen or affected by Cryo by 15%'
+    )
+  })
+
+  it('derives dual resonances when a team has two element pairs and ProtectiveCanopy when all 4 elements are distinct', () => {
+    const dualPyroHydro = listTriggeredResonances([
+      { key: 'Mavuika' },
+      { key: 'Bennett' },
+      { key: 'Furina' },
+      { key: 'Yelan' },
+    ])
+    expect(dualPyroHydro.map((r) => r.key)).toEqual([
+      'FerventFlames',
+      'SoothingWater',
+    ])
+    expect(dualPyroHydro[0]!.name).toBe(GO_RESONANCE_CATALOG.FerventFlames.name)
+    expect(dualPyroHydro[1]!.name).toBe(GO_RESONANCE_CATALOG.SoothingWater.name)
+
+    const canopyTeam = listTriggeredResonances([
+      { key: 'Mavuika' },
+      { key: 'Citlali' },
+      { key: 'Xilonen' },
+      { key: 'Furina' },
+    ])
+    expect(canopyTeam.map((r) => r.key)).toEqual(['ProtectiveCanopy'])
+    expect(canopyTeam[0]!.name).toBe('Protective Canopy')
+
+    const smallNonCanopyTeam = listTriggeredResonances([
+      { key: 'Mavuika' },
+      { key: 'Citlali' },
+      { key: 'Xilonen' },
+    ])
+    expect(smallNonCanopyTeam).toEqual([])
+  })
+
+  it('persists, migrates, and resets per-effect resonance overrides per preset without modifying bundled presets', () => {
+    const preset = getBundledPreset('official/skirk-freeze')!
+    const presetId = preset.id
+
+    expect(getPresetResonanceEffects(DEFAULT_OPTIMIZER_SETTINGS, presetId)).toEqual({})
+    expect(
+      isPresetResonanceEffectEnabled(
+        DEFAULT_OPTIMIZER_SETTINGS,
+        presetId,
+        'ShatteringIce'
+      )
+    ).toBe(true)
+    expect(hasDisabledResonanceEffects(undefined, preset)).toBe(false)
+
+    // Turn off ShatteringIce only
+    const withIceOff = setPresetResonanceEffectEnabled(
+      DEFAULT_OPTIMIZER_SETTINGS,
+      presetId,
+      'ShatteringIce',
+      false
+    )
+    expect(getPresetResonanceEffects(withIceOff, presetId)).toEqual({
+      ShatteringIce: false,
+    })
+    expect(
+      isPresetResonanceEffectEnabled(withIceOff, presetId, 'ShatteringIce')
+    ).toBe(false)
+    // SoothingWater remains enabled
+    expect(
+      isPresetResonanceEffectEnabled(withIceOff, presetId, 'SoothingWater')
+    ).toBe(true)
+    expect(hasDisabledResonanceEffects(getPresetResonanceEffects(withIceOff, presetId), preset)).toBe(true)
+
+    // Sub-preset ID (__member_) inherits parent preset per-effect overrides
+    expect(
+      getPresetResonanceEffects(withIceOff, `${presetId}__member_Furina`)
+    ).toEqual({
+      ShatteringIce: false,
+    })
+
+    // Non-triggered resonance disabled in map does not count as disabled for a preset that doesn't trigger it
+    const withPyroOff = setPresetResonanceEffectEnabled(
+      DEFAULT_OPTIMIZER_SETTINGS,
+      presetId,
+      'FerventFlames',
+      false
+    )
+    expect(
+      hasDisabledResonanceEffects(
+        getPresetResonanceEffects(withPyroOff, presetId),
+        preset
+      )
+    ).toBe(false)
+
+    // Turning Master ON acts as an all-on control, clearing per-effect false entries for that preset
+    const masterTurnedOn = setPresetResonanceEnabled(withIceOff, presetId, true)
+    expect(getPresetResonanceEffects(masterTurnedOn, presetId)).toEqual({})
+    expect(
+      isPresetResonanceEffectEnabled(masterTurnedOn, presetId, 'ShatteringIce')
+    ).toBe(true)
+
+    // resetMemberConditionalOverrides clears both master and per-effect resonance overrides
+    const withBothOverrides = setPresetResonanceEffectEnabled(
+      setPresetResonanceEnabled(DEFAULT_OPTIMIZER_SETTINGS, presetId, false),
+      presetId,
+      'ShatteringIce',
+      false
+    )
+    const afterReset = resetMemberConditionalOverrides(
+      withBothOverrides,
+      presetId
+    )
+    expect(getPresetResonanceEnabled(afterReset, presetId)).toBe(true)
+    expect(getPresetResonanceEffects(afterReset, presetId)).toEqual({})
+
+    // Migration preserves valid boolean entries
+    const migrated = migrateOptimizerSettings({
+      resonanceEffectsByPreset: {
+        [presetId]: {
+          ShatteringIce: false,
+          SoothingWater: true,
+        },
+      },
+    })
+    expect(getPresetResonanceEffects(migrated, presetId)).toEqual({
+      ShatteringIce: false,
+      SoothingWater: true,
+    })
+  })
+})
+

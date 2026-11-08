@@ -2394,6 +2394,84 @@ td {
 .gi-buffs-resonance-controls {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.gi-buffs-resonance-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.gi-buffs-resonance-effects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.gi-buffs-resonance-effect-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0.55rem 0.85rem;
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.gi-buffs-resonance-effect-row.is-on {
+  border-color: var(--ok-border);
+  background: rgba(76, 195, 138, 0.06);
+}
+
+.gi-buffs-resonance-effect-row.is-off {
+  opacity: 0.78;
+}
+
+.gi-buffs-resonance-effect-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.gi-buffs-resonance-effect-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  flex-wrap: wrap;
+}
+
+.gi-buffs-resonance-effect-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.14rem;
+  flex-shrink: 0;
+}
+
+.gi-buffs-resonance-effect-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-title);
+}
+
+.gi-buffs-resonance-effect-desc {
+  font-size: var(--text-xs);
+  line-height: 1.38;
+  color: var(--text-body);
+}
+
+.gi-buffs-resonance-effect-summary {
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.gi-buffs-resonance-effect-controls {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
 }
 

@@ -12,8 +12,10 @@ import {
   createSession,
   DEFAULT_OPTIMIZER_SETTINGS,
   getDefaultTargetArtifactSetConditionals,
+  listTriggeredResonances,
   resolveDefaultWeaponCompareCandidate,
   setPresetMemberFastModeStat,
+  setPresetResonanceEffectEnabled,
   setPresetResonanceEnabled,
 } from '../src'
 
@@ -758,4 +760,214 @@ describe('Buff Coverage Fixes (buff-coverage-fixes)', () => {
     expect(teamWithFast.teamTotal).toBe(teamBase.teamTotal)
     expect(teamWithFast.currentTeamTotal).toBe(teamBase.currentTeamTotal)
   })
+
+  it('toggles Shattering Ice on official/skirk-freeze: drops target CRIT Rate by 15.0% and lowers total, restoring bit-for-bit when re-enabled across all evaluation and optimization paths (resonance-effects)', async () => {
+    const skirkPreset = getBundledPreset('official/skirk-freeze')!
+    const triggered = listTriggeredResonances(skirkPreset)
+    const shatteringIce = triggered.find((r) => r.key === 'ShatteringIce')
+    expect(shatteringIce).toBeDefined()
+    expect(shatteringIce!.name).toBe('Shattering Ice')
+    expect(shatteringIce!.plainSummary).toContain('+15% CRIT Rate')
+    expect(shatteringIce!.plainSummary).toContain('Frozen')
+
+    const baseSel = session.currentBuild(skirkPreset)
+    const evalOn = session.evaluate(skirkPreset, baseSel)
+    const evalIceOff = session.evaluate(skirkPreset, {
+      ...baseSel,
+      resonanceEffects: { ShatteringIce: false },
+    })
+    const evalRestored = session.evaluate(skirkPreset, {
+      ...baseSel,
+      resonanceEffects: { ShatteringIce: true },
+    })
+
+    // Switching only ShatteringIce off drops Skirk's CRIT Rate by exactly 15.0% (0.15) and lowers total
+    expect(evalOn.stats.critRate_! - evalIceOff.stats.critRate_!).toBeCloseTo(
+      0.15,
+      6
+    )
+    expect(evalIceOff.total).toBeLessThan(evalOn.total)
+    // Switching it back restores the original total and stats bit-for-bit
+    expect(evalRestored.total).toBe(evalOn.total)
+    expect(evalRestored.stats.critRate_).toBe(evalOn.stats.critRate_)
+
+    // Non-triggered resonance in resonanceEffects has zero effect
+    const evalUntriggeredOff = session.evaluate(skirkPreset, {
+      ...baseSel,
+      resonanceEffects: { FerventFlames: false },
+    })
+    expect(evalUntriggeredOff.total).toBe(evalOn.total)
+    expect(evalUntriggeredOff.stats.critRate_).toBe(evalOn.stats.critRate_)
+
+    // Single optimize, weapon compare, and optimizeTeam honor ShatteringIce per-effect toggle
+    const baseSettings = {
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      topN: 1,
+    }
+    const iceOffSettings = setPresetResonanceEffectEnabled(
+      baseSettings,
+      skirkPreset.id,
+      'ShatteringIce',
+      false
+    )
+    const iceRestoredSettings = setPresetResonanceEffectEnabled(
+      iceOffSettings,
+      skirkPreset.id,
+      'ShatteringIce',
+      true
+    )
+
+    const optOn = await session.optimize(skirkPreset, baseSettings)
+    const optIceOff = await session.optimize(skirkPreset, iceOffSettings)
+    const optRestored = await session.optimize(skirkPreset, iceRestoredSettings)
+    expect(optIceOff.builds[0]!.total).toBeLessThan(optOn.builds[0]!.total)
+    expect(optIceOff.builds[0]!.resonanceEffects).toEqual({
+      ShatteringIce: false,
+    })
+    expect(optRestored.builds[0]!.total).toBe(optOn.builds[0]!.total)
+
+    const candidate = resolveDefaultWeaponCompareCandidate(
+      'Azurelight',
+      'Skirk',
+      smallGood
+    )
+    const cmpOn = await session.compareWeapons(skirkPreset, baseSettings, [
+      candidate,
+    ])
+    const cmpIceOff = await session.compareWeapons(
+      skirkPreset,
+      iceOffSettings,
+      [candidate]
+    )
+    const cmpRestored = await session.compareWeapons(
+      skirkPreset,
+      iceRestoredSettings,
+      [candidate]
+    )
+    expect(cmpIceOff.leaderTotal!).toBeLessThan(cmpOn.leaderTotal!)
+    expect(cmpIceOff.rows[0]!.bestBuild!.resonanceEffects).toEqual({
+      ShatteringIce: false,
+    })
+    expect(cmpRestored.leaderTotal!).toBe(cmpOn.leaderTotal!)
+
+    const teamOn = await session.optimizeTeam(skirkPreset, baseSettings)
+    const teamIceOff = await session.optimizeTeam(skirkPreset, iceOffSettings)
+    const teamRestored = await session.optimizeTeam(
+      skirkPreset,
+      iceRestoredSettings
+    )
+    expect(teamIceOff.teamTotal).toBeLessThan(teamOn.teamTotal)
+    expect(teamIceOff.currentTeamTotal).toBeLessThan(teamOn.currentTeamTotal)
+    expect(teamRestored.teamTotal).toBe(teamOn.teamTotal)
+    expect(teamRestored.currentTeamTotal).toBe(teamOn.currentTeamTotal)
+  })
+
+  it('independently toggles dual resonances on a team triggering two resonances without affecting the other resonance contribution (resonance-effects)', () => {
+    // Skirk (Cryo), Furina (Hydro), Escoffier (Cryo), Yelan (Hydro)
+    // triggers both SoothingWater (+25% HP) and ShatteringIce (+15% CRIT Rate vs Frozen)
+    const baseSkirkPreset = getBundledPreset('official/skirk-freeze')!
+    const dualFreezePreset: Preset = {
+      ...baseSkirkPreset,
+      team: [
+        baseSkirkPreset.team[0]!, // Skirk (Cryo)
+        baseSkirkPreset.team[1]!, // Furina (Hydro)
+        baseSkirkPreset.team[2]!, // Escoffier (Cryo)
+        createDefaultTcTeammate('Yelan'), // Yelan (Hydro)
+      ],
+    }
+    const triggeredFreeze = listTriggeredResonances(dualFreezePreset)
+    expect(triggeredFreeze.map((r) => r.key)).toEqual([
+      'SoothingWater',
+      'ShatteringIce',
+    ])
+
+    const baseSel = session.currentBuild(dualFreezePreset)
+    const evalBothOn = session.evaluate(dualFreezePreset, baseSel)
+    const evalOnlyIceOff = session.evaluate(dualFreezePreset, {
+      ...baseSel,
+      resonanceEffects: { ShatteringIce: false, SoothingWater: true },
+    })
+    const evalOnlyWaterOff = session.evaluate(dualFreezePreset, {
+      ...baseSel,
+      resonanceEffects: { ShatteringIce: true, SoothingWater: false },
+    })
+    const evalBothOff = session.evaluate(dualFreezePreset, {
+      ...baseSel,
+      resonanceEffects: { ShatteringIce: false, SoothingWater: false },
+    })
+
+    // 1. Turning ShatteringIce OFF drops CRIT Rate by 15%, while SoothingWater's +25% HP contribution on Furina/Yelan/Skirk is 100% unchanged!
+    expect(
+      evalBothOn.stats.critRate_! - evalOnlyIceOff.stats.critRate_!
+    ).toBeCloseTo(0.15, 6)
+    expect(evalOnlyIceOff.stats.hp).toBe(evalBothOn.stats.hp)
+    expect(evalOnlyIceOff.memberStats!.Furina!.final.hp).toBe(
+      evalBothOn.memberStats!.Furina!.final.hp
+    )
+
+    // 2. Turning SoothingWater OFF removes +25% HP, while ShatteringIce's +15% CRIT Rate contribution is 100% unchanged!
+    const skirkBaseHp = evalBothOn.memberStats!.Skirk!.base.hp!
+    const furinaBaseHp = evalBothOn.memberStats!.Furina!.base.hp!
+    expect(evalOnlyWaterOff.stats.critRate_).toBe(evalBothOn.stats.critRate_)
+    expect(evalBothOn.stats.hp! - evalOnlyWaterOff.stats.hp!).toBeCloseTo(
+      skirkBaseHp * 0.25,
+      3
+    )
+    expect(
+      evalBothOn.memberStats!.Furina!.final.hp! -
+        evalOnlyWaterOff.memberStats!.Furina!.final.hp!
+    ).toBeCloseTo(furinaBaseHp * 0.25, 3)
+
+    // 3. Turning both OFF equals Master OFF
+    const evalMasterOff = session.evaluate(dualFreezePreset, {
+      ...baseSel,
+      resonanceEnabled: false,
+    })
+    expect(evalBothOff.total).toBe(evalMasterOff.total)
+    expect(evalBothOff.stats.critRate_).toBe(evalMasterOff.stats.critRate_)
+    expect(evalBothOff.stats.hp).toBe(evalMasterOff.stats.hp)
+
+    // Also verify a dual Pyro + Hydro team (FerventFlames +25% ATK + SoothingWater +25% HP)
+    const arlePreset = getBundledPreset('official/arlecchino-vaporize')!
+    const dualPyroHydroPreset: Preset = {
+      ...arlePreset,
+      team: [
+        arlePreset.team[0]!, // Arlecchino (Pyro)
+        arlePreset.team[1]!, // Yelan (Hydro)
+        arlePreset.team[2]!, // Bennett (Pyro)
+        createDefaultTcTeammate('Furina'), // Furina (Hydro)
+      ],
+    }
+    expect(listTriggeredResonances(dualPyroHydroPreset).map((r) => r.key)).toEqual([
+      'FerventFlames',
+      'SoothingWater',
+    ])
+    const arleSel = session.currentBuild(dualPyroHydroPreset)
+    const arleBothOn = session.evaluate(dualPyroHydroPreset, arleSel)
+    const arlePyroOff = session.evaluate(dualPyroHydroPreset, {
+      ...arleSel,
+      resonanceEffects: { FerventFlames: false },
+    })
+    const arleHydroOff = session.evaluate(dualPyroHydroPreset, {
+      ...arleSel,
+      resonanceEffects: { SoothingWater: false },
+    })
+    const arleBaseAtk = arleBothOn.memberStats!.Arlecchino!.base.atk!
+    const arleBaseHp = arleBothOn.memberStats!.Arlecchino!.base.hp!
+
+    // Pyro off removes 25% ATK while keeping 25% HP unchanged
+    expect(arleBothOn.stats.atk! - arlePyroOff.stats.atk!).toBeCloseTo(
+      arleBaseAtk * 0.25,
+      3
+    )
+    expect(arlePyroOff.stats.hp).toBe(arleBothOn.stats.hp)
+
+    // Hydro off removes 25% HP while keeping 25% ATK unchanged
+    expect(arleBothOn.stats.hp! - arleHydroOff.stats.hp!).toBeCloseTo(
+      arleBaseHp * 0.25,
+      3
+    )
+    expect(arleHydroOff.stats.atk).toBe(arleBothOn.stats.atk)
+  })
 })
+

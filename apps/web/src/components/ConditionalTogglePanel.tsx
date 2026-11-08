@@ -30,14 +30,18 @@ import {
   displayName,
   getPresetConditionalOverrides,
   getPresetMemberBuildModes,
+  getPresetResonanceEffects,
   getPresetResonanceEnabled,
+  hasDisabledResonanceEffects,
   hasMemberConditionalOverrides,
   hasMemberFastMode,
+  listTriggeredResonances,
   readEffectiveConditionalValue,
   resetMemberConditionalOverrides,
   resolvePresetMemberBuildMode,
   seedCandidateTargetConditionals,
   setMemberConditionalOverride,
+  setPresetResonanceEffectEnabled,
   setPresetResonanceEnabled,
   type FastModeStatKey,
   type FastModeStats,
@@ -45,6 +49,7 @@ import {
   type MemberConditionalsMap,
   type OptimizerSettings,
   type Preset,
+  type ResonanceEffectKey,
   type TeamMember,
 } from '@gi/presets'
 import { useEffect, useMemo, useState } from 'react'
@@ -570,15 +575,56 @@ export function ConditionalTogglePanel({
     [settings, preset.id]
   )
 
+  const triggeredResonances = useMemo(
+    () => listTriggeredResonances(preset),
+    [preset]
+  )
+
+  const resonanceEffects = useMemo(
+    () => getPresetResonanceEffects(settings, preset.id),
+    [settings, preset.id]
+  )
+
+  const hasDisabledTriggeredResonance = useMemo(
+    () => hasDisabledResonanceEffects(resonanceEffects, preset),
+    [resonanceEffects, preset]
+  )
+
   const anyPresetOverrides = useMemo(
     () =>
-      hasMemberConditionalOverrides(settings, preset.id) || !resonanceEnabled,
-    [settings, preset.id, resonanceEnabled]
+      hasMemberConditionalOverrides(settings, preset.id) ||
+      !resonanceEnabled ||
+      hasDisabledTriggeredResonance,
+    [settings, preset.id, resonanceEnabled, hasDisabledTriggeredResonance]
   )
 
   function handleToggleResonance() {
     onChangeSettings(
       setPresetResonanceEnabled(settings, preset.id, !resonanceEnabled)
+    )
+  }
+
+  function handleToggleResonanceEffect(resKey: ResonanceEffectKey) {
+    const isCurrentlyOn = resonanceEnabled && resonanceEffects[resKey] !== false
+    if (!resonanceEnabled) {
+      let next = setPresetResonanceEnabled(settings, preset.id, true)
+      for (const r of triggeredResonances) {
+        if (r.key !== resKey) {
+          next = setPresetResonanceEffectEnabled(next, preset.id, r.key, false)
+        }
+      }
+      onChangeSettings(
+        setPresetResonanceEffectEnabled(next, preset.id, resKey, true)
+      )
+      return
+    }
+    onChangeSettings(
+      setPresetResonanceEffectEnabled(
+        settings,
+        preset.id,
+        resKey,
+        !isCurrentlyOn
+      )
     )
   }
 
@@ -864,61 +910,157 @@ export function ConditionalTogglePanel({
         </div>
       )}
 
-      {/* Team-Level Elemental Resonance Master Toggle */}
-      <div
-        className={`gi-buffs-resonance-bar${resonanceEnabled ? ' is-on' : ' is-off'}`}
-        data-testid="team-resonance-master-row"
-        data-resonance-enabled={resonanceEnabled ? 'true' : 'false'}
-      >
-        <div className="gi-buffs-resonance-info">
-          <div className="gi-buffs-resonance-title-row">
-            <span className="gi-buffs-resonance-label">
-              Elemental Resonance
-            </span>
-            <span className="gi-buff-team-tag" title="Team-wide resonance buffs">
-              Team
-            </span>
-            {!resonanceEnabled && (
-              <span
-                className="gi-buffs-modified-pill"
-                data-testid="resonance-modified-badge"
-              >
-                Modified
+      {/* Team-Level Elemental Resonance Master Toggle & Per-Effect List */}
+      <div className="gi-buffs-resonance-section" data-testid="team-resonance-section">
+        <div
+          className={`gi-buffs-resonance-bar${resonanceEnabled ? ' is-on' : ' is-off'}`}
+          data-testid="team-resonance-master-row"
+          data-resonance-enabled={resonanceEnabled ? 'true' : 'false'}
+        >
+          <div className="gi-buffs-resonance-info">
+            <div className="gi-buffs-resonance-title-row">
+              <span className="gi-buffs-resonance-label">
+                Elemental Resonance
               </span>
-            )}
+              <span className="gi-buff-team-tag" title="Team-wide resonance buffs">
+                Team
+              </span>
+              {(!resonanceEnabled || hasDisabledTriggeredResonance) && (
+                <span
+                  className="gi-buffs-modified-pill"
+                  data-testid="resonance-modified-badge"
+                >
+                  Modified
+                </span>
+              )}
+            </div>
+            <span className="gi-buffs-resonance-desc muted">
+              All-on / all-off master control for party elemental resonance effects.
+            </span>
           </div>
-          <span className="gi-buffs-resonance-desc muted">
-            Applies party elemental resonance effects across evaluation and optimization.
-          </span>
-        </div>
-        <div className="gi-buffs-resonance-controls">
-          {embedded && anyPresetOverrides && (
+          <div className="gi-buffs-resonance-controls">
+            {embedded && anyPresetOverrides && (
+              <button
+                type="button"
+                className="btn-secondary"
+                data-testid="reset-all-conditionals"
+                onClick={handleResetAll}
+                style={{ fontSize: '0.82rem', padding: '0.28rem 0.65rem' }}
+              >
+                Reset All to Defaults
+              </button>
+            )}
             <button
               type="button"
-              className="btn-secondary"
-              data-testid="reset-all-conditionals"
-              onClick={handleResetAll}
-              style={{ fontSize: '0.82rem', padding: '0.28rem 0.65rem' }}
+              role="switch"
+              aria-checked={resonanceEnabled}
+              aria-label="Elemental Resonance"
+              data-testid="resonance-master-toggle"
+              data-state-value={resonanceEnabled ? 'on' : 'off'}
+              className={`gi-buff-switch${resonanceEnabled ? ' is-on' : ''}`}
+              onClick={handleToggleResonance}
             >
-              Reset All to Defaults
+              <span className="gi-buff-switch-thumb" />
+              <span className="gi-buff-switch-text">
+                {resonanceEnabled ? 'ON' : 'OFF'}
+              </span>
             </button>
-          )}
-          <button
-            type="button"
-            role="switch"
-            aria-checked={resonanceEnabled}
-            aria-label="Elemental Resonance"
-            data-testid="resonance-master-toggle"
-            data-state-value={resonanceEnabled ? 'on' : 'off'}
-            className={`gi-buff-switch${resonanceEnabled ? ' is-on' : ''}`}
-            onClick={handleToggleResonance}
-          >
-            <span className="gi-buff-switch-thumb" />
-            <span className="gi-buff-switch-text">
-              {resonanceEnabled ? 'ON' : 'OFF'}
-            </span>
-          </button>
+          </div>
         </div>
+
+        {triggeredResonances.length > 0 && (
+          <div
+            className="gi-buffs-resonance-effects-list"
+            data-testid="team-resonance-effects-list"
+          >
+            {triggeredResonances.map((res) => {
+              const isEffectOn =
+                resonanceEnabled && resonanceEffects[res.key] !== false
+              const isEffectModified =
+                !resonanceEnabled || resonanceEffects[res.key] === false
+              return (
+                <div
+                  key={res.key}
+                  className={`gi-buffs-resonance-effect-row${
+                    isEffectOn ? ' is-on' : ' is-off'
+                  }`}
+                  data-testid={`resonance-effect-row-${res.key}`}
+                  data-resonance-key={res.key}
+                  data-effect-enabled={isEffectOn ? 'true' : 'false'}
+                >
+                  <div className="gi-buffs-resonance-effect-info">
+                    <div className="gi-buffs-resonance-effect-title-row">
+                      <span
+                        className="gi-buffs-resonance-effect-icons"
+                        aria-hidden="true"
+                      >
+                        {res.element === 'all' ? (
+                          <>
+                            <ElementIcon ele="pyro" iconProps={{ size: 13 }} />
+                            <ElementIcon ele="hydro" iconProps={{ size: 13 }} />
+                            <ElementIcon ele="cryo" iconProps={{ size: 13 }} />
+                            <ElementIcon ele="electro" iconProps={{ size: 13 }} />
+                          </>
+                        ) : (
+                          <>
+                            <ElementIcon
+                              ele={res.element}
+                              iconProps={{ size: 14 }}
+                            />
+                            <ElementIcon
+                              ele={res.element}
+                              iconProps={{ size: 14 }}
+                            />
+                          </>
+                        )}
+                      </span>
+                      <span
+                        className="gi-buffs-resonance-effect-name"
+                        data-testid={`resonance-effect-name-${res.key}`}
+                      >
+                        {res.name}
+                      </span>
+                      {isEffectModified && (
+                        <span
+                          className="gi-buffs-modified-pill"
+                          data-testid={`resonance-effect-modified-${res.key}`}
+                        >
+                          Modified
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className="gi-buffs-resonance-effect-desc"
+                      data-testid={`resonance-effect-desc-${res.key}`}
+                    >
+                      <strong className="gi-buffs-resonance-effect-summary">
+                        {res.plainSummary}
+                      </strong>{' '}
+                      <span className="muted">— {res.desc}</span>
+                    </span>
+                  </div>
+                  <div className="gi-buffs-resonance-effect-controls">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={isEffectOn}
+                      aria-label={res.name}
+                      data-testid={`resonance-effect-toggle-${res.key}`}
+                      data-state-value={isEffectOn ? 'on' : 'off'}
+                      className={`gi-buff-switch${isEffectOn ? ' is-on' : ''}`}
+                      onClick={() => handleToggleResonanceEffect(res.key)}
+                    >
+                      <span className="gi-buff-switch-thumb" />
+                      <span className="gi-buff-switch-text">
+                        {isEffectOn ? 'ON' : 'OFF'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {isExpanded && (

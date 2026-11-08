@@ -4,12 +4,15 @@ import {
 } from '@gi/engine'
 import type { IGOOD } from '@gi/good'
 import {
+  createDefaultTcTeammate,
   DEFAULT_OPTIMIZER_SETTINGS,
   getBundledPreset,
   getPresetConditionalOverrides,
+  getPresetResonanceEffects,
   getPresetResonanceEnabled,
   hasMemberConditionalOverrides,
   type OptimizerSettings,
+  type Preset,
 } from '@gi/presets'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -846,5 +849,165 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
     const resToggle3 = findByTestId(tree3, 'resonance-master-toggle')!
     expect(resToggle3.props['aria-checked']).toBe(true)
     expect(getTextContent(resToggle3)).toBe('ON')
+  })
+
+  it('lists every triggered resonance with GO name, plain-language description, and independent per-effect switch, and re-derives the list on preset/team change (resonance-effects)', () => {
+    const skirkPreset = getBundledPreset('official/skirk-freeze')!
+    let activePreset: Preset = skirkPreset
+    let currentSettings: OptimizerSettings = { ...DEFAULT_OPTIMIZER_SETTINGS }
+
+    function renderPanel() {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        const nodes = evaluateTree(
+          React.createElement(ConditionalTogglePanel, {
+            preset: activePreset,
+            settings: currentSettings,
+            onChangeSettings: (next) => {
+              currentSettings = next
+            },
+            good: SAMPLE_GOOD,
+            conditionalsByChar: SAMPLE_CATALOG,
+          })
+        )
+        hookStore.flushEffects()
+        return nodes.filter((n): n is VNode => typeof n !== 'string')
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    function getTextContent(node: VNode | string): string {
+      if (typeof node === 'string') return node
+      return node.children.map((c) => getTextContent(c)).join('')
+    }
+
+    // 1. On official/skirk-freeze, lists Shattering Ice with +15% CRIT Rate vs Frozen description
+    const tree1 = renderPanel()
+    const effectsList1 = findByTestId(tree1, 'team-resonance-effects-list')
+    expect(effectsList1).toBeDefined()
+    const iceRow1 = findByTestId(tree1, 'resonance-effect-row-ShatteringIce')
+    expect(iceRow1).toBeDefined()
+    expect(
+      getTextContent(findByTestId(tree1, 'resonance-effect-name-ShatteringIce')!)
+    ).toBe('Shattering Ice')
+    const iceDescText = getTextContent(
+      findByTestId(tree1, 'resonance-effect-desc-ShatteringIce')!
+    )
+    expect(iceDescText).toContain('+15% CRIT Rate')
+    expect(iceDescText).toContain('Frozen')
+
+    const iceToggle1 = findByTestId(
+      tree1,
+      'resonance-effect-toggle-ShatteringIce'
+    )!
+    expect(iceToggle1.props.role).toBe('switch')
+    expect(iceToggle1.props['aria-label']).toBe('Shattering Ice')
+    expect(iceToggle1.props['aria-checked']).toBe(true)
+
+    // 2. Toggle Shattering Ice OFF -> Master remains ON, ShatteringIce is false in settings
+    ;(iceToggle1.props.onClick as () => void)()
+    expect(getPresetResonanceEnabled(currentSettings, skirkPreset.id)).toBe(true)
+    expect(getPresetResonanceEffects(currentSettings, skirkPreset.id)).toEqual({
+      ShatteringIce: false,
+    })
+
+    const tree2 = renderPanel()
+    const iceToggle2 = findByTestId(
+      tree2,
+      'resonance-effect-toggle-ShatteringIce'
+    )!
+    expect(iceToggle2.props['aria-checked']).toBe(false)
+    expect(findByTestId(tree2, 'resonance-modified-badge')).toBeDefined()
+    expect(
+      findByTestId(tree2, 'resonance-effect-modified-ShatteringIce')
+    ).toBeDefined()
+    expect(findByTestId(tree2, 'reset-all-conditionals')).toBeDefined()
+
+    // Toggle Shattering Ice back ON -> clears disabled override back to default {}
+    ;(iceToggle2.props.onClick as () => void)()
+    expect(getPresetResonanceEffects(currentSettings, skirkPreset.id)).toEqual(
+      {}
+    )
+
+    // 3. Switch to a dual-resonance team (Skirk + Furina + Escoffier + Yelan -> SoothingWater + ShatteringIce)
+    activePreset = {
+      ...skirkPreset,
+      id: 'user/skirk-dual-freeze',
+      team: [
+        skirkPreset.team[0]!, // Skirk (Cryo)
+        skirkPreset.team[1]!, // Furina (Hydro)
+        skirkPreset.team[2]!, // Escoffier (Cryo)
+        createDefaultTcTeammate('Yelan'), // Yelan (Hydro)
+      ],
+    }
+    const treeDual = renderPanel()
+    expect(
+      findByTestId(treeDual, 'resonance-effect-row-SoothingWater')
+    ).toBeDefined()
+    expect(
+      findByTestId(treeDual, 'resonance-effect-row-ShatteringIce')
+    ).toBeDefined()
+    expect(
+      getTextContent(
+        findByTestId(treeDual, 'resonance-effect-name-SoothingWater')!
+      )
+    ).toBe('Soothing Water')
+
+    // Toggling SoothingWater OFF leaves ShatteringIce ON
+    const waterToggle = findByTestId(
+      treeDual,
+      'resonance-effect-toggle-SoothingWater'
+    )!
+    ;(waterToggle.props.onClick as () => void)()
+    expect(
+      getPresetResonanceEffects(currentSettings, activePreset.id)
+    ).toEqual({
+      SoothingWater: false,
+    })
+
+    const treeDualAfter = renderPanel()
+    expect(
+      findByTestId(treeDualAfter, 'resonance-effect-toggle-SoothingWater')!
+        .props['aria-checked']
+    ).toBe(false)
+    expect(
+      findByTestId(treeDualAfter, 'resonance-effect-toggle-ShatteringIce')!
+        .props['aria-checked']
+    ).toBe(true)
+
+    // 4. Switch to official/mavuika-melt-hypercarry -> re-derives FerventFlames only
+    const mavuikaPreset = getBundledPreset('official/mavuika-melt-hypercarry')!
+    activePreset = mavuikaPreset
+    const treePyro = renderPanel()
+    expect(
+      findByTestId(treePyro, 'resonance-effect-row-FerventFlames')
+    ).toBeDefined()
+    expect(
+      findByTestId(treePyro, 'resonance-effect-row-SoothingWater')
+    ).toBeUndefined()
+    expect(
+      findByTestId(treePyro, 'resonance-effect-row-ShatteringIce')
+    ).toBeUndefined()
+
+    // 5. Switch to a 4-distinct-element team -> re-derives Protective Canopy only
+    activePreset = {
+      ...mavuikaPreset,
+      id: 'user/mavuika-canopy',
+      team: [
+        mavuikaPreset.team[0]!, // Mavuika (Pyro)
+        mavuikaPreset.team[1]!, // Citlali (Cryo)
+        mavuikaPreset.team[2]!, // Xilonen (Geo)
+        createDefaultTcTeammate('Furina'), // Furina (Hydro)
+      ],
+    }
+    const treeCanopy = renderPanel()
+    expect(
+      findByTestId(treeCanopy, 'resonance-effect-row-ProtectiveCanopy')
+    ).toBeDefined()
+    expect(
+      findByTestId(treeCanopy, 'resonance-effect-row-FerventFlames')
+    ).toBeUndefined()
   })
 })
