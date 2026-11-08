@@ -560,37 +560,84 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(findByTestId(tree4, 'reset-target-weapon-btn')).toBeUndefined()
   })
 
-  it('orders sections top-to-bottom: Team & Buffs/Passives -> Weapon Selection -> Artifact Settings & Stat Constraints -> Optimize & Results (optimize-page-section-order)', () => {
+  it('orders the optimize page into the locked 5-stage flow: (1) Preset picker -> (2) Mode selection -> (3) Team & Buffs -> (4) Artifact settings -> (5) Run & Results, adapting sections below to the chosen mode (flow-stage-layout)', () => {
     const tree = renderPass()
     const orderedTestIds = findAll(
       tree,
       (n) => typeof n.props['data-testid'] === 'string'
     ).map((n) => n.props['data-testid'] as string)
 
+    const idxStage1Preset = orderedTestIds.indexOf('setup-card')
+    const idxStage2Mode = orderedTestIds.indexOf('mode-selection-card')
+    const idxWeaponModeBar = orderedTestIds.indexOf('optimize-weapon-mode-bar')
+    const idxStage3TeamBuffs = orderedTestIds.indexOf('team-buffs-stage')
     const idxTeamRoster = orderedTestIds.indexOf('preset-team-roster')
     const idxBuffsPanel = orderedTestIds.indexOf('conditional-toggle-panel')
-    const idxWeaponModeBar = orderedTestIds.indexOf('optimize-weapon-mode-bar')
-    const idxWeaponPicker = orderedTestIds.indexOf(
-      'official-target-weapon-picker'
-    )
+    const idxStage4Artifacts = orderedTestIds.indexOf('artifact-settings-card')
     const idxFilterPair = orderedTestIds.indexOf('optimize-filter-panels-pair')
     const idxConstraintsCard = orderedTestIds.indexOf('constraints-card')
-    const idxResultsCard = orderedTestIds.indexOf('results-card')
+    const idxStage5Results = orderedTestIds.indexOf('results-card')
+    const idxTopNBuilds = orderedTestIds.indexOf('top-n-builds-select')
     const idxRunOptimizeBtn = orderedTestIds.indexOf('run-optimize-btn')
 
-    expect(idxTeamRoster).toBeGreaterThanOrEqual(0)
+    expect(idxStage1Preset).toBeGreaterThanOrEqual(0)
+    expect(idxStage2Mode).toBeGreaterThan(idxStage1Preset)
+    expect(idxWeaponModeBar).toBeGreaterThan(idxStage2Mode)
+    expect(idxStage3TeamBuffs).toBeGreaterThan(idxWeaponModeBar)
+    expect(idxTeamRoster).toBeGreaterThan(idxStage3TeamBuffs)
     expect(idxBuffsPanel).toBeGreaterThan(idxTeamRoster)
-    expect(idxWeaponModeBar).toBeGreaterThan(idxBuffsPanel)
-    expect(idxWeaponPicker).toBeGreaterThan(idxWeaponModeBar)
-    expect(idxFilterPair).toBeGreaterThan(idxWeaponPicker)
+    expect(idxStage4Artifacts).toBeGreaterThan(idxBuffsPanel)
+    expect(idxFilterPair).toBeGreaterThan(idxStage4Artifacts)
     expect(idxConstraintsCard).toBeGreaterThan(idxFilterPair)
-    expect(idxResultsCard).toBeGreaterThan(idxConstraintsCard)
-    expect(idxRunOptimizeBtn).toBeGreaterThan(idxResultsCard)
+    expect(idxStage5Results).toBeGreaterThan(idxConstraintsCard)
+    expect(idxTopNBuilds).toBeGreaterThan(idxStage5Results)
+    expect(idxRunOptimizeBtn).toBeGreaterThan(idxStage5Results)
+
+    // Mode buttons render with the expected labels in Stage 2
+    expect(
+      collectText([findByTestId(tree, 'optimize-mode-single')!])
+    ).toBe('Optimize 1 Character')
+    expect(
+      collectText([findByTestId(tree, 'optimize-mode-compare')!])
+    ).toContain('Compare Weapons')
+    expect(
+      collectText([findByTestId(tree, 'optimize-mode-team')!])
+    ).toBe('Optimize Team')
+
+    // In default 'single' mode: WeaponComparisonPanel is hidden, TeammateFastModePanel and Top N Builds are shown
+    expect(findByTestId(tree, 'weapon-compare-panel')).toBeUndefined()
+    expect(findByTestId(tree, 'teammate-fast-mode-panel')).toBeDefined()
+    expect(findByTestId(tree, 'top-n-builds-select')).toBeDefined()
+
+    // Switch to 'compare' mode: WeaponComparisonPanel appears, single-mode target picker and Top N Builds hide
+    const compareBtn = findByTestId(tree, 'optimize-mode-compare')!
+    ;(compareBtn.props.onClick as () => void)()
+    const compareTree = renderPass()
+    expect(findByTestId(compareTree, 'weapon-compare-panel')).toBeDefined()
+    expect(
+      findByTestId(compareTree, 'official-target-weapon-picker')
+    ).toBeUndefined()
+    expect(findByTestId(compareTree, 'top-n-builds-select')).toBeUndefined()
+    expect(findByTestId(compareTree, 'run-weapon-compare-btn')).toBeDefined()
+
+    // Switch to 'team' mode: TeammateFastModePanel and WeaponComparisonPanel hide, Optimize Team button renders
+    const teamBtn = findByTestId(compareTree, 'optimize-mode-team')!
+    ;(teamBtn.props.onClick as () => void)()
+    const teamTree = renderPass()
+    expect(findByTestId(teamTree, 'weapon-compare-panel')).toBeUndefined()
+    expect(findByTestId(teamTree, 'teammate-fast-mode-panel')).toBeUndefined()
+    expect(findByTestId(teamTree, 'top-n-builds-select')).toBeUndefined()
+    expect(findByTestId(teamTree, 'run-team-optimize-btn')).toBeDefined()
+
+    // Switch back to 'single' mode
+    const singleBtn = findByTestId(teamTree, 'optimize-mode-single')!
+    ;(singleBtn.props.onClick as () => void)()
+    const singleTree = renderPass()
 
     // single-level-range-control & collapsible-panels: SolverPoolFiltersPanel starts collapsed when unrestricted with summary visible; expanding it exposes Artifact Level Range
-    expect(findByTestId(tree, 'solver-pool-filters-summary')).toBeDefined()
-    expect(findByTestId(tree, 'pool-filter-level-low')).toBeUndefined()
-    const poolToggle = findByTestId(tree, 'solver-pool-filters-toggle')!
+    expect(findByTestId(singleTree, 'solver-pool-filters-summary')).toBeDefined()
+    expect(findByTestId(singleTree, 'pool-filter-level-low')).toBeUndefined()
+    const poolToggle = findByTestId(singleTree, 'solver-pool-filters-toggle')!
     expect(poolToggle.props['aria-expanded']).toBe(false)
     ;(poolToggle.props.onClick as () => void)()
     const expandedTree = renderPass()

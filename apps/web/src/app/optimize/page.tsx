@@ -1123,18 +1123,18 @@ function OptimizeInner() {
         </div>
       )}
 
-      {/* 1. SETUP CARD */}
+      {/* STAGE 1: PRESET PICKER */}
       <section
         className="panel gi-card"
         data-testid="setup-card"
-        aria-label="Setup"
+        data-stage="preset-picker"
+        aria-label="Preset Picker"
       >
         <div className="gi-card-header">
           <div>
-            <h2 className="gi-card-title">Setup</h2>
+            <h2 className="gi-card-title">1. Preset</h2>
             <p className="gi-card-subtitle">
-              Choose a rotation preset, target weapon, and artifact pool
-              rules.
+              Choose a rotation preset to configure and optimize.
             </p>
           </div>
           {activePreset && (
@@ -1165,7 +1165,6 @@ function OptimizeInner() {
           )}
         </div>
 
-        {/* Preset Selector & Team Roster */}
         <div className="gi-setup-grid">
           <div className="gi-field-label" style={{ gridColumn: '1 / -1' }}>
             <span className="muted">Rotation Preset</span>
@@ -1183,7 +1182,87 @@ function OptimizeInner() {
           </div>
         </div>
 
-        {activePreset && (
+        {activePreset && <PresetRotationSummary preset={activePreset} />}
+      </section>
+
+      {/* STAGE 2: MODE SELECTION */}
+      {activePreset && (
+        <section
+          className="panel gi-card"
+          data-testid="mode-selection-card"
+          data-stage="mode-selection"
+          aria-label="Mode Selection"
+        >
+          <div className="gi-card-header">
+            <div>
+              <h2 className="gi-card-title">2. Mode Selection</h2>
+              <p className="gi-card-subtitle">
+                Select how you want to optimize this preset; the stages below
+                adapt to your chosen mode.
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="weapon-compare-mode-bar"
+            data-testid="optimize-weapon-mode-bar"
+            role="group"
+            aria-label="Optimization mode"
+          >
+            <button
+              type="button"
+              className={`art-filter-mode-btn${
+                optimizeMode === 'single' ? ' is-active' : ''
+              }`}
+              data-testid="optimize-mode-single"
+              aria-pressed={optimizeMode === 'single'}
+              onClick={() => setOptimizeMode('single')}
+            >
+              Optimize 1 Character
+            </button>
+            <button
+              type="button"
+              className={`art-filter-mode-btn${
+                optimizeMode === 'compare' ? ' is-active' : ''
+              }`}
+              data-testid="optimize-mode-compare"
+              aria-pressed={optimizeMode === 'compare'}
+              onClick={() => setOptimizeMode('compare')}
+            >
+              Compare Weapons ({activeCompareCandidates.length})
+            </button>
+            <button
+              type="button"
+              className={`art-filter-mode-btn${
+                optimizeMode === 'team' ? ' is-active' : ''
+              }`}
+              data-testid="optimize-mode-team"
+              aria-pressed={optimizeMode === 'team'}
+              onClick={() => setOptimizeMode('team')}
+            >
+              Optimize Team
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* STAGE 3: TEAM & BUFFS */}
+      {activePreset && (
+        <section
+          className="panel gi-card"
+          data-testid="team-buffs-stage"
+          data-stage="team-buffs"
+          aria-label="Team & Buffs"
+        >
+          <div className="gi-card-header">
+            <div>
+              <h2 className="gi-card-title">3. Team &amp; Buffs</h2>
+              <p className="gi-card-subtitle">
+                Configure team member builds, weapons, and active combat buffs.
+              </p>
+            </div>
+          </div>
+
           <div
             className="preset-gear-row-md preset-provenance-box"
             data-testid="preset-team-roster"
@@ -1283,95 +1362,6 @@ function OptimizeInner() {
                 </div>
               )
             })}
-          </div>
-        )}
-
-        {activePreset && (
-          <TeammateFastModePanel
-            preset={activePreset}
-            ownedCharKeys={ownedCharKeys}
-            memberBuildModes={activeMemberBuildModes}
-            memberStats={teamMemberStats}
-            effectiveFastMode={activeFastMode}
-            optimizeMode={optimizeMode}
-            onChangeMemberStat={handleChangeMemberFastModeStat}
-            onResetMember={handleResetMemberFastMode}
-          />
-        )}
-
-        {activePreset && <PresetRotationSummary preset={activePreset} />}
-      </section>
-
-      {/* 1b. BUFFS & PASSIVES PANEL */}
-      {activePreset && (
-        <ConditionalTogglePanel
-          preset={activePreset}
-          settings={settings}
-          onChangeSettings={(next) => {
-            void updateSettings(next)
-            setOptResult(null)
-            setOptimisedEvals([])
-          }}
-          good={record?.good}
-          activeTargetWeaponKey={
-            targetWeaponOverrideSpec?.key ??
-            displayedTargetWeaponSpec?.key ??
-            record?.good.weapons.find((w) => w.id === effectiveWeaponId)
-              ?.key ??
-            record?.good.weapons.find(
-              (w) => w.location === activePreset.target
-            )?.key
-          }
-        />
-      )}
-
-      {/* 2. WEAPON SELECTION CARD */}
-      {activePreset && (
-        <section
-          className="panel gi-card"
-          data-testid="weapon-selection-card"
-          aria-label="Weapon Selection"
-        >
-          {/* Weapon Mode Switcher: Single Weapon vs Compare Weapons */}
-          <div
-            className="weapon-compare-mode-bar"
-            data-testid="optimize-weapon-mode-bar"
-            role="group"
-            aria-label="Weapon optimization mode"
-          >
-            <button
-              type="button"
-              className={`art-filter-mode-btn${
-                optimizeMode === 'single' ? ' is-active' : ''
-              }`}
-              data-testid="optimize-mode-single"
-              aria-pressed={optimizeMode === 'single'}
-              onClick={() => setOptimizeMode('single')}
-            >
-              Single Weapon
-            </button>
-            <button
-              type="button"
-              className={`art-filter-mode-btn${
-                optimizeMode === 'compare' ? ' is-active' : ''
-              }`}
-              data-testid="optimize-mode-compare"
-              aria-pressed={optimizeMode === 'compare'}
-              onClick={() => setOptimizeMode('compare')}
-            >
-              Compare Weapons ({activeCompareCandidates.length})
-            </button>
-            <button
-              type="button"
-              className={`art-filter-mode-btn${
-                optimizeMode === 'team' ? ' is-active' : ''
-              }`}
-              data-testid="optimize-mode-team"
-              aria-pressed={optimizeMode === 'team'}
-              onClick={() => setOptimizeMode('team')}
-            >
-              Optimize Team
-            </button>
           </div>
 
           {optimizeMode === 'compare' && (
@@ -1627,15 +1617,59 @@ function OptimizeInner() {
               </ul>
             </div>
           )}
+
+          {optimizeMode !== 'team' && (
+            <TeammateFastModePanel
+              preset={activePreset}
+              ownedCharKeys={ownedCharKeys}
+              memberBuildModes={activeMemberBuildModes}
+              memberStats={teamMemberStats}
+              effectiveFastMode={activeFastMode}
+              optimizeMode={optimizeMode}
+              onChangeMemberStat={handleChangeMemberFastModeStat}
+              onResetMember={handleResetMemberFastMode}
+            />
+          )}
+
+          <ConditionalTogglePanel
+            preset={activePreset}
+            settings={settings}
+            onChangeSettings={(next) => {
+              void updateSettings(next)
+              setOptResult(null)
+              setOptimisedEvals([])
+            }}
+            good={record?.good}
+            activeTargetWeaponKey={
+              targetWeaponOverrideSpec?.key ??
+              displayedTargetWeaponSpec?.key ??
+              record?.good.weapons.find((w) => w.id === effectiveWeaponId)
+                ?.key ??
+              record?.good.weapons.find(
+                (w) => w.location === activePreset.target
+              )?.key
+            }
+          />
         </section>
       )}
 
-      {/* 3a. ARTIFACT SETTINGS CARD */}
+      {/* STAGE 4: ARTIFACT SETTINGS */}
       <section
         className="panel gi-card"
         data-testid="artifact-settings-card"
+        data-stage="artifact-settings"
         aria-label="Artifact Settings"
       >
+        <div className="gi-card-header">
+          <div>
+            <h2 className="gi-card-title">4. Artifact Settings</h2>
+            <p className="gi-card-subtitle">
+              Configure artifact pool rules, set filters, protected characters,
+              and stat constraints.
+            </p>
+          </div>
+        </div>
+
         {/* Artifact Pool Settings */}
         <div className="gi-setup-grid">
           <label className="gi-field-label">
@@ -1662,25 +1696,6 @@ function OptimizeInner() {
               <option value={12}>Assume at least Lv. 12</option>
               <option value={16}>Assume at least Lv. 16</option>
               <option value={20}>Assume Full Level (Lv. 20)</option>
-            </select>
-          </label>
-
-          <label className="gi-field-label">
-            <span className="muted">Top N Builds to Return</span>
-            <select
-              aria-label="Top N Builds to Return"
-              value={settings.topN}
-              onChange={(e) =>
-                void updateSettings({
-                  ...settings,
-                  topN: Number(e.target.value),
-                })
-              }
-            >
-              <option value={1}>Top 1 Build</option>
-              <option value={3}>Top 3 Builds</option>
-              <option value={5}>Top 5 Builds</option>
-              <option value={10}>Top 10 Builds</option>
             </select>
           </label>
         </div>
@@ -1817,19 +1832,20 @@ function OptimizeInner() {
           settings={settings}
           onChange={(next) => void updateSettings(next)}
         />
+
+        {/* Stat Constraints */}
+        <ConstraintsCard
+          settings={settings}
+          onChange={(next) => void updateSettings(next)}
+        />
       </section>
 
-      {/* 3b. CONSTRAINTS CARD */}
-      <ConstraintsCard
-        settings={settings}
-        onChange={(next) => void updateSettings(next)}
-      />
-
-      {/* 3. RESULTS CARD (including Run Action & Progress / Empty States) */}
+      {/* STAGE 5: RUN & RESULTS */}
       <section
         className="panel gi-card"
         data-testid="results-card"
-        aria-label="Results"
+        data-stage="run-results"
+        aria-label="Run & Results"
       >
         <div className="gi-card-header">
           <div className="preset-gear-row-md">
@@ -1841,7 +1857,7 @@ function OptimizeInner() {
               />
             )}
             <div>
-              <h2 className="gi-card-title">Results</h2>
+              <h2 className="gi-card-title">5. Run &amp; Results</h2>
               <p className="gi-card-subtitle">
                 {activePreset
                   ? `${activePreset.name} · Rotation Repeat ×${activePreset.rotation.repeat ?? 1}`
@@ -1850,8 +1866,11 @@ function OptimizeInner() {
             </div>
           </div>
 
-          <div className="preset-gear-row-md">
-            {evaluating && !running && !compareRunning && !teamRunning && (
+          <div
+            className="preset-gear-row-md"
+            data-testid="run-results-controls"
+          >
+            { evaluating && !running && !compareRunning && !teamRunning && (
               <Spinner
                 label={
                   hydratingEngine
@@ -1861,6 +1880,31 @@ function OptimizeInner() {
                 size="sm"
                 inline
               />
+            )}
+
+            {optimizeMode === 'single' && (
+              <label
+                className="presets-filter-label-sm"
+                data-testid="top-n-builds-field"
+              >
+                <span className="muted">Top N Builds:</span>
+                <select
+                  aria-label="Top N Builds to Return"
+                  data-testid="top-n-builds-select"
+                  value={settings.topN}
+                  onChange={(e) =>
+                    void updateSettings({
+                      ...settings,
+                      topN: Number(e.target.value),
+                    })
+                  }
+                >
+                  <option value={1}>Top 1 Build</option>
+                  <option value={3}>Top 3 Builds</option>
+                  <option value={5}>Top 5 Builds</option>
+                  <option value={10}>Top 10 Builds</option>
+                </select>
+              </label>
             )}
 
             {optimizeMode === 'compare' ? (
