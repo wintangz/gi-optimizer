@@ -230,6 +230,9 @@ The layout centers on a five-stage **Dual-Deck Instrument Panel** on the `/optim
   - `768px`: Member selector tabs wrap into a 2×2 grid; modal dialogs expand to near-full viewport width (`calc(100vw - 1.5rem)`).
   - `640px`: Summary rows stack action buttons cleanly; page padding tightens to `0.75rem`.
 
+### Named Rules
+**The Shared Container Width Rule.** All pages share the single root app container width (`.container`, `max-width: 1200px`, centered with `margin: 0 auto` and `padding: 1.5rem`); no page may widen itself or override the outer container's width or side margins. Multi-column decks and stage splits must fit inside that shared container.
+
 ## Elevation & Depth
 
 GI Optimizer uses a **3-Level Tonal Layering + Structural Border** model. Surfaces are completely flat at rest: depth is communicated by stepping upward in slate luminance from the root canvas (`#0d1017`) to stage panels (`#161b26`) to interactive cards (`#202736`), while carving input wells and chip tracks downward into Trench Inset (`#11151f`). Every surface boundary is crisply delineated by a `1px solid` structural border (`#2f3950`), eliminating the need for ambient drop shadows across the workbench.
