@@ -3274,3 +3274,163 @@ td {
   padding: 0.18rem 0.28rem;
   font-size: 0.8rem;
 }
+
+/* ============================================================
+   Optimize Flow Refactor — Team Cards, Weapon Modal, Collapsible Sections
+   ============================================================ */
+
+.preset-team-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+@media (max-width: 960px) {
+  .preset-team-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .preset-team-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.preset-team-member-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s ease;
+}
+
+.preset-team-member-card.is-target {
+  border-color: var(--accent-border);
+}
+
+.preset-team-member-card.is-weapon-overridden {
+  border-color: rgba(210, 153, 34, 0.55);
+}
+
+.preset-team-member-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.preset-member-state-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.16rem 0.5rem;
+  border-radius: var(--r-pill);
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.preset-team-member-card-weapon {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.preset-member-weapon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  color: var(--text-body);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.preset-member-weapon-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-surface);
+}
+
+.preset-member-weapon-btn.is-overridden {
+  border-color: rgba(210, 153, 34, 0.65);
+  background: rgba(210, 153, 34, 0.08);
+}
+
+.preset-member-weapon-btn.is-locked,
+.preset-member-weapon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.preset-member-weapon-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  min-height: 1.5rem;
+}
+
+.gi-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+  background: rgba(6, 9, 15, 0.78);
+  backdrop-filter: blur(3px);
+}
+
+.gi-modal-dialog {
+  width: min(860px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  border: 1px solid var(--accent-border);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
+}
+
+.gi-collapsible-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.gi-collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.gi-collapsible-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.gi-collapsible-toggle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.22rem 0.6rem;
+}

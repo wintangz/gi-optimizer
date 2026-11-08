@@ -462,21 +462,24 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     }
   })
 
-  it('renders the target weapon picker on official presets, keeps default weapon when untouched, and passes weaponOverride to Current build evaluation and optimizer when chosen (official-preset-weapon-picker)', async () => {
+  it('renders 4 member cards in Team & Buffs with modal weapon-picking for any member (teammates fixed on Akasha) and collapsible Buffs & Passives (flow-team-stage / official-preset-weapon-picker)', async () => {
     mockOptimizePresetInWorker.mockClear()
     const tree1 = renderPass()
     await Promise.resolve()
     await Promise.resolve()
 
-    // (1) Official preset renders the target weapon picker showing Furina's equipped SplendorOfTranquilWaters by default
-    const weaponPickerBox = findByTestId(
-      tree1,
-      'official-target-weapon-picker'
-    )
-    expect(weaponPickerBox).toBeDefined()
+    // (1) Team & Buffs stage shows 4 member cards with portrait, owned/simulated state, and weapon trigger
+    const cardsGrid = findByTestId(tree1, 'preset-team-roster')
+    expect(cardsGrid).toBeDefined()
+    expect(cardsGrid!.props.className).toContain('preset-team-cards-grid')
+    for (const key of ['Furina', 'Neuvillette', 'KaedeharaKazuha', 'Zhongli']) {
+      expect(findByTestId(tree1, `preset-team-member-${key}`)).toBeDefined()
+      expect(findByTestId(tree1, `member-weapon-trigger-${key}`)).toBeDefined()
+    }
     const modeStatus = findByTestId(tree1, 'target-weapon-mode-status')
     expect(collectText([modeStatus!])).toContain('Default Weapon')
     expect(findByTestId(tree1, 'reset-target-weapon-btn')).toBeUndefined()
+    expect(findByTestId(tree1, 'member-weapon-modal')).toBeUndefined()
 
     // Default evaluation did NOT need a second re-eval with weaponOverride
     expect(mockEvaluatePresetInWorker).toHaveBeenCalledTimes(1)
@@ -485,8 +488,19 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
         ?.selection
     ).toBeUndefined()
 
-    // (2) Select an unowned sword (KeyOfKhajNisut) in the target weapon picker tile grid
-    const keyTile = findByTestId(tree1, 'weapon-picker-tile-KeyOfKhajNisut')
+    // (2) Click Furina's weapon trigger -> opens weapon picker modal for Furina
+    const furinaWeaponBtn = findByTestId(tree1, 'member-weapon-trigger-Furina')
+    expect(furinaWeaponBtn).toBeDefined()
+    ;(furinaWeaponBtn!.props.onClick as () => void)()
+
+    const treeModal = renderPass()
+    const weaponModal = findByTestId(treeModal, 'member-weapon-modal')
+    expect(weaponModal).toBeDefined()
+    expect(weaponModal!.props['data-member-key']).toBe('Furina')
+    expect(findByTestId(treeModal, 'official-target-weapon-picker')).toBeDefined()
+
+    // Select an unowned sword (KeyOfKhajNisut) in the modal weapon picker tile grid
+    const keyTile = findByTestId(treeModal, 'weapon-picker-tile-KeyOfKhajNisut')
     expect(keyTile).toBeDefined()
     ;(keyTile!.props.onClick as () => void)()
 
@@ -514,7 +528,7 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     })
     expect(reEvalCall.selection?.weaponId).toBeUndefined()
 
-    // (3) Change Refinement dropdown to R5 -> updates weaponOverride to R5
+    // (3) Change Refinement dropdown inside modal to R5 -> updates weaponOverride to R5
     const refSelect = findByTestId(tree2, 'target-weapon-refinement-select')
     expect(refSelect).toBeDefined()
     ;(
@@ -530,8 +544,16 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       collectText([findByTestId(tree3, 'target-weapon-mode-status')!])
     ).toContain('Override: Key of Khaj Nisut R5')
 
+    // Close modal via Done button
+    const closeModalBtn = findByTestId(tree3, 'close-weapon-modal-btn')
+    expect(closeModalBtn).toBeDefined()
+    ;(closeModalBtn!.props.onClick as () => void)()
+
+    const treeClosed = renderPass()
+    expect(findByTestId(treeClosed, 'member-weapon-modal')).toBeUndefined()
+
     // Click "Optimize" and verify optimizePresetInWorker receives weaponOverride: KeyOfKhajNisut Lv.90 A6 R5
-    const runBtn = findByTestId(tree3, 'run-optimize-btn')
+    const runBtn = findByTestId(treeClosed, 'run-optimize-btn')
     expect(runBtn).toBeDefined()
     await (runBtn!.props.onClick as () => Promise<void>)()
 
@@ -549,7 +571,7 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(optCall.weaponId).toBeUndefined()
 
     // (4) Click "Reset to Default" -> clears override and returns to Default Weapon
-    const resetBtn = findByTestId(tree3, 'reset-target-weapon-btn')
+    const resetBtn = findByTestId(treeClosed, 'reset-target-weapon-btn')
     expect(resetBtn).toBeDefined()
     ;(resetBtn!.props.onClick as () => void)()
 
@@ -558,6 +580,94 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       collectText([findByTestId(tree4, 'target-weapon-mode-status')!])
     ).toContain('Default Weapon')
     expect(findByTestId(tree4, 'reset-target-weapon-btn')).toBeUndefined()
+
+    // (5) Clicking a teammate's weapon opens the weapon-picker modal for that teammate
+    const kazuhaWeaponBtn = findByTestId(
+      tree4,
+      'member-weapon-trigger-KaedeharaKazuha'
+    )
+    expect(kazuhaWeaponBtn).toBeDefined()
+    ;(kazuhaWeaponBtn!.props.onClick as () => void)()
+
+    const treeTeammateModal = renderPass()
+    const teammateModal = findByTestId(treeTeammateModal, 'member-weapon-modal')
+    expect(teammateModal).toBeDefined()
+    expect(teammateModal!.props['data-member-key']).toBe('KaedeharaKazuha')
+    const teammateTile = findByTestId(
+      treeTeammateModal,
+      'weapon-picker-tile-KeyOfKhajNisut'
+    )
+    expect(teammateTile).toBeDefined()
+    ;(teammateTile!.props.onClick as () => void)()
+
+    const treeTeammatePicked = renderPass()
+    expect(
+      collectText([
+        findByTestId(
+          treeTeammatePicked,
+          'member-weapon-status-KaedeharaKazuha'
+        )!,
+      ])
+    ).toContain('Override: Key of Khaj Nisut R5')
+    const resetTeammateBtn = findByTestId(
+      treeTeammatePicked,
+      'reset-member-weapon-btn-KaedeharaKazuha'
+    )
+    expect(resetTeammateBtn).toBeDefined()
+    ;(resetTeammateBtn!.props.onClick as () => void)()
+
+    // (6) Buffs & Passives in Team & Buffs is a collapsible section
+    const treeAfterReset = renderPass()
+    const buffsToggle = findByTestId(
+      treeAfterReset,
+      'buffs-collapsible-toggle'
+    )
+    const buffsSummary = findByTestId(
+      treeAfterReset,
+      'buffs-collapsible-summary'
+    )
+    expect(buffsToggle).toBeDefined()
+    expect(buffsSummary).toBeDefined()
+    expect(buffsToggle!.props['aria-expanded']).toBe(false)
+    ;(buffsToggle!.props.onClick as () => void)()
+    const treeBuffsExpanded = renderPass()
+    expect(
+      findByTestId(treeBuffsExpanded, 'buffs-collapsible-toggle')!.props[
+        'aria-expanded'
+      ]
+    ).toBe(true)
+
+    // (7) On an Akasha preset, target weapon trigger is enabled while teammates' weapons stay fixed by the case
+    const akashaBtn = findAll(
+      treeBuffsExpanded,
+      (n) =>
+        n.type === 'button' &&
+        typeof n.props['data-preset-id'] === 'string' &&
+        String(n.props['data-preset-id']).startsWith('akasha/') &&
+        n.props['data-character-key'] === 'Furina'
+    )[0]
+    expect(akashaBtn).toBeDefined()
+    ;(akashaBtn!.props.onClick as () => void)()
+
+    const treeAkasha = renderPass()
+    const akashaTargetWeaponBtn = findByTestId(
+      treeAkasha,
+      'member-weapon-trigger-Furina'
+    )
+    expect(akashaTargetWeaponBtn).toBeDefined()
+    expect(akashaTargetWeaponBtn!.props.disabled).toBe(false)
+    const akashaTeammateTriggers = findAll(
+      treeAkasha,
+      (n) =>
+        typeof n.props['data-testid'] === 'string' &&
+        String(n.props['data-testid']).startsWith('member-weapon-trigger-') &&
+        n.props['data-character-key'] !== 'Furina'
+    )
+    expect(akashaTeammateTriggers.length).toBeGreaterThan(0)
+    for (const tmBtn of akashaTeammateTriggers) {
+      expect(tmBtn.props.disabled).toBe(true)
+      expect(tmBtn.props['data-weapon-locked']).toBe('true')
+    }
   })
 
   it('orders the optimize page into the locked 5-stage flow: (1) Preset picker -> (2) Mode selection -> (3) Team & Buffs -> (4) Artifact settings -> (5) Run & Results, adapting sections below to the chosen mode (flow-stage-layout)', () => {

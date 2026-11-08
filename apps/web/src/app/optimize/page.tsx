@@ -135,6 +135,12 @@ function OptimizeInner() {
     }
     return {}
   })
+  const [teammateWeaponByPreset, setTeammateWeaponByPreset] = useState<
+    Record<string, Record<string, { key: string; refinement: number }>>
+  >({})
+  const [weaponModalMemberKey, setWeaponModalMemberKey] = useState<
+    string | null
+  >(null)
 
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState<OptimizeProgress | null>(null)
@@ -305,10 +311,7 @@ function OptimizeInner() {
     }
   }, [activePreset, akashaWeaponByPreset, record])
 
-  const hasTargetWeaponPicker = Boolean(
-    activePreset &&
-      (isAkashaPreset || activePreset.source === 'official')
-  )
+  const hasTargetWeaponPicker = Boolean(activePreset)
 
   const availableAkashaWeapons = useMemo(() => {
     if (!activePreset || !hasTargetWeaponPicker) return []
@@ -330,6 +333,104 @@ function OptimizeInner() {
         refinement: wMeta.rarity <= 2 ? 1 : chosen.refinement,
       }
     }, [activePreset, isAkashaPreset, akashaWeaponSpec, akashaWeaponByPreset])
+
+  const activeTeammateWeaponOverrides = useMemo(
+    () =>
+      activePreset && activePreset.source !== 'akasha'
+        ? teammateWeaponByPreset[activePreset.id] ?? {}
+        : {},
+    [activePreset, teammateWeaponByPreset]
+  )
+
+  const hasActiveTeammateWeaponOverrides = useMemo(
+    () => Object.keys(activeTeammateWeaponOverrides).length > 0,
+    [activeTeammateWeaponOverrides]
+  )
+
+  const effectivePreset: Preset | undefined = useMemo(() => {
+    if (!activePreset || !hasActiveTeammateWeaponOverrides) return activePreset
+    return {
+      ...activePreset,
+      team: activePreset.team.map((m, idx) => {
+        if (idx === 0) return m
+        const chosen = activeTeammateWeaponOverrides[m.key]
+        if (!chosen) return m
+        const wMeta = getWeaponMeta(chosen.key)
+        const wSpec = {
+          key: chosen.key,
+          level: wMeta.rarity <= 2 ? 70 : 90,
+          ascension: wMeta.rarity <= 2 ? 4 : 6,
+          refinement: wMeta.rarity <= 2 ? 1 : chosen.refinement,
+        }
+        if (m.build.type === 'tc') {
+          return {
+            ...m,
+            build: {
+              ...m.build,
+              tc: {
+                ...m.build.tc,
+                weapon: wSpec,
+              },
+            },
+          }
+        }
+        if (m.build.type === 'fixed') {
+          return {
+            ...m,
+            build: {
+              ...m.build,
+              weapon: wSpec,
+            },
+          }
+        }
+        return m
+      }),
+    }
+  }, [activePreset, hasActiveTeammateWeaponOverrides, activeTeammateWeaponOverrides])
+
+  const effectiveGood = useMemo(() => {
+    if (!record?.good || !hasActiveTeammateWeaponOverrides) return record?.good
+    const overriddenCharKeys = new Set(
+      Object.keys(activeTeammateWeaponOverrides)
+    )
+    const baseWeapons = record.good.weapons.map((w) =>
+      w.location && overriddenCharKeys.has(w.location)
+        ? { ...w, location: '' }
+        : w
+    )
+    const syntheticWeapons = Object.entries(activeTeammateWeaponOverrides).map(
+      ([mKey, chosen]) => {
+        const wMeta = getWeaponMeta(chosen.key)
+        return {
+          id: `teammate_override_${mKey}_${chosen.key}_r${chosen.refinement}`,
+          key: chosen.key,
+          level: wMeta.rarity <= 2 ? 70 : 90,
+          ascension: (wMeta.rarity <= 2 ? 4 : 6) as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+          refinement: (wMeta.rarity <= 2 ? 1 : chosen.refinement) as
+            | 1
+            | 2
+            | 3
+            | 4
+            | 5,
+          location: mKey,
+          lock: false,
+        }
+      }
+    )
+    return {
+      ...record.good,
+      weapons: [...baseWeapons, ...syntheticWeapons],
+    }
+  }, [record, hasActiveTeammateWeaponOverrides, activeTeammateWeaponOverrides])
+
+  const effectiveDatasetKey = useMemo(() => {
+    if (!record) return ''
+    if (!hasActiveTeammateWeaponOverrides) return record.importedAt
+    const suffix = Object.entries(activeTeammateWeaponOverrides)
+      .map(([k, v]) => `${k}=${v.key}:${v.refinement}`)
+      .join(',')
+    return `${record.importedAt}|tw:${suffix}`
+  }, [record, hasActiveTeammateWeaponOverrides, activeTeammateWeaponOverrides])
 
   const activeCompareCandidates: WeaponCompareCandidate[] = useMemo(() => {
     if (!activePreset) return []
@@ -474,6 +575,261 @@ function OptimizeInner() {
       availableAkashaWeapons,
     ])
 
+  const teamMemberCards = useMemo(() => {
+    if (!activePreset) return []
+    return activePreset.team.slice(0, 4).map((m, idx) => {
+      const isTarget = idx === 0
+      const resolved = resolvePresetMemberBuildMode({
+        presetSource: activePreset.source,
+        isTarget,
+        memberBuildType: m.build.type,
+        characterKey: m.key,
+        ownedCharKeys,
+        overrideMode: activeMemberBuildModes[m.key],
+      })
+      const isSimulated = isTarget
+        ? m.build.type === 'tc' || m.build.type === 'fixed'
+        : resolved.mode === 'tc'
+      const isWeaponLocked = !isTarget && activePreset.source === 'akasha'
+      const weaponType = getCharacterMeta(m.key).weaponType
+      const weaponsForMember = listWeaponsForType(weaponType)
+
+      let defaultWeaponSpec: SimulatedWeaponSpec | undefined
+      if (isTarget) {
+        if (m.build.type === 'tc' && resolved.mode === 'tc') {
+          defaultWeaponSpec = {
+            key: m.build.tc.weapon.key,
+            level: m.build.tc.weapon.level,
+            ascension: m.build.tc.weapon.ascension,
+            refinement: m.build.tc.weapon.refinement,
+          }
+        } else if (m.build.type === 'fixed') {
+          const equippedOnFixed =
+            record?.good && ownedCharKeys.has(m.key)
+              ? record.good.weapons.find(
+                  (w) =>
+                    w.location === m.key &&
+                    getWeaponMeta(w.key).weaponType === weaponType
+                )
+              : undefined
+          if (equippedOnFixed) {
+            const wMeta = getWeaponMeta(equippedOnFixed.key)
+            defaultWeaponSpec = {
+              key: equippedOnFixed.key,
+              level: wMeta.rarity <= 2 ? 70 : 90,
+              ascension: wMeta.rarity <= 2 ? 4 : 6,
+              refinement: wMeta.rarity <= 2 ? 1 : equippedOnFixed.refinement,
+            }
+          } else {
+            defaultWeaponSpec = {
+              key: m.build.weapon.key,
+              level: m.build.weapon.level,
+              ascension: m.build.weapon.ascension,
+              refinement: m.build.weapon.refinement,
+            }
+          }
+        } else {
+          const bySelectedId = effectiveWeaponId
+            ? record?.good.weapons.find((w) => w.id === effectiveWeaponId)
+            : undefined
+          const equipped =
+            bySelectedId ??
+            record?.good.weapons.find(
+              (w) =>
+                w.location === m.key &&
+                getWeaponMeta(w.key).weaponType === weaponType
+            )
+          if (equipped) {
+            defaultWeaponSpec = {
+              key: equipped.key,
+              level: equipped.level,
+              ascension: equipped.ascension,
+              refinement: equipped.refinement,
+            }
+          } else if (m.requirement?.weapon) {
+            const reqWep = m.requirement.weapon
+            const wMeta = getWeaponMeta(reqWep.key)
+            const reqRef =
+              typeof reqWep.refinement === 'number'
+                ? reqWep.refinement
+                : reqWep.refinement?.min ?? 1
+            defaultWeaponSpec = {
+              key: reqWep.key,
+              level: wMeta.rarity <= 2 ? 70 : 90,
+              ascension: wMeta.rarity <= 2 ? 4 : 6,
+              refinement: wMeta.rarity <= 2 ? 1 : reqRef,
+            }
+          }
+        }
+      } else {
+        if (resolved.mode === 'tc' && m.build.type === 'tc') {
+          defaultWeaponSpec = {
+            key: m.build.tc.weapon.key,
+            level: m.build.tc.weapon.level,
+            ascension: m.build.tc.weapon.ascension,
+            refinement: m.build.tc.weapon.refinement,
+          }
+        } else if (m.build.type === 'fixed') {
+          defaultWeaponSpec = {
+            key: m.build.weapon.key,
+            level: m.build.weapon.level,
+            ascension: m.build.weapon.ascension,
+            refinement: m.build.weapon.refinement,
+          }
+        } else {
+          const equipped = record?.good.weapons.find(
+            (w) =>
+              w.location === m.key &&
+              getWeaponMeta(w.key).weaponType === weaponType
+          )
+          if (equipped) {
+            defaultWeaponSpec = {
+              key: equipped.key,
+              level: equipped.level,
+              ascension: equipped.ascension,
+              refinement: equipped.refinement,
+            }
+          } else if (m.build.type === 'tc') {
+            defaultWeaponSpec = {
+              key: m.build.tc.weapon.key,
+              level: m.build.tc.weapon.level,
+              ascension: m.build.tc.weapon.ascension,
+              refinement: m.build.tc.weapon.refinement,
+            }
+          }
+        }
+      }
+
+      if (!defaultWeaponSpec) {
+        const fallbackW = weaponsForMember[0]
+        defaultWeaponSpec = fallbackW
+          ? {
+              key: fallbackW.key,
+              level: fallbackW.rarity <= 2 ? 70 : 90,
+              ascension: fallbackW.rarity <= 2 ? 4 : 6,
+              refinement: 1,
+            }
+          : { key: 'DullBlade', level: 70, ascension: 4, refinement: 1 }
+      }
+
+      const chosenOverride = isWeaponLocked
+        ? undefined
+        : isTarget
+          ? akashaWeaponByPreset[activePreset.id]
+          : activeTeammateWeaponOverrides[m.key]
+
+      const overrideWeaponSpec: SimulatedWeaponSpec | undefined = chosenOverride
+        ? (() => {
+            const wMeta = getWeaponMeta(chosenOverride.key)
+            return {
+              key: chosenOverride.key,
+              level: wMeta.rarity <= 2 ? 70 : 90,
+              ascension: wMeta.rarity <= 2 ? 4 : 6,
+              refinement: wMeta.rarity <= 2 ? 1 : chosenOverride.refinement,
+            }
+          })()
+        : undefined
+
+      const effectiveWeaponSpec = overrideWeaponSpec ?? defaultWeaponSpec
+      const isOverridden = Boolean(overrideWeaponSpec)
+
+      return {
+        member: m,
+        idx,
+        key: m.key,
+        isTarget,
+        resolved,
+        isSimulated,
+        isWeaponLocked,
+        weaponType,
+        weaponsForMember,
+        defaultWeaponSpec,
+        overrideWeaponSpec,
+        effectiveWeaponSpec,
+        isOverridden,
+      }
+    })
+  }, [
+    activePreset,
+    ownedCharKeys,
+    activeMemberBuildModes,
+    record,
+    effectiveWeaponId,
+    akashaWeaponByPreset,
+    activeTeammateWeaponOverrides,
+  ])
+
+  const activeModalMember = useMemo(
+    () =>
+      weaponModalMemberKey
+        ? teamMemberCards.find(
+            (c) => c.key === weaponModalMemberKey && !c.isWeaponLocked
+          ) ?? null
+        : null,
+    [weaponModalMemberKey, teamMemberCards]
+  )
+
+  function handleSelectMemberWeapon(
+    memberKey: string,
+    isTarget: boolean,
+    weaponKey: string,
+    refinement: number
+  ) {
+    if (!activePreset) return
+    const meta = getWeaponMeta(weaponKey)
+    const normalizedRef =
+      meta.rarity <= 2 ? 1 : Math.max(1, Math.min(5, Math.round(refinement)))
+    if (isTarget) {
+      setAkashaWeaponByPreset((prev) => ({
+        ...prev,
+        [activePreset.id]: {
+          key: weaponKey,
+          refinement: normalizedRef,
+        },
+      }))
+    } else {
+      setTeammateWeaponByPreset((prev) => ({
+        ...prev,
+        [activePreset.id]: {
+          ...(prev[activePreset.id] ?? {}),
+          [memberKey]: {
+            key: weaponKey,
+            refinement: normalizedRef,
+          },
+        },
+      }))
+    }
+    setOptResult(null)
+    setOptimisedEvals([])
+    setTeamResult(null)
+  }
+
+  function handleResetMemberWeapon(memberKey: string, isTarget: boolean) {
+    if (!activePreset) return
+    if (isTarget) {
+      setAkashaWeaponByPreset((prev) => {
+        const next = { ...prev }
+        delete next[activePreset.id]
+        return next
+      })
+    } else {
+      setTeammateWeaponByPreset((prev) => {
+        const presetMap = { ...(prev[activePreset.id] ?? {}) }
+        delete presetMap[memberKey]
+        const next = { ...prev }
+        if (Object.keys(presetMap).length === 0) {
+          delete next[activePreset.id]
+        } else {
+          next[activePreset.id] = presetMap
+        }
+        return next
+      })
+    }
+    setOptResult(null)
+    setOptimisedEvals([])
+    setTeamResult(null)
+  }
+
   const canRunPreset = useMemo(() => {
     if (!record?.good || !activePreset) return false
     if (isAkashaPreset) return true
@@ -510,16 +866,16 @@ function OptimizeInner() {
       }
     }
 
-    const coldHydration = !isEngineSessionHydrated(record.importedAt)
+    const coldHydration = !isEngineSessionHydrated(effectiveDatasetKey)
 
     void (async () => {
       setHydratingEngine(coldHydration)
       setEvaluating(true)
       try {
         const baseRes = await evaluatePresetInWorker({
-          datasetKey: record.importedAt,
-          good: record.good,
-          preset: activePreset,
+          datasetKey: effectiveDatasetKey,
+          good: effectiveGood ?? record.good,
+          preset: effectivePreset ?? activePreset,
         })
         if (cancelled) return
 
@@ -577,6 +933,7 @@ function OptimizeInner() {
             )
           : Boolean(
               targetWeaponOverrideSpec ||
+                hasActiveTeammateWeaponOverrides ||
                 (effectiveWeaponId &&
                   effectiveWeaponId !== baseRes.currentBuild.weaponId) ||
                 hasOfficialMemberModeOverrides ||
@@ -590,9 +947,9 @@ function OptimizeInner() {
         if (isAkashaPreset && !hasEquipped) {
           if (needsReEval) {
             const overrideRes = await evaluatePresetInWorker({
-              datasetKey: record.importedAt,
-              good: record.good,
-              preset: activePreset,
+              datasetKey: effectiveDatasetKey,
+              good: effectiveGood ?? record.good,
+              preset: effectivePreset ?? activePreset,
               selection: effectiveCurrent,
             })
             if (cancelled) return
@@ -608,9 +965,9 @@ function OptimizeInner() {
 
         if (needsReEval) {
           const overrideRes = await evaluatePresetInWorker({
-            datasetKey: record.importedAt,
-            good: record.good,
-            preset: activePreset,
+            datasetKey: effectiveDatasetKey,
+            good: effectiveGood ?? record.good,
+            preset: effectivePreset ?? activePreset,
             selection: effectiveCurrent,
           })
           if (cancelled) return
@@ -641,6 +998,10 @@ function OptimizeInner() {
   }, [
     record,
     activePreset,
+    effectivePreset,
+    effectiveGood,
+    effectiveDatasetKey,
+    hasActiveTeammateWeaponOverrides,
     canRunPreset,
     isAkashaPreset,
     targetWeaponOverrideSpec,
@@ -671,9 +1032,9 @@ function OptimizeInner() {
         const evals = await Promise.all(
           optResult.builds.map(async (b) => {
             const res = await evaluatePresetInWorker({
-              datasetKey: record.importedAt,
-              good: record.good,
-              preset: activePreset,
+              datasetKey: effectiveDatasetKey,
+              good: effectiveGood ?? record.good,
+              preset: effectivePreset ?? activePreset,
               selection: {
                 ...(targetWeaponOverrideSpec
                   ? { ...b, weaponOverride: targetWeaponOverrideSpec }
@@ -712,6 +1073,9 @@ function OptimizeInner() {
   }, [
     record,
     activePreset,
+    effectivePreset,
+    effectiveGood,
+    effectiveDatasetKey,
     optResult,
     targetWeaponOverrideSpec,
     activeMemberBuildModes,
@@ -732,9 +1096,9 @@ function OptimizeInner() {
 
     try {
       const res = await optimizePresetInWorker({
-        datasetKey: record.importedAt,
-        good: record.good,
-        preset: activePreset,
+        datasetKey: effectiveDatasetKey,
+        good: effectiveGood ?? record.good,
+        preset: effectivePreset ?? activePreset,
         settings,
         weaponId: targetWeaponOverrideSpec ? undefined : effectiveWeaponId,
         weaponOverride: targetWeaponOverrideSpec,
@@ -811,9 +1175,9 @@ function OptimizeInner() {
         let optRes: OptimizeResult
         try {
           optRes = await optimizePresetInWorker({
-            datasetKey: record.importedAt,
-            good: record.good,
-            preset: activePreset,
+            datasetKey: effectiveDatasetKey,
+            good: effectiveGood ?? record.good,
+            preset: effectivePreset ?? activePreset,
             settings: compareSettings,
             weaponOverride,
             onProgress: (p) => {
@@ -858,8 +1222,8 @@ function OptimizeInner() {
             durationMs: optRes.durationMs,
           })
         } else {
-          const goodSnapshot = record.good
-          const importedAtSnapshot = record.importedAt
+          const goodSnapshot = effectiveGood ?? record.good
+          const importedAtSnapshot = effectiveDatasetKey
           const hasCandidateConditionals =
             candidateMemberConditionals &&
             Object.keys(candidateMemberConditionals).length > 0
@@ -881,7 +1245,7 @@ function OptimizeInner() {
               const evalRes = await evaluatePresetInWorker({
                 datasetKey: importedAtSnapshot,
                 good: goodSnapshot,
-                preset: activePreset,
+                preset: effectivePreset ?? activePreset,
                 selection: selectionForEval,
               })
               return {
@@ -956,9 +1320,9 @@ function OptimizeInner() {
 
     try {
       const res = await optimizeTeamInWorker({
-        datasetKey: record.importedAt,
-        good: record.good,
-        preset: activePreset,
+        datasetKey: effectiveDatasetKey,
+        good: effectiveGood ?? record.good,
+        preset: effectivePreset ?? activePreset,
         settings,
         weaponId: targetWeaponOverrideSpec ? undefined : effectiveWeaponId,
         weaponOverride: targetWeaponOverrideSpec,
@@ -1057,9 +1421,9 @@ function OptimizeInner() {
         ? { weaponOverride: targetWeaponOverrideSpec, artifactIds: {} }
         : undefined
     const exported = await exportGODatabaseInWorker({
-      datasetKey: record.importedAt,
-      good: record.good,
-      preset: activePreset,
+      datasetKey: effectiveDatasetKey,
+      good: effectiveGood ?? record.good,
+      preset: effectivePreset ?? activePreset,
       selection: effectiveSel,
     })
     const blob = new Blob([JSON.stringify(exported, null, 2)], {
@@ -1258,117 +1622,369 @@ function OptimizeInner() {
             <div>
               <h2 className="gi-card-title">3. Team &amp; Buffs</h2>
               <p className="gi-card-subtitle">
-                Configure team member builds, weapons, and active combat buffs.
+                Click any member&apos;s weapon to open the weapon picker; toggle
+                owned vs. simulated teammate builds and active combat buffs.
               </p>
             </div>
           </div>
 
           <div
-            className="preset-gear-row-md preset-provenance-box"
+            className="preset-team-cards-grid"
             data-testid="preset-team-roster"
           >
-            <span className="muted" style={{ fontSize: '0.84rem' }}>
-              Preset Team:
-            </span>
-            {activePreset.team.map((m, idx) => {
-              const isTarget = idx === 0
-              const resolved = resolvePresetMemberBuildMode({
-                presetSource: activePreset.source,
+            {teamMemberCards.map((card) => {
+              const {
+                member: m,
                 isTarget,
-                memberBuildType: m.build.type,
-                characterKey: m.key,
-                ownedCharKeys,
-                overrideMode: activeMemberBuildModes[m.key],
-              })
-              const isSimulated = isTarget
-                ? m.build.type === 'tc' || m.build.type === 'fixed'
-                : resolved.mode === 'tc'
+                resolved,
+                isSimulated,
+                isWeaponLocked,
+                effectiveWeaponSpec,
+                isOverridden,
+              } = card
 
               return (
                 <div
                   key={m.key}
+                  className={`preset-team-member-card${
+                    isTarget ? ' is-target' : ''
+                  }${isOverridden ? ' is-weapon-overridden' : ''}`}
                   data-testid={`preset-team-member-${m.key}`}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
+                  data-member-role={isTarget ? 'target' : 'teammate'}
+                  data-build-mode={resolved.mode}
+                  data-weapon-overridden={isOverridden ? 'true' : 'false'}
+                  data-weapon-locked={isWeaponLocked ? 'true' : 'false'}
                 >
-                  <CharacterBadge
-                    characterKey={m.key}
-                    simulated={isSimulated}
-                    role={isTarget ? 'target' : 'owned'}
-                    compact
-                  />
-                  {activePreset.source === 'official' && !isTarget && (
+                  <div className="preset-team-member-card-top">
+                    <CharacterBadge
+                      characterKey={m.key}
+                      simulated={isSimulated}
+                      role={isTarget ? 'target' : 'owned'}
+                      compact
+                    />
+
+                    {activePreset.source === 'official' && !isTarget ? (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        data-testid={`member-build-toggle-${m.key}`}
+                        data-character-key={m.key}
+                        data-build-mode={resolved.mode}
+                        data-owned-in-good={
+                          resolved.ownedInGood ? 'true' : 'false'
+                        }
+                        data-forced-simulated={
+                          resolved.forcedSimulated ? 'true' : 'false'
+                        }
+                        aria-pressed={resolved.mode === 'tc'}
+                        aria-label={
+                          resolved.forcedSimulated
+                            ? `${displayName(m.key)}: Simulated (Not in GOOD)`
+                            : `${displayName(m.key)} build source: ${
+                                resolved.mode === 'owned'
+                                  ? 'Owned Build'
+                                  : 'Simulated (TC)'
+                              }`
+                        }
+                        title={
+                          resolved.forcedSimulated
+                            ? `${displayName(m.key)} is not in your imported GOOD file — running simulated preset build`
+                            : 'Switch teammate between your Owned GOOD build and the preset Simulated (TC) build'
+                        }
+                        onClick={() => {
+                          const nextMode: MemberBuildMode =
+                            !resolved.ownedInGood
+                              ? 'tc'
+                              : resolved.mode === 'owned'
+                                ? 'tc'
+                                : 'owned'
+                          void updateSettings(
+                            setPresetMemberBuildMode(
+                              settings,
+                              activePreset.id,
+                              m.key,
+                              nextMode
+                            )
+                          )
+                          setOptResult(null)
+                          setOptimisedEvals([])
+                        }}
+                        style={{
+                          fontSize: '0.78rem',
+                          padding: '0.18rem 0.48rem',
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {resolved.forcedSimulated
+                          ? 'Simulated (Not in GOOD)'
+                          : resolved.mode === 'owned'
+                            ? 'Owned Build'
+                            : 'Simulated (TC)'}
+                      </button>
+                    ) : (
+                      <span
+                        className="preset-member-state-pill"
+                        data-testid={`member-build-state-${m.key}`}
+                      >
+                        {isTarget &&
+                        isAkashaPreset &&
+                        m.build.type === 'fixed'
+                          ? `Fixed Spec · Lv.${m.build.character.level} C${m.build.character.constellation}`
+                          : isWeaponLocked
+                            ? 'Fixed by Case (SIM)'
+                            : isSimulated
+                              ? 'Simulated (TC)'
+                              : 'Owned Build'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="preset-team-member-card-weapon">
                     <button
                       type="button"
-                      className="btn-secondary"
-                      data-testid={`member-build-toggle-${m.key}`}
+                      className={`preset-member-weapon-btn${
+                        isOverridden ? ' is-overridden' : ''
+                      }${isWeaponLocked ? ' is-locked' : ''}`}
+                      data-testid={`member-weapon-trigger-${m.key}`}
                       data-character-key={m.key}
-                      data-build-mode={resolved.mode}
-                      data-owned-in-good={
-                        resolved.ownedInGood ? 'true' : 'false'
-                      }
-                      data-forced-simulated={
-                        resolved.forcedSimulated ? 'true' : 'false'
-                      }
-                      aria-pressed={resolved.mode === 'tc'}
+                      data-weapon-key={effectiveWeaponSpec.key}
+                      data-weapon-overridden={isOverridden ? 'true' : 'false'}
+                      data-weapon-locked={isWeaponLocked ? 'true' : 'false'}
+                      disabled={isWeaponLocked}
                       aria-label={
-                        resolved.forcedSimulated
-                          ? `${displayName(m.key)}: Simulated (Not in GOOD)`
-                          : `${displayName(m.key)} build source: ${
-                              resolved.mode === 'owned'
-                                ? 'Owned Build'
-                                : 'Simulated (TC)'
-                            }`
+                        isWeaponLocked
+                          ? `${displayName(m.key)} weapon fixed by Akasha case: ${displayName(effectiveWeaponSpec.key)}`
+                          : `Change weapon for ${displayName(m.key)} (currently ${displayName(effectiveWeaponSpec.key)} R${effectiveWeaponSpec.refinement})`
                       }
                       title={
-                        resolved.forcedSimulated
-                          ? `${displayName(m.key)} is not in your imported GOOD file — running simulated preset build`
-                          : 'Switch teammate between your Owned GOOD build and the preset Simulated (TC) build'
+                        isWeaponLocked
+                          ? 'Teammate weapon is fixed by the Akasha leaderboard case'
+                          : `Click to choose weapon and refinement for ${displayName(m.key)}`
                       }
                       onClick={() => {
-                        const nextMode: MemberBuildMode =
-                          !resolved.ownedInGood
-                            ? 'tc'
-                            : resolved.mode === 'owned'
-                              ? 'tc'
-                              : 'owned'
-                        void updateSettings(
-                          setPresetMemberBuildMode(
-                            settings,
-                            activePreset.id,
-                            m.key,
-                            nextMode
-                          )
-                        )
-                        setOptResult(null)
-                        setOptimisedEvals([])
-                      }}
-                      style={{
-                        fontSize: '0.82rem',
-                        padding: '0.18rem 0.48rem',
-                        lineHeight: 1.2,
+                        if (!isWeaponLocked) {
+                          setWeaponModalMemberKey(m.key)
+                        }
                       }}
                     >
-                      {resolved.forcedSimulated
-                        ? 'Simulated (Not in GOOD)'
-                        : resolved.mode === 'owned'
-                          ? 'Owned Build'
-                          : 'Simulated (TC)'}
+                      <WeaponBadge
+                        weaponKey={effectiveWeaponSpec.key}
+                        subtitle={`R${effectiveWeaponSpec.refinement} · Lv.${effectiveWeaponSpec.level ?? 90}`}
+                        compact
+                      />
                     </button>
-                  )}
+
+                    <div className="preset-member-weapon-meta">
+                      <span
+                        className={isOverridden ? 'warn' : 'ok'}
+                        data-testid={
+                          isTarget
+                            ? 'target-weapon-mode-status'
+                            : `member-weapon-status-${m.key}`
+                        }
+                        style={{
+                          fontSize: '0.78rem',
+                          fontWeight: isOverridden ? 600 : 500,
+                        }}
+                      >
+                        {isWeaponLocked
+                          ? 'Fixed by Case'
+                          : isOverridden
+                            ? `Override: ${displayName(effectiveWeaponSpec.key)} R${effectiveWeaponSpec.refinement}`
+                            : '✓ Default Weapon'}
+                      </span>
+                      {isOverridden && !isWeaponLocked && (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          data-testid={
+                            isTarget
+                              ? 'reset-target-weapon-btn'
+                              : `reset-member-weapon-btn-${m.key}`
+                          }
+                          style={{
+                            fontSize: '0.78rem',
+                            padding: '0.12rem 0.42rem',
+                          }}
+                          onClick={() =>
+                            handleResetMemberWeapon(m.key, isTarget)
+                          }
+                        >
+                          Reset to Default
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )
             })}
           </div>
 
+          {/* Weapon Picker Modal (for any non-locked team member) */}
+          {activeModalMember && (
+            <div
+              className="gi-modal-backdrop"
+              data-testid="member-weapon-modal-backdrop"
+              onClick={() => setWeaponModalMemberKey(null)}
+            >
+              <div
+                className="panel gi-card gi-modal-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Select Weapon — ${displayName(activeModalMember.key)}`}
+                data-testid="member-weapon-modal"
+                data-member-key={activeModalMember.key}
+                data-member-role={
+                  activeModalMember.isTarget ? 'target' : 'teammate'
+                }
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  className="gi-card-header"
+                  data-testid={
+                    activeModalMember.isTarget
+                      ? isAkashaPreset
+                        ? 'akasha-weapon-picker-box'
+                        : 'official-target-weapon-picker'
+                      : `teammate-weapon-picker-${activeModalMember.key}`
+                  }
+                >
+                  <div className="preset-gear-row-md">
+                    <CharacterBadge
+                      characterKey={activeModalMember.key}
+                      simulated={activeModalMember.isSimulated}
+                      role={activeModalMember.isTarget ? 'target' : 'owned'}
+                      compact
+                    />
+                    <div>
+                      <h3 className="gi-card-title">
+                        Select Weapon — {displayName(activeModalMember.key)}
+                      </h3>
+                      <p className="gi-card-subtitle">
+                        Choose any {activeModalMember.weaponType} and refinement
+                        for {displayName(activeModalMember.key)}. Default is
+                        their equipped or authored preset weapon.
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <span
+                      className={activeModalMember.isOverridden ? 'warn' : 'ok'}
+                      data-testid="modal-weapon-mode-status"
+                      style={{ fontSize: '0.82rem', fontWeight: 600 }}
+                    >
+                      {activeModalMember.isOverridden
+                        ? `Override: ${displayName(activeModalMember.effectiveWeaponSpec.key)} R${activeModalMember.effectiveWeaponSpec.refinement}`
+                        : '✓ Default Weapon'}
+                    </span>
+                    {activeModalMember.isOverridden && (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        data-testid="modal-reset-weapon-btn"
+                        style={{
+                          fontSize: '0.82rem',
+                          padding: '0.18rem 0.5rem',
+                        }}
+                        onClick={() =>
+                          handleResetMemberWeapon(
+                            activeModalMember.key,
+                            activeModalMember.isTarget
+                          )
+                        }
+                      >
+                        Reset to Default
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      data-testid="close-weapon-modal-btn"
+                      aria-label="Close weapon picker"
+                      onClick={() => setWeaponModalMemberKey(null)}
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+
+                <div className="preset-akasha-controls">
+                  <WeaponBadge
+                    weaponKey={activeModalMember.effectiveWeaponSpec.key}
+                    subtitle={`R${activeModalMember.effectiveWeaponSpec.refinement} · Lv.${activeModalMember.effectiveWeaponSpec.level ?? 90}`}
+                  />
+
+                  <label className="presets-filter-label-sm">
+                    <span className="muted">Refinement:</span>
+                    <select
+                      aria-label="Weapon Refinement"
+                      data-testid={
+                        activeModalMember.isTarget
+                          ? 'target-weapon-refinement-select'
+                          : `member-weapon-refinement-select-${activeModalMember.key}`
+                      }
+                      value={activeModalMember.effectiveWeaponSpec.refinement}
+                      disabled={
+                        getWeaponMeta(activeModalMember.effectiveWeaponSpec.key)
+                          .rarity <= 2
+                      }
+                      onChange={(e) => {
+                        const nextRef = Number(e.target.value)
+                        handleSelectMemberWeapon(
+                          activeModalMember.key,
+                          activeModalMember.isTarget,
+                          activeModalMember.effectiveWeaponSpec.key,
+                          nextRef
+                        )
+                      }}
+                    >
+                      {[1, 2, 3, 4, 5].map((r) => (
+                        <option key={r} value={r}>
+                          R{r}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <WeaponTilePicker
+                  ariaLabel="Simulated Weapon"
+                  value={activeModalMember.effectiveWeaponSpec.key}
+                  options={activeModalMember.weaponsForMember.map((w) => ({
+                    id: w.key,
+                    weaponKey: w.key,
+                    label: w.displayName,
+                  }))}
+                  onChange={(nextKey) => {
+                    const meta = getWeaponMeta(nextKey)
+                    const nextRef =
+                      meta.rarity <= 2
+                        ? 1
+                        : activeModalMember.effectiveWeaponSpec.refinement
+                    handleSelectMemberWeapon(
+                      activeModalMember.key,
+                      activeModalMember.isTarget,
+                      nextKey,
+                      nextRef
+                    )
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           {optimizeMode === 'compare' && (
             <WeaponComparisonPanel
               targetCharacterKey={activePreset.target}
-              good={record?.good}
-              preset={activePreset}
+              good={effectiveGood ?? record?.good}
+              preset={effectivePreset ?? activePreset}
               settings={settings}
               selectedCandidates={activeCompareCandidates}
               onChangeCandidates={(next) => {
@@ -1398,166 +2014,6 @@ function OptimizeInner() {
               }}
             />
           )}
-
-          {/* Target Weapon Selector (Akasha & Official Presets) */}
-          {optimizeMode === 'single' &&
-            hasTargetWeaponPicker &&
-            displayedTargetWeaponSpec && (
-              <div
-                className="preset-akasha-box"
-                data-testid={
-                  isAkashaPreset
-                    ? 'akasha-weapon-picker-box'
-                    : 'official-target-weapon-picker'
-                }
-              >
-                {isAkashaPreset && activePreset.team[0]?.build.type === 'fixed' ? (
-                  <>
-                    <div className="preset-akasha-top">
-                      <strong>
-                        Akasha Artifact-Only Mode — Fixed Target &amp; Free Weapon
-                        Selector
-                      </strong>
-                      <span
-                        className="ok"
-                        style={{ fontSize: '0.82rem', fontWeight: 600 }}
-                      >
-                        ✓ Fixed Spec: {displayName(activePreset.target)} Lv.
-                        {activePreset.team[0].build.character.level} C
-                        {activePreset.team[0].build.character.constellation}{' '}
-                        (Talents{' '}
-                        {activePreset.team[0].build.character.talent.auto}/
-                        {activePreset.team[0].build.character.talent.skill}/
-                        {activePreset.team[0].build.character.talent.burst})
-                      </span>
-                    </div>
-
-                    <div className="muted preset-akasha-desc">
-                      Artifact-only mode: fixed character stats &amp; simulated
-                      weapon; only your imported GOOD artifacts are used.
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="preset-akasha-top">
-                      <strong>
-                        Target Weapon Selector — {displayName(activePreset.target)}
-                      </strong>
-                      <div
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                        }}
-                      >
-                        <span
-                          className={targetWeaponOverrideSpec ? 'warn' : 'ok'}
-                          data-testid="target-weapon-mode-status"
-                          style={{ fontSize: '0.82rem', fontWeight: 600 }}
-                        >
-                          {targetWeaponOverrideSpec
-                            ? `Override: ${displayName(targetWeaponOverrideSpec.key)} R${targetWeaponOverrideSpec.refinement}`
-                            : '✓ Default Weapon'}
-                        </span>
-                        {targetWeaponOverrideSpec && (
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            data-testid="reset-target-weapon-btn"
-                            style={{
-                              fontSize: '0.82rem',
-                              padding: '0.16rem 0.48rem',
-                            }}
-                            onClick={() => {
-                              setAkashaWeaponByPreset((prev) => {
-                                const next = { ...prev }
-                                delete next[activePreset.id]
-                                return next
-                              })
-                              setOptResult(null)
-                              setOptimisedEvals([])
-                            }}
-                          >
-                            Reset to Default
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="muted preset-akasha-desc">
-                      Choose any{' '}
-                      {getCharacterMeta(activePreset.target).weaponType} (owned or
-                      simulated) and refinement for{' '}
-                      {displayName(activePreset.target)}; both the Current build
-                      baseline and the optimizer use the selected weapon.
-                    </div>
-                  </>
-                )}
-
-                <div className="preset-akasha-controls">
-                  <WeaponBadge
-                    weaponKey={displayedTargetWeaponSpec.key}
-                    subtitle={`R${displayedTargetWeaponSpec.refinement} · Lv.${displayedTargetWeaponSpec.level ?? 90}`}
-                  />
-
-                  <label className="presets-filter-label-sm">
-                    <span className="muted">Refinement:</span>
-                    <select
-                      aria-label="Weapon Refinement"
-                      data-testid="target-weapon-refinement-select"
-                      value={displayedTargetWeaponSpec.refinement}
-                      disabled={
-                        getWeaponMeta(displayedTargetWeaponSpec.key).rarity <= 2
-                      }
-                      onChange={(e) => {
-                        const nextRef = Number(e.target.value)
-                        setAkashaWeaponByPreset((prev) => ({
-                          ...prev,
-                          [activePreset.id]: {
-                            key: displayedTargetWeaponSpec.key,
-                            refinement: nextRef,
-                          },
-                        }))
-                        setOptResult(null)
-                        setOptimisedEvals([])
-                      }}
-                    >
-                      {[1, 2, 3, 4, 5].map((r) => (
-                        <option key={r} value={r}>
-                          R{r}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <WeaponTilePicker
-                  ariaLabel="Simulated Weapon"
-                  value={displayedTargetWeaponSpec.key}
-                  options={availableAkashaWeapons.map((w) => ({
-                    id: w.key,
-                    weaponKey: w.key,
-                    label: w.displayName,
-                  }))}
-                  onChange={(nextKey) => {
-                    const meta = getWeaponMeta(nextKey)
-                    const nextRef =
-                      meta.rarity <= 2
-                        ? 1
-                        : displayedTargetWeaponSpec.refinement
-                    setAkashaWeaponByPreset((prev) => ({
-                      ...prev,
-                      [activePreset.id]: {
-                        key: nextKey,
-                        refinement: nextRef,
-                      },
-                    }))
-                    setOptResult(null)
-                    setOptimisedEvals([])
-                  }}
-                />
-              </div>
-            )}
 
           {optimizeMode === 'single' &&
             !isAkashaPreset &&
@@ -1620,7 +2076,7 @@ function OptimizeInner() {
 
           {optimizeMode !== 'team' && (
             <TeammateFastModePanel
-              preset={activePreset}
+              preset={effectivePreset ?? activePreset}
               ownedCharKeys={ownedCharKeys}
               memberBuildModes={activeMemberBuildModes}
               memberStats={teamMemberStats}
@@ -1632,14 +2088,14 @@ function OptimizeInner() {
           )}
 
           <ConditionalTogglePanel
-            preset={activePreset}
+            preset={effectivePreset ?? activePreset}
             settings={settings}
             onChangeSettings={(next) => {
               void updateSettings(next)
               setOptResult(null)
               setOptimisedEvals([])
             }}
-            good={record?.good}
+            good={effectiveGood ?? record?.good}
             activeTargetWeaponKey={
               targetWeaponOverrideSpec?.key ??
               displayedTargetWeaponSpec?.key ??
@@ -1649,6 +2105,7 @@ function OptimizeInner() {
                 (w) => w.location === activePreset.target
               )?.key
             }
+            collapsible
           />
         </section>
       )}

@@ -47,6 +47,8 @@ export interface ConditionalTogglePanelProps {
   activeTargetWeaponKey?: string
   /** Optional pre-loaded conditional catalog (used in unit tests or SSR). */
   conditionalsByChar?: Record<string, ConditionalDescriptor[]>
+  /** When true, renders Buffs & Passives as a collapsible section (starts open if modified, closed if default). */
+  collapsible?: boolean
 }
 
 const SECTION_SHORT_BADGE: Record<string, string> = {
@@ -472,6 +474,7 @@ export function ConditionalTogglePanel({
   good,
   activeTargetWeaponKey,
   conditionalsByChar: providedCatalog,
+  collapsible = false,
 }: ConditionalTogglePanelProps) {
   const [loadedCatalog, setLoadedCatalog] = useState<
     Record<string, ConditionalDescriptor[]>
@@ -479,6 +482,7 @@ export function ConditionalTogglePanel({
   const [selectedMemberKey, setSelectedMemberKey] = useState<string>(
     () => preset.team[0]?.key ?? ''
   )
+  const [userExpanded, setUserExpanded] = useState<boolean | null>(null)
 
   const teamKeys = useMemo(
     () => preset.team.slice(0, 4).map((m) => m.key),
@@ -712,31 +716,82 @@ export function ConditionalTogglePanel({
   const activeEntry =
     memberEntries.find((e) => e.mKey === selectedMemberKey) ?? memberEntries[0]
 
+  const totalActiveCount = memberEntries.reduce(
+    (sum, e) => sum + e.activeCount,
+    0
+  )
+  const modifiedMembersCount = memberEntries.filter(
+    (e) => e.hasMemberOverride
+  ).length
+  const buffsSummaryText = anyPresetOverrides
+    ? `Buffs & Passives — ${
+        modifiedMembersCount > 0
+          ? `${modifiedMembersCount} member${modifiedMembersCount > 1 ? 's' : ''} modified`
+          : 'modified'
+      }${!resonanceEnabled ? ' · Resonance OFF' : ''} (${totalActiveCount} active)`
+    : `Buffs & Passives — defaults (${totalActiveCount} active)`
+
+  const isExpanded = !collapsible
+    ? true
+    : userExpanded !== null
+      ? userExpanded
+      : anyPresetOverrides
+
   return (
     <section
-      className="panel gi-card"
+      className={`panel gi-card${collapsible ? ' gi-collapsible-section' : ''}`}
       data-testid="conditional-toggle-panel"
+      data-expanded={isExpanded ? 'true' : 'false'}
       aria-label="Buffs & Passives"
     >
-      <div className="gi-card-header">
+      <div className="gi-card-header gi-collapsible-header">
         <div>
-          <h2 className="gi-card-title">Buffs &amp; Passives</h2>
-          <p className="gi-card-subtitle">
-            Inspect and toggle weapon passives, artifact set effects, character
-            talents, and constellation buffs for every team member.
-          </p>
+          <div className="gi-collapsible-title-row">
+            <h2
+              className="gi-card-title"
+              data-testid="buffs-collapsible-summary"
+            >
+              {collapsible ? buffsSummaryText : 'Buffs & Passives'}
+            </h2>
+          </div>
+          {!collapsible && (
+            <p className="gi-card-subtitle">
+              Inspect and toggle weapon passives, artifact set effects, character
+              talents, and constellation buffs for every team member.
+            </p>
+          )}
         </div>
-        {anyPresetOverrides && (
-          <button
-            type="button"
-            className="btn-secondary"
-            data-testid="reset-all-conditionals"
-            onClick={handleResetAll}
-            style={{ fontSize: '0.82rem', padding: '0.28rem 0.65rem' }}
-          >
-            Reset All to Defaults
-          </button>
-        )}
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          {anyPresetOverrides && (
+            <button
+              type="button"
+              className="btn-secondary"
+              data-testid="reset-all-conditionals"
+              onClick={handleResetAll}
+              style={{ fontSize: '0.82rem', padding: '0.28rem 0.65rem' }}
+            >
+              Reset All to Defaults
+            </button>
+          )}
+          {collapsible && (
+            <button
+              type="button"
+              className="btn-secondary gi-collapsible-toggle"
+              data-testid="buffs-collapsible-toggle"
+              aria-expanded={isExpanded}
+              onClick={() => setUserExpanded(!isExpanded)}
+            >
+              [{isExpanded ? 'Hide' : 'Show'}]
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Team-Level Elemental Resonance Master Toggle */}
@@ -785,58 +840,60 @@ export function ConditionalTogglePanel({
         </div>
       </div>
 
-      {/* Character Switcher Tab Bar (GO-style team member tiles) */}
-      <div
-        role="tablist"
-        aria-label="Team member buffs switcher"
-        className="gi-buffs-member-tabs"
-        data-testid="buff-panel-member-tabs"
-      >
-        {memberEntries.map((entry) => {
-          const isSelected = activeEntry?.mKey === entry.mKey
-          return (
-            <button
-              key={entry.mKey}
-              type="button"
-              role="tab"
-              aria-selected={isSelected}
-              data-testid={`member-buffs-tab-${entry.mKey}`}
-              data-character-key={entry.mKey}
-              data-selected={isSelected ? 'true' : 'false'}
-              className={`gi-buffs-member-tab${isSelected ? ' is-selected' : ''}`}
-              onClick={() => setSelectedMemberKey(entry.mKey)}
-            >
-              <CharacterBadge
-                characterKey={entry.mKey}
-                simulated={entry.isSimulated}
-                role={entry.isTarget ? 'target' : 'owned'}
-                compact
-              />
-              <span className="gi-buffs-member-tab-meta">
-                <span
-                  className={`gi-buffs-count-pill${
-                    entry.activeCount > 0 ? ' is-active' : ''
-                  }`}
-                  data-testid={`member-tab-active-count-${entry.mKey}`}
+      {isExpanded && (
+        <>
+          {/* Character Switcher Tab Bar (GO-style team member tiles) */}
+          <div
+            role="tablist"
+            aria-label="Team member buffs switcher"
+            className="gi-buffs-member-tabs"
+            data-testid="buff-panel-member-tabs"
+          >
+            {memberEntries.map((entry) => {
+              const isSelected = activeEntry?.mKey === entry.mKey
+              return (
+                <button
+                  key={entry.mKey}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  data-testid={`member-buffs-tab-${entry.mKey}`}
+                  data-character-key={entry.mKey}
+                  data-selected={isSelected ? 'true' : 'false'}
+                  className={`gi-buffs-member-tab${isSelected ? ' is-selected' : ''}`}
+                  onClick={() => setSelectedMemberKey(entry.mKey)}
                 >
-                  {entry.activeCount} active
-                </span>
-                {entry.hasMemberOverride && (
-                  <span
-                    className="gi-buffs-modified-pill"
-                    data-testid={`member-tab-modified-${entry.mKey}`}
-                  >
-                    Modified
+                  <CharacterBadge
+                    characterKey={entry.mKey}
+                    simulated={entry.isSimulated}
+                    role={entry.isTarget ? 'target' : 'owned'}
+                    compact
+                  />
+                  <span className="gi-buffs-member-tab-meta">
+                    <span
+                      className={`gi-buffs-count-pill${
+                        entry.activeCount > 0 ? ' is-active' : ''
+                      }`}
+                      data-testid={`member-tab-active-count-${entry.mKey}`}
+                    >
+                      {entry.activeCount} active
+                    </span>
+                    {entry.hasMemberOverride && (
+                      <span
+                        className="gi-buffs-modified-pill"
+                        data-testid={`member-tab-modified-${entry.mKey}`}
+                      >
+                        Modified
+                      </span>
+                    )}
                   </span>
-                )}
-              </span>
-            </button>
-          )
-        })}
-      </div>
+                </button>
+              )
+            })}
+          </div>
 
-      {/* Single Active Member Buffs & Passives Panel */}
-      {activeEntry && (
+          {/* Single Active Member Buffs & Passives Panel */}
+          {activeEntry && (
         <div
           key={activeEntry.mKey}
           role="tabpanel"
@@ -1080,6 +1137,8 @@ export function ConditionalTogglePanel({
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </section>
   )
