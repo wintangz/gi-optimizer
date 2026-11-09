@@ -2455,6 +2455,7 @@ td {
   align-items: center;
   gap: 0.45rem;
   flex-wrap: wrap;
+  min-height: 1.5rem;
 }
 
 .gi-buffs-resonance-label {
@@ -2471,6 +2472,14 @@ td {
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
+}
+
+.gi-buffs-resonance-controls .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  line-height: 1;
 }
 
 .gi-buffs-resonance-section {
@@ -2727,9 +2736,13 @@ td {
 }
 
 .gi-buffs-modified-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 1.375rem;
+  line-height: 1;
   font-size: 0.78rem;
   font-weight: 700;
-  padding: 0.1rem 0.42rem;
+  padding: 0 0.42rem;
   border-radius: var(--radius-xs);
   background: var(--accent-bg);
   color: var(--accent);
@@ -2885,9 +2898,13 @@ td {
 }
 
 .gi-buff-team-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 1.375rem;
+  line-height: 1;
   font-size: 0.78rem;
   font-weight: 700;
-  padding: 0.04rem 0.3rem;
+  padding: 0 0.3rem;
   border-radius: var(--radius-xs);
   background: var(--warn-bg);
   color: var(--warn);

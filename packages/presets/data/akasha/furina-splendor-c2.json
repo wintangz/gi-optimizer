@@ -7,10 +7,10 @@
   "author": "akasha.cv",
   "akasha": {
     "calculationId": "furina-salon-splendor-c2",
-    "leaderboardUrl": "https://akasha.cv/leaderboards/1000008902",
+    "leaderboardUrl": "https://akasha.cv/leaderboards/1000008905/c2-160er",
     "label": "Salon Solitaire · C2 · Splendor R1",
-    "retrievedAt": "2026-11-05",
-    "notes": "Fixed Akasha target spec: Furina C2, Lv. 90 (10/10/10), default weapon Splendor of Tranquil Waters R1 (user-selectable). Assumes 300 Fanfare and C2 HP overstack."
+    "retrievedAt": "2026-11-10",
+    "notes": "Fixed Akasha target spec: Furina C2, Lv. 90 (10/10/10), default weapon Splendor of Tranquil Waters R1 (user-selectable). Assumes 300 Fanfare and C2 HP overstack. Case team slots are generic (Furina + any Hydro teammate + any two teammates in a full double-Hydro party, so Soothing Water resonance applies); modelled with Neuvillette plus two inert shadow teammates (Kaeya, Amber) with empty conditionals."
   },
   "target": "Furina",
   "team": [
@@ -66,6 +66,56 @@
             },
             "substats": { "type": "max", "rarity": 5, "stats": { "hp_": 29.7, "critRate_": 31.1, "critDMG_": 62.2 } },
             "sets": { "MarechausseeHunter": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {},
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Kaeya",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 9, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "PrototypeRancour", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "cryo_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "critRate_": 31.1, "critDMG_": 62.2 } },
+            "sets": { "GladiatorsFinale": 4 }
+          }
+        }
+      },
+      "requirement": {},
+      "conditional": {},
+      "bonusStats": {},
+      "hitMode": "avgHit"
+    },
+    {
+      "key": "Amber",
+      "build": {
+        "type": "tc",
+        "tc": {
+          "character": { "level": 90, "ascension": 6, "constellation": 0, "talent": { "auto": 9, "skill": 9, "burst": 9 } },
+          "weapon": { "key": "PrototypeCrescent", "level": 90, "ascension": 6, "refinement": 5 },
+          "artifact": {
+            "slots": {
+              "flower": { "statKey": "hp", "level": 20, "rarity": 5 },
+              "plume": { "statKey": "atk", "level": 20, "rarity": 5 },
+              "sands": { "statKey": "atk_", "level": 20, "rarity": 5 },
+              "goblet": { "statKey": "pyro_dmg_", "level": 20, "rarity": 5 },
+              "circlet": { "statKey": "critRate_", "level": 20, "rarity": 5 }
+            },
+            "substats": { "type": "max", "rarity": 5, "stats": { "atk_": 29.7, "critRate_": 31.1, "critDMG_": 62.2 } },
+            "sets": { "WanderersTroupe": 4 }
           }
         }
       },

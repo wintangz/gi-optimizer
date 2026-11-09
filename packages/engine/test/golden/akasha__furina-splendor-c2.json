@@ -1,7 +1,7 @@
 {
   "presetId": "akasha/furina-splendor-c2",
   "target": "Furina",
-  "total": 600631.9845911551,
+  "total": 637055.6190649365,
   "instances": [
     {
       "label": "Ousia Bubble DMG",
@@ -10,8 +10,8 @@
         "bubbleDmg"
       ],
       "count": 1,
-      "perHit": 23504.382450480614,
-      "subtotal": 23504.382450480614
+      "perHit": 24929.739502504774,
+      "subtotal": 24929.739502504774
     },
     {
       "label": "Gentilhomme Usher DMG (×7)",
@@ -20,8 +20,8 @@
         "usherDmg"
       ],
       "count": 7,
-      "perHit": 27534.91911214751,
-      "subtotal": 192744.43378503257
+      "perHit": 29204.696704309335,
+      "subtotal": 204432.87693016534
     },
     {
       "label": "Surintendante Chevalmarin DMG (×14)",
@@ -30,8 +30,8 @@
         "chevalDmg"
       ],
       "count": 14,
-      "perHit": 14931.687679607505,
-      "subtotal": 209043.62751450506
+      "perHit": 15837.177810122108,
+      "subtotal": 221720.4893417095
     },
     {
       "label": "Mademoiselle Crabaletta DMG (×4)",
@@ -40,8 +40,8 @@
         "crabDmg"
       ],
       "count": 4,
-      "perHit": 38290.16939622123,
-      "subtotal": 153160.67758488492
+      "perHit": 40612.16883981809,
+      "subtotal": 162448.67535927237
     },
     {
       "label": "Let the People Rejoice Burst DMG",
@@ -50,12 +50,12 @@
         "skillDmg"
       ],
       "count": 1,
-      "perHit": 22178.863256251952,
-      "subtotal": 22178.863256251952
+      "perHit": 23523.837931284605,
+      "subtotal": 23523.837931284605
     }
   ],
   "stats": {
-    "hp": 63105.36535135,
+    "hp": 66932.21243885001,
     "atk": 1235.9039674932399,
     "def": 731.01433179735,
     "eleMas": 0,

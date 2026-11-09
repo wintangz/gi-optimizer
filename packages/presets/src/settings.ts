@@ -234,7 +234,9 @@ export function listTriggeredResonances(
       activeCharKeys.push(k)
     }
   }
-  if (activeCharKeys.length === 0) return []
+  // Elemental Resonance requires a full party of 4 in-game (and in GO's
+  // resonance sheets): shorter teams trigger no resonance at all.
+  if (activeCharKeys.length < 4) return []
 
   const eleCounts: Partial<Record<IdentifierElement, number>> = {}
   for (const ck of activeCharKeys) {
