@@ -650,16 +650,46 @@ export function ConditionalTogglePanel({
     condKey: string,
     nextValue: string
   ) {
-    onChangeSettings(
-      setMemberConditionalOverride(
-        settings,
-        preset.id,
-        characterKey,
-        sheetKey,
-        condKey,
-        nextValue
-      )
+    let next = setMemberConditionalOverride(
+      settings,
+      preset.id,
+      characterKey,
+      sheetKey,
+      condKey,
+      nextValue
     )
+    // Constellation auto-raise: turning ON a constellation-gated switch
+    // raises the member's constellation override to the required level in
+    // the same settings write (marked Modified via the override). Turning
+    // the switch off never lowers the constellation back.
+    if (nextValue !== 'off') {
+      const entry = memberEntries.find((e) => e.mKey === characterKey)
+      const cond = entry
+        ? [
+            ...entry.weaponConditionals,
+            ...entry.visibleArtifactConditionals,
+            ...entry.characterConditionals,
+            ...entry.constellationConditionals,
+          ].find((c) => c.sheet === sheetKey && c.key === condKey)
+        : undefined
+      const required = cond
+        ? getRequiredConstellationForConditional(cond)
+        : undefined
+      if (
+        entry &&
+        required !== undefined &&
+        entry.resolvedConstellation.value < required
+      ) {
+        next = setMemberConstellationOverride(
+          next,
+          preset.id,
+          characterKey,
+          required,
+          entry.resolvedConstellation.defaultValue
+        )
+      }
+    }
+    onChangeSettings(next)
   }
 
   function handleSetMemberConstellation(
@@ -667,15 +697,40 @@ export function ConditionalTogglePanel({
     nextConstellation: number,
     defaultConstellation: number
   ) {
-    onChangeSettings(
-      setMemberConstellationOverride(
-        settings,
-        preset.id,
-        characterKey,
-        nextConstellation,
-        defaultConstellation
-      )
+    let next = setMemberConstellationOverride(
+      settings,
+      preset.id,
+      characterKey,
+      nextConstellation,
+      defaultConstellation
     )
+    // Keep switches honest: a constellation-gated switch whose requirement
+    // is now above the member's constellation is turned off in the same
+    // write (an ON switch must always be a live switch). Raising the
+    // constellation again does not resurrect switches that were turned off.
+    const entry = memberEntries.find((e) => e.mKey === characterKey)
+    if (entry) {
+      const allConds = [
+        ...entry.weaponConditionals,
+        ...entry.visibleArtifactConditionals,
+        ...entry.characterConditionals,
+        ...entry.constellationConditionals,
+      ]
+      for (const cond of allConds) {
+        const required = getRequiredConstellationForConditional(cond)
+        if (required !== undefined && required > nextConstellation) {
+          next = setMemberConditionalOverride(
+            next,
+            preset.id,
+            characterKey,
+            cond.sheet,
+            cond.key,
+            'off'
+          )
+        }
+      }
+    }
+    onChangeSettings(next)
   }
 
   function handleResetMember(characterKey: string) {

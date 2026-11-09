@@ -1175,4 +1175,131 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
       /\.gi-buffs-member-tab\s*\{[^}]*flex:\s*1\s+1\s+0%;[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap;/
     )
   })
+
+  it('constellation auto-raise: turning ON a gated switch raises the member constellation override in the same write; turning it OFF never lowers it back', () => {
+    const furinaPreset = getBundledPreset('akasha/furina-salon-pjc-c0')!
+    const furinaCatalog: Record<string, ConditionalDescriptor[]> = {
+      ...SAMPLE_CATALOG,
+      Furina: listConditionalsForCharacter('Furina'),
+    }
+    let currentSettings: OptimizerSettings = { ...DEFAULT_OPTIMIZER_SETTINGS }
+
+    function renderPanel(presetToRender: Preset = furinaPreset) {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        const nodes = evaluateTree(
+          React.createElement(ConditionalTogglePanel, {
+            preset: presetToRender,
+            settings: currentSettings,
+            onChangeSettings: (next) => {
+              currentSettings = next
+            },
+            good: SAMPLE_GOOD,
+            conditionalsByChar: furinaCatalog,
+          })
+        )
+        hookStore.flushEffects()
+        return nodes.filter((n): n is VNode => typeof n !== 'string')
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    // Furina is C0 on this case; c2Overstack is gated at C2, c6 at C6.
+    const tree1 = renderPanel()
+    expect(
+      getPresetConstellationOverrides(currentSettings, furinaPreset.id)
+    ).toEqual({})
+    const c2Toggle = findByTestId(
+      tree1,
+      'cond-toggle-Furina-Furina-c2Overstack'
+    )!
+    expect(c2Toggle).toBeDefined()
+
+    // ON -> auto-raise to C2 in the same settings write, Modified lights up
+    ;(c2Toggle.props.onClick as () => void)()
+    expect(
+      getPresetConstellationOverrides(currentSettings, furinaPreset.id)
+    ).toEqual({ Furina: 2 })
+    const tree2 = renderPanel()
+    expect(
+      findByTestId(tree2, 'member-constellation-select-Furina')!.props.value
+    ).toBe('2')
+    expect(findByTestId(tree2, 'member-modified-badge-Furina')).toBeDefined()
+
+    // Turning the C6 switch ON raises further, to C6
+    const c6Toggle = findByTestId(tree2, 'cond-toggle-Furina-Furina-c6')!
+    expect(c6Toggle).toBeDefined()
+    ;(c6Toggle.props.onClick as () => void)()
+    expect(
+      getPresetConstellationOverrides(currentSettings, furinaPreset.id)
+    ).toEqual({ Furina: 6 })
+
+    // Turning a gated switch OFF never lowers the constellation back
+    const tree3 = renderPanel()
+    const c6ToggleOn = findByTestId(tree3, 'cond-toggle-Furina-Furina-c6')!
+    ;(c6ToggleOn.props.onClick as () => void)()
+    expect(
+      getPresetConstellationOverrides(currentSettings, furinaPreset.id)
+    ).toEqual({ Furina: 6 })
+
+    // Turn C6 back ON, then lower the constellation by hand: switches gated
+    // above the new constellation turn off in the same write
+    const tree4 = renderPanel()
+    ;(
+      findByTestId(tree4, 'cond-toggle-Furina-Furina-c6')!.props
+        .onClick as () => void
+    )()
+    const tree5 = renderPanel()
+    expect(
+      findByTestId(tree5, 'cond-toggle-Furina-Furina-c6')!.props[
+        'aria-checked'
+      ]
+    ).toBe(true)
+    const constSelect5 = findByTestId(
+      tree5,
+      'member-constellation-select-Furina'
+    )!
+    ;(
+      constSelect5.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '2' } })
+    expect(
+      getPresetConstellationOverrides(currentSettings, furinaPreset.id)
+    ).toEqual({ Furina: 2 })
+    const tree6 = renderPanel()
+    // C6 switch is now OFF (gated above C2); the C2 switch stays ON
+    expect(
+      findByTestId(tree6, 'cond-toggle-Furina-Furina-c6')!.props[
+        'aria-checked'
+      ]
+    ).toBe(false)
+    expect(
+      findByTestId(tree6, 'cond-toggle-Furina-Furina-c2Overstack')!.props[
+        'aria-checked'
+      ]
+    ).toBe(true)
+
+    // Lowering to C0 turns the C2 switch off too and clears the override
+    const constSelect6 = findByTestId(
+      tree6,
+      'member-constellation-select-Furina'
+    )!
+    ;(
+      constSelect6.props.onChange as (e: {
+        target: { value: string }
+      }) => void
+    )({ target: { value: '0' } })
+    expect(
+      getPresetConstellationOverrides(currentSettings, furinaPreset.id)
+    ).toEqual({})
+    const tree7 = renderPanel()
+    expect(
+      findByTestId(tree7, 'cond-toggle-Furina-Furina-c2Overstack')!.props[
+        'aria-checked'
+      ]
+    ).toBe(false)
+  })
 })
