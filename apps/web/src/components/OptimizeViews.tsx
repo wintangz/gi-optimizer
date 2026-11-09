@@ -1712,6 +1712,7 @@ interface FullDamageSectionViewProps {
   isCurrentBuild?: boolean
   expandedFormulaKey?: string | null
   onToggleFormulaKey?: (key: string) => void
+  initialExpanded?: boolean
 }
 
 function FullDamageSectionView({
@@ -1721,7 +1722,12 @@ function FullDamageSectionView({
   isCurrentBuild = false,
   expandedFormulaKey = null,
   onToggleFormulaKey,
+  initialExpanded = false,
 }: FullDamageSectionViewProps) {
+  const [sectionExpanded, setSectionExpanded] = useState<boolean>(
+    () => initialExpanded || Boolean(expandedFormulaKey)
+  )
+
   if (!fullDamage || fullDamage.length === 0) {
     return null
   }
@@ -1737,169 +1743,197 @@ function FullDamageSectionView({
     }
   }
 
+  const bodyId = `comp-full-damage-body-${rowKey}`
+
   return (
     <div
       className="comp-full-damage-section"
       data-testid={`comp-full-damage-${rowKey}`}
       data-mode={showDiff ? 'diff' : 'plain'}
+      data-expanded={sectionExpanded ? 'true' : 'false'}
     >
-      <div className="comp-details-subheader">
-        <strong data-testid={`comp-full-damage-header-${rowKey}`}>
-          Full Damage
-        </strong>
-        <span className="muted comp-details-subhint">
-          All active talent &amp; reaction formulas in sheet order (click any
-          row to inspect formula breakdown)
-        </span>
-      </div>
-      <div className="gi-table-wrap">
-        <table
-          className="gi-table comp-damage-table comp-full-damage-table"
-          data-mode={showDiff ? 'diff' : 'plain'}
-          aria-label="Full Damage"
+      <div
+        className="comp-details-subheader gi-collapsible-header-clickable"
+        onClick={() => setSectionExpanded((prev) => !prev)}
+      >
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            flexWrap: 'wrap',
+          }}
         >
-          <thead>
-            <tr>
-              <th className="comp-dmg-col-name">Formula</th>
-              <th className="comp-dmg-col-compact">Reaction</th>
-              <th className="comp-dmg-col-compact">Hit Mode</th>
-              <th className="comp-dmg-col-num">Damage</th>
-              {showDiff && (
-                <th className="comp-dmg-col-num comp-dmg-col-delta">
-                  vs. Current
-                </th>
-              )}
-            </tr>
-          </thead>
-          {fullDamage.map((section) => (
-            <tbody
-              key={section.sectionKey}
-              className="comp-full-damage-group"
-              data-testid={`comp-full-damage-group-${rowKey}-${section.sectionKey}`}
-              data-section-key={section.sectionKey}
-              aria-label={section.label}
-            >
-              <tr
-                className="comp-stat-group-header-row comp-full-damage-group-header-row"
-                data-testid={`comp-full-damage-group-header-${rowKey}-${section.sectionKey}`}
-              >
-                <th
-                  colSpan={colSpan}
-                  scope="colgroup"
-                  className="comp-stat-group-header"
-                >
-                  {section.label}
-                </th>
+          <strong data-testid={`comp-full-damage-header-${rowKey}`}>
+            Full Damage
+          </strong>
+          <span className="muted comp-details-subhint">
+            All active talent &amp; reaction formulas in sheet order (click any
+            row to inspect formula breakdown)
+          </span>
+        </div>
+        <ChevronToggle
+          expanded={sectionExpanded}
+          className="btn-secondary gi-collapsible-toggle"
+          data-testid={`comp-full-damage-section-toggle-${rowKey}`}
+          ariaControls={bodyId}
+          ariaLabel="Toggle Full Damage"
+          onClick={(e) => {
+            e?.stopPropagation?.()
+            setSectionExpanded((prev) => !prev)
+          }}
+        />
+      </div>
+      {sectionExpanded && (
+        <div id={bodyId} className="gi-table-wrap">
+          <table
+            className="gi-table comp-damage-table comp-full-damage-table"
+            data-mode={showDiff ? 'diff' : 'plain'}
+            aria-label="Full Damage"
+          >
+            <thead>
+              <tr>
+                <th className="comp-dmg-col-name">Formula</th>
+                <th className="comp-dmg-col-compact">Reaction</th>
+                <th className="comp-dmg-col-compact">Hit Mode</th>
+                <th className="comp-dmg-col-num">Damage</th>
+                {showDiff && (
+                  <th className="comp-dmg-col-num comp-dmg-col-delta">
+                    vs. Current
+                  </th>
+                )}
               </tr>
-              {section.formulas.map((entry, fIdx) => {
-                const pathStr = entry.path.join('.')
-                const toggleKey = `${rowKey}:${pathStr}`
-                const isExpanded = expandedFormulaKey === toggleKey
-                const currVal = showDiff
-                  ? baselineByPath.get(pathStr)
-                  : undefined
-                const delta =
-                  showDiff && currVal !== undefined
-                    ? formatRelativeDelta(entry.value, currVal)
-                    : null
-                const bdRowId = `comp-full-damage-breakdown-row-${rowKey}-${section.sectionKey}-${entry.key}`
+            </thead>
+            {fullDamage.map((section) => (
+              <tbody
+                key={section.sectionKey}
+                className="comp-full-damage-group"
+                data-testid={`comp-full-damage-group-${rowKey}-${section.sectionKey}`}
+                data-section-key={section.sectionKey}
+                aria-label={section.label}
+              >
+                <tr
+                  className="comp-stat-group-header-row comp-full-damage-group-header-row"
+                  data-testid={`comp-full-damage-group-header-${rowKey}-${section.sectionKey}`}
+                >
+                  <th
+                    colSpan={colSpan}
+                    scope="colgroup"
+                    className="comp-stat-group-header"
+                  >
+                    {section.label}
+                  </th>
+                </tr>
+                {section.formulas.map((entry, fIdx) => {
+                  const pathStr = entry.path.join('.')
+                  const toggleKey = `${rowKey}:${pathStr}`
+                  const isExpanded = expandedFormulaKey === toggleKey
+                  const currVal = showDiff
+                    ? baselineByPath.get(pathStr)
+                    : undefined
+                  const delta =
+                    showDiff && currVal !== undefined
+                      ? formatRelativeDelta(entry.value, currVal)
+                      : null
+                  const bdRowId = `comp-full-damage-breakdown-row-${rowKey}-${section.sectionKey}-${entry.key}`
 
-                return (
-                  <Fragment key={entry.key}>
-                    <tr
-                      data-testid={`comp-full-damage-row-${rowKey}-${section.sectionKey}-${entry.key}`}
-                      data-formula-path={pathStr}
-                      data-mode={showDiff ? 'diff' : 'plain'}
-                      data-has-reaction={entry.reaction ? 'true' : 'false'}
-                      aria-expanded={entry.breakdown ? isExpanded : undefined}
-                      className={
-                        entry.breakdown ? 'comp-expandable-tr' : undefined
-                      }
-                      onClick={
-                        entry.breakdown && onToggleFormulaKey
-                          ? () => onToggleFormulaKey(toggleKey)
-                          : undefined
-                      }
-                    >
-                      <td className="comp-dmg-col-name" data-dmg-cell="name">
-                        <span className="comp-stat-label-cell">
-                          {entry.breakdown && (
-                            <ChevronToggle
-                              expanded={isExpanded}
-                              size={12}
-                              className="comp-row-chevron"
-                              data-testid={`comp-full-damage-toggle-${rowKey}-${section.sectionKey}-${entry.key}`}
-                              ariaControls={bdRowId}
-                              ariaLabel={`Toggle ${entry.label} breakdown`}
-                              onClick={(e) => {
-                                e?.stopPropagation?.()
-                                onToggleFormulaKey?.(toggleKey)
-                              }}
-                            />
-                          )}
-                          <strong>{entry.label}</strong>
-                        </span>
-                      </td>
-                      <td
-                        className="comp-dmg-col-compact"
-                        data-dmg-cell="reaction"
-                        data-has-reaction={entry.reaction ? 'true' : 'false'}
-                      >
-                        <RotationReactionBadge
-                          reaction={entry.reaction}
-                          compact
-                        />
-                      </td>
-                      <td
-                        className="comp-dmg-col-compact"
-                        data-dmg-cell="hitmode"
-                      >
-                        <RotationHitModeBadge
-                          hitMode={entry.hitMode}
-                          compact
-                        />
-                      </td>
-                      <td
-                        className="comp-dmg-col-num"
-                        data-dmg-cell="value"
-                        data-testid={`comp-full-damage-value-${rowKey}-${section.sectionKey}-${entry.key}`}
-                      >
-                        <strong>{formatNum(entry.value)}</strong>
-                      </td>
-                      {showDiff && (
-                        <td
-                          className={`comp-dmg-col-num comp-dmg-col-delta ${
-                            delta?.cls ?? 'muted'
-                          }`}
-                          data-dmg-cell="delta"
-                          data-testid={`comp-full-damage-delta-${rowKey}-${section.sectionKey}-${entry.key}`}
-                        >
-                          {delta ? delta.text : '—'}
-                        </td>
-                      )}
-                    </tr>
-                    {isExpanded && entry.breakdown && (
+                  return (
+                    <Fragment key={entry.key}>
                       <tr
-                        id={bdRowId}
-                        className="comp-breakdown-tr"
-                        data-testid={bdRowId}
+                        data-testid={`comp-full-damage-row-${rowKey}-${section.sectionKey}-${entry.key}`}
+                        data-formula-path={pathStr}
+                        data-mode={showDiff ? 'diff' : 'plain'}
+                        data-has-reaction={entry.reaction ? 'true' : 'false'}
+                        aria-expanded={entry.breakdown ? isExpanded : undefined}
+                        className={
+                          entry.breakdown ? 'comp-expandable-tr' : undefined
+                        }
+                        onClick={
+                          entry.breakdown && onToggleFormulaKey
+                            ? () => onToggleFormulaKey(toggleKey)
+                            : undefined
+                        }
                       >
-                        <td colSpan={colSpan}>
-                          <DamageRowBreakdownView
-                            breakdown={entry.breakdown}
-                            rowKey={`${rowKey}-full-${section.sectionKey}-${entry.key}`}
-                            idx={fIdx}
+                        <td className="comp-dmg-col-name" data-dmg-cell="name">
+                          <span className="comp-stat-label-cell">
+                            {entry.breakdown && (
+                              <ChevronToggle
+                                expanded={isExpanded}
+                                size={12}
+                                className="comp-row-chevron"
+                                data-testid={`comp-full-damage-toggle-${rowKey}-${section.sectionKey}-${entry.key}`}
+                                ariaControls={bdRowId}
+                                ariaLabel={`Toggle ${entry.label} breakdown`}
+                                onClick={(e) => {
+                                  e?.stopPropagation?.()
+                                  onToggleFormulaKey?.(toggleKey)
+                                }}
+                              />
+                            )}
+                            <strong>{entry.label}</strong>
+                          </span>
+                        </td>
+                        <td
+                          className="comp-dmg-col-compact"
+                          data-dmg-cell="reaction"
+                          data-has-reaction={entry.reaction ? 'true' : 'false'}
+                        >
+                          <RotationReactionBadge
+                            reaction={entry.reaction}
+                            compact
                           />
                         </td>
+                        <td
+                          className="comp-dmg-col-compact"
+                          data-dmg-cell="hitmode"
+                        >
+                          <RotationHitModeBadge
+                            hitMode={entry.hitMode}
+                            compact
+                          />
+                        </td>
+                        <td
+                          className="comp-dmg-col-num"
+                          data-dmg-cell="value"
+                          data-testid={`comp-full-damage-value-${rowKey}-${section.sectionKey}-${entry.key}`}
+                        >
+                          <strong>{formatNum(entry.value)}</strong>
+                        </td>
+                        {showDiff && (
+                          <td
+                            className={`comp-dmg-col-num comp-dmg-col-delta ${
+                              delta?.cls ?? 'muted'
+                            }`}
+                            data-dmg-cell="delta"
+                            data-testid={`comp-full-damage-delta-${rowKey}-${section.sectionKey}-${entry.key}`}
+                          >
+                            {delta ? delta.text : '—'}
+                          </td>
+                        )}
                       </tr>
-                    )}
-                  </Fragment>
-                )
-              })}
-            </tbody>
-          ))}
-        </table>
-      </div>
+                      {isExpanded && entry.breakdown && (
+                        <tr
+                          id={bdRowId}
+                          className="comp-breakdown-tr"
+                          data-testid={bdRowId}
+                        >
+                          <td colSpan={colSpan}>
+                            <DamageRowBreakdownView
+                              breakdown={entry.breakdown}
+                              rowKey={`${rowKey}-full-${section.sectionKey}-${entry.key}`}
+                              idx={fIdx}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            ))}
+          </table>
+        </div>
+      )}
     </div>
   )
 }
@@ -3336,6 +3370,8 @@ export function WeaponComparisonPanel({
                                 characterKey: candEffects.targetKey,
                                 cond,
                                 effectiveMap: candEffects.effectiveMap,
+                                effectiveConstellation:
+                                  candEffects.resolvedConstellation.value,
                                 testIdPrefix: `weapon-compare-cond-${cand.weaponKey}`,
                                 onSetState: (val) =>
                                   handleSetCandidateCondState(
@@ -3421,6 +3457,8 @@ export function WeaponComparisonPanel({
                                 characterKey: candEffects.targetKey,
                                 cond,
                                 effectiveMap: candEffects.effectiveMap,
+                                effectiveConstellation:
+                                  candEffects.resolvedConstellation.value,
                                 testIdPrefix: `weapon-compare-cond-${cand.weaponKey}`,
                                 onSetState: (val) =>
                                   handleSetCandidateCondState(
@@ -3464,6 +3502,8 @@ export function WeaponComparisonPanel({
                                 characterKey: candEffects.targetKey,
                                 cond,
                                 effectiveMap: candEffects.effectiveMap,
+                                effectiveConstellation:
+                                  candEffects.resolvedConstellation.value,
                                 testIdPrefix: `weapon-compare-cond-${cand.weaponKey}`,
                                 onSetState: (val) =>
                                   handleSetCandidateCondState(

@@ -63,6 +63,10 @@ export function isElementTextTruncated(
 export function syncElementTruncationTooltip(
   el: TruncationMeasurableElement
 ): boolean {
+  // Never overwrite or strip explicit stat-source breakdown tooltips on Final stats
+  if (el.getAttribute('data-stat-source-tooltip')) {
+    return false
+  }
   const fullText = (el.textContent ?? '').trim()
   if (!fullText) return false
 
@@ -126,14 +130,61 @@ export function syncTruncationTooltipsInSubtree(
   })
 }
 
+export interface ViewportClampedTooltipPosition {
+  x: number
+  y: number
+  placement: 'top' | 'bottom'
+  align: 'left' | 'center' | 'right'
+}
+
+/**
+ * Computes a viewport-clamped tooltip position for a target bounding box so
+ * single-line or multi-line tooltips stay strictly inside the viewport.
+ */
+export function computeViewportClampedTooltipPlacement(
+  rect: { left: number; right: number; top: number; bottom: number; width: number },
+  viewport: { width: number; height: number },
+  lineCount = 1
+): ViewportClampedTooltipPosition {
+  const estimatedHeight = Math.min(320, 24 + Math.max(1, lineCount) * 20)
+  const estimatedWidth = lineCount > 1 ? 300 : 240
+  const halfWidth = estimatedWidth / 2
+  const spaceAbove = rect.top
+  const spaceBelow = viewport.height - rect.bottom
+  const placeAbove =
+    spaceAbove >= estimatedHeight + 12 || spaceAbove >= spaceBelow
+  const placement: 'top' | 'bottom' = placeAbove ? 'top' : 'bottom'
+
+  let align: 'left' | 'center' | 'right' = 'center'
+  let x = rect.left + rect.width / 2
+  if (rect.left < halfWidth + 12) {
+    align = 'left'
+    x = Math.max(12, Math.min(rect.left, Math.max(12, viewport.width - estimatedWidth - 12)))
+  } else if (viewport.width - rect.right < halfWidth + 12) {
+    align = 'right'
+    x = Math.min(viewport.width - 12, Math.max(estimatedWidth + 12, rect.right))
+  } else {
+    x = Math.max(halfWidth + 12, Math.min(viewport.width - halfWidth - 12, x))
+  }
+
+  const rawY = placeAbove ? rect.top - 6 : rect.bottom + 6
+  const y = placeAbove
+    ? Math.max(Math.min(viewport.height - 8, estimatedHeight + 8), Math.min(viewport.height - 8, rawY))
+    : Math.max(8, Math.min(Math.max(8, viewport.height - estimatedHeight - 8), rawY))
+
+  return { x, y, placement, align }
+}
+
 /**
  * Global client listener that ensures every truncating text element across the
  * app exposes its full text via a native `title` tooltip when truncated, while
- * elements whose text fits in full show no redundant tooltip.
+ * elements whose text fits in full show no redundant tooltip. Also renders
+ * viewport-clamped stat source breakdown tooltips on Final stats.
  */
 export function TruncationTooltipManager() {
   const [activeTooltip, setActiveTooltip] = useState<{
     text: string
+    kind: 'truncation' | 'stat-source'
     x: number
     y: number
     placement: 'top' | 'bottom'
@@ -156,6 +207,27 @@ export function TruncationTooltipManager() {
       const target = e.target
       if (!target || typeof (target as Element).closest !== 'function') return
       const el = target as Element
+
+      const statSourceHost = el.closest('[data-stat-source-tooltip]')
+      const statSourceText = statSourceHost
+        ?.getAttribute('data-stat-source-tooltip')
+        ?.trim()
+      if (statSourceHost && statSourceText) {
+        const rect = statSourceHost.getBoundingClientRect()
+        const lineCount = statSourceText.split('\n').length
+        const pos = computeViewportClampedTooltipPlacement(
+          rect,
+          { width: window.innerWidth, height: window.innerHeight },
+          lineCount
+        )
+        setActiveTooltip({
+          text: statSourceText,
+          kind: 'stat-source',
+          ...pos,
+        })
+        return
+      }
+
       const container =
         el.closest(
           '.tile-picker-item, .gi-buffs-member-tab, .artifact-piece-card, .preset-card, button, a'
@@ -176,22 +248,15 @@ export function TruncationTooltipManager() {
       const text = tooltipHost?.getAttribute('title')?.trim()
       if (tooltipHost && text) {
         const rect = tooltipHost.getBoundingClientRect()
-        const placeAbove = rect.top > 48
-        let align: 'left' | 'center' | 'right' = 'center'
-        let x = rect.left + rect.width / 2
-        if (rect.left < 240) {
-          align = 'left'
-          x = Math.max(12, rect.left)
-        } else if (window.innerWidth - rect.right < 240) {
-          align = 'right'
-          x = Math.min(window.innerWidth - 12, rect.right)
-        }
+        const pos = computeViewportClampedTooltipPlacement(
+          rect,
+          { width: window.innerWidth, height: window.innerHeight },
+          1
+        )
         setActiveTooltip({
           text,
-          x,
-          y: placeAbove ? rect.top - 6 : rect.bottom + 6,
-          placement: placeAbove ? 'top' : 'bottom',
-          align,
+          kind: 'truncation',
+          ...pos,
         })
       } else {
         setActiveTooltip(null)
@@ -241,8 +306,14 @@ export function TruncationTooltipManager() {
 
   return (
     <div
-      className={`gi-truncation-tooltip is-${activeTooltip.placement} is-align-${activeTooltip.align}`}
-      data-testid="truncation-tooltip"
+      className={`gi-truncation-tooltip is-${activeTooltip.placement} is-align-${activeTooltip.align}${
+        activeTooltip.kind === 'stat-source' ? ' is-stat-source-tooltip' : ''
+      }`}
+      data-testid={
+        activeTooltip.kind === 'stat-source'
+          ? 'stat-source-tooltip'
+          : 'truncation-tooltip'
+      }
       role="tooltip"
       style={{
         left: `${Math.round(activeTooltip.x)}px`,

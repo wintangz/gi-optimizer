@@ -38,12 +38,18 @@ import {
 } from '@genshin-optimizer/gi/wr'
 import {
   ELEMENT_TO_RESONANCE_KEY,
+  normalizeConstellationValue,
   normalizeFastModeStats,
   type FastModeStats,
+  type MemberConstellationOverridesMap,
   type PresetFastModeMap,
 } from '@gi/presets'
 
 const dbFastModeByChar = new WeakMap<object, PresetFastModeMap>()
+const dbConstellationsByChar = new WeakMap<
+  object,
+  MemberConstellationOverridesMap
+>()
 
 export function setDbFastMode(
   db: ArtCharDatabase,
@@ -60,6 +66,23 @@ export function getDbFastMode(
   db: ArtCharDatabase
 ): PresetFastModeMap | undefined {
   return dbFastModeByChar.get(db as object)
+}
+
+export function setDbMemberConstellations(
+  db: ArtCharDatabase,
+  memberConstellations: MemberConstellationOverridesMap | undefined
+): void {
+  if (!memberConstellations || Object.keys(memberConstellations).length === 0) {
+    dbConstellationsByChar.delete(db as object)
+  } else {
+    dbConstellationsByChar.set(db as object, memberConstellations)
+  }
+}
+
+export function getDbMemberConstellations(
+  db: ArtCharDatabase
+): MemberConstellationOverridesMap | undefined {
+  return dbConstellationsByChar.get(db as object)
 }
 
 export function getFastModeArtifactData(
@@ -502,7 +525,11 @@ export function getTeamData(
         if (tcchar) char = tcchar
       }
 
-      const { level, constellation, ascension, talent } = char
+      const { level, ascension, talent } = char
+      const overriddenConstellation = normalizeConstellationValue(
+        getDbMemberConstellations(database)?.[characterKey]
+      )
+      const constellation = overriddenConstellation ?? char.constellation
 
       const weapon = (() => {
         if (overrideWeapon && isActiveTeamChar) return overrideWeapon

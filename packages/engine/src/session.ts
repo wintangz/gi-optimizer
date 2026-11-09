@@ -20,10 +20,12 @@ import { uiDataForTeam, type UIData } from '@genshin-optimizer/gi/uidata'
 import { input, type NumNode } from '@genshin-optimizer/gi/wr'
 import {
   applyMemberConditionalOverrides,
+  getPresetConstellationOverrides,
   getPresetResonanceEffects,
   getPresetResonanceEnabled,
   hasDisabledResonanceEffects,
   listTriggeredResonances,
+  normalizeConstellationValue,
   readEffectiveConditionalValue,
   resolveCandidateMemberConditionals,
   resolveEffectiveFastMode,
@@ -32,6 +34,7 @@ import {
   seedCandidateTargetConditionals,
   type MemberBuildMode,
   type MemberConditionalsMap,
+  type MemberConstellationOverridesMap,
   type Preset,
   type PresetFastModeMap,
   type PresetMemberConditionalOverrides,
@@ -54,7 +57,12 @@ import {
 } from './catalog'
 import { runSolver } from './solver'
 import { ALL_EXTRACTED_STAT_KEYS, isEnemyResStatKey } from './stats'
-import { getTeamData, getTeamDataCalc, setDbFastMode } from './teamData'
+import {
+  getTeamData,
+  getTeamDataCalc,
+  setDbFastMode,
+  setDbMemberConstellations,
+} from './teamData'
 import {
   WEAPON_COMPARE_TOP_N,
   type ArtifactSlot,
@@ -181,7 +189,8 @@ export function resolveFixedTargetOverrides(
   preset: Preset,
   weaponOverride?: SimulatedWeaponSpec,
   memberBuildModes?: Record<string, MemberBuildMode>,
-  ownedCharKeys?: ReadonlySet<string>
+  ownedCharKeys?: ReadonlySet<string>,
+  memberConstellations?: MemberConstellationOverridesMap
 ): {
   isFixedTarget: boolean
   overrideChar?: TcCharacter
@@ -189,6 +198,9 @@ export function resolveFixedTargetOverrides(
   effectiveWeaponSpec?: SimulatedWeaponSpec
 } {
   const targetMember = preset.team[0]
+  const targetConstOverride = targetMember
+    ? normalizeConstellationValue(memberConstellations?.[targetMember.key])
+    : undefined
   if (targetMember?.build.type === 'fixed') {
     const wSpec: SimulatedWeaponSpec = weaponOverride ?? {
       key: targetMember.build.weapon.key,
@@ -198,7 +210,13 @@ export function resolveFixedTargetOverrides(
     }
     return {
       isFixedTarget: true,
-      overrideChar: targetMember.build.character,
+      overrideChar:
+        targetConstOverride !== undefined
+          ? {
+              ...targetMember.build.character,
+              constellation: targetConstOverride,
+            }
+          : targetMember.build.character,
       overrideWeapon: buildSimulatedCachedWeapon(wSpec),
       effectiveWeaponSpec: wSpec,
     }
@@ -221,7 +239,13 @@ export function resolveFixedTargetOverrides(
       }
       return {
         isFixedTarget: true,
-        overrideChar: targetMember.build.tc.character,
+        overrideChar:
+          targetConstOverride !== undefined
+            ? {
+                ...targetMember.build.tc.character,
+                constellation: targetConstOverride,
+              }
+            : targetMember.build.tc.character,
         overrideWeapon: buildSimulatedCachedWeapon(wSpec),
         effectiveWeaponSpec: wSpec,
       }
@@ -273,6 +297,7 @@ export interface HydratePresetTeamOptions {
   ownedCharKeys?: ReadonlySet<string>
   memberBuildModes?: Record<string, MemberBuildMode>
   memberConditionals?: PresetMemberConditionalOverrides
+  memberConstellations?: MemberConstellationOverridesMap
   resonanceEnabled?: boolean
   resonanceEffects?: ResonanceEffectsStateMap
   fastMode?: PresetFastModeMap
@@ -531,6 +556,7 @@ function presetTeamFingerprint(
   activeWeaponKey: string | undefined,
   effectiveMemberModes: MemberBuildMode[],
   memberConditionals?: PresetMemberConditionalOverrides,
+  memberConstellations?: MemberConstellationOverridesMap,
   resonanceEnabled?: boolean,
   disabledTriggeredResonanceKeys?: string[],
   fastMode?: PresetFastModeMap
@@ -546,6 +572,7 @@ function presetTeamFingerprint(
     activeWeaponKey: activeWeaponKey ?? '',
     effectiveMemberModes,
     memberConditionals: memberConditionals ?? {},
+    memberConstellations: memberConstellations ?? {},
     resonanceEnabled: resonanceEnabled !== false,
     disabledResonances: disabledTriggeredResonanceKeys ?? [],
     fastMode: fastMode ?? {},
@@ -574,6 +601,7 @@ export function hydratePresetTeam(
     ? {}
     : resolveEffectiveFastMode(preset, opts?.fastMode)
   setDbFastMode(db, effectiveFastMode)
+  setDbMemberConstellations(db, opts?.memberConstellations)
 
   const triggeredResonances = listTriggeredResonances(preset)
   const disabledTriggeredResonanceKeys = triggeredResonances
@@ -606,6 +634,7 @@ export function hydratePresetTeam(
     resolvedWeaponKey,
     resolvedMembers.map((m) => m.mode),
     opts?.memberConditionals,
+    opts?.memberConstellations,
     opts?.resonanceEnabled,
     disabledTriggeredResonanceKeys,
     effectiveFastMode
@@ -688,11 +717,18 @@ export function hydratePresetTeam(
 
     if (!isTarget && resolvedMember.mode === 'tc' && member.build.type === 'tc') {
       const tc = member.build.tc
+      const memberConstOverride = normalizeConstellationValue(
+        opts?.memberConstellations?.[mKey]
+      )
+      const tcCharacter =
+        memberConstOverride !== undefined
+          ? { ...tc.character, constellation: memberConstOverride }
+          : tc.character
       const buildTcId = db.buildTcs.new({
         characterKey: mKey,
         name: `${preset.name} (${mKey} TC)`,
         description: 'Assumed preset teammate build',
-        character: tc.character as never,
+        character: tcCharacter as never,
         weapon: tc.weapon as never,
         artifact: tc.artifact as never,
       })
@@ -823,7 +859,8 @@ export function hydrateTeamIntoDb(
       preset,
       selection?.weaponOverride,
       selection?.memberBuildModes,
-      goodCharKeys
+      goodCharKeys,
+      selection?.memberConstellations
     )
 
   const selectedWeaponKey =
@@ -840,6 +877,7 @@ export function hydrateTeamIntoDb(
       ownedCharKeys: goodCharKeys,
       memberBuildModes: selection?.memberBuildModes,
       memberConditionals: selection?.memberConditionals,
+      memberConstellations: selection?.memberConstellations,
       resonanceEnabled: selection?.resonanceEnabled,
       resonanceEffects: selection?.resonanceEffects,
       fastMode: selection?.fastMode,
@@ -847,6 +885,21 @@ export function hydrateTeamIntoDb(
   )
   const targetCharKey = preset.target as CharacterKey
   const locKey = charKeyToLocCharKey(targetCharKey)
+
+  if (selection?.memberConstellations) {
+    for (const [charKey, rawConst] of Object.entries(
+      selection.memberConstellations
+    )) {
+      const normConst = normalizeConstellationValue(rawConst)
+      if (normConst === undefined) continue
+      const existingChar = db.chars.get(charKey as CharacterKey)
+      if (existingChar) {
+        db.chars.set(charKey as CharacterKey, {
+          constellation: normConst,
+        })
+      }
+    }
+  }
 
   if (isFixedTarget && overrideChar && overrideWeapon) {
     // Write the fixed character spec and simulated weapon into the exported DB
@@ -1062,6 +1115,7 @@ export async function compareWeapons(
   opts?: {
     memberBuildModes?: Record<string, MemberBuildMode>
     memberConditionals?: PresetMemberConditionalOverrides
+    memberConstellations?: MemberConstellationOverridesMap
     resonanceEnabled?: boolean
     resonanceEffects?: ResonanceEffectsStateMap
     fastMode?: PresetFastModeMap
@@ -1077,6 +1131,8 @@ export async function compareWeapons(
     opts?.memberBuildModes ?? settings.memberBuildModes?.[preset.id]
   const effectiveMemberConditionals =
     opts?.memberConditionals ?? settings.memberConditionalOverrides?.[preset.id]
+  const effectiveMemberConstellations =
+    opts?.memberConstellations ?? getPresetConstellationOverrides(settings, preset.id)
   const effectiveResonanceEnabled =
     opts?.resonanceEnabled ?? getPresetResonanceEnabled(settings, preset.id)
   const effectiveResonanceEffects =
@@ -1120,6 +1176,7 @@ export async function compareWeapons(
         weaponOverride,
         memberBuildModes: effectiveMemberBuildModes,
         memberConditionals: candidateMemberConditionals,
+        memberConstellations: effectiveMemberConstellations,
         resonanceEnabled: effectiveResonanceEnabled,
         resonanceEffects: effectiveResonanceEffects,
         fastMode: effectiveFastMode,
@@ -1181,6 +1238,10 @@ export async function compareWeapons(
           ...(candidateMemberConditionals &&
           Object.keys(candidateMemberConditionals).length > 0
             ? { memberConditionals: candidateMemberConditionals }
+            : {}),
+          ...(effectiveMemberConstellations &&
+          Object.keys(effectiveMemberConstellations).length > 0
+            ? { memberConstellations: effectiveMemberConstellations }
             : {}),
           ...(effectiveResonanceEnabled === false
             ? { resonanceEnabled: false }
@@ -1520,6 +1581,9 @@ export function createSession(good: unknown): EngineSession {
                   ...(selection?.memberConditionals
                     ? { memberConditionals: selection.memberConditionals }
                     : {}),
+                  ...(selection?.memberConstellations
+                    ? { memberConstellations: selection.memberConstellations }
+                    : {}),
                   ...(typeof selection?.resonanceEnabled === 'boolean'
                     ? { resonanceEnabled: selection.resonanceEnabled }
                     : {}),
@@ -1571,7 +1635,8 @@ export function createSession(good: unknown): EngineSession {
         preset,
         selection?.weaponOverride,
         selection?.memberBuildModes,
-        goodCharKeys
+        goodCharKeys,
+        selection?.memberConstellations
       )
 
       let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
@@ -1587,6 +1652,7 @@ export function createSession(good: unknown): EngineSession {
           ownedCharKeys: goodCharKeys,
           memberBuildModes: selection?.memberBuildModes,
           memberConditionals: selection?.memberConditionals,
+          memberConstellations: selection?.memberConstellations,
           resonanceEnabled: selection?.resonanceEnabled,
           resonanceEffects: selection?.resonanceEffects,
           fastMode: selection?.fastMode,
@@ -1787,6 +1853,7 @@ export function createSession(good: unknown): EngineSession {
         weaponOverride?: SimulatedWeaponSpec
         memberBuildModes?: Record<string, MemberBuildMode>
         memberConditionals?: PresetMemberConditionalOverrides
+        memberConstellations?: MemberConstellationOverridesMap
         resonanceEnabled?: boolean
         resonanceEffects?: ResonanceEffectsStateMap
         fastMode?: PresetFastModeMap
@@ -1800,6 +1867,9 @@ export function createSession(good: unknown): EngineSession {
       const effectiveMemberConditionals =
         opts?.memberConditionals ??
         settings.memberConditionalOverrides?.[preset.id]
+      const effectiveMemberConstellations =
+        opts?.memberConstellations ??
+        getPresetConstellationOverrides(settings, preset.id)
       const effectiveResonanceEnabled =
         opts?.resonanceEnabled ?? getPresetResonanceEnabled(settings, preset.id)
       const effectiveResonanceEffects =
@@ -1818,7 +1888,8 @@ export function createSession(good: unknown): EngineSession {
         preset,
         opts?.weaponOverride,
         effectiveMemberBuildModes,
-        goodCharKeys
+        goodCharKeys,
+        effectiveMemberConstellations
       )
 
       let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
@@ -1834,6 +1905,7 @@ export function createSession(good: unknown): EngineSession {
           ownedCharKeys: goodCharKeys,
           memberBuildModes: effectiveMemberBuildModes,
           memberConditionals: effectiveMemberConditionals,
+          memberConstellations: effectiveMemberConstellations,
           resonanceEnabled: effectiveResonanceEnabled,
           resonanceEffects: effectiveResonanceEffects,
           fastMode: effectiveFastMode,
@@ -1846,6 +1918,7 @@ export function createSession(good: unknown): EngineSession {
         weaponOverrideSpec: isFixedTarget ? effectiveWeaponSpec : opts?.weaponOverride,
         memberBuildModes: effectiveMemberBuildModes,
         memberConditionals: effectiveMemberConditionals,
+        memberConstellations: effectiveMemberConstellations,
         resonanceEnabled: effectiveResonanceEnabled,
         resonanceEffects: effectiveResonanceEffects,
         fastMode: effectiveFastMode,
@@ -1871,6 +1944,9 @@ export function createSession(good: unknown): EngineSession {
       const effectiveMemberConditionals =
         opts?.memberConditionals ??
         settings.memberConditionalOverrides?.[preset.id]
+      const effectiveMemberConstellations =
+        opts?.memberConstellations ??
+        getPresetConstellationOverrides(settings, preset.id)
       const effectiveResonanceEnabled =
         opts?.resonanceEnabled ?? getPresetResonanceEnabled(settings, preset.id)
       const effectiveResonanceEffects =
@@ -1911,6 +1987,10 @@ export function createSession(good: unknown): EngineSession {
                   weaponId: opts.weaponId,
                 }
               : baseCurrentSelection),
+          ...(effectiveMemberConstellations &&
+          Object.keys(effectiveMemberConstellations).length > 0
+            ? { memberConstellations: effectiveMemberConstellations }
+            : {}),
           ...(effectiveResonanceEnabled === false
             ? { resonanceEnabled: false }
             : {}),
@@ -1955,7 +2035,8 @@ export function createSession(good: unknown): EngineSession {
           memberPreset,
           memberIndex === 0 ? opts?.weaponOverride : undefined,
           effectiveMemberBuildModes,
-          goodCharKeys
+          goodCharKeys,
+          effectiveMemberConstellations
         )
 
         let overrideWeapon: ICachedWeapon | undefined = fixedOrSimWeapon
@@ -1976,6 +2057,7 @@ export function createSession(good: unknown): EngineSession {
             ownedCharKeys: goodCharKeys,
             memberBuildModes: effectiveMemberBuildModes,
             memberConditionals: effectiveMemberConditionals,
+            memberConstellations: effectiveMemberConstellations,
             resonanceEnabled: effectiveResonanceEnabled,
             resonanceEffects: effectiveResonanceEffects,
             disableFastMode: true,
@@ -2013,6 +2095,7 @@ export function createSession(good: unknown): EngineSession {
                 : undefined,
             memberBuildModes: effectiveMemberBuildModes,
             memberConditionals: effectiveMemberConditionals,
+            memberConstellations: effectiveMemberConstellations,
             resonanceEnabled: effectiveResonanceEnabled,
             resonanceEffects: effectiveResonanceEffects,
             excludedArtifactIds: assignedArtifactIds,
@@ -2044,6 +2127,10 @@ export function createSession(good: unknown): EngineSession {
               Object.keys(effectiveMemberConditionals).length > 0
                 ? { memberConditionals: effectiveMemberConditionals }
                 : {}),
+              ...(effectiveMemberConstellations &&
+              Object.keys(effectiveMemberConstellations).length > 0
+                ? { memberConstellations: effectiveMemberConstellations }
+                : {}),
               ...(effectiveResonanceEnabled === false
                 ? { resonanceEnabled: false }
                 : {}),
@@ -2060,6 +2147,10 @@ export function createSession(good: unknown): EngineSession {
               ...(effectiveMemberConditionals &&
               Object.keys(effectiveMemberConditionals).length > 0
                 ? { memberConditionals: effectiveMemberConditionals }
+                : {}),
+              ...(effectiveMemberConstellations &&
+              Object.keys(effectiveMemberConstellations).length > 0
+                ? { memberConstellations: effectiveMemberConstellations }
                 : {}),
               ...(effectiveResonanceEnabled === false
                 ? { resonanceEnabled: false }
@@ -2085,6 +2176,10 @@ export function createSession(good: unknown): EngineSession {
           ...(effectiveMemberConditionals &&
           Object.keys(effectiveMemberConditionals).length > 0
             ? { memberConditionals: effectiveMemberConditionals }
+            : {}),
+          ...(effectiveMemberConstellations &&
+          Object.keys(effectiveMemberConstellations).length > 0
+            ? { memberConstellations: effectiveMemberConstellations }
             : {}),
           ...(effectiveResonanceEnabled === false
             ? { resonanceEnabled: false }
@@ -2135,6 +2230,7 @@ export function createSession(good: unknown): EngineSession {
       opts?: {
         memberBuildModes?: Record<string, MemberBuildMode>
         memberConditionals?: PresetMemberConditionalOverrides
+        memberConstellations?: MemberConstellationOverridesMap
         resonanceEnabled?: boolean
         resonanceEffects?: ResonanceEffectsStateMap
         fastMode?: PresetFastModeMap

@@ -1,4 +1,5 @@
 import {
+  CONSTELLATION_VALUES,
   DEFAULT_OPTIMIZER_SETTINGS,
   ELEMENT_TO_RESONANCE_KEY,
   FAST_MODE_STAT_KEYS,
@@ -8,6 +9,7 @@ import {
   STAT_CONSTRAINT_KEYS,
   cloneMemberConditionalsMap,
   getPresetConditionalOverrides,
+  getPresetConstellationOverrides,
   getPresetFastMode,
   getPresetMemberBuildModes,
   getPresetResonanceEffects,
@@ -15,6 +17,7 @@ import {
   getPresetWeaponCompareCandidates,
   hasDisabledResonanceEffects,
   hasMemberConditionalOverrides,
+  hasMemberConstellationOverride,
   hasMemberFastMode,
   hasPresetFastMode,
   isActiveStatConstraint,
@@ -23,18 +26,22 @@ import {
   isPresetResonanceEffectEnabled,
   listTriggeredResonances,
   migrateOptimizerSettings,
+  normalizeConstellationValue,
   normalizeFastModeStats,
   normalizeResonanceEffectKey,
   normalizeResonanceEffectsMap,
   normalizeStatConstraintValue,
   resetMemberConditionalOverrides,
+  resetMemberConstellationOverrides,
   resetPresetMemberFastMode,
   resetPresetWeaponCompareCandidates,
   resolveCandidateMemberConditionals,
   resolveEffectiveFastMode,
   resolvePresetMemberBuildMode,
+  resolvePresetMemberConstellation,
   seedCandidateTargetConditionals,
   setMemberConditionalOverride,
+  setMemberConstellationOverride,
   setPresetMemberBuildMode,
   setPresetMemberFastMode,
   setPresetMemberFastModeStat,
@@ -43,16 +50,20 @@ import {
   setPresetWeaponCompareCandidates,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
+  type ConstellationSourceKind,
+  type ConstellationValue,
   type FastModeStatKey,
   type FastModeStats,
   type MemberBuildMode,
   type MemberBuildModesMap,
   type MemberConditionalsMap,
+  type MemberConstellationOverridesMap,
   type OptimizerSettings,
   type Preset,
   type PresetFastModeMap,
   type PresetMemberConditionalOverrides,
   type ResolvedMemberBuild,
+  type ResolvedMemberConstellation,
   type ResonanceEffectKey,
   type ResonanceEffectsStateMap,
   type SetFilterMode,
@@ -64,6 +75,7 @@ import {
 } from '@gi/presets'
 
 export {
+  CONSTELLATION_VALUES,
   DEFAULT_OPTIMIZER_SETTINGS,
   ELEMENT_TO_RESONANCE_KEY,
   FAST_MODE_STAT_KEYS,
@@ -73,6 +85,7 @@ export {
   STAT_CONSTRAINT_KEYS,
   cloneMemberConditionalsMap,
   getPresetConditionalOverrides,
+  getPresetConstellationOverrides,
   getPresetFastMode,
   getPresetMemberBuildModes,
   getPresetResonanceEffects,
@@ -80,6 +93,7 @@ export {
   getPresetWeaponCompareCandidates,
   hasDisabledResonanceEffects,
   hasMemberConditionalOverrides,
+  hasMemberConstellationOverride,
   hasMemberFastMode,
   hasPresetFastMode,
   isActiveStatConstraint,
@@ -88,18 +102,22 @@ export {
   isPresetResonanceEffectEnabled,
   listTriggeredResonances,
   migrateOptimizerSettings,
+  normalizeConstellationValue,
   normalizeFastModeStats,
   normalizeResonanceEffectKey,
   normalizeResonanceEffectsMap,
   normalizeStatConstraintValue,
   resetMemberConditionalOverrides,
+  resetMemberConstellationOverrides,
   resetPresetMemberFastMode,
   resetPresetWeaponCompareCandidates,
   resolveCandidateMemberConditionals,
   resolveEffectiveFastMode,
   resolvePresetMemberBuildMode,
+  resolvePresetMemberConstellation,
   seedCandidateTargetConditionals,
   setMemberConditionalOverride,
+  setMemberConstellationOverride,
   setPresetMemberBuildMode,
   setPresetMemberFastMode,
   setPresetMemberFastModeStat,
@@ -108,15 +126,19 @@ export {
   setPresetWeaponCompareCandidates,
   type ArtSetExclusionMap,
   type ArtSetFilterSummary,
+  type ConstellationSourceKind,
+  type ConstellationValue,
   type FastModeStatKey,
   type FastModeStats,
   type MemberBuildMode,
   type MemberBuildModesMap,
   type MemberConditionalsMap,
+  type MemberConstellationOverridesMap,
   type OptimizerSettings,
   type PresetFastModeMap,
   type PresetMemberConditionalOverrides,
   type ResolvedMemberBuild,
+  type ResolvedMemberConstellation,
   type ResonanceEffectKey,
   type ResonanceEffectsStateMap,
   type SetFilterMode,
@@ -144,6 +166,8 @@ export interface BuildSelection {
   memberBuildModes?: Record<string, MemberBuildMode>
   /** Optional per-member conditional overrides (`[characterKey][sheetKey][condKey]`). */
   memberConditionals?: PresetMemberConditionalOverrides
+  /** Optional per-member constellation overrides (`[characterKey] => 0..6`). */
+  memberConstellations?: MemberConstellationOverridesMap
   /** Optional master Elemental Resonance override (`true` = enabled, `false` = disabled). */
   resonanceEnabled?: boolean
   /** Optional per-effect Elemental Resonance overrides (`[resonanceKey]: boolean`). */
@@ -421,6 +445,7 @@ export interface TeamOptimizeOptions {
   weaponOverride?: SimulatedWeaponSpec
   memberBuildModes?: Record<string, MemberBuildMode>
   memberConditionals?: PresetMemberConditionalOverrides
+  memberConstellations?: MemberConstellationOverridesMap
   resonanceEnabled?: boolean
   resonanceEffects?: ResonanceEffectsStateMap
   onProgress?: (p: TeamOptimizeProgress) => void
@@ -482,6 +507,7 @@ export interface EngineSession {
       weaponOverride?: SimulatedWeaponSpec
       memberBuildModes?: Record<string, MemberBuildMode>
       memberConditionals?: PresetMemberConditionalOverrides
+      memberConstellations?: MemberConstellationOverridesMap
       resonanceEnabled?: boolean
       resonanceEffects?: ResonanceEffectsStateMap
       fastMode?: PresetFastModeMap
@@ -497,6 +523,7 @@ export interface EngineSession {
     opts?: {
       memberBuildModes?: Record<string, MemberBuildMode>
       memberConditionals?: PresetMemberConditionalOverrides
+      memberConstellations?: MemberConstellationOverridesMap
       resonanceEnabled?: boolean
       resonanceEffects?: ResonanceEffectsStateMap
       fastMode?: PresetFastModeMap

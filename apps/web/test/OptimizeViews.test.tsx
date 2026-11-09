@@ -4100,8 +4100,31 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       }
 
       let tree = renderList()
-      const fullDmgSection = findByTestId(tree, 'comp-full-damage-opt-0')
+      const fullDmgSection = findByTestId(tree, 'comp-full-damage-opt-0')!
       expect(fullDmgSection).toBeDefined()
+      // Full Damage starts collapsed by default with the shared ChevronToggle
+      expect(fullDmgSection.props['data-expanded']).toBe('false')
+      const sectionToggle = findByTestId(
+        tree,
+        'comp-full-damage-section-toggle-opt-0'
+      )!
+      expect(sectionToggle).toBeDefined()
+      expect(sectionToggle.props['aria-expanded']).toBe(false)
+      expect(
+        findByTestId(tree, 'comp-full-damage-group-opt-0-normal')
+      ).toBeUndefined()
+
+      // Expand Full Damage section
+      ;(sectionToggle.props.onClick as (e?: unknown) => void)()
+      tree = renderList()
+      expect(
+        findByTestId(tree, 'comp-full-damage-opt-0')!.props['data-expanded']
+      ).toBe('true')
+      expect(
+        findByTestId(tree, 'comp-full-damage-section-toggle-opt-0')!.props[
+          'aria-expanded'
+        ]
+      ).toBe(true)
 
       // Sheet-ordered groups: normal -> skill -> burst -> reaction
       const groupNormal = findByTestId(tree, 'comp-full-damage-group-opt-0-normal')

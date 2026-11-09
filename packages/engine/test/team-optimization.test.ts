@@ -249,4 +249,155 @@ describe('Team-Wide Optimization Mode (team-wide-optimization)', () => {
       neuvMember.selection.artifactIds
     )
   })
+
+  it('constellation override (editor-pack): Furina C0->C2 on akasha/furina-salon-pjc-c0 with imported GOOD makes C2 switch change Final stats and total, Reset restores C0, C3/C5 bump talent levels via sheet logic, and overrides flow through evaluate, optimize, compareWeapons, and optimizeTeam', async () => {
+    const furinaPreset = getBundledPreset('akasha/furina-salon-pjc-c0')!
+    const currentSel = session.currentBuild(furinaPreset)
+    const c2MaxKey = session
+      .listConditionals('Furina')
+      .find((c) => c.key === 'c2Overstack')!
+      .states.at(-1)!.key
+
+    // 1. Baseline C0 evaluation
+    const evalC0Default = session.evaluate(furinaPreset, currentSel)
+    // At C0, toggling c2Overstack does nothing because sheet gates c2Overstack on constellation >= 2
+    const evalC0WithC2Switch = session.evaluate(furinaPreset, {
+      ...currentSel,
+      memberConditionals: {
+        Furina: { Furina: { c2Overstack: c2MaxKey } },
+      },
+    })
+    expect(evalC0WithC2Switch.stats.hp).toBe(evalC0Default.stats.hp)
+    expect(evalC0WithC2Switch.total).toBe(evalC0Default.total)
+
+    // 2. Override Furina C0 -> C2: toggling C2 switch (c2Overstack off -> max) changes Final HP and rotation total
+    const evalC2Off = session.evaluate(furinaPreset, {
+      ...currentSel,
+      memberConstellations: { Furina: 2 },
+      memberConditionals: {
+        Furina: { Furina: { c2Overstack: 'off' } },
+      },
+    })
+    const evalC2On = session.evaluate(furinaPreset, {
+      ...currentSel,
+      memberConstellations: { Furina: 2 },
+      memberConditionals: {
+        Furina: { Furina: { c2Overstack: c2MaxKey } },
+      },
+    })
+    expect(evalC2On.stats.hp).toBeGreaterThan(evalC2Off.stats.hp!)
+    expect(evalC2On.memberStats?.Furina?.final.hp).toBeGreaterThan(
+      evalC2Off.memberStats?.Furina?.final.hp!
+    )
+    expect(evalC2On.total).toBeGreaterThan(evalC2Off.total)
+    expect(evalC2On.total).toBeGreaterThan(evalC0Default.total)
+
+    // 3. Reset restores C0 behaviour byte-identically
+    const evalReset = session.evaluate(furinaPreset, {
+      ...currentSel,
+      memberConstellations: undefined,
+      memberConditionals: undefined,
+    })
+    expect(evalReset.stats.hp).toBe(evalC0Default.stats.hp)
+    expect(evalReset.total).toBe(evalC0Default.total)
+
+    // 4. Talent levels follow via sheet logic (C3 bumps Burst +3, C5 bumps Skill +3 on Furina)
+    const zeroConds = {
+      Furina: { Furina: { c2Overstack: 'off' } },
+    }
+    const evalC2Zero = session.evaluate(furinaPreset, {
+      ...currentSel,
+      memberConstellations: { Furina: 2 },
+      memberConditionals: zeroConds,
+    })
+    const evalC3Zero = session.evaluate(furinaPreset, {
+      ...currentSel,
+      memberConstellations: { Furina: 3 },
+      memberConditionals: zeroConds,
+    })
+    const evalC4Zero = session.evaluate(furinaPreset, {
+      ...currentSel,
+      memberConstellations: { Furina: 4 },
+      memberConditionals: zeroConds,
+    })
+    const evalC5Zero = session.evaluate(furinaPreset, {
+      ...currentSel,
+      memberConstellations: { Furina: 5 },
+      memberConditionals: zeroConds,
+    })
+
+    // C5 bumps Furina's Skill talent level by +3 -> higher Skill rotation total than C4 with identical conditionals
+    expect(evalC5Zero.total).toBeGreaterThan(evalC4Zero.total)
+
+    // C3 bumps Furina's Burst talent level by +3 -> higher Burst damage in fullDamage than C2 with identical conditionals
+    const burstC2 = evalC2Zero.fullDamage
+      ?.find((g) => g.sectionKey === 'burst')
+      ?.formulas.find((f) => f.key === 'skillDmg')?.value
+    const burstC3 = evalC3Zero.fullDamage
+      ?.find((g) => g.sectionKey === 'burst')
+      ?.formulas.find((f) => f.key === 'skillDmg')?.value
+    expect(burstC2).toBeDefined()
+    expect(burstC3).toBeDefined()
+    expect(burstC3!).toBeGreaterThan(burstC2!)
+
+    // 5. Flows through optimize, compareWeapons, and optimizeTeam
+    const fastSettings = {
+      ...DEFAULT_OPTIMIZER_SETTINGS,
+      topN: 1,
+      levelLow: 20,
+      levelHigh: 20,
+      minRarity: 5 as const,
+      minRv: 650,
+      includeEquippedOnOthers: true,
+    }
+    const optC0 = await session.optimize(furinaPreset, fastSettings, {
+      maxWorkers: 2,
+    })
+    const optC2 = await session.optimize(furinaPreset, fastSettings, {
+      maxWorkers: 2,
+      memberConstellations: { Furina: 2 },
+      memberConditionals: {
+        Furina: { Furina: { c2Overstack: c2MaxKey } },
+      },
+    })
+    expect(optC2.builds[0]!.total).toBeGreaterThan(optC0.builds[0]!.total)
+
+    const cmpCandidate = {
+      weaponKey: 'PrimordialJadeCutter',
+      level: 90,
+      ascension: 6,
+      refinement: 1,
+      isOwned: true,
+      isEquippedBaseline: false,
+    }
+    const cmpC0 = await session.compareWeapons(furinaPreset, fastSettings, [
+      cmpCandidate,
+    ])
+    const cmpC2 = await session.compareWeapons(
+      furinaPreset,
+      fastSettings,
+      [cmpCandidate],
+      {
+        memberConstellations: { Furina: 2 },
+        memberConditionals: {
+          Furina: { Furina: { c2Overstack: c2MaxKey } },
+        },
+      }
+    )
+    expect(cmpC2.rows[0]!.bestBuild!.total).toBeGreaterThan(
+      cmpC0.rows[0]!.bestBuild!.total
+    )
+
+    const teamC0 = await session.optimizeTeam(furinaPreset, fastSettings, {
+      maxWorkers: 2,
+    })
+    const teamC2 = await session.optimizeTeam(furinaPreset, fastSettings, {
+      maxWorkers: 2,
+      memberConstellations: { Furina: 2 },
+      memberConditionals: {
+        Furina: { Furina: { c2Overstack: c2MaxKey } },
+      },
+    })
+    expect(teamC2.teamTotal).toBeGreaterThan(teamC0.teamTotal)
+  })
 })

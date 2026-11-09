@@ -8,12 +8,15 @@ import {
   DEFAULT_OPTIMIZER_SETTINGS,
   getBundledPreset,
   getPresetConditionalOverrides,
+  getPresetConstellationOverrides,
   getPresetResonanceEffects,
   getPresetResonanceEnabled,
   hasMemberConditionalOverrides,
   type OptimizerSettings,
   type Preset,
 } from '@gi/presets'
+import fs from 'node:fs'
+import path from 'node:path'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -1009,5 +1012,168 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
     expect(
       findByTestId(treeCanopy, 'resonance-effect-row-FerventFlames')
     ).toBeUndefined()
+  })
+
+  it('constellation override & member tabs one-row (editor-pack): renders C0-C6 constellation control with source label, shows "Requires C2" hints on gated switches, updates Modified/Reset state, and keeps Stage 3 member tabs on one row at desktop widths', () => {
+    const furinaPreset = getBundledPreset('akasha/furina-salon-pjc-c0')!
+    const furinaCatalog: Record<string, ConditionalDescriptor[]> = {
+      ...SAMPLE_CATALOG,
+      Furina: listConditionalsForCharacter('Furina'),
+    }
+    let currentSettings: OptimizerSettings = { ...DEFAULT_OPTIMIZER_SETTINGS }
+
+    function renderPanel(presetToRender: Preset = furinaPreset) {
+      hookStore.active = true
+      hookStore.beginRender()
+      try {
+        const nodes = evaluateTree(
+          React.createElement(ConditionalTogglePanel, {
+            preset: presetToRender,
+            settings: currentSettings,
+            onChangeSettings: (next) => {
+              currentSettings = next
+            },
+            good: SAMPLE_GOOD,
+            conditionalsByChar: furinaCatalog,
+          })
+        )
+        hookStore.flushEffects()
+        return nodes.filter((n): n is VNode => typeof n !== 'string')
+      } finally {
+        hookStore.active = false
+      }
+    }
+
+    function getTextContent(node: VNode | string): string {
+      if (typeof node === 'string') return node
+      return node.children.map((c) => getTextContent(c)).join('')
+    }
+
+    // 1. Default state on Akasha Furina C0 preset: constellation control shows C0 with source "case"
+    const tree1 = renderPanel()
+    const constControl1 = findByTestId(
+      tree1,
+      'member-constellation-control-Furina'
+    )!
+    expect(constControl1).toBeDefined()
+    expect(constControl1.props['data-constellation']).toBe('0')
+    expect(constControl1.props['data-constellation-source']).toBe('case')
+    expect(constControl1.props['data-constellation-overridden']).toBe('false')
+    const constSelect1 = findByTestId(
+      tree1,
+      'member-constellation-select-Furina'
+    )!
+    expect(constSelect1.props.value).toBe('0')
+    expect(
+      getTextContent(findByTestId(tree1, 'member-constellation-source-Furina')!)
+    ).toBe('case')
+
+    // C2 and C6 switches show "Requires C2" and "Requires C6" hints when Furina is at C0
+    const c2Hint1 = findByTestId(
+      tree1,
+      'cond-const-hint-Furina-Furina-c2Overstack'
+    )
+    const c6Hint1 = findByTestId(tree1, 'cond-const-hint-Furina-Furina-c6')
+    expect(c2Hint1).toBeDefined()
+    expect(getTextContent(c2Hint1!)).toBe('Requires C2')
+    expect(c6Hint1).toBeDefined()
+    expect(getTextContent(c6Hint1!)).toBe('Requires C6')
+
+    // 2. Override Furina C0 -> C2: stores in settings, updates build-state label to C2, lights up Modified badge & Reset button, removes C2 gate hint while keeping C6 gate hint
+    ;(
+      constSelect1.props.onChange as (e: { target: { value: string } }) => void
+    )({ target: { value: '2' } })
+    expect(
+      getPresetConstellationOverrides(currentSettings, furinaPreset.id)
+    ).toEqual({ Furina: 2 })
+
+    const tree2 = renderPanel()
+    expect(
+      findByTestId(tree2, 'member-constellation-control-Furina')!.props[
+        'data-constellation'
+      ]
+    ).toBe('2')
+    expect(
+      findByTestId(tree2, 'member-constellation-control-Furina')!.props[
+        'data-constellation-overridden'
+      ]
+    ).toBe('true')
+    expect(
+      findByTestId(tree2, 'member-constellation-select-Furina')!.props.value
+    ).toBe('2')
+    expect(findByTestId(tree2, 'member-modified-badge-Furina')).toBeDefined()
+    expect(findByTestId(tree2, 'reset-all-conditionals')).toBeDefined()
+
+    // C2 gate hint is now gone because effectiveConstellation === 2, while C6 gate hint remains
+    expect(
+      findByTestId(tree2, 'cond-const-hint-Furina-Furina-c2Overstack')
+    ).toBeUndefined()
+    expect(findByTestId(tree2, 'cond-const-hint-Furina-Furina-c6')).toBeDefined()
+
+    // 3. Per-member Reset restores C0 and clears constellation override
+    const resetMemberBtn = findByTestId(
+      tree2,
+      'reset-member-conditionals-Furina'
+    )!
+    expect(resetMemberBtn.props.disabled).toBe(false)
+    ;(resetMemberBtn.props.onClick as () => void)()
+    expect(
+      getPresetConstellationOverrides(currentSettings, furinaPreset.id)
+    ).toEqual({})
+
+    const tree3 = renderPanel()
+    expect(
+      findByTestId(tree3, 'member-constellation-select-Furina')!.props.value
+    ).toBe('0')
+    expect(findByTestId(tree3, 'member-modified-badge-Furina')).toBeUndefined()
+    expect(
+      findByTestId(tree3, 'cond-const-hint-Furina-Furina-c2Overstack')
+    ).toBeDefined()
+
+    // 4. Official preset with owned character shows source "your account" and C2 Akasha case defaults to C2 ("case")
+    const officialPreset = getBundledPreset('official/neuvillette-hypercarry')!
+    const treeOfficialTabs = renderPanel(officialPreset)
+    ;(
+      findByTestId(treeOfficialTabs, 'member-buffs-tab-Neuvillette')!.props
+        .onClick as () => void
+    )()
+    const treeOfficial = renderPanel(officialPreset)
+    // Neuvillette is in SAMPLE_GOOD (C0) -> source "your account"
+    expect(
+      findByTestId(treeOfficial, 'member-constellation-control-Neuvillette')!
+        .props['data-constellation-source']
+    ).toBe('your account')
+    expect(
+      findByTestId(treeOfficial, 'member-constellation-control-Neuvillette')!
+        .props['data-constellation']
+    ).toBe('0')
+
+    const c2CasePreset = getBundledPreset('akasha/furina-splendor-c2')!
+    const treeC2CaseTabs = renderPanel(c2CasePreset)
+    ;(
+      findByTestId(treeC2CaseTabs, 'member-buffs-tab-Furina')!.props
+        .onClick as () => void
+    )()
+    const treeC2Case = renderPanel(c2CasePreset)
+    expect(
+      findByTestId(treeC2Case, 'member-constellation-control-Furina')!.props[
+        'data-constellation'
+      ]
+    ).toBe('2')
+    expect(
+      findByTestId(treeC2Case, 'member-constellation-control-Furina')!.props[
+        'data-constellation-source'
+      ]
+    ).toBe('case')
+
+    // 5. Stage 3 tab strip CSS enforces one-row layout at desktop widths with equal flex and ellipsis truncation
+    const cssPath = path.resolve(__dirname, '../src/app/globals.css')
+    const cssText = fs.readFileSync(cssPath, 'utf-8')
+    expect(cssText).toMatch(
+      /\.gi-buffs-member-tabs\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap;/
+    )
+    expect(cssText).toMatch(
+      /\.gi-buffs-member-tab\s*\{[^}]*flex:\s*1\s+1\s+0%;[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap;/
+    )
   })
 })

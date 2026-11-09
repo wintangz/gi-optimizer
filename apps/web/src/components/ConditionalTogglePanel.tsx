@@ -26,21 +26,27 @@ import {
 } from '@gi/engine'
 import type { IGOOD } from '@gi/good'
 import {
+  CONSTELLATION_VALUES,
   applyMemberConditionalOverrides,
   displayName,
   getPresetConditionalOverrides,
+  getPresetConstellationOverrides,
   getPresetMemberBuildModes,
   getPresetResonanceEffects,
   getPresetResonanceEnabled,
   hasDisabledResonanceEffects,
   hasMemberConditionalOverrides,
+  hasMemberConstellationOverride,
   hasMemberFastMode,
   listTriggeredResonances,
   readEffectiveConditionalValue,
   resetMemberConditionalOverrides,
+  resetMemberConstellationOverrides,
   resolvePresetMemberBuildMode,
+  resolvePresetMemberConstellation,
   seedCandidateTargetConditionals,
   setMemberConditionalOverride,
+  setMemberConstellationOverride,
   setPresetResonanceEffectEnabled,
   setPresetResonanceEnabled,
   type FastModeStatKey,
@@ -49,6 +55,7 @@ import {
   type MemberConditionalsMap,
   type OptimizerSettings,
   type Preset,
+  type ResolvedMemberConstellation,
   type ResonanceEffectKey,
   type TeamMember,
 } from '@gi/presets'
@@ -536,12 +543,14 @@ export function ConditionalTogglePanel({
     () => preset.team.slice(0, 4).map((m) => m.key),
     [preset.team]
   )
+  const teamKeysSig = teamKeys.join(',')
 
   useEffect(() => {
     if (providedCatalog) return
     if (typeof getCatalogInWorker !== 'function') return
     let cancelled = false
-    void Promise.resolve(getCatalogInWorker(teamKeys)).then((res) => {
+    const keys = teamKeysSig ? teamKeysSig.split(',') : []
+    void Promise.resolve(getCatalogInWorker(keys)).then((res) => {
       if (!cancelled && res?.conditionalsByChar) {
         setLoadedCatalog((prev) => ({
           ...prev,
@@ -552,7 +561,7 @@ export function ConditionalTogglePanel({
     return () => {
       cancelled = true
     }
-  }, [teamKeys, providedCatalog])
+  }, [teamKeysSig, providedCatalog])
 
   const catalogByChar = providedCatalog ?? loadedCatalog
 
@@ -568,6 +577,11 @@ export function ConditionalTogglePanel({
 
   const presetOverrides = useMemo(
     () => getPresetConditionalOverrides(settings, preset.id),
+    [settings, preset.id]
+  )
+
+  const presetConstellationOverrides = useMemo(
+    () => getPresetConstellationOverrides(settings, preset.id),
     [settings, preset.id]
   )
 
@@ -594,6 +608,7 @@ export function ConditionalTogglePanel({
   const anyPresetOverrides = useMemo(
     () =>
       hasMemberConditionalOverrides(settings, preset.id) ||
+      hasMemberConstellationOverride(settings, preset.id) ||
       !resonanceEnabled ||
       hasDisabledTriggeredResonance,
     [settings, preset.id, resonanceEnabled, hasDisabledTriggeredResonance]
@@ -647,14 +662,36 @@ export function ConditionalTogglePanel({
     )
   }
 
-  function handleResetMember(characterKey: string) {
+  function handleSetMemberConstellation(
+    characterKey: string,
+    nextConstellation: number,
+    defaultConstellation: number
+  ) {
     onChangeSettings(
-      resetMemberConditionalOverrides(settings, preset.id, characterKey)
+      setMemberConstellationOverride(
+        settings,
+        preset.id,
+        characterKey,
+        nextConstellation,
+        defaultConstellation
+      )
+    )
+  }
+
+  function handleResetMember(characterKey: string) {
+    const nextConds = resetMemberConditionalOverrides(
+      settings,
+      preset.id,
+      characterKey
+    )
+    onChangeSettings(
+      resetMemberConstellationOverrides(nextConds, preset.id, characterKey)
     )
   }
 
   function handleResetAll() {
-    onChangeSettings(resetMemberConditionalOverrides(settings, preset.id))
+    const nextConds = resetMemberConditionalOverrides(settings, preset.id)
+    onChangeSettings(resetMemberConstellationOverrides(nextConds, preset.id))
   }
 
   const memberEntries = preset.team.slice(0, 4).map((member, idx) => {
@@ -747,11 +784,19 @@ export function ConditionalTogglePanel({
       defaultMap,
       memberOverrides
     )
-    const hasMemberOverride = hasMemberConditionalOverrides(
-      settings,
-      preset.id,
-      mKey
-    )
+    const goodCharConstellation = (good?.characters ?? []).find(
+      (c) => c.key === mKey
+    )?.constellation
+    const resolvedConstellation = resolvePresetMemberConstellation({
+      preset,
+      memberIndex: idx,
+      resolvedMode: resolvedBuild.mode,
+      goodCharacterConstellation: goodCharConstellation,
+      overrideConstellation: presetConstellationOverrides[mKey],
+    })
+    const hasMemberOverride =
+      hasMemberConditionalOverrides(settings, preset.id, mKey) ||
+      resolvedConstellation.isOverridden
 
     // 1. Weapon conditionals: active weapon + any weapon with authored/overridden state
     const weaponConditionals = memberCatalog.filter((c) => {
@@ -815,6 +860,7 @@ export function ConditionalTogglePanel({
       characterConditionals,
       constellationConditionals,
       effectiveMap,
+      resolvedConstellation,
       hasMemberOverride,
       activeCount,
     }
@@ -1382,13 +1428,67 @@ export function ConditionalTogglePanel({
                                     ? activeStageMember.member.build.tc
                                         .character
                                     : { level: 90, constellation: 0 }
-                              return `Fixed Spec · Lv.${charSpec.level} C${charSpec.constellation}`
+                              return `Fixed Spec · Lv.${charSpec.level} C${activeEntry.resolvedConstellation.value}`
                             })()
                           : activeEntry.isSimulated
                             ? 'Simulated (TC)'
                             : 'Owned Build'}
                       </span>
                     ))}
+                  <div
+                    className={`preset-member-constellation-control${
+                      activeEntry.resolvedConstellation.isOverridden
+                        ? ' is-overridden'
+                        : ''
+                    }`}
+                    data-testid={`member-constellation-control-${activeEntry.mKey}`}
+                    data-character-key={activeEntry.mKey}
+                    data-constellation={String(
+                      activeEntry.resolvedConstellation.value
+                    )}
+                    data-constellation-default={String(
+                      activeEntry.resolvedConstellation.defaultValue
+                    )}
+                    data-constellation-source={
+                      activeEntry.resolvedConstellation.source
+                    }
+                    data-constellation-overridden={
+                      activeEntry.resolvedConstellation.isOverridden
+                        ? 'true'
+                        : 'false'
+                    }
+                  >
+                    <select
+                      aria-label={`${displayName(activeEntry.mKey)} constellation`}
+                      data-testid={`member-constellation-select-${activeEntry.mKey}`}
+                      className="preset-member-constellation-select"
+                      value={String(activeEntry.resolvedConstellation.value)}
+                      onChange={(e) =>
+                        handleSetMemberConstellation(
+                          activeEntry.mKey,
+                          Number(e.target.value),
+                          activeEntry.resolvedConstellation.defaultValue
+                        )
+                      }
+                    >
+                      {CONSTELLATION_VALUES.map((cVal) => (
+                        <option key={cVal} value={String(cVal)}>
+                          C{cVal}
+                        </option>
+                      ))}
+                    </select>
+                    <span
+                      className="preset-member-constellation-source"
+                      data-testid={`member-constellation-source-${activeEntry.mKey}`}
+                      title={
+                        activeEntry.resolvedConstellation.isOverridden
+                          ? `Overridden to C${activeEntry.resolvedConstellation.value} (default C${activeEntry.resolvedConstellation.defaultValue} from ${activeEntry.resolvedConstellation.source})`
+                          : `Constellation C${activeEntry.resolvedConstellation.value} from ${activeEntry.resolvedConstellation.source}`
+                      }
+                    >
+                      {activeEntry.resolvedConstellation.source}
+                    </span>
+                  </div>
                   <span
                     className={`gi-buffs-count-pill${
                       activeEntry.activeCount > 0 ? ' is-active' : ''
@@ -1570,6 +1670,8 @@ export function ConditionalTogglePanel({
                       characterKey: activeEntry.mKey,
                       cond,
                       effectiveMap: activeEntry.effectiveMap,
+                      effectiveConstellation:
+                        activeEntry.resolvedConstellation.value,
                       onSetState: (val) =>
                         handleSetCondState(
                           activeEntry.mKey,
@@ -1615,6 +1717,8 @@ export function ConditionalTogglePanel({
                       characterKey: activeEntry.mKey,
                       cond,
                       effectiveMap: activeEntry.effectiveMap,
+                      effectiveConstellation:
+                        activeEntry.resolvedConstellation.value,
                       onSetState: (val) =>
                         handleSetCondState(
                           activeEntry.mKey,
@@ -1718,6 +1822,7 @@ export interface CandidateTargetConditionalsEntry {
   seededOverrides: MemberConditionalsMap
   effectiveMap: MemberConditionalsMap
   seededEffectiveMap: MemberConditionalsMap
+  resolvedConstellation: ResolvedMemberConstellation
   activeCount: number
   diffs: CandidateEffectDiff[]
   setupDiffers: boolean
@@ -1757,6 +1862,18 @@ export function deriveCandidateTargetConditionalsEntry(opts: {
     characterKey: targetKey,
     ownedCharKeys,
     overrideMode: memberBuildModes[targetKey],
+  })
+  const goodTargetConstellation = (good?.characters ?? []).find(
+    (c) => c.key === targetKey
+  )?.constellation
+  const resolvedConstellation = resolvePresetMemberConstellation({
+    preset,
+    memberIndex: 0,
+    resolvedMode: resolvedBuild.mode,
+    goodCharacterConstellation: goodTargetConstellation,
+    overrideConstellation: getPresetConstellationOverrides(settings, preset.id)[
+      targetKey
+    ],
   })
 
   const equippedGoodWeaponKey = (good?.weapons ?? []).find(
@@ -1951,6 +2068,7 @@ export function deriveCandidateTargetConditionalsEntry(opts: {
     seededOverrides,
     effectiveMap,
     seededEffectiveMap,
+    resolvedConstellation,
     activeCount,
     diffs,
     setupDiffers: diffs.length > 0,
@@ -1958,10 +2076,27 @@ export function deriveCandidateTargetConditionalsEntry(opts: {
   }
 }
 
+export function getRequiredConstellationForConditional(
+  cond: Pick<ConditionalDescriptor, 'category' | 'section' | 'key'>
+): number | undefined {
+  const secMatch = cond.section?.match(/^constellation([1-6])$/)
+  if (secMatch) {
+    return Number(secMatch[1])
+  }
+  if (cond.category === 'constellation') {
+    const keyMatch = cond.key.match(/^c([1-6])(?:[A-Z0-9_]|$)/)
+    if (keyMatch) {
+      return Number(keyMatch[1])
+    }
+  }
+  return undefined
+}
+
 export function renderConditionalRow(opts: {
   characterKey: string
   cond: ConditionalDescriptor
   effectiveMap: MemberConditionalsMap
+  effectiveConstellation?: number
   showSetBadge?: boolean
   testIdPrefix?: string
   onSetState: (nextVal: string) => void
@@ -1970,6 +2105,7 @@ export function renderConditionalRow(opts: {
     characterKey,
     cond,
     effectiveMap,
+    effectiveConstellation,
     showSetBadge,
     testIdPrefix = 'cond',
     onSetState,
@@ -1988,15 +2124,28 @@ export function renderConditionalRow(opts: {
     : undefined
   const defaultOnKey =
     cond.states[cond.states.length - 1]?.key ?? cond.states[0]?.key ?? 'on'
+  const requiredConstellation = getRequiredConstellationForConditional(cond)
+  const isConstellationGated =
+    effectiveConstellation !== undefined &&
+    requiredConstellation !== undefined &&
+    effectiveConstellation < requiredConstellation
 
   return (
     <div
       key={`${cond.sheet}:${cond.key}`}
-      className={`gi-buff-row gi-buff-cell${isOn ? ' is-on' : ''}`}
+      className={`gi-buff-row gi-buff-cell${isOn ? ' is-on' : ''}${
+        isConstellationGated ? ' is-constellation-gated' : ''
+      }`}
       data-testid={`${testIdPrefix}-row-${characterKey}-${cond.sheet}-${cond.key}`}
       data-conditional-sheet={cond.sheet}
       data-conditional-key={cond.key}
       data-conditional-state={currentValue}
+      {...(requiredConstellation !== undefined
+        ? { 'data-required-constellation': String(requiredConstellation) }
+        : {})}
+      {...(isConstellationGated
+        ? { 'data-constellation-gated': 'true' }
+        : {})}
     >
       <div className="gi-buff-row-info">
         {showSetBadge && (
@@ -2030,6 +2179,15 @@ export function renderConditionalRow(opts: {
       </div>
 
       <div className="gi-buff-row-controls">
+        {isConstellationGated && (
+          <span
+            className="gi-buff-const-gate-hint"
+            data-testid={`${testIdPrefix}-const-hint-${characterKey}-${cond.sheet}-${cond.key}`}
+            title={`Requires Constellation ${requiredConstellation} (current: C${effectiveConstellation})`}
+          >
+            Requires C{requiredConstellation}
+          </span>
+        )}
         {isMultiState && (
           <select
             aria-label={`${displayName(characterKey)} ${sheetName} ${label} state`}
@@ -2055,6 +2213,11 @@ export function renderConditionalRow(opts: {
           data-testid={`${testIdPrefix}-toggle-${characterKey}-${cond.sheet}-${cond.key}`}
           data-state-value={currentValue}
           className={`gi-buff-switch${isOn ? ' is-on' : ''}`}
+          title={
+            isConstellationGated
+              ? `Requires C${requiredConstellation}`
+              : undefined
+          }
           onClick={() => onSetState(isOn ? 'off' : defaultOnKey)}
         >
           <span className="gi-buff-switch-thumb" />

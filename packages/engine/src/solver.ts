@@ -50,6 +50,7 @@ import { getTeamData } from './teamData'
 import type {
   ArtifactSlot,
   MemberBuildMode,
+  MemberConstellationOverridesMap,
   OptimizeProgress,
   OptimizeResult,
   OptimizerSettings,
@@ -403,6 +404,7 @@ export async function runSolver(
     weaponOverrideSpec?: SimulatedWeaponSpec
     memberBuildModes?: Record<string, MemberBuildMode>
     memberConditionals?: PresetMemberConditionalOverrides
+    memberConstellations?: MemberConstellationOverridesMap
     resonanceEnabled?: boolean
     resonanceEffects?: ResonanceEffectsStateMap
     fastMode?: PresetFastModeMap
@@ -639,6 +641,10 @@ export async function runSolver(
         ...(opts?.memberConditionals &&
         Object.keys(opts.memberConditionals).length > 0
           ? { memberConditionals: opts.memberConditionals }
+          : {}),
+        ...(opts?.memberConstellations &&
+        Object.keys(opts.memberConstellations).length > 0
+          ? { memberConstellations: { ...opts.memberConstellations } }
           : {}),
         ...(opts?.resonanceEnabled === false
           ? { resonanceEnabled: false }

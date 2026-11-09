@@ -37,8 +37,13 @@ import {
   MemberCompactStatGrid,
   TeammateFastModePanel,
   formatFastModeLine,
+  formatMemberStatSourceTooltip,
   formatTeammateStatValue,
 } from '@/components/TeammateFastModePanel'
+import {
+  computeViewportClampedTooltipPlacement,
+  syncElementTruncationTooltip,
+} from '@/components/TruncationTooltipManager'
 
 interface VNode {
   type: string
@@ -658,5 +663,160 @@ describe('TeammateFastModePanel & Fast Mode UI (fast-mode)', () => {
         findByTestId(tree, 'fast-mode-line-KaedeharaKazuha-enerRech_')!,
       ])
     ).toContain('-10% ER')
+  })
+
+  it('stat source tooltips (editor-pack): renders contributing sources + values tooltip on Final stats when breakdown data is present, renders no tooltip when absent, and clamps tooltip coordinates inside the viewport', () => {
+    const furinaWithBreakdowns = {
+      base: sampleMemberStats.Furina.base,
+      final: {
+        ...sampleMemberStats.Furina.final,
+        hydro_dmg_: 0.466,
+      },
+      statBreakdowns: {
+        hp: {
+          statKey: 'hp' as const,
+          label: 'HP',
+          unit: '' as const,
+          base: 15307,
+          total: 39500,
+          reconciledTotal: 39500,
+          baseContributors: [],
+          percentContributors: [],
+          flatContributors: [],
+          contributors: [
+            {
+              label: 'Furina (Character Base / Ascension)',
+              value: 15307,
+              unit: '' as const,
+              source: 'Furina',
+              category: 'character' as const,
+            },
+            {
+              label: 'Primordial Jade Cutter (Weapon Stat)',
+              value: 3061,
+              unit: '' as const,
+              source: 'PrimordialJadeCutter',
+              category: 'weapon' as const,
+              note: '15,307 Base × 20.0%',
+            },
+            {
+              label: 'Equipped Artifacts',
+              value: 17305,
+              unit: '' as const,
+              source: 'Artifacts',
+              category: 'artifactSet' as const,
+            },
+            {
+              label: 'Elemental Resonance',
+              value: 3827,
+              unit: '' as const,
+              source: 'Resonance',
+              category: 'resonance' as const,
+              note: '15,307 Base × 25.0%',
+            },
+          ],
+        },
+        hydro_dmg_: {
+          statKey: 'hydro_dmg_' as const,
+          label: 'Hydro DMG Bonus',
+          unit: '%' as const,
+          base: 0,
+          total: 0.466,
+          reconciledTotal: 0.466,
+          baseContributors: [],
+          percentContributors: [],
+          flatContributors: [],
+          contributors: [
+            {
+              label: 'Equipped Artifacts',
+              value: 0.466,
+              unit: '%' as const,
+              source: 'Artifacts',
+              category: 'artifactSet' as const,
+            },
+          ],
+        },
+      },
+    }
+
+    const gridTree = evaluateTree(
+      <MemberCompactStatGrid
+        characterKey="Furina"
+        memberStats={furinaWithBreakdowns}
+      />
+    )
+
+    // 1. HP Final stat has breakdown data -> tooltip lists Base, Weapon, Artifacts, and Resonance contributors + values
+    const hpFinal = findByTestId(gridTree, 'teammate-stat-final-Furina-hp')!
+    expect(hpFinal).toBeDefined()
+    const hpTooltip = hpFinal.props['data-stat-source-tooltip'] as string
+    expect(hpTooltip).toBeDefined()
+    expect(hpFinal.props.title).toBe(hpTooltip)
+    expect(hpTooltip).toContain(
+      'Base · Furina (Character Base / Ascension): +15,307'
+    )
+    expect(hpTooltip).toContain(
+      'Weapon · Primordial Jade Cutter (Weapon Stat) (15,307 Base × 20.0%): +3,061'
+    )
+    expect(hpTooltip).toContain('Artifacts · Equipped Artifacts: +17,305')
+    expect(hpTooltip).toContain(
+      'Resonance · Elemental Resonance (15,307 Base × 25.0%): +3,827'
+    )
+
+    // Non-core DMG% Final stat also carries its source tooltip when breakdown data exists
+    const hydroFinal = findByTestId(
+      gridTree,
+      'teammate-stat-final-Furina-hydro_dmg_'
+    )!
+    expect(hydroFinal.props['data-stat-source-tooltip']).toContain(
+      'Artifacts · Equipped Artifacts: +46.6%'
+    )
+
+    // 2. DEF Final stat has NO breakdown entry -> no tooltip attributes ("No data -> no tooltip")
+    const defFinal = findByTestId(gridTree, 'teammate-stat-final-Furina-def')!
+    expect(defFinal).toBeDefined()
+    expect(defFinal.props.title).toBeUndefined()
+    expect(defFinal.props['data-stat-source-tooltip']).toBeUndefined()
+    expect(formatMemberStatSourceTooltip('def', undefined)).toBeUndefined()
+
+    // 3. syncElementTruncationTooltip never strips or overwrites data-stat-source-tooltip
+    const attrs: Record<string, string> = {
+      title: hpTooltip,
+      'data-stat-source-tooltip': hpTooltip,
+    }
+    const mockEl = {
+      scrollWidth: 40,
+      clientWidth: 80,
+      scrollHeight: 18,
+      clientHeight: 18,
+      textContent: '39,500',
+      getAttribute: (k: string) => attrs[k] ?? null,
+      setAttribute: (k: string, v: string) => {
+        attrs[k] = v
+      },
+      removeAttribute: (k: string) => {
+        delete attrs[k]
+      },
+    }
+    expect(syncElementTruncationTooltip(mockEl)).toBe(false)
+    expect(attrs.title).toBe(hpTooltip)
+
+    // 4. Viewport clamping keeps tooltip inside viewport across edges
+    const topEdge = computeViewportClampedTooltipPlacement(
+      { left: 500, right: 560, top: 10, bottom: 28, width: 60 },
+      { width: 1280, height: 800 },
+      4
+    )
+    expect(topEdge.placement).toBe('bottom')
+    expect(topEdge.y).toBeGreaterThanOrEqual(8)
+    expect(topEdge.y).toBeLessThanOrEqual(800)
+
+    const rightEdge = computeViewportClampedTooltipPlacement(
+      { left: 1220, right: 1275, top: 400, bottom: 420, width: 55 },
+      { width: 1280, height: 800 },
+      4
+    )
+    expect(rightEdge.align).toBe('right')
+    expect(rightEdge.x).toBeLessThanOrEqual(1280 - 12)
   })
 })

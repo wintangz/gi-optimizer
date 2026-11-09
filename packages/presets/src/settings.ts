@@ -290,6 +290,20 @@ export type PresetMemberConditionalOverrides = Record<
   MemberConditionalsMap
 >
 
+export const CONSTELLATION_VALUES = [0, 1, 2, 3, 4, 5, 6] as const
+export type ConstellationValue = (typeof CONSTELLATION_VALUES)[number]
+export type MemberConstellationOverridesMap = Partial<
+  Record<string, ConstellationValue>
+>
+export type ConstellationSourceKind = 'case' | 'preset' | 'your account'
+
+export interface ResolvedMemberConstellation {
+  value: ConstellationValue
+  defaultValue: ConstellationValue
+  source: ConstellationSourceKind
+  isOverridden: boolean
+}
+
 export interface WeaponCompareCandidateSpec {
   weaponKey: string
   level: number
@@ -424,6 +438,10 @@ export interface OptimizerSettings {
    */
   memberConditionalOverrides?: Record<string, PresetMemberConditionalOverrides>
   /**
+   * Per-preset, per-member constellation overrides (`[presetId][characterKey] => 0..6`).
+   */
+  memberConstellationOverrides?: Record<string, MemberConstellationOverridesMap>
+  /**
    * Per-preset master Elemental Resonance on/off override (`[presetId] => boolean`).
    * Defaults to `true` (ON) when omitted or undefined. When `false` (OFF), all elemental
    * resonances are suppressed for the preset without mutating bundled preset data or
@@ -477,6 +495,7 @@ export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
   setFilterSelection: {},
   memberBuildModes: {},
   memberConditionalOverrides: {},
+  memberConstellationOverrides: {},
   resonanceEnabledByPreset: {},
   resonanceEffectsByPreset: {},
   fastModeByPreset: {},
@@ -968,6 +987,169 @@ export function hasMemberConditionalOverrides(
         (sheetMap) => sheetMap && Object.keys(sheetMap).length > 0
       )
   )
+}
+
+export function normalizeConstellationValue(
+  val: unknown
+): ConstellationValue | undefined {
+  if (typeof val !== 'number' || !Number.isFinite(val)) {
+    return undefined
+  }
+  const rounded = Math.round(val)
+  if (rounded < 0 || rounded > 6) {
+    return Math.max(0, Math.min(6, rounded)) as ConstellationValue
+  }
+  return rounded as ConstellationValue
+}
+
+export function getPresetConstellationOverrides(
+  settings: Pick<OptimizerSettings, 'memberConstellationOverrides'> | undefined,
+  presetId: string
+): MemberConstellationOverridesMap {
+  const map = settings?.memberConstellationOverrides
+  if (!map) return {}
+  let rawPresetMap = map[presetId]
+  if (!rawPresetMap) {
+    const subIdx = presetId.indexOf('__member_')
+    if (subIdx > 0) {
+      const rootPresetId = presetId.slice(0, subIdx)
+      rawPresetMap = map[rootPresetId]
+    }
+  }
+  if (!rawPresetMap || typeof rawPresetMap !== 'object') return {}
+  const out: MemberConstellationOverridesMap = {}
+  for (const [charKey, rawVal] of Object.entries(rawPresetMap)) {
+    const norm = normalizeConstellationValue(rawVal)
+    if (norm !== undefined) {
+      out[charKey] = norm
+    }
+  }
+  return out
+}
+
+export function setMemberConstellationOverride(
+  settings: OptimizerSettings,
+  presetId: string,
+  characterKey: string,
+  constellation: number | undefined | null,
+  defaultConstellation?: number
+): OptimizerSettings {
+  const currentAll = { ...(settings.memberConstellationOverrides ?? {}) }
+  const currentPresetMap: MemberConstellationOverridesMap = {
+    ...(currentAll[presetId] ?? {}),
+  }
+  const norm = normalizeConstellationValue(constellation)
+  const normDefault = normalizeConstellationValue(defaultConstellation)
+  if (
+    norm === undefined ||
+    (normDefault !== undefined && norm === normDefault)
+  ) {
+    delete currentPresetMap[characterKey]
+  } else {
+    currentPresetMap[characterKey] = norm
+  }
+  if (Object.keys(currentPresetMap).length === 0) {
+    delete currentAll[presetId]
+  } else {
+    currentAll[presetId] = currentPresetMap
+  }
+  return {
+    ...settings,
+    memberConstellationOverrides: currentAll,
+  }
+}
+
+export function resetMemberConstellationOverrides(
+  settings: OptimizerSettings,
+  presetId: string,
+  characterKey?: string
+): OptimizerSettings {
+  const currentAll = { ...(settings.memberConstellationOverrides ?? {}) }
+  if (!characterKey) {
+    delete currentAll[presetId]
+    return {
+      ...settings,
+      memberConstellationOverrides: currentAll,
+    }
+  }
+  const currentPresetMap: MemberConstellationOverridesMap = {
+    ...(currentAll[presetId] ?? {}),
+  }
+  delete currentPresetMap[characterKey]
+  if (Object.keys(currentPresetMap).length === 0) {
+    delete currentAll[presetId]
+  } else {
+    currentAll[presetId] = currentPresetMap
+  }
+  return {
+    ...settings,
+    memberConstellationOverrides: currentAll,
+  }
+}
+
+export function hasMemberConstellationOverride(
+  settings: Pick<OptimizerSettings, 'memberConstellationOverrides'> | undefined,
+  presetId: string,
+  characterKey?: string
+): boolean {
+  const presetMap = getPresetConstellationOverrides(settings, presetId)
+  if (characterKey) {
+    return presetMap[characterKey] !== undefined
+  }
+  return Object.keys(presetMap).length > 0
+}
+
+export function resolvePresetMemberConstellation(opts: {
+  preset: Pick<Preset, 'source' | 'team'>
+  memberIndex: number
+  resolvedMode: MemberBuildMode
+  goodCharacterConstellation?: number
+  overrideConstellation?: number
+}): ResolvedMemberConstellation {
+  const {
+    preset,
+    memberIndex,
+    resolvedMode,
+    goodCharacterConstellation,
+    overrideConstellation,
+  } = opts
+  const member = preset.team[memberIndex]
+  const rawSpecConst =
+    member?.build?.type === 'fixed'
+      ? member.build.character.constellation
+      : member?.build?.type === 'tc'
+        ? member.build.tc.character.constellation
+        : typeof member?.requirement?.constellation === 'number'
+          ? member.requirement.constellation
+          : member?.requirement?.constellation?.min
+  const specConst = normalizeConstellationValue(rawSpecConst) ?? 0
+  const goodConst = normalizeConstellationValue(goodCharacterConstellation)
+  const isFixedOrCase =
+    member?.build?.type === 'fixed' || preset.source === 'akasha'
+
+  let defaultValue: ConstellationValue = specConst
+  let source: ConstellationSourceKind = isFixedOrCase ? 'case' : 'preset'
+
+  if (
+    !isFixedOrCase &&
+    resolvedMode === 'owned' &&
+    goodConst !== undefined
+  ) {
+    defaultValue = goodConst
+    source = 'your account'
+  }
+
+  const normOverride = normalizeConstellationValue(overrideConstellation)
+  const isOverridden =
+    normOverride !== undefined && normOverride !== defaultValue
+  const value: ConstellationValue = normOverride ?? defaultValue
+
+  return {
+    value,
+    defaultValue,
+    source,
+    isOverridden,
+  }
 }
 
 export const CONDITIONAL_KEY_ALIASES: Record<string, Record<string, string>> = {

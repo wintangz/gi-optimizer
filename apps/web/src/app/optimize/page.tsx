@@ -66,6 +66,7 @@ import {
   displayName,
   getCharacterMeta,
   getPresetConditionalOverrides,
+  getPresetConstellationOverrides,
   getPresetMemberBuildModes,
   getPresetResonanceEffects,
   getPresetResonanceEnabled,
@@ -73,6 +74,7 @@ import {
   getWeaponMeta,
   hasDisabledResonanceEffects,
   hasMemberConditionalOverrides,
+  hasMemberConstellationOverride,
   listBundledPresets,
   listWeaponsForType,
   matchAccount,
@@ -248,6 +250,22 @@ function OptimizeInner() {
     () =>
       activePreset
         ? hasMemberConditionalOverrides(settings, activePreset.id)
+        : false,
+    [activePreset, settings]
+  )
+
+  const activeMemberConstellations = useMemo(
+    () =>
+      activePreset
+        ? getPresetConstellationOverrides(settings, activePreset.id)
+        : {},
+    [activePreset, settings]
+  )
+
+  const hasActiveConstellationOverrides = useMemo(
+    () =>
+      activePreset
+        ? hasMemberConstellationOverride(settings, activePreset.id)
         : false,
     [activePreset, settings]
   )
@@ -918,6 +936,9 @@ function OptimizeInner() {
               ...(hasActiveConditionalOverrides
                 ? { memberConditionals: activeMemberConditionals }
                 : {}),
+              ...(hasActiveConstellationOverrides
+                ? { memberConstellations: activeMemberConstellations }
+                : {}),
               ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
               ...(hasDisabledActiveResonanceEffects
                 ? { resonanceEffects: activeResonanceEffects }
@@ -939,6 +960,9 @@ function OptimizeInner() {
               ...(hasActiveConditionalOverrides
                 ? { memberConditionals: activeMemberConditionals }
                 : {}),
+              ...(hasActiveConstellationOverrides
+                ? { memberConstellations: activeMemberConstellations }
+                : {}),
               ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
               ...(hasDisabledActiveResonanceEffects
                 ? { resonanceEffects: activeResonanceEffects }
@@ -954,6 +978,7 @@ function OptimizeInner() {
         const needsReEval = isAkashaPreset
           ? Boolean(
               hasActiveConditionalOverrides ||
+                hasActiveConstellationOverrides ||
                 !activeResonanceEnabled ||
                 hasDisabledActiveResonanceEffects ||
                 hasActiveFastMode ||
@@ -970,6 +995,7 @@ function OptimizeInner() {
                   effectiveWeaponId !== baseRes.currentBuild.weaponId) ||
                 hasOfficialMemberModeOverrides ||
                 hasActiveConditionalOverrides ||
+                hasActiveConstellationOverrides ||
                 !activeResonanceEnabled ||
                 hasDisabledActiveResonanceEffects ||
                 hasActiveFastMode
@@ -1042,6 +1068,8 @@ function OptimizeInner() {
     activeMemberBuildModes,
     activeMemberConditionals,
     hasActiveConditionalOverrides,
+    activeMemberConstellations,
+    hasActiveConstellationOverrides,
     activeResonanceEnabled,
     activeResonanceEffects,
     hasDisabledActiveResonanceEffects,
@@ -1081,6 +1109,9 @@ function OptimizeInner() {
                 ...(hasActiveConditionalOverrides
                   ? { memberConditionals: activeMemberConditionals }
                   : {}),
+                ...(hasActiveConstellationOverrides
+                  ? { memberConstellations: activeMemberConstellations }
+                  : {}),
                 ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
                 ...(hasDisabledActiveResonanceEffects
                   ? { resonanceEffects: activeResonanceEffects }
@@ -1119,6 +1150,8 @@ function OptimizeInner() {
     activeMemberBuildModes,
     activeMemberConditionals,
     hasActiveConditionalOverrides,
+    activeMemberConstellations,
+    hasActiveConstellationOverrides,
     activeResonanceEnabled,
     activeResonanceEffects,
     hasDisabledActiveResonanceEffects,
@@ -1278,6 +1311,9 @@ function OptimizeInner() {
                   : {}),
                 ...(hasCandidateConditionals
                   ? { memberConditionals: candidateMemberConditionals }
+                  : {}),
+                ...(hasActiveConstellationOverrides
+                  ? { memberConstellations: activeMemberConstellations }
                   : {}),
                 ...(!activeResonanceEnabled ? { resonanceEnabled: false } : {}),
                 ...(hasDisabledActiveResonanceEffects

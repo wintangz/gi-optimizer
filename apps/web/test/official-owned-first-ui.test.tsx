@@ -1,7 +1,14 @@
+import {
+  createSession,
+  listConditionalsForCharacter,
+  type BuildSelection,
+  type ConditionalDescriptor,
+} from '@gi/engine'
 import type { IGOOD } from '@gi/good'
 import {
   DEFAULT_OPTIMIZER_SETTINGS,
   type OptimizerSettings,
+  type Preset,
 } from '@gi/presets'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -208,6 +215,7 @@ const SAMPLE_GOOD: IGOOD = {
   artifacts: [],
 }
 
+let mockGood: IGOOD = SAMPLE_GOOD
 let mockSettings: OptimizerSettings = structuredClone(DEFAULT_OPTIMIZER_SETTINGS)
 const mockUpdateSettings = vi.fn(async (next: OptimizerSettings) => {
   mockSettings = next
@@ -217,7 +225,7 @@ vi.mock('@/lib/storage/useGood', () => ({
   useGoodStorage: () => ({
     record: {
       importedAt: '2026-11-07T00:00:00.000Z',
-      good: SAMPLE_GOOD,
+      good: mockGood,
     },
     loading: false,
   }),
@@ -255,14 +263,22 @@ const mockOptimizePresetInWorker = vi.fn<
   durationMs: 10,
 }))
 
+const mockGetCatalogInWorker = vi.fn<
+  (characterKeys?: string[]) => Promise<{
+    targetsByChar: Record<string, never[]>
+    conditionalsByChar: Record<string, ConditionalDescriptor[]>
+  }>
+>(async () => ({
+  targetsByChar: {},
+  conditionalsByChar: {},
+}))
+
 vi.mock('@/lib/engine/workerClient', () => ({
   evaluatePresetInWorker: (args: unknown) => mockEvaluatePresetInWorker(args),
   optimizePresetInWorker: (args: unknown) => mockOptimizePresetInWorker(args),
   optimizeTeamInWorker: vi.fn(),
-  getCatalogInWorker: async () => ({
-    targetsByChar: {},
-    conditionalsByChar: {},
-  }),
+  getCatalogInWorker: (characterKeys: string[]) =>
+    mockGetCatalogInWorker(characterKeys),
   exportGODatabaseInWorker: vi.fn(),
   cancelOptimizationInWorker: vi.fn(),
   isEngineSessionHydrated: () => true,
@@ -1356,6 +1372,181 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       )!
       expect(titleH2).toBeDefined()
       expect(titleH2.props.className).toContain('gi-card-title')
+    }
+  })
+
+  it('editor-pack end-to-end: on akasha/furina-salon-pjc-c0 with imported GOOD, Furina C0->C2 makes her C2 switch change Final stats and rotation total, and Reset restores C0 behaviour', async () => {
+    mockSearchParams = new URLSearchParams('preset=akasha/furina-salon-pjc-c0')
+    mockGood = {
+      ...SAMPLE_GOOD,
+      artifacts: [
+        {
+          id: 'art_furina_flower',
+          setKey: 'GoldenTroupe',
+          slotKey: 'flower',
+          level: 20,
+          rarity: 5,
+          mainStatKey: 'hp',
+          location: 'Furina',
+          lock: true,
+          substats: [
+            { key: 'critRate_', value: 10.5 },
+            { key: 'critDMG_', value: 21.0 },
+            { key: 'hp_', value: 9.9 },
+            { key: 'enerRech_', value: 11.0 },
+          ],
+        },
+      ],
+    }
+    const realSession = createSession(mockGood)
+    mockGetCatalogInWorker.mockImplementation(async () => ({
+      targetsByChar: {},
+      conditionalsByChar: {
+        Furina: listConditionalsForCharacter('Furina'),
+      },
+    }))
+    mockEvaluatePresetInWorker.mockImplementation(async (rawArgs) => {
+      const args = rawArgs as {
+        preset: Preset
+        selection?: BuildSelection
+      }
+      const currentBuild = realSession.currentBuild(args.preset)
+      const result = realSession.evaluate(
+        args.preset,
+        args.selection ?? currentBuild
+      )
+      return {
+        currentBuild: {
+          ...currentBuild,
+          weaponId: currentBuild.weaponId ?? 'w_furina',
+          artifactIds: (currentBuild.artifactIds ?? {}) as Record<
+            string,
+            string
+          >,
+        },
+        result: result as never,
+      }
+    })
+
+    const renderAndFlush = async (): Promise<VNode[]> => {
+      renderPass()
+      for (let i = 0; i < 4; i++) {
+        await new Promise((r) => setTimeout(r, 0))
+      }
+      return renderPass()
+    }
+
+    try {
+      const treeC0 = await renderAndFlush()
+
+      const parseDisplayedNum = (raw: string): number =>
+        Number(raw.replace(/,/g, '').trim())
+
+      // 1. Initial C0 state on Furina
+      expect(
+        collectText([findByTestId(treeC0, 'member-build-state-Furina')!])
+      ).toBe('Fixed Spec · Lv.90 C0')
+      expect(
+        findByTestId(treeC0, 'cond-const-hint-Furina-Furina-c2Overstack')
+      ).toBeDefined()
+      const c0FinalHp = parseDisplayedNum(
+        collectText([findByTestId(treeC0, 'teammate-stat-final-Furina-hp')!])
+      )
+      const c0Total = parseDisplayedNum(
+        collectText([findByTestId(treeC0, 'comp-total-current')!])
+      )
+      expect(c0FinalHp).toBeGreaterThan(0)
+      expect(c0Total).toBeGreaterThan(0)
+
+      // Final HP stat in the member editor has its stat source tooltip populated
+      const hpFinalNode = findByTestId(
+        treeC0,
+        'teammate-stat-final-Furina-hp'
+      )!
+      expect(hpFinalNode.props['data-stat-source-tooltip']).toContain('Furina')
+
+      // 2. Override Furina C0 -> C2 via the constellation control
+      const constSelect = findByTestId(
+        treeC0,
+        'member-constellation-select-Furina'
+      )!
+      ;(
+        constSelect.props.onChange as (e: { target: { value: string } }) => void
+      )({ target: { value: '2' } })
+      const treeC2 = await renderAndFlush()
+
+      expect(
+        collectText([findByTestId(treeC2, 'member-build-state-Furina')!])
+      ).toBe('Fixed Spec · Lv.90 C2')
+      expect(
+        findByTestId(treeC2, 'cond-const-hint-Furina-Furina-c2Overstack')
+      ).toBeUndefined()
+
+      const c2DefaultHp = parseDisplayedNum(
+        collectText([findByTestId(treeC2, 'teammate-stat-final-Furina-hp')!])
+      )
+      const c2DefaultTotal = parseDisplayedNum(
+        collectText([findByTestId(treeC2, 'comp-total-current')!])
+      )
+
+      // 3. Change Furina's C2 switch (c2Overstack) at C2 -> Final HP and rotation total both change
+      const c2Toggle = findByTestId(
+        treeC2,
+        'cond-toggle-Furina-Furina-c2Overstack'
+      )!
+      ;(c2Toggle.props.onClick as () => void)()
+      const treeC2Toggled = await renderAndFlush()
+
+      const c2ToggledHp = parseDisplayedNum(
+        collectText([
+          findByTestId(treeC2Toggled, 'teammate-stat-final-Furina-hp')!,
+        ])
+      )
+      const c2ToggledTotal = parseDisplayedNum(
+        collectText([findByTestId(treeC2Toggled, 'comp-total-current')!])
+      )
+      expect(c2ToggledHp).not.toBe(c2DefaultHp)
+      expect(c2ToggledTotal).not.toBe(c2DefaultTotal)
+
+      // 4. Reset Furina restores C0 behaviour (build-state label, C2 hint, Final HP, and rotation total)
+      const resetFurinaBtn = findByTestId(
+        treeC2Toggled,
+        'reset-member-conditionals-Furina'
+      )!
+      ;(resetFurinaBtn.props.onClick as () => void)()
+      const treeRestored = await renderAndFlush()
+
+      expect(
+        collectText([findByTestId(treeRestored, 'member-build-state-Furina')!])
+      ).toBe('Fixed Spec · Lv.90 C0')
+      expect(
+        findByTestId(treeRestored, 'cond-const-hint-Furina-Furina-c2Overstack')
+      ).toBeDefined()
+      expect(
+        parseDisplayedNum(
+          collectText([
+            findByTestId(treeRestored, 'teammate-stat-final-Furina-hp')!,
+          ])
+        )
+      ).toBe(c0FinalHp)
+      expect(
+        parseDisplayedNum(
+          collectText([findByTestId(treeRestored, 'comp-total-current')!])
+        )
+      ).toBe(c0Total)
+    } finally {
+      mockGood = SAMPLE_GOOD
+      mockGetCatalogInWorker.mockImplementation(async () => ({
+        targetsByChar: {},
+        conditionalsByChar: {},
+      }))
+      mockEvaluatePresetInWorker.mockImplementation(async () => ({
+        currentBuild: {
+          weaponId: 'w_furina',
+          artifactIds: { flower: 'art_1' },
+        },
+        result: { total: 374658, instances: [], stats: {} },
+      }))
     }
   })
 })

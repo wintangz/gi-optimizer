@@ -11,7 +11,9 @@ import {
   formatSignedBuffValue,
   getStatLabel,
   isPercentStatKey,
+  type BreakdownSourceCategory,
   type MemberStatSummary,
+  type StatBreakdown,
 } from '@gi/engine'
 import {
   FAST_MODE_STAT_KEYS,
@@ -72,6 +74,46 @@ export function formatTeammateStatValue(
     return `${(value * 100).toFixed(1)}%`
   }
   return Math.round(value).toLocaleString()
+}
+
+export const STAT_SOURCE_CATEGORY_LABELS: Record<
+  BreakdownSourceCategory,
+  string
+> = {
+  character: 'Base',
+  weapon: 'Weapon',
+  artifactSet: 'Artifacts',
+  teamBuff: 'Buffs',
+  resonance: 'Resonance',
+  enemy: 'Enemy',
+}
+
+/**
+ * Formats a Final stat's contributing sources + values from its StatBreakdown
+ * for tooltip display in the member editor. Returns `undefined` when breakdown
+ * data is absent or has no contributors (`No data -> no tooltip`).
+ */
+export function formatMemberStatSourceTooltip(
+  _statKey: string,
+  breakdown?: StatBreakdown
+): string | undefined {
+  if (
+    !breakdown ||
+    !Array.isArray(breakdown.contributors) ||
+    breakdown.contributors.length === 0
+  ) {
+    return undefined
+  }
+  const lines = breakdown.contributors.map((c) => {
+    const categoryLabel = STAT_SOURCE_CATEGORY_LABELS[c.category] ?? c.category
+    const valText =
+      c.unit === '%'
+        ? `${c.value >= 0 ? '+' : ''}${(c.value * 100).toFixed(1)}%`
+        : `${c.value >= 0 ? '+' : ''}${Math.round(c.value).toLocaleString()}`
+    const noteText = c.note ? ` (${c.note})` : ''
+    return `${categoryLabel} · ${c.label}${noteText}: ${valText}`
+  })
+  return lines.join('\n')
 }
 
 export function formatFastModeLine(
@@ -196,20 +238,28 @@ export function TeammateFastModeCard({
             </tr>
             <tr data-testid={`teammate-final-stats-${characterKey}`}>
               <th scope="row">Final</th>
-              {TEAMMATE_DISPLAY_STAT_KEYS.map((s) => (
-                <td
-                  key={s.key}
-                  data-testid={`teammate-stat-final-${characterKey}-${s.key}`}
-                  className={isActive && fastModeAvailable ? 'ok' : undefined}
-                >
-                  <strong>
-                    {formatTeammateStatValue(
-                      memberStats?.final?.[s.key],
-                      s.isPercent
-                    )}
-                  </strong>
-                </td>
-              ))}
+              {TEAMMATE_DISPLAY_STAT_KEYS.map((s) => {
+                const statTooltip = formatMemberStatSourceTooltip(
+                  s.key,
+                  memberStats?.statBreakdowns?.[s.key]
+                )
+                return (
+                  <td
+                    key={s.key}
+                    data-testid={`teammate-stat-final-${characterKey}-${s.key}`}
+                    className={isActive && fastModeAvailable ? 'ok' : undefined}
+                    title={statTooltip}
+                    data-stat-source-tooltip={statTooltip}
+                  >
+                    <strong>
+                      {formatTeammateStatValue(
+                        memberStats?.final?.[s.key],
+                        s.isPercent
+                      )}
+                    </strong>
+                  </td>
+                )
+              })}
             </tr>
           </tbody>
         </table>
@@ -474,28 +524,36 @@ export function MemberCompactStatGrid({
           className="preset-member-dmg-bonuses"
           data-testid={extraTestId}
         >
-          {keys.map((statKey) => (
-            <div
-              key={statKey}
-              className="preset-member-dmg-bonus-item"
-              data-testid={`teammate-stat-row-${characterKey}-${statKey}`}
-              data-stat-key={statKey}
-            >
-              <span className="preset-member-dmg-bonus-label">
-                <StatIcon statKey={statKey} iconProps={{ size: 12 }} />
-                <span>{getStatLabel(statKey)}</span>
-              </span>
-              <strong
-                className={`preset-member-dmg-bonus-val${highlightFinal ? ' ok' : ''}`}
-                data-testid={`teammate-stat-final-${characterKey}-${statKey}`}
+          {keys.map((statKey) => {
+            const statTooltip = formatMemberStatSourceTooltip(
+              statKey,
+              memberStats?.statBreakdowns?.[statKey]
+            )
+            return (
+              <div
+                key={statKey}
+                className="preset-member-dmg-bonus-item"
+                data-testid={`teammate-stat-row-${characterKey}-${statKey}`}
+                data-stat-key={statKey}
               >
-                {formatTeammateStatValue(
-                  memberStats?.final?.[statKey],
-                  isPercentStatKey(statKey)
-                )}
-              </strong>
-            </div>
-          ))}
+                <span className="preset-member-dmg-bonus-label">
+                  <StatIcon statKey={statKey} iconProps={{ size: 12 }} />
+                  <span>{getStatLabel(statKey)}</span>
+                </span>
+                <strong
+                  className={`preset-member-dmg-bonus-val${highlightFinal ? ' ok' : ''}`}
+                  data-testid={`teammate-stat-final-${characterKey}-${statKey}`}
+                  title={statTooltip}
+                  data-stat-source-tooltip={statTooltip}
+                >
+                  {formatTeammateStatValue(
+                    memberStats?.final?.[statKey],
+                    isPercentStatKey(statKey)
+                  )}
+                </strong>
+              </div>
+            )
+          })}
         </div>
       </div>
     )
@@ -539,34 +597,42 @@ export function MemberCompactStatGrid({
               </span>
             </div>
 
-            {TEAMMATE_DISPLAY_STAT_KEYS.map((s) => (
-              <div
-                key={s.key}
-                className="preset-member-stat-cell"
-                data-testid={`teammate-stat-row-${characterKey}-${s.key}`}
-                data-stat-key={s.key}
-              >
-                <span className="preset-member-stat-label">{s.label}</span>
-                <span
-                  className="preset-member-stat-base"
-                  data-testid={`teammate-stat-base-${characterKey}-${s.key}`}
+            {TEAMMATE_DISPLAY_STAT_KEYS.map((s) => {
+              const statTooltip = formatMemberStatSourceTooltip(
+                s.key,
+                memberStats?.statBreakdowns?.[s.key]
+              )
+              return (
+                <div
+                  key={s.key}
+                  className="preset-member-stat-cell"
+                  data-testid={`teammate-stat-row-${characterKey}-${s.key}`}
+                  data-stat-key={s.key}
                 >
-                  {formatTeammateStatValue(
-                    memberStats?.base?.[s.key],
-                    s.isPercent
-                  )}
-                </span>
-                <strong
-                  className={`preset-member-stat-final${highlightFinal ? ' ok' : ''}`}
-                  data-testid={`teammate-stat-final-${characterKey}-${s.key}`}
-                >
-                  {formatTeammateStatValue(
-                    memberStats?.final?.[s.key],
-                    s.isPercent
-                  )}
-                </strong>
-              </div>
-            ))}
+                  <span className="preset-member-stat-label">{s.label}</span>
+                  <span
+                    className="preset-member-stat-base"
+                    data-testid={`teammate-stat-base-${characterKey}-${s.key}`}
+                  >
+                    {formatTeammateStatValue(
+                      memberStats?.base?.[s.key],
+                      s.isPercent
+                    )}
+                  </span>
+                  <strong
+                    className={`preset-member-stat-final${highlightFinal ? ' ok' : ''}`}
+                    data-testid={`teammate-stat-final-${characterKey}-${s.key}`}
+                    title={statTooltip}
+                    data-stat-source-tooltip={statTooltip}
+                  >
+                    {formatTeammateStatValue(
+                      memberStats?.final?.[s.key],
+                      s.isPercent
+                    )}
+                  </strong>
+                </div>
+              )
+            })}
           </div>
         </div>
 
