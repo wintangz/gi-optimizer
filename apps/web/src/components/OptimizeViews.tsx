@@ -1741,6 +1741,7 @@ function FullDamageSectionView({
     <div
       className="comp-full-damage-section"
       data-testid={`comp-full-damage-${rowKey}`}
+      data-mode={showDiff ? 'diff' : 'plain'}
     >
       <div className="comp-details-subheader">
         <strong data-testid={`comp-full-damage-header-${rowKey}`}>
@@ -1754,6 +1755,7 @@ function FullDamageSectionView({
       <div className="gi-table-wrap">
         <table
           className="gi-table comp-damage-table comp-full-damage-table"
+          data-mode={showDiff ? 'diff' : 'plain'}
           aria-label="Full Damage"
         >
           <thead>
@@ -1807,6 +1809,8 @@ function FullDamageSectionView({
                     <tr
                       data-testid={`comp-full-damage-row-${rowKey}-${section.sectionKey}-${entry.key}`}
                       data-formula-path={pathStr}
+                      data-mode={showDiff ? 'diff' : 'plain'}
+                      data-has-reaction={entry.reaction ? 'true' : 'false'}
                       aria-expanded={entry.breakdown ? isExpanded : undefined}
                       className={
                         entry.breakdown ? 'comp-expandable-tr' : undefined
@@ -1817,7 +1821,7 @@ function FullDamageSectionView({
                           : undefined
                       }
                     >
-                      <td className="comp-dmg-col-name">
+                      <td className="comp-dmg-col-name" data-dmg-cell="name">
                         <span className="comp-stat-label-cell">
                           {entry.breakdown && (
                             <ChevronToggle
@@ -1836,13 +1840,20 @@ function FullDamageSectionView({
                           <strong>{entry.label}</strong>
                         </span>
                       </td>
-                      <td className="comp-dmg-col-compact">
+                      <td
+                        className="comp-dmg-col-compact"
+                        data-dmg-cell="reaction"
+                        data-has-reaction={entry.reaction ? 'true' : 'false'}
+                      >
                         <RotationReactionBadge
                           reaction={entry.reaction}
                           compact
                         />
                       </td>
-                      <td className="comp-dmg-col-compact">
+                      <td
+                        className="comp-dmg-col-compact"
+                        data-dmg-cell="hitmode"
+                      >
                         <RotationHitModeBadge
                           hitMode={entry.hitMode}
                           compact
@@ -1850,6 +1861,7 @@ function FullDamageSectionView({
                       </td>
                       <td
                         className="comp-dmg-col-num"
+                        data-dmg-cell="value"
                         data-testid={`comp-full-damage-value-${rowKey}-${section.sectionKey}-${entry.key}`}
                       >
                         <strong>{formatNum(entry.value)}</strong>
@@ -1859,6 +1871,7 @@ function FullDamageSectionView({
                           className={`comp-dmg-col-num comp-dmg-col-delta ${
                             delta?.cls ?? 'muted'
                           }`}
+                          data-dmg-cell="delta"
                           data-testid={`comp-full-damage-delta-${rowKey}-${section.sectionKey}-${entry.key}`}
                         >
                           {delta ? delta.text : '—'}
@@ -2184,7 +2197,14 @@ export function BuildComparisonList({
                 </div>
 
                 <div className="gi-table-wrap">
-                  <table className="gi-table comp-damage-table">
+                  <table
+                    className="gi-table comp-damage-table"
+                    data-mode={
+                      row.kind === 'optimized' && currentBuild
+                        ? 'diff'
+                        : 'plain'
+                    }
+                  >
                     <thead>
                       <tr>
                         <th className="comp-dmg-col-name">Damage Instance</th>
@@ -2217,10 +2237,20 @@ export function BuildComparisonList({
                           expandedInstanceKey === instanceKey
                         const instColSpan =
                           row.kind === 'optimized' && currentBuild ? 7 : 6
+                        const hasReaction = Boolean(targetSpec?.reaction)
                         return (
                           <Fragment key={idx}>
                             <tr
                               data-testid={`comp-instance-row-${row.id}-${idx}`}
+                              data-instance-row="true"
+                              data-mode={
+                                row.kind === 'optimized' && currentBuild
+                                  ? 'diff'
+                                  : 'plain'
+                              }
+                              data-has-reaction={
+                                hasReaction ? 'true' : 'false'
+                              }
                               aria-expanded={
                                 inst.breakdown ? isInstExpanded : undefined
                               }
@@ -2240,7 +2270,10 @@ export function BuildComparisonList({
                                   : undefined
                               }
                             >
-                              <td className="comp-dmg-col-name">
+                              <td
+                                className="comp-dmg-col-name"
+                                data-dmg-cell="name"
+                              >
                                 <span className="comp-stat-label-cell">
                                   {inst.breakdown && (
                                     <ChevronToggle
@@ -2265,23 +2298,43 @@ export function BuildComparisonList({
                                   </strong>
                                 </span>
                               </td>
-                              <td className="comp-dmg-col-compact">
+                              <td
+                                className="comp-dmg-col-compact"
+                                data-dmg-cell="reaction"
+                                data-has-reaction={
+                                  hasReaction ? 'true' : 'false'
+                                }
+                              >
                                 <RotationReactionBadge
                                   reaction={targetSpec?.reaction}
                                   compact
                                 />
                               </td>
-                              <td className="comp-dmg-col-compact">
+                              <td
+                                className="comp-dmg-col-compact"
+                                data-dmg-cell="hitmode"
+                              >
                                 <RotationHitModeBadge
                                   hitMode={targetSpec?.hitMode}
                                   compact
                                 />
                               </td>
-                              <td className="comp-dmg-col-hits">×{inst.count}</td>
-                              <td className="comp-dmg-col-num">
+                              <td
+                                className="comp-dmg-col-hits"
+                                data-dmg-cell="hits"
+                              >
+                                ×{inst.count}
+                              </td>
+                              <td
+                                className="comp-dmg-col-num"
+                                data-dmg-cell="perhit"
+                              >
                                 {formatNum(inst.perHit)}
                               </td>
-                              <td className="comp-dmg-col-num">
+                              <td
+                                className="comp-dmg-col-num"
+                                data-dmg-cell="subtotal"
+                              >
                                 <strong>{formatNum(inst.subtotal)}</strong>
                               </td>
                               {row.kind === 'optimized' && currentBuild && (
@@ -2289,6 +2342,7 @@ export function BuildComparisonList({
                                   className={`comp-dmg-col-num comp-dmg-col-delta ${
                                     instDelta?.cls ?? 'muted'
                                   }`}
+                                  data-dmg-cell="delta"
                                 >
                                   {instDelta ? instDelta.text : '—'}
                                 </td>
@@ -4037,7 +4091,10 @@ export function WeaponComparisonList({
                         </div>
 
                         <div className="gi-table-wrap">
-                          <table className="gi-table comp-damage-table">
+                          <table
+                            className="gi-table comp-damage-table"
+                            data-mode="plain"
+                          >
                             <thead>
                               <tr>
                                 <th className="comp-dmg-col-name">
@@ -4064,10 +4121,18 @@ export function WeaponComparisonList({
                                 const instanceKey = `${buildRowKey}:${idx}`
                                 const isInstExpanded =
                                   expandedInstanceKey === instanceKey
+                                const hasReaction = Boolean(
+                                  targetSpec?.reaction
+                                )
                                 return (
                                   <Fragment key={idx}>
                                     <tr
                                       data-testid={`weapon-compare-instance-row-${buildRowKey}-${idx}`}
+                                      data-instance-row="true"
+                                      data-mode="plain"
+                                      data-has-reaction={
+                                        hasReaction ? 'true' : 'false'
+                                      }
                                       aria-expanded={
                                         inst.breakdown
                                           ? isInstExpanded
@@ -4089,7 +4154,10 @@ export function WeaponComparisonList({
                                           : undefined
                                       }
                                     >
-                                      <td className="comp-dmg-col-name">
+                                      <td
+                                        className="comp-dmg-col-name"
+                                        data-dmg-cell="name"
+                                      >
                                         <span className="comp-stat-label-cell">
                                           {inst.breakdown && (
                                             <ChevronToggle
@@ -4114,25 +4182,43 @@ export function WeaponComparisonList({
                                           </strong>
                                         </span>
                                       </td>
-                                      <td className="comp-dmg-col-compact">
+                                      <td
+                                        className="comp-dmg-col-compact"
+                                        data-dmg-cell="reaction"
+                                        data-has-reaction={
+                                          hasReaction ? 'true' : 'false'
+                                        }
+                                      >
                                         <RotationReactionBadge
                                           reaction={targetSpec?.reaction}
                                           compact
                                         />
                                       </td>
-                                      <td className="comp-dmg-col-compact">
+                                      <td
+                                        className="comp-dmg-col-compact"
+                                        data-dmg-cell="hitmode"
+                                      >
                                         <RotationHitModeBadge
                                           hitMode={targetSpec?.hitMode}
                                           compact
                                         />
                                       </td>
-                                      <td className="comp-dmg-col-hits">
+                                      <td
+                                        className="comp-dmg-col-hits"
+                                        data-dmg-cell="hits"
+                                      >
                                         ×{inst.count}
                                       </td>
-                                      <td className="comp-dmg-col-num">
+                                      <td
+                                        className="comp-dmg-col-num"
+                                        data-dmg-cell="perhit"
+                                      >
                                         {formatNum(inst.perHit)}
                                       </td>
-                                      <td className="comp-dmg-col-num">
+                                      <td
+                                        className="comp-dmg-col-num"
+                                        data-dmg-cell="subtotal"
+                                      >
                                         <strong>
                                           {formatNum(inst.subtotal)}
                                         </strong>
@@ -5342,7 +5428,10 @@ export function TeamOptimizationList({
                 </div>
 
                 <div className="gi-table-wrap">
-                  <table className="gi-table comp-damage-table">
+                  <table
+                    className="gi-table comp-damage-table"
+                    data-mode="plain"
+                  >
                     <thead>
                       <tr>
                         <th className="comp-dmg-col-name">Damage Instance</th>
@@ -5359,10 +5448,16 @@ export function TeamOptimizationList({
                         const instanceKey = `${rowId}:${idx}`
                         const isInstExpanded =
                           expandedInstanceKey === instanceKey
+                        const hasReaction = Boolean(targetSpec?.reaction)
                         return (
                           <Fragment key={idx}>
                             <tr
                               data-testid={`team-opt-instance-row-${mKey}-${idx}`}
+                              data-instance-row="true"
+                              data-mode="plain"
+                              data-has-reaction={
+                                hasReaction ? 'true' : 'false'
+                              }
                               aria-expanded={
                                 inst.breakdown ? isInstExpanded : undefined
                               }
@@ -5382,7 +5477,10 @@ export function TeamOptimizationList({
                                   : undefined
                               }
                             >
-                              <td className="comp-dmg-col-name">
+                              <td
+                                className="comp-dmg-col-name"
+                                data-dmg-cell="name"
+                              >
                                 <span className="comp-stat-label-cell">
                                   {inst.breakdown && (
                                     <ChevronToggle
@@ -5407,23 +5505,43 @@ export function TeamOptimizationList({
                                   </strong>
                                 </span>
                               </td>
-                              <td className="comp-dmg-col-compact">
+                              <td
+                                className="comp-dmg-col-compact"
+                                data-dmg-cell="reaction"
+                                data-has-reaction={
+                                  hasReaction ? 'true' : 'false'
+                                }
+                              >
                                 <RotationReactionBadge
                                   reaction={targetSpec?.reaction}
                                   compact
                                 />
                               </td>
-                              <td className="comp-dmg-col-compact">
+                              <td
+                                className="comp-dmg-col-compact"
+                                data-dmg-cell="hitmode"
+                              >
                                 <RotationHitModeBadge
                                   hitMode={targetSpec?.hitMode}
                                   compact
                                 />
                               </td>
-                              <td className="comp-dmg-col-hits">×{inst.count}</td>
-                              <td className="comp-dmg-col-num">
+                              <td
+                                className="comp-dmg-col-hits"
+                                data-dmg-cell="hits"
+                              >
+                                ×{inst.count}
+                              </td>
+                              <td
+                                className="comp-dmg-col-num"
+                                data-dmg-cell="perhit"
+                              >
                                 {formatNum(inst.perHit)}
                               </td>
-                              <td className="comp-dmg-col-num">
+                              <td
+                                className="comp-dmg-col-num"
+                                data-dmg-cell="subtotal"
+                              >
                                 <strong>{formatNum(inst.subtotal)}</strong>
                               </td>
                             </tr>

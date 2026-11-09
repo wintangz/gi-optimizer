@@ -4155,6 +4155,29 @@ describe('Optimize Experience UI Components (optimize-experience-ui)', () => {
       expect(
         findByTestId(tree, 'comp-full-damage-breakdown-row-opt-0-normal-0')
       ).toBeUndefined()
+
+      // Verify compact block data attributes on both Per-Instance Rotation Breakdown and Full Damage rows
+      const instRow = findByTestId(tree, 'comp-instance-row-opt-0-0')!
+      expect(instRow.props['data-instance-row']).toBe('true')
+      expect(instRow.props['data-mode']).toBe('diff')
+      expect(instRow.props['data-has-reaction']).toBeDefined()
+      expect(normalRowAgain.props['data-formula-path']).toBe('normal.0')
+      expect(normalRowAgain.props['data-mode']).toBe('diff')
+      expect(normalRowAgain.props['data-has-reaction']).toBe('false')
+
+      // Verify globals.css defines the unified @media (min-width: 768px) 2-3 column compact block system
+      const cssPath = path.resolve(__dirname, '../src/app/globals.css')
+      const cssText = fs.readFileSync(cssPath, 'utf-8')
+      expect(cssText).toContain('.comp-row-details .comp-damage-table > tbody')
+      expect(cssText).toContain(
+        '.comp-row-details .comp-damage-table > tbody > tr[data-instance-row]'
+      )
+      expect(cssText).toContain(
+        '.comp-row-details .comp-damage-table > tbody > tr[data-formula-path]'
+      )
+      expect(cssText).toContain(
+        '.comp-row-details .comp-damage-table > tbody > tr.comp-breakdown-tr'
+      )
     } finally {
       hookStore.active = false
       hookStore.reset()
