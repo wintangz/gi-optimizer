@@ -2179,15 +2179,6 @@ export function renderConditionalRow(opts: {
       </div>
 
       <div className="gi-buff-row-controls">
-        {isConstellationGated && (
-          <span
-            className="gi-buff-const-gate-hint"
-            data-testid={`${testIdPrefix}-const-hint-${characterKey}-${cond.sheet}-${cond.key}`}
-            title={`Requires Constellation ${requiredConstellation} (current: C${effectiveConstellation})`}
-          >
-            Requires C{requiredConstellation}
-          </span>
-        )}
         {isMultiState && (
           <select
             aria-label={`${displayName(characterKey)} ${sheetName} ${label} state`}

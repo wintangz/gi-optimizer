@@ -1014,7 +1014,7 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
     ).toBeUndefined()
   })
 
-  it('constellation override & member tabs one-row (editor-pack): renders C0-C6 constellation control with source label, shows "Requires C2" hints on gated switches, updates Modified/Reset state, and keeps Stage 3 member tabs on one row at desktop widths', () => {
+  it('constellation override & member tabs one-row (editor-pack): renders C0-C6 constellation control with source label, updates Modified/Reset state, and keeps Stage 3 member tabs on one row at desktop widths', () => {
     const furinaPreset = getBundledPreset('akasha/furina-salon-pjc-c0')!
     const furinaCatalog: Record<string, ConditionalDescriptor[]> = {
       ...SAMPLE_CATALOG,
@@ -1068,18 +1068,15 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
       getTextContent(findByTestId(tree1, 'member-constellation-source-Furina')!)
     ).toBe('case')
 
-    // C2 and C6 switches show "Requires C2" and "Requires C6" hints when Furina is at C0
-    const c2Hint1 = findByTestId(
-      tree1,
-      'cond-const-hint-Furina-Furina-c2Overstack'
-    )
-    const c6Hint1 = findByTestId(tree1, 'cond-const-hint-Furina-Furina-c6')
-    expect(c2Hint1).toBeDefined()
-    expect(getTextContent(c2Hint1!)).toBe('Requires C2')
-    expect(c6Hint1).toBeDefined()
-    expect(getTextContent(c6Hint1!)).toBe('Requires C6')
+    // No "Requires C…" gate hints are rendered on gated switches (removed by design)
+    expect(
+      findByTestId(tree1, 'cond-const-hint-Furina-Furina-c2Overstack')
+    ).toBeUndefined()
+    expect(
+      findByTestId(tree1, 'cond-const-hint-Furina-Furina-c6')
+    ).toBeUndefined()
 
-    // 2. Override Furina C0 -> C2: stores in settings, updates build-state label to C2, lights up Modified badge & Reset button, removes C2 gate hint while keeping C6 gate hint
+    // 2. Override Furina C0 -> C2: stores in settings, updates build-state label to C2, lights up Modified badge & Reset button
     ;(
       constSelect1.props.onChange as (e: { target: { value: string } }) => void
     )({ target: { value: '2' } })
@@ -1104,11 +1101,13 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
     expect(findByTestId(tree2, 'member-modified-badge-Furina')).toBeDefined()
     expect(findByTestId(tree2, 'reset-all-conditionals')).toBeDefined()
 
-    // C2 gate hint is now gone because effectiveConstellation === 2, while C6 gate hint remains
+    // No gate hints exist at any constellation (removed by design)
     expect(
       findByTestId(tree2, 'cond-const-hint-Furina-Furina-c2Overstack')
     ).toBeUndefined()
-    expect(findByTestId(tree2, 'cond-const-hint-Furina-Furina-c6')).toBeDefined()
+    expect(
+      findByTestId(tree2, 'cond-const-hint-Furina-Furina-c6')
+    ).toBeUndefined()
 
     // 3. Per-member Reset restores C0 and clears constellation override
     const resetMemberBtn = findByTestId(
@@ -1128,7 +1127,7 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
     expect(findByTestId(tree3, 'member-modified-badge-Furina')).toBeUndefined()
     expect(
       findByTestId(tree3, 'cond-const-hint-Furina-Furina-c2Overstack')
-    ).toBeDefined()
+    ).toBeUndefined()
 
     // 4. Official preset with owned character shows source "your account" and C2 Akasha case defaults to C2 ("case")
     const officialPreset = getBundledPreset('official/neuvillette-hypercarry')!

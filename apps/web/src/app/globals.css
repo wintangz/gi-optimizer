@@ -4952,18 +4952,6 @@ td {
   font-weight: 600;
 }
 
-.gi-buff-const-gate-hint {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.08rem 0.38rem;
-  border-radius: var(--radius-xs);
-  background: var(--surface-inset);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
 
 
 
