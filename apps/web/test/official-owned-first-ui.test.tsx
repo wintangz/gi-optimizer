@@ -1186,16 +1186,13 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       const editor = findByTestId(treeMember, `member-buffs-panel-${mKey}`)!
       expect(editor).toBeDefined()
 
-      // Build-state label appears EXACTLY ONCE in the member editor
+      // Build-state label appears EXACTLY ONCE in the member editor with unified "Fixed Spec · Lv.90 C0" format (no "Fixed by Case")
       const statePill = findByTestId([editor], `member-build-state-${mKey}`)!
       expect(statePill).toBeDefined()
-      if (mKey === 'Furina') {
-        expect(collectText([statePill])).toContain('Fixed Spec · Lv.90 C0')
-      } else {
-        expect(collectText([statePill])).toBe('Fixed by Case')
-        const editorText = collectText([editor])
-        expect(editorText.split('Fixed by Case').length - 1).toBe(1)
-      }
+      expect(collectText([statePill])).toBe('Fixed Spec · Lv.90 C0')
+      const editorText = collectText([editor])
+      expect(editorText).not.toContain('Fixed by Case')
+      expect(editorText.split('Fixed Spec · Lv.90 C0').length - 1).toBe(1)
 
       // Uniform single-row weapon badge inside the weapon trigger
       const weaponBtn = findByTestId([editor], `member-weapon-trigger-${mKey}`)!

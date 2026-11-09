@@ -565,7 +565,6 @@ export function ArtifactSetTilePicker({
                 data-selected={isSelected ? 'true' : 'false'}
                 aria-pressed={isSelected}
                 aria-label={meta.setDisplayName}
-                title={meta.setDisplayName}
                 className={`tile-picker-item${isSelected ? ' is-selected' : ''}`}
                 onClick={() => onChange(sk)}
               >

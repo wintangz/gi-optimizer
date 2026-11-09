@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/Nav";
+import { TruncationTooltipManager } from "@/components/TruncationTooltipManager";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,6 +13,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en">
       <body>
+        <TruncationTooltipManager />
         <Nav />
         <main className="container">{children}</main>
         <footer className="gi-footer">

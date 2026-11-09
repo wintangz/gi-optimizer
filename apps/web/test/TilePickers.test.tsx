@@ -53,6 +53,11 @@ import {
   PresetTilePicker,
   WeaponTilePicker,
 } from '../src/components/TilePickers'
+import {
+  isElementTextTruncated,
+  syncElementTruncationTooltip,
+  type TruncationMeasurableElement,
+} from '../src/components/TruncationTooltipManager'
 
 interface VNode {
   type: string
@@ -601,5 +606,81 @@ describe('Image-Led Tile Grid Pickers & Rarity Borders (image-led-pickers & rari
     )
     expect(setEmpty).toHaveLength(1)
     expect(collectText(setEmpty)).toContain('No artifact sets match “zzzz-no-match”.')
+  })
+
+  it('ui-consistency-pass Item 4: TruncationTooltipManager sets full-text title on truncated elements (and enclosing tile) while ensuring non-truncated elements have no redundant tooltip', () => {
+    const makeMockEl = (opts: {
+      text: string
+      scrollWidth: number
+      clientWidth: number
+      scrollHeight?: number
+      clientHeight?: number
+      initialTitle?: string
+      tileHost?: TruncationMeasurableElement | null
+    }): TruncationMeasurableElement => {
+      const attrs = new Map<string, string>()
+      if (opts.initialTitle !== undefined) {
+        attrs.set('title', opts.initialTitle)
+      }
+      return {
+        scrollWidth: opts.scrollWidth,
+        clientWidth: opts.clientWidth,
+        scrollHeight: opts.scrollHeight ?? 20,
+        clientHeight: opts.clientHeight ?? 20,
+        textContent: opts.text,
+        getAttribute: (k) => attrs.get(k) ?? null,
+        setAttribute: (k, v) => {
+          attrs.set(k, v)
+        },
+        removeAttribute: (k) => {
+          attrs.delete(k)
+        },
+        closest: (sel) =>
+          sel === '.tile-picker-item' ? (opts.tileHost ?? null) : null,
+      }
+    }
+
+    // 1. Truncated preset title (multi-line clamp: scrollHeight > clientHeight) -> gets full title on caption and tile host
+    const tileHostTruncated = makeMockEl({
+      text: '',
+      scrollWidth: 120,
+      clientWidth: 120,
+    })
+    const truncatedCaption = makeMockEl({
+      text: 'Furina — Salon Solitaire (Avg 200 Fanfare)',
+      scrollWidth: 110,
+      clientWidth: 110,
+      scrollHeight: 48,
+      clientHeight: 30,
+      tileHost: tileHostTruncated,
+    })
+    expect(isElementTextTruncated(truncatedCaption)).toBe(true)
+    expect(syncElementTruncationTooltip(truncatedCaption)).toBe(true)
+    expect(truncatedCaption.getAttribute('title')).toBe(
+      'Furina — Salon Solitaire (Avg 200 Fanfare)'
+    )
+    expect(tileHostTruncated.getAttribute('title')).toBe(
+      'Furina — Salon Solitaire (Avg 200 Fanfare)'
+    )
+
+    // 2. Single-line truncated member tab name (Kaedehara Kazuha: scrollWidth > clientWidth) -> gets full title
+    const truncatedTabName = makeMockEl({
+      text: 'Kaedehara Kazuha',
+      scrollWidth: 132,
+      clientWidth: 94,
+    })
+    expect(syncElementTruncationTooltip(truncatedTabName)).toBe(true)
+    expect(truncatedTabName.getAttribute('title')).toBe('Kaedehara Kazuha')
+
+    // 3. Non-truncated text (e.g. "Furina" or "Adventurer") -> gets no tooltip, and any redundant identical title is cleared
+    const fittingEl = makeMockEl({
+      text: 'Adventurer',
+      scrollWidth: 72,
+      clientWidth: 96,
+      initialTitle: 'Adventurer',
+    })
+    expect(isElementTextTruncated(fittingEl)).toBe(false)
+    expect(syncElementTruncationTooltip(fittingEl)).toBe(false)
+    expect(fittingEl.getAttribute('title')).toBeNull()
   })
 })

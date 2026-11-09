@@ -258,7 +258,6 @@ export function ArtifactSetFilter({
                   data-selected={checked ? 'true' : 'false'}
                   aria-pressed={checked}
                   aria-label={displayName(sk)}
-                  title={meta.setDisplayName}
                   className={`tile-picker-item${checked ? ' is-selected' : ''}`}
                   onClick={() => handleToggleSet(sk)}
                 >

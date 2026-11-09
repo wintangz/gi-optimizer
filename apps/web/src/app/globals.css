@@ -970,7 +970,7 @@ td {
 
 .constraint-empty-line {
   padding: 0.75rem 0.9rem;
-  background: var(--surface-card);
+  background: var(--surface-inset);
   border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
@@ -993,6 +993,11 @@ td {
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+}
+
+.gi-collapsible-section .constraint-row,
+.gi-collapsible-section .constraint-picker-panel {
+  background: var(--surface-panel);
 }
 
 .constraint-row-chip {
@@ -1414,7 +1419,8 @@ td {
   gap: var(--space-3);
   padding: 0.32rem 0.5rem;
   border-radius: var(--radius-sm);
-  border: 1px solid transparent;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
 }
 
 .opt-pool-slot-row.is-active {
@@ -1527,6 +1533,10 @@ td {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.gi-modal-dialog .opt-pool-filter-field:not(.is-active) {
+  background: var(--surface-card);
 }
 
 .opt-pool-filter-field.is-active {
@@ -2125,7 +2135,7 @@ td {
 }
 
 .opt-filter-panel {
-  background: var(--surface-card);
+  background: var(--surface-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: var(--stage-card-padding);
@@ -2481,7 +2491,7 @@ td {
   justify-content: space-between;
   gap: var(--space-3);
   padding: 0.55rem 0.85rem;
-  background: var(--surface-panel);
+  background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   transition: border-color 120ms ease, background 120ms ease;
@@ -2489,7 +2499,11 @@ td {
 
 .gi-buffs-resonance-effect-row.is-on {
   border-color: var(--ok-border);
-  background: rgba(76, 195, 138, 0.06);
+  background: linear-gradient(
+    180deg,
+    rgba(76, 195, 138, 0.08) 0%,
+    var(--surface-card) 100%
+  );
 }
 
 .gi-buffs-resonance-effect-row.is-off {
@@ -2541,13 +2555,14 @@ td {
 }
 
 .gi-buffs-member-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.55rem;
 }
 
 @media (max-width: 960px) {
   .gi-buffs-member-tabs {
+    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -2559,11 +2574,17 @@ td {
 }
 
 .gi-buffs-member-tab {
+  flex: 1 1 auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  align-content: center;
   justify-content: space-between;
-  gap: var(--space-2);
+  row-gap: 0.35rem;
+  column-gap: var(--space-2);
   padding: 0.5rem 0.68rem;
+  min-width: 0;
+  overflow: hidden;
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -2574,6 +2595,41 @@ td {
     border-color 120ms ease,
     background-color 120ms ease,
     box-shadow 120ms ease;
+}
+
+.gi-buffs-member-tab > [data-identifier-kind="character"] {
+  display: inline-flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+
+.gi-buffs-member-tab > [data-identifier-kind="character"] > span:last-child {
+  display: inline-flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.gi-buffs-member-tab > [data-identifier-kind="character"] strong {
+  min-width: 0;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gi-buffs-member-tab > [data-identifier-kind="character"] [data-testid="sim-pill"],
+.gi-buffs-member-tab > [data-identifier-kind="character"] [data-testid="owned-pill"],
+.gi-buffs-member-tab > [data-identifier-kind="character"] [data-testid="target-pill"] {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .gi-buffs-member-tab:hover {
@@ -2589,9 +2645,13 @@ td {
 
 .gi-buffs-member-tab-meta {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.32rem;
-  flex-shrink: 0;
+  justify-content: flex-end;
+  gap: 0.3rem;
+  margin-left: auto;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .gi-buffs-member-card {
@@ -2612,24 +2672,43 @@ td {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.55rem;
+  flex-wrap: nowrap;
+  gap: 0.6rem;
   padding-bottom: 0.55rem;
   border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .gi-buffs-member-header {
+    flex-wrap: wrap;
+  }
 }
 
 .gi-buffs-member-identity {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  flex-wrap: nowrap;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.gi-buffs-member-identity > [data-identifier-kind="artifact"] {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .gi-buffs-member-actions {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 .gi-buffs-count-pill {
@@ -2685,6 +2764,10 @@ td {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 0.55rem 0.68rem;
+}
+
+.gi-modal-dialog .gi-buffs-group:not(.is-empty-group) {
+  background: var(--surface-inset);
 }
 
 .gi-buffs-group-header {
@@ -3086,7 +3169,7 @@ td {
 .weapon-compare-build-card {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface-panel);
+  background: var(--surface-inset);
   padding: 0.75rem 0.85rem;
   display: flex;
   flex-direction: column;
@@ -3217,7 +3300,7 @@ td {
   padding: 0.65rem 0.75rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
-  background: var(--surface-panel);
+  background: var(--surface-card);
 }
 
 .formula-breakdown-equation {
@@ -3665,7 +3748,19 @@ td {
 .gi-buffs-member-identity .preset-team-member-card-weapon {
   padding-top: 0;
   border-top: none;
-  flex: 1 1 280px;
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.gi-buffs-member-identity .preset-member-weapon-btn {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.gi-buffs-member-identity .preset-weapon-badge-row {
+  width: auto;
 }
 
 .preset-member-weapon-btn {
@@ -4524,5 +4619,46 @@ td {
   border-top: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
 }
+
+/* Global automatic tooltip for truncated text (ui-consistency-pass Item 4) */
+.gi-truncation-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  max-width: min(380px, 90vw);
+  padding: 0.32rem 0.6rem;
+  border-radius: var(--radius-xs);
+  background: var(--surface-inset);
+  border: 1px solid var(--accent-border);
+  color: var(--text-title);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
+  transform: translate(-50%, -100%);
+}
+
+.gi-truncation-tooltip.is-bottom {
+  transform: translate(-50%, 0);
+}
+
+.gi-truncation-tooltip.is-align-left {
+  transform: translate(0, -100%);
+}
+
+.gi-truncation-tooltip.is-bottom.is-align-left {
+  transform: translate(0, 0);
+}
+
+.gi-truncation-tooltip.is-align-right {
+  transform: translate(-100%, -100%);
+}
+
+.gi-truncation-tooltip.is-bottom.is-align-right {
+  transform: translate(-100%, 0);
+}
+
 
 

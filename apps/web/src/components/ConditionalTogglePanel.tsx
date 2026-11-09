@@ -1371,15 +1371,22 @@ export function ConditionalTogglePanel({
                         className="preset-member-state-pill"
                         data-testid={`member-build-state-${activeEntry.mKey}`}
                       >
-                        {activeEntry.isTarget &&
-                        preset.source === 'akasha' &&
-                        activeStageMember.member.build.type === 'fixed'
-                          ? `Fixed Spec · Lv.${activeStageMember.member.build.character.level} C${activeStageMember.member.build.character.constellation}`
-                          : activeStageMember.isWeaponLocked
-                            ? 'Fixed by Case'
-                            : activeEntry.isSimulated
-                              ? 'Simulated (TC)'
-                              : 'Owned Build'}
+                        {preset.source === 'akasha' ||
+                        activeStageMember.member.build.type === 'fixed' ||
+                        activeStageMember.isWeaponLocked
+                          ? (() => {
+                              const charSpec =
+                                activeStageMember.member.build.type === 'fixed'
+                                  ? activeStageMember.member.build.character
+                                  : activeStageMember.member.build.type === 'tc'
+                                    ? activeStageMember.member.build.tc
+                                        .character
+                                    : { level: 90, constellation: 0 }
+                              return `Fixed Spec · Lv.${charSpec.level} C${charSpec.constellation}`
+                            })()
+                          : activeEntry.isSimulated
+                            ? 'Simulated (TC)'
+                            : 'Owned Build'}
                       </span>
                     ))}
                   <span
