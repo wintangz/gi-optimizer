@@ -4927,8 +4927,8 @@ td {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.1rem 0.42rem;
-  border-radius: var(--radius-xs);
+  padding: 0;
+  border-radius: var(--radius-pill);
   background: var(--surface-inset);
   border: 1px solid var(--border);
   font-size: 0.78rem;
@@ -4941,32 +4941,24 @@ td {
 }
 
 .preset-member-constellation-select {
-  appearance: auto;
-  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23949eb8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+    no-repeat right 0.45rem center;
   border: none;
   color: var(--text-title);
   font-size: 0.78rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  padding: 0.05rem 0.12rem;
+  height: 1.25rem;
+  line-height: 1.25rem;
+  padding: 0 1.2rem 0 0.6rem;
   cursor: pointer;
 }
 
 .preset-member-constellation-select:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
-}
-
-.preset-member-constellation-source {
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.preset-member-constellation-control.is-overridden .preset-member-constellation-source {
-  color: var(--accent);
-  font-weight: 600;
 }
 
 

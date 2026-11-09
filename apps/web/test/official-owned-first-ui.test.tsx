@@ -460,30 +460,20 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(kazuhaToggleAfter.props['data-build-mode']).toBe('tc')
     expect(collectText([kazuhaToggleAfter])).toBe('Simulated (TC)')
 
-    // (4) Protected Characters and Artifact Set Filter sit as a matched pair inside collapsible-sets-protected (optimize-panels-alignment)
-    const setsProtectedToggle = findByTestId(
-      tree2,
-      'sets-protected-collapsible-toggle'
-    )!
-    expect(setsProtectedToggle).toBeDefined()
-    ;(setsProtectedToggle.props.onClick as () => void)()
-    const tree2Expanded = renderPass()
+    // (4) Protected Characters and Artifact Set Filter sit as a matched pair inside collapsible-sets-protected (optimize-panels-alignment) — the section is always open, there is no toggle
+    expect(
+      findByTestId(tree2, 'sets-protected-collapsible-toggle')
+    ).toBeUndefined()
 
-    const filterPair = findByTestId(
-      tree2Expanded,
-      'optimize-filter-panels-pair'
-    )!
+    const filterPair = findByTestId(tree2, 'optimize-filter-panels-pair')!
     expect(filterPair).toBeDefined()
     expect(filterPair.props.className).toBe('opt-filter-pair')
 
     const protectedPanel = findByTestId(
-      tree2Expanded,
+      tree2,
       'protected-characters-panel'
     )!
-    const artFilterPanel = findByTestId(
-      tree2Expanded,
-      'artifact-set-filter-panel'
-    )!
+    const artFilterPanel = findByTestId(tree2, 'artifact-set-filter-panel')!
     expect(protectedPanel).toBeDefined()
     expect(artFilterPanel).toBeDefined()
     expect(protectedPanel.props.className).toBe('opt-filter-panel')
@@ -942,32 +932,20 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
     expect(mockOptimizePresetInWorker).toHaveBeenCalledTimes(2)
   })
 
-  it('flow-collapsible-stages: groups Artifact settings into 3 Wikipedia-style collapsible sections with live one-line summaries, moves Main-Stat Assumption Level into Pool Filters, Top N Builds into Run & Results, and Resonance toggle into Team & Buffs', () => {
+  it('flow-collapsible-stages: groups Artifact settings into 3 Wikipedia-style sections with live one-line summaries (Set Filter & Protected Characters always open; Pool Filters and Stat Constraints collapsible), moves Main-Stat Assumption Level into Pool Filters, Top N Builds into Run & Results, and Resonance toggle into Team & Buffs', () => {
     resetSolverPoolFiltersExpandedSession()
     const tree1 = renderPass()
 
-    // (1) At defaults, all 3 Artifact settings sections start closed with one-line summaries and show/hide toggles
-    const setsToggle = findByTestId(tree1, 'sets-protected-collapsible-toggle')!
-    const setsSummary = findByTestId(
-      tree1,
-      'sets-protected-collapsible-summary'
-    )!
-    expect(setsToggle.props['aria-expanded']).toBe(false)
-    expect(setsToggle.props['aria-controls']).toBe(
-      'sets-protected-collapsible-body'
-    )
+    // (1) At defaults, Pool Filters and Stat Constraints start closed with one-line summaries and show/hide toggles; Set Filter & Protected Characters is always open (no toggle, no summary)
     expect(
-      findAll(
-        [setsToggle],
-        (n) =>
-          n.props['data-gi-icon'] === 'ChevronIcon' &&
-          n.props['data-chevron-state'] === 'closed'
-      )
-    ).toHaveLength(1)
-    expect(collectText([setsSummary])).toContain(
-      'Artifact Set Filter & Protected Characters — All sets allowed · None protected'
-    )
-    expect(findByTestId(tree1, 'sets-protected-collapsible-body')).toBeUndefined()
+      findByTestId(tree1, 'sets-protected-collapsible-toggle')
+    ).toBeUndefined()
+    expect(
+      findByTestId(tree1, 'sets-protected-collapsible-summary')
+    ).toBeUndefined()
+    expect(
+      findByTestId(tree1, 'sets-protected-collapsible-body')
+    ).toBeDefined()
 
     const poolToggle = findByTestId(tree1, 'solver-pool-filters-toggle')!
     const poolSummary = findByTestId(tree1, 'solver-pool-filters-summary')!
@@ -1079,7 +1057,7 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       ])
     ).toBe('Stat Constraints — ER ≥ 200%')
 
-    // (5) Non-default settings: remaining Set Filter + Protected Characters collapsible starts open on fresh mount, while modal editors stay closed with live summary rows
+    // (5) Non-default settings: Set Filter + Protected Characters stays always open (no toggle, no summary), and modal editors stay closed with live summary rows
     hookStore.reset()
     resetSolverPoolFiltersExpandedSession()
     mockSettings = {
@@ -1091,15 +1069,14 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
 
     const treeNonDefault = renderPass()
     expect(
-      findByTestId(treeNonDefault, 'sets-protected-collapsible-toggle')!.props[
-        'aria-expanded'
-      ]
-    ).toBe(true)
+      findByTestId(treeNonDefault, 'sets-protected-collapsible-toggle')
+    ).toBeUndefined()
     expect(
-      collectText([
-        findByTestId(treeNonDefault, 'sets-protected-collapsible-summary')!,
-      ])
-    ).toContain('1 protected')
+      findByTestId(treeNonDefault, 'sets-protected-collapsible-summary')
+    ).toBeUndefined()
+    expect(
+      findByTestId(treeNonDefault, 'sets-protected-collapsible-body')
+    ).toBeDefined()
 
     expect(
       findByTestId(treeNonDefault, 'solver-pool-filters-toggle')!.props[
@@ -1202,13 +1179,13 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       const editor = findByTestId(treeMember, `member-buffs-panel-${mKey}`)!
       expect(editor).toBeDefined()
 
-      // Build-state label appears EXACTLY ONCE in the member editor with unified "Fixed Spec · Lv.90 C0" format (no "Fixed by Case")
+      // Build-state label appears EXACTLY ONCE in the member editor with unified "Fixed Spec · Lv.90" format (no "Fixed by Case"; no constellation — the select beside it already shows C)
       const statePill = findByTestId([editor], `member-build-state-${mKey}`)!
       expect(statePill).toBeDefined()
-      expect(collectText([statePill])).toBe('Fixed Spec · Lv.90 C0')
+      expect(collectText([statePill])).toBe('Fixed Spec · Lv.90')
       const editorText = collectText([editor])
       expect(editorText).not.toContain('Fixed by Case')
-      expect(editorText.split('Fixed Spec · Lv.90 C0').length - 1).toBe(1)
+      expect(editorText.split('Fixed Spec · Lv.90').length - 1).toBe(1)
 
       // Uniform single-row weapon badge inside the weapon trigger
       const weaponBtn = findByTestId([editor], `member-weapon-trigger-${mKey}`)!
@@ -1445,7 +1422,7 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       // 1. Initial C0 state on Furina
       expect(
         collectText([findByTestId(treeC0, 'member-build-state-Furina')!])
-      ).toBe('Fixed Spec · Lv.90 C0')
+      ).toBe('Fixed Spec · Lv.90')
       expect(
         findByTestId(treeC0, 'cond-const-hint-Furina-Furina-c2Overstack')
       ).toBeDefined()
@@ -1477,7 +1454,7 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
 
       expect(
         collectText([findByTestId(treeC2, 'member-build-state-Furina')!])
-      ).toBe('Fixed Spec · Lv.90 C2')
+      ).toBe('Fixed Spec · Lv.90')
       expect(
         findByTestId(treeC2, 'cond-const-hint-Furina-Furina-c2Overstack')
       ).toBeUndefined()
@@ -1518,7 +1495,7 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
 
       expect(
         collectText([findByTestId(treeRestored, 'member-build-state-Furina')!])
-      ).toBe('Fixed Spec · Lv.90 C0')
+      ).toBe('Fixed Spec · Lv.90')
       expect(
         findByTestId(treeRestored, 'cond-const-hint-Furina-Furina-c2Overstack')
       ).toBeDefined()

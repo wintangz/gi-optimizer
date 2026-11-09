@@ -1014,7 +1014,7 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
     ).toBeUndefined()
   })
 
-  it('constellation override & member tabs one-row (editor-pack): renders C0-C6 constellation control with source label, updates Modified/Reset state, and keeps Stage 3 member tabs on one row at desktop widths', () => {
+  it('constellation override & member tabs one-row (editor-pack): renders C0-C6 constellation control, updates Modified/Reset state, and keeps Stage 3 member tabs on one row at desktop widths', () => {
     const furinaPreset = getBundledPreset('akasha/furina-salon-pjc-c0')!
     const furinaCatalog: Record<string, ConditionalDescriptor[]> = {
       ...SAMPLE_CATALOG,
@@ -1064,9 +1064,10 @@ describe('ConditionalTogglePanel Component (conditional-toggle-panel & buff-pane
       'member-constellation-select-Furina'
     )!
     expect(constSelect1.props.value).toBe('0')
+    // No visible source tag next to the select (removed by request)
     expect(
-      getTextContent(findByTestId(tree1, 'member-constellation-source-Furina')!)
-    ).toBe('case')
+      findByTestId(tree1, 'member-constellation-source-Furina')
+    ).toBeUndefined()
 
     // No "Requires C…" gate hints are rendered on gated switches (removed by design)
     expect(

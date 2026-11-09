@@ -1483,7 +1483,7 @@ export function ConditionalTogglePanel({
                                     ? activeStageMember.member.build.tc
                                         .character
                                     : { level: 90, constellation: 0 }
-                              return `Fixed Spec · Lv.${charSpec.level} C${activeEntry.resolvedConstellation.value}`
+                              return `Fixed Spec · Lv.${charSpec.level}`
                             })()
                           : activeEntry.isSimulated
                             ? 'Simulated (TC)'
@@ -1532,17 +1532,6 @@ export function ConditionalTogglePanel({
                         </option>
                       ))}
                     </select>
-                    <span
-                      className="preset-member-constellation-source"
-                      data-testid={`member-constellation-source-${activeEntry.mKey}`}
-                      title={
-                        activeEntry.resolvedConstellation.isOverridden
-                          ? `Overridden to C${activeEntry.resolvedConstellation.value} (default C${activeEntry.resolvedConstellation.defaultValue} from ${activeEntry.resolvedConstellation.source})`
-                          : `Constellation C${activeEntry.resolvedConstellation.value} from ${activeEntry.resolvedConstellation.source}`
-                      }
-                    >
-                      {activeEntry.resolvedConstellation.source}
-                    </span>
                   </div>
                   <span
                     className={`gi-buffs-count-pill${

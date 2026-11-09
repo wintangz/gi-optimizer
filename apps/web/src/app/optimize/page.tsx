@@ -26,7 +26,6 @@ import {
   WeaponTilePicker,
 } from '@/components/TilePickers'
 import {
-  ChevronToggle,
   DownloadIcon,
   GearIcon,
   PlayIcon,
@@ -87,7 +86,6 @@ import {
   setPresetMemberBuildMode,
   setPresetMemberFastModeStat,
   setPresetWeaponCompareCandidates,
-  summarizeArtSetFilter,
   type FastModeStatKey,
   type MemberBuildMode,
   type Preset,
@@ -191,9 +189,6 @@ function OptimizeInner() {
     useState<TeamOptimizeProgress | null>(null)
   const [teamResult, setTeamResult] = useState<TeamOptimizeResult | null>(null)
   const [teamError, setTeamError] = useState<string | null>(null)
-  const [setsProtectedManualOpen, setSetsProtectedManualOpen] = useState<
-    boolean | null
-  >(null)
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -1537,35 +1532,6 @@ function OptimizeInner() {
   const hasAnyResults =
     showCurrentComparison || comparisonOptimizedBuilds.length > 0
 
-  const artSetSummary = summarizeArtSetFilter(settings)
-  const isSetFilterNonDefault =
-    artSetSummary.mode !== 'all' || artSetSummary.selectedCount > 0
-  const isProtectedNonDefault =
-    settings.excludedCharacters.length > 0 ||
-    !settings.includeEquippedOnOthers ||
-    Boolean(settings.lockedOnly)
-  const hasSetsProtectedNonDefault =
-    isSetFilterNonDefault || isProtectedNonDefault
-  const isSetsProtectedOpen =
-    setsProtectedManualOpen !== null
-      ? setsProtectedManualOpen
-      : hasSetsProtectedNonDefault
-
-  const setsProtectedParts: string[] = [
-    artSetSummary.mode === 'all' && artSetSummary.selectedCount === 0
-      ? 'All sets allowed'
-      : artSetSummary.text,
-    settings.excludedCharacters.length > 0
-      ? `${settings.excludedCharacters.length} protected`
-      : 'None protected',
-  ]
-  if (!settings.includeEquippedOnOthers) {
-    setsProtectedParts.push('Unshared only')
-  }
-  if (settings.lockedOnly) {
-    setsProtectedParts.push('Locked only')
-  }
-  const setsProtectedSummaryBody = setsProtectedParts.join(' · ')
 
   return (
     <div className="gi-page gi-optimize-page">
@@ -2070,9 +2036,7 @@ function OptimizeInner() {
       </div>
 
       <div
-        className={`gi-optimize-lower-deck${
-          isSetsProtectedOpen ? ' is-stage4-expanded' : ''
-        }${
+        className={`gi-optimize-lower-deck is-stage4-expanded${
           (
             optimizeMode === 'compare'
               ? !compareResult
@@ -2103,41 +2067,19 @@ function OptimizeInner() {
             </div>
           </div>
 
-          {/* 1. Artifact Set Filter + Protected Characters (Wikipedia-style collapsible) */}
+          {/* 1. Artifact Set Filter + Protected Characters (always open) */}
           <div
             className="gi-collapsible-section"
             data-testid="collapsible-sets-protected"
-            data-expanded={isSetsProtectedOpen ? 'true' : 'false'}
           >
             <div className="gi-collapsible-header">
-              <div
-                className="gi-collapsible-header-main gi-collapsible-header-clickable"
-                onClick={() => setSetsProtectedManualOpen(!isSetsProtectedOpen)}
-              >
+              <div className="gi-collapsible-header-main">
                 <strong className="gi-collapsible-title">
                   Artifact Set Filter &amp; Protected Characters
                 </strong>
-                <span
-                  className="gi-collapsible-summary"
-                  data-testid="sets-protected-collapsible-summary"
-                >
-                  <span className="sr-only">
-                    Artifact Set Filter &amp; Protected Characters —{' '}
-                  </span>
-                  {setsProtectedSummaryBody}
-                </span>
               </div>
-              <ChevronToggle
-                expanded={isSetsProtectedOpen}
-                className="gi-collapsible-toggle-btn"
-                data-testid="sets-protected-collapsible-toggle"
-                ariaControls="sets-protected-collapsible-body"
-                ariaLabel="Toggle Artifact Set Filter and Protected Characters"
-                onClick={() => setSetsProtectedManualOpen(!isSetsProtectedOpen)}
-              />
             </div>
 
-          {isSetsProtectedOpen && (
             <div
               id="sets-protected-collapsible-body"
               className="gi-collapsible-body"
@@ -2272,7 +2214,6 @@ function OptimizeInner() {
                 />
               </div>
             </div>
-          )}
         </div>
 
         {/* 2. Pool Filters (with Main-Stat Assumption Level inside) */}
