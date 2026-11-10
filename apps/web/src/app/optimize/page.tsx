@@ -159,6 +159,9 @@ function OptimizeInner() {
   const [teamMemberStats, setTeamMemberStats] = useState<
     Record<string, MemberStatSummary>
   >({})
+  // Preset the current currentEval/teamMemberStats belong to; the evaluation
+  // effect compares it so a preset switch can drop the old team's stats.
+  const evalPresetIdRef = useRef<string | null>(null)
   const [optimisedEvals, setOptimisedEvals] = useState<
     Array<RotationResult | null>
   >([])
@@ -891,6 +894,10 @@ function OptimizeInner() {
   // Off-main-thread evaluation of Current Build via the shared worker session
   useEffect(() => {
     let cancelled = false
+    const presetId = activePreset?.id ?? null
+    const presetSwitched =
+      evalPresetIdRef.current !== null && evalPresetIdRef.current !== presetId
+    evalPresetIdRef.current = presetId
     if (!record?.good || !activePreset || !canRunPreset) {
       void Promise.resolve().then(() => {
         if (!cancelled) {
@@ -907,6 +914,13 @@ function OptimizeInner() {
     const coldHydration = !isEngineSessionHydrated(effectiveDatasetKey)
 
     void (async () => {
+      if (presetSwitched) {
+        // A new preset must not render the previous team's stats while its
+        // own evaluation is in flight. Settings-only re-evals (same preset
+        // id) keep the old stats visible until the new ones land.
+        setTeamMemberStats({})
+        setCurrentEval(null)
+      }
       setHydratingEngine(coldHydration)
       setEvaluating(true)
       try {

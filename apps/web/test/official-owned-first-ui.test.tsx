@@ -1425,7 +1425,7 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       ).toBe('Fixed Spec · Lv.90')
       expect(
         findByTestId(treeC0, 'cond-const-hint-Furina-Furina-c2Overstack')
-      ).toBeDefined()
+      ).toBeUndefined()
       const c0FinalHp = parseDisplayedNum(
         collectText([findByTestId(treeC0, 'teammate-stat-final-Furina-hp')!])
       )
@@ -1498,7 +1498,7 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
       ).toBe('Fixed Spec · Lv.90')
       expect(
         findByTestId(treeRestored, 'cond-const-hint-Furina-Furina-c2Overstack')
-      ).toBeDefined()
+      ).toBeUndefined()
       expect(
         parseDisplayedNum(
           collectText([
@@ -1525,5 +1525,65 @@ describe('Official Presets Owned-First UI (official-presets-owned-first)', () =>
         result: { total: 374658, instances: [], stats: {} },
       }))
     }
+  })
+
+  it('preset-switch-no-stale-stats: switching presets clears the previous team final stats while the new evaluation is in flight', async () => {
+    const evalResult = (hp: number) => ({
+      currentBuild: { weaponId: 'w_furina', artifactIds: { flower: 'art_1' } },
+      result: {
+        total: 374658,
+        instances: [],
+        stats: { hp },
+        memberStats: { Furina: { base: { hp: 15307 }, final: { hp } } },
+      },
+    })
+    let resolvePresetB: ((value: unknown) => void) | undefined
+    const presetBPending = new Promise<unknown>((resolve) => {
+      resolvePresetB = resolve
+    })
+    mockEvaluatePresetInWorker.mockImplementation(async (rawArgs) => {
+      const args = rawArgs as { preset: Preset }
+      if (args.preset.id === 'official/neuvillette-hypercarry') {
+        return presetBPending as never
+      }
+      return evalResult(43210) as never
+    })
+
+    // Preset A (official/furina-salon-subdps) evaluates and lands
+    renderPass()
+    await Promise.resolve()
+    await Promise.resolve()
+    const treeA = renderPass()
+    expect(
+      collectText([findByTestId(treeA, 'teammate-stat-final-Furina-hp')!])
+    ).toContain('43,210')
+
+    // Switch to preset B; its evaluation stays in flight
+    ;(
+      findByTestId(treeA, 'preset-picker-tile-official/neuvillette-hypercarry')!
+        .props.onClick as () => void
+    )()
+    renderPass()
+    await Promise.resolve()
+    await Promise.resolve()
+    const treeB = renderPass()
+    // The previous team's final stats must not render against the new preset
+    expect(collectText(treeB)).not.toContain('43,210')
+
+    // When B's evaluation lands, its own stats render normally. Let the
+    // effect's async chain fully drain before re-rendering — a render pass
+    // cancels the in-flight continuation.
+    resolvePresetB!(evalResult(23456))
+    for (let i = 0; i < 4; i++) {
+      await new Promise((r) => setTimeout(r, 0))
+    }
+    const treeB2 = renderPass()
+    ;(
+      findByTestId(treeB2, 'member-buffs-tab-Furina')!.props.onClick as () => void
+    )()
+    const treeB3 = renderPass()
+    expect(
+      collectText([findByTestId(treeB3, 'teammate-stat-final-Furina-hp')!])
+    ).toContain('23,456')
   })
 })
